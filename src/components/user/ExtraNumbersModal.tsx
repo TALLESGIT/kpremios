@@ -1,0 +1,305 @@
+import { useState } from 'react';
+import { X, Upload, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
+
+interface ExtraNumbersModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
+  const { requestExtraNumbers, getCurrentUserRequest, currentUser } = useData();
+  const { user } = useAuth();
+  const [paymentAmount, setPaymentAmount] = useState('10');
+  const [paymentProof, setPaymentProof] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [uploading, setUploading] = useState(false);
+
+  const currentRequest = getCurrentUserRequest();
+  const calculatedNumbers = Math.floor(parseFloat(paymentAmount || '0') / 10) * 100;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        setError('Arquivo muito grande. Máximo 5MB.');
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        setError('Apenas imagens são aceitas.');
+        return;
+      }
+      setPaymentProof(file);
+      setError('');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !currentUser) {
+      setError('Você precisa estar logado para solicitar números extras.');
+      return;
+    }
+
+    if (!currentUser.free_number) {
+      setError('Você precisa escolher seu número gratuito primeiro.');
+      return;
+    }
+
+    if (parseFloat(paymentAmount) < 10) {
+      setError('Valor mínimo é R$ 10,00.');
+      return;
+    }
+
+    if (parseFloat(paymentAmount) % 10 !== 0) {
+      setError('O valor deve ser múltiplo de R$ 10,00.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+
+    try {
+      let paymentProofUrl: string | undefined;
+      
+      // Upload file if provided
+      if (paymentProof) {
+        setUploading(true);
+        try {
+          // Create a unique filename
+          const fileExt = paymentProof.name.split('.').pop();
+          const fileName = `payment_proof_${user.id}_${Date.now()}.${fileExt}`;
+          
+          // Upload to Supabase Storage
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('payment-proofs')
+            .upload(fileName, paymentProof, {
+              cacheControl: '3600',
+              upsert: false
+            });
+            
+          if (uploadError) {
+            console.error('Upload error:', uploadError);
+            setError('Erro ao fazer upload do arquivo. Tente novamente.');
+            return;
+          }
+          
+          // Get public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('payment-proofs')
+            .getPublicUrl(fileName);
+            
+          paymentProofUrl = publicUrl;
+        } finally {
+          setUploading(false);
+        }
+      }
+
+      const success = await requestExtraNumbers(
+        parseFloat(paymentAmount),
+        calculatedNumbers,
+        paymentProofUrl
+      );
+
+      if (success) {
+        setSuccess(true);
+        setTimeout(() => {
+          onClose();
+          setSuccess(false);
+          setPaymentAmount('10');
+          setPaymentProof(null);
+        }, 2000);
+      } else {
+        setError('Erro ao enviar solicitação. Tente novamente.');
+      }
+    } catch (err) {
+      setError('Erro inesperado. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  // Show pending request status
+  if (currentRequest) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-2xl max-w-md w-full p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-slate-900">Solicitação Pendente</h2>
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          <div className="text-center">
+            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="h-8 w-8 text-amber-600" />
+            </div>
+            
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+              Aguardando Aprovação
+            </h3>
+            
+            <div className="space-y-2 text-sm text-slate-600 mb-6">
+              <p>Valor: <strong className="text-slate-900">R$ {currentRequest.payment_amount.toFixed(2)}</strong></p>
+              <p>Números solicitados: <strong className="text-slate-900">{currentRequest.requested_quantity}</strong></p>
+              <p>Status: <strong className="text-amber-600 capitalize">{currentRequest.status}</strong></p>
+            </div>
+
+            <p className="text-slate-600 text-sm">
+              Sua solicitação está sendo analisada. Você será notificado quando for aprovada ou rejeitada.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        {success ? (
+          <div className="p-6 text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+              Solicitação Enviada!
+            </h3>
+            <p className="text-slate-600">
+              Sua solicitação foi enviada com sucesso e está sendo analisada.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Header */}
+            <div className="flex justify-between items-center p-6 border-b border-slate-200">
+              <h2 className="text-xl font-bold text-slate-900">Números Extras</h2>
+              <button
+                onClick={onClose}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              {/* Info */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <h3 className="font-semibold text-amber-800 mb-2">Como funciona:</h3>
+                <ul className="text-sm text-amber-700 space-y-1">
+                  <li>• Cada R$ 10,00 = 100 números aleatórios</li>
+                  <li>• Números serão atribuídos após aprovação</li>
+                  <li>• Pagamento via PIX ou transferência</li>
+                </ul>
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                  <p className="text-red-800 text-sm">{error}</p>
+                </div>
+              )}
+
+              {/* Payment Amount */}
+              <div>
+                <label htmlFor="payment-amount" className="block text-sm font-semibold text-slate-700 mb-2">
+                  Valor do Pagamento (R$)
+                </label>
+                <input
+                  type="number"
+                  id="payment-amount"
+                  name="payment-amount"
+                  min="10"
+                  step="10"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  autoComplete="off"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  placeholder="10"
+                />
+                <p className="mt-2 text-sm text-slate-600">
+                  Você receberá <strong className="text-amber-600">{calculatedNumbers} números</strong> aleatórios
+                </p>
+              </div>
+
+              {/* Payment Proof */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Comprovante de Pagamento (Opcional)
+                </label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    id="payment-proof"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="payment-proof"
+                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-amber-400 transition-colors"
+                  >
+                    <Upload className="h-8 w-8 text-slate-400 mb-2" />
+                    <span className="text-sm text-slate-600">
+                      {paymentProof ? paymentProof.name : 'Clique para enviar'}
+                    </span>
+                  </label>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  Você pode enviar depois. Máximo 5MB, apenas imagens.
+                </p>
+              </div>
+
+              {/* Payment Instructions */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                <h3 className="font-semibold text-slate-800 mb-2">Dados para Pagamento:</h3>
+                <div className="text-sm text-slate-600 space-y-1">
+                  <p><strong>PIX:</strong> zkpremios@exemplo.com</p>
+                  <p><strong>Banco:</strong> Banco do Brasil</p>
+                  <p><strong>Conta:</strong> 12345-6</p>
+                  <p><strong>Agência:</strong> 1234-5</p>
+                </div>
+              </div>
+
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={loading || uploading || calculatedNumbers === 0}
+                className={`w-full py-4 px-6 rounded-xl flex items-center justify-center gap-3 font-semibold text-white transition-all duration-200 ${
+                  !loading && !uploading && calculatedNumbers > 0
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                    : 'bg-slate-400 cursor-not-allowed'
+                }`}
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="animate-spin" size={20} />
+                    Enviando arquivo...
+                  </>
+                ) : loading ? (
+                  <>
+                    <Loader2 className="animate-spin" size={20} />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    Solicitar {calculatedNumbers} Números
+                  </>
+                )}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default ExtraNumbersModal;
