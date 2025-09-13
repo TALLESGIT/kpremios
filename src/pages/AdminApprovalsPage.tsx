@@ -84,8 +84,17 @@ export default function AdminApprovalsPage() {
 
   const handleApprove = async (requestId: string) => {
     try {
+      // Encontrar a solicitação para obter a quantidade correta
+      const request = requests.find(r => r.id === requestId);
+      if (!request) {
+        throw new Error('Solicitação não encontrada');
+      }
+      
+      // Calcular quantidade correta: 100 números por cada R$ 10,00
+      const quantity = Math.floor(request.payment_amount / 10) * 100;
+      
       // Gerar números extras aleatórios (não sequenciais)
-      const extraNumbers = generateRandomNumbers(5); // 5 números extras
+      const extraNumbers = generateRandomNumbers(quantity);
       
       // Atualizar status da solicitação
       const { error: updateError } = await supabase
@@ -105,12 +114,22 @@ export default function AdminApprovalsPage() {
         .from('numbers')
         .update({
           is_available: false,
-          selected_by: requests.find(r => r.id === requestId)?.user_id,
+          selected_by: request.user_id,
           assigned_at: new Date().toISOString()
         })
         .in('number', extraNumbers);
 
       if (numbersError) throw numbersError;
+
+      // Atualizar campo extra_numbers do usuário
+      const { error: userError } = await supabase
+        .from('users')
+        .update({
+          extra_numbers: extraNumbers
+        })
+        .eq('id', request.user_id);
+
+      if (userError) throw userError;
 
       // Recarregar lista
       await loadRequests();

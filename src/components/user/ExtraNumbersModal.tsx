@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Upload, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 interface ExtraNumbersModalProps {
   isOpen: boolean;
@@ -9,8 +10,8 @@ interface ExtraNumbersModalProps {
 }
 
 function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
-  const { requestExtraNumbers, getCurrentUserRequest, currentUser } = useData();
-  const { user } = useAuth();
+  const { requestExtraNumbers, getCurrentUserRequest } = useData();
+  const { user, currentAppUser } = useAuth();
   const [paymentAmount, setPaymentAmount] = useState('10');
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,40 +40,51 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !currentUser) {
+    console.log('ExtraNumbersModal - handleSubmit called');
+    console.log('ExtraNumbersModal - user:', user);
+    console.log('ExtraNumbersModal - currentAppUser:', currentAppUser);
+    
+    if (!user || !currentAppUser) {
+      console.log('ExtraNumbersModal - User not authenticated');
       setError('Você precisa estar logado para solicitar números extras.');
       return;
     }
 
-    if (!currentUser.free_number) {
+    if (!currentAppUser.free_number) {
+      console.log('ExtraNumbersModal - User has no free number');
       setError('Você precisa escolher seu número gratuito primeiro.');
       return;
     }
 
     if (parseFloat(paymentAmount) < 10) {
+      console.log('ExtraNumbersModal - Payment amount too low');
       setError('Valor mínimo é R$ 10,00.');
       return;
     }
 
     if (parseFloat(paymentAmount) % 10 !== 0) {
+      console.log('ExtraNumbersModal - Payment amount not multiple of 10');
       setError('O valor deve ser múltiplo de R$ 10,00.');
       return;
     }
+    
+    console.log('ExtraNumbersModal - Starting request process');
     setLoading(true);
     setError('');
 
     try {
       let paymentProofUrl: string | undefined;
       
-      // Upload file if provided
+      // Upload file if provided (optional - won't block request if fails)
       if (paymentProof) {
+        console.log('ExtraNumbersModal - Attempting to upload file');
         setUploading(true);
         try {
           // Create a unique filename
           const fileExt = paymentProof.name.split('.').pop();
           const fileName = `payment_proof_${user.id}_${Date.now()}.${fileExt}`;
           
-          // Upload to Supabase Storage
+          // Try to upload to Supabase Storage
           const { data: uploadData, error: uploadError } = await supabase.storage
             .from('payment-proofs')
             .upload(fileName, paymentProof, {
@@ -81,21 +93,32 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
             });
             
           if (uploadError) {
-            console.error('Upload error:', uploadError);
-            setError('Erro ao fazer upload do arquivo. Tente novamente.');
-            return;
+            console.warn('Upload error (continuing without file):', uploadError);
+            // Don't block the request if upload fails
+            paymentProofUrl = undefined;
+          } else {
+            // Get public URL
+            const { data: { publicUrl } } = supabase.storage
+              .from('payment-proofs')
+              .getPublicUrl(fileName);
+              
+            paymentProofUrl = publicUrl;
+            console.log('ExtraNumbersModal - File uploaded successfully:', paymentProofUrl);
           }
-          
-          // Get public URL
-          const { data: { publicUrl } } = supabase.storage
-            .from('payment-proofs')
-            .getPublicUrl(fileName);
-            
-          paymentProofUrl = publicUrl;
+        } catch (uploadErr) {
+          console.warn('Upload failed (continuing without file):', uploadErr);
+          // Don't block the request if upload fails
+          paymentProofUrl = undefined;
         } finally {
           setUploading(false);
         }
       }
+
+      console.log('ExtraNumbersModal - Calling requestExtraNumbers with:', {
+        paymentAmount: parseFloat(paymentAmount),
+        calculatedNumbers,
+        paymentProofUrl
+      });
 
       const success = await requestExtraNumbers(
         parseFloat(paymentAmount),
@@ -103,7 +126,10 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
         paymentProofUrl
       );
 
+      console.log('ExtraNumbersModal - requestExtraNumbers result:', success);
+
       if (success) {
+        console.log('ExtraNumbersModal - Request successful');
         setSuccess(true);
         setTimeout(() => {
           onClose();
@@ -112,9 +138,11 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
           setPaymentProof(null);
         }, 2000);
       } else {
+        console.log('ExtraNumbersModal - Request failed');
         setError('Erro ao enviar solicitação. Tente novamente.');
       }
     } catch (err) {
+      console.error('ExtraNumbersModal - Unexpected error:', err);
       setError('Erro inesperado. Tente novamente.');
     } finally {
       setLoading(false);

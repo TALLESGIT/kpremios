@@ -34,20 +34,20 @@ interface DataContextType {
   loading: boolean;
   numbersLoading: boolean;
   
-  // Auth management
-  setAuthUser: (user: any) => void;
+  // Auth management - removed setAuthUser as it's now passed as prop
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-export function DataProvider({ children }: { children: ReactNode }) {
+export function DataProvider({ children, authUser }: { children: ReactNode; authUser: any }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [numbers, setNumbers] = useState<RaffleNumber[]>([]);
   const [drawResults, setDrawResults] = useState<DrawResult[]>([]);
   const [currentUserRequest, setCurrentUserRequest] = useState<ExtraNumberRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [numbersLoading, setNumbersLoading] = useState(true);
-  const [authUser, setAuthUser] = useState<any>(null);
+  
+  // Use authUser directly from AuthContext
 
   // Load user data when auth user changes
   useEffect(() => {
@@ -675,9 +675,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const requestExtraNumbers = async (paymentAmount: number, quantity: number, paymentProofUrl?: string): Promise<boolean> => {
-    if (!authUser || !currentUser) return false;
+    console.log('requestExtraNumbers called with:', { authUser, currentUser, paymentAmount, quantity, paymentProofUrl });
+    if (!authUser) {
+      console.log('Missing authUser:', { authUser: !!authUser });
+      return false;
+    }
     
     try {
+      console.log('Inserting extra number request...');
       const { data, error } = await supabase
         .from('extra_number_requests')
         .insert({
@@ -689,8 +694,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         })
         .select();
         
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
       
+      console.log('Extra number request inserted successfully:', data);
       setCurrentUserRequest(data?.[0] || null);
       return true;
     } catch (error) {
@@ -848,8 +857,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       cleanupOrphanedNumbers,
       getPendingRequestsCount,
       loading,
-      numbersLoading,
-      setAuthUser
+      numbersLoading
     }}>
       {children}
     </DataContext.Provider>

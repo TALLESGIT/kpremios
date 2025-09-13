@@ -77,7 +77,35 @@ function Header() {
             >
               Ganhadores
             </Link>
-            {currentAppUser && (
+            
+            {/* Admin buttons */}
+            {currentAppUser && currentAppUser.is_admin && (
+              <>
+                <Link
+                  to="/admin/approvals"
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
+                    location.pathname === '/admin/approvals' 
+                      ? 'text-green-100 bg-green-500/20 backdrop-blur-sm shadow-lg' 
+                      : 'text-slate-300 hover:text-green-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                  }`}
+                >
+                  Aprovações
+                </Link>
+                <Link
+                  to="/admin/raffles"
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
+                    location.pathname === '/admin/raffles' 
+                      ? 'text-purple-100 bg-purple-500/20 backdrop-blur-sm shadow-lg' 
+                      : 'text-slate-300 hover:text-purple-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                  }`}
+                >
+                  Sorteios
+                </Link>
+              </>
+            )}
+            
+            {/* User button */}
+            {currentAppUser && !currentAppUser.is_admin && (
               <Link
                 to="/my-numbers"
                 className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${

@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import { LogOut, Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, TrendingUp, Award, Settings } from 'lucide-react';
+import { LogOut, Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, TrendingUp, Award, Settings, CheckCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function AdminDashboardPage() {
   const { signOut } = useAuth();
@@ -15,13 +16,30 @@ export default function AdminDashboardPage() {
     getAvailableNumbersCount, 
     getTakenNumbersCount,
     resetAllNumbers,
-    cleanupOrphanedNumbers
+    cleanupOrphanedNumbers,
+    getPendingRequestsCount
   } = useData();
   const navigate = useNavigate();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showDrawConfirm, setShowDrawConfirm] = useState(false);
   const [showResetNumbersConfirm, setShowResetNumbersConfirm] = useState(false);
   const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  // Load pending requests count
+  useEffect(() => {
+    const loadPendingCount = async () => {
+      try {
+        const count = await getPendingRequestsCount();
+        setPendingCount(count);
+      } catch (error) {
+        console.error('Error loading pending count:', error);
+        setPendingCount(0);
+      }
+    };
+
+    loadPendingCount();
+  }, [getPendingRequestsCount]);
 
   const handleLogout = async () => {
     await signOut();
@@ -256,7 +274,75 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Enhanced Action Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8 lg:mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8 lg:mb-12">
+            {/* Aprovações Card */}
+            <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-green-400/20 backdrop-blur-sm hover:border-green-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-green-500/10">
+              <div className="bg-gradient-to-r from-green-500/10 to-green-600/10 p-4 sm:p-6 lg:p-8 border-b border-green-400/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl flex items-center justify-center mr-3 sm:mr-4 shadow-lg shadow-green-500/25">
+                      <CheckCircle className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg sm:text-xl font-black text-white mb-1">Aprovações</h3>
+                      <p className="text-green-200 text-sm font-medium">Solicitações</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xl sm:text-2xl font-black text-green-400">{pendingCount}</div>
+                    <div className="text-xs text-green-300 font-medium">pendentes</div>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 sm:p-6 lg:p-8">
+                <p className="text-slate-300 mb-6 leading-relaxed font-medium text-sm">
+                  Gerencie solicitações de números extras dos usuários. 
+                  Aprove ou rejeite com base nos comprovantes de pagamento.
+                </p>
+                <Link
+                  to="/admin/approvals"
+                  className="w-full py-4 px-6 rounded-2xl font-black transition-all duration-300 flex items-center justify-center gap-3 group bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 shadow-2xl hover:shadow-green-500/25 transform hover:-translate-y-1 hover:scale-105"
+                >
+                  <CheckCircle className="h-5 w-5 group-hover:scale-110 transition-transform duration-300" />
+                  Gerenciar Aprovações
+                </Link>
+              </div>
+            </div>
+
+            {/* Sorteios Card */}
+            <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-purple-400/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-purple-500/10">
+              <div className="bg-gradient-to-r from-purple-500/10 to-purple-600/10 p-4 sm:p-6 lg:p-8 border-b border-purple-400/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mr-3 sm:mr-4 shadow-lg shadow-purple-500/25">
+                      <Settings className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg sm:text-xl font-black text-white mb-1">Sorteios</h3>
+                      <p className="text-purple-200 text-sm font-medium">Configuração</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xl sm:text-2xl font-black text-purple-400">⚙️</div>
+                    <div className="text-xs text-purple-300 font-medium">gerenciar</div>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 sm:p-6 lg:p-8">
+                <p className="text-slate-300 mb-6 leading-relaxed font-medium text-sm">
+                  Crie e gerencie sorteios personalizados. Configure prêmios, 
+                  datas e regras específicas para cada campanha.
+                </p>
+                <Link
+                  to="/admin/raffles"
+                  className="w-full py-4 px-6 rounded-2xl font-black transition-all duration-300 flex items-center justify-center gap-3 group bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 shadow-2xl hover:shadow-purple-500/25 transform hover:-translate-y-1 hover:scale-105"
+                >
+                  <Settings className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
+                  Gerenciar Sorteios
+                </Link>
+              </div>
+            </div>
+
             <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-amber-400/20 backdrop-blur-sm hover:border-amber-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-500/10">
               {/* Header com gradiente */}
               <div className="bg-gradient-to-r from-amber-500/10 to-amber-600/10 p-4 sm:p-6 lg:p-8 border-b border-amber-400/20">
