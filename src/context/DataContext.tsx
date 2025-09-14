@@ -1,7 +1,6 @@
 import { createContext, useContext, ReactNode, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { User, RaffleNumber, ExtraNumberRequest, DrawResult } from '../types';
-import { whatsappServiceEnhanced } from '../services/whatsappServiceEnhanced';
 import { vonageWhatsAppService } from '../services/vonageService';
 
 interface DataContextType {
@@ -986,17 +985,29 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       
       console.log(`Found ${users.length} users to notify`);
       
-      // Usar o serviço aprimorado para envio em massa
-      const result = await whatsappServiceEnhanced.sendBulkNotification(
-        users.map(user => ({ whatsapp: user.whatsapp, name: user.name })),
-        'new_raffle',
-        {
-          raffleTitle: raffleData.title,
-          prize: raffleData.prize,
-          drawDate: raffleData.startDate,
-          raffleId: raffleData.title.toLowerCase().replace(/\s+/g, '-')
+      // Usar o serviço Vonage para envio em massa
+      const notifications = [];
+      for (const user of users) {
+        try {
+          const result = await vonageWhatsAppService.sendNewRaffleNotification({
+            name: user.name,
+            whatsapp: user.whatsapp,
+            raffleName: raffleData.title,
+            appUrl: import.meta.env.VITE_APP_URL || 'http://localhost:5173'
+          });
+          notifications.push({ user: user.name, success: true, result });
+        } catch (error) {
+          notifications.push({ user: user.name, success: false, error });
         }
-      );
+      }
+      
+      const result = {
+        success: notifications.filter(n => n.success).length > 0,
+        total: users.length,
+        successful: notifications.filter(n => n.success).length,
+        failed: notifications.filter(n => !n.success).length,
+        notifications
+      };
 
       console.log(`Notified ${result.success}/${users.length} users successfully`);
       
@@ -1055,21 +1066,60 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     }
   };
 
-  // Função para envio em massa de notificações
+  // Função para envio em massa de notificações via Vonage
   const sendBulkNotification = async (users: Array<{whatsapp: string; name: string}>, type: string, data: any) => {
     try {
-      console.log('Sending bulk notification:', { users: users.length, type, data });
+      console.log('Sending bulk notification via Vonage:', { users: users.length, type, data });
       
-      const result = await whatsappServiceEnhanced.sendBulkNotification(
-        users,
-        type as any,
-        data
-      );
+      const notifications = [];
+      for (const user of users) {
+        try {
+          let result;
+          switch (type) {
+            case 'new_raffle':
+              result = await vonageWhatsAppService.sendNewRaffleNotification({
+                name: user.name,
+                whatsapp: user.whatsapp,
+                raffleName: data.raffleTitle || data.title || 'Novo Sorteio',
+                appUrl: import.meta.env.VITE_APP_URL || 'http://localhost:5173'
+              });
+              break;
+            case 'numbers_assigned':
+              result = await vonageWhatsAppService.sendNumbersAssigned({
+                name: user.name,
+                whatsapp: user.whatsapp,
+                numbers: data.numbers || []
+              });
+              break;
+            case 'extra_numbers_approved':
+              result = await vonageWhatsAppService.sendExtraNumbersApproved({
+                name: user.name,
+                whatsapp: user.whatsapp,
+                extraNumbers: data.numbers || []
+              });
+              break;
+            default:
+              result = await vonageWhatsAppService.sendMessage({
+                to: user.whatsapp,
+                message: `Notificação do ZK Premios: ${type}`
+              });
+          }
+          notifications.push({ user: user.name, success: true, result });
+        } catch (error) {
+          notifications.push({ user: user.name, success: false, error });
+        }
+      }
       
-      console.log('Bulk notification result:', result);
+      const result = {
+        success: notifications.filter(n => n.success).length,
+        failed: notifications.filter(n => !n.success).length,
+        notifications
+      };
+      
+      console.log('Bulk notification result via Vonage:', result);
       return result;
     } catch (error) {
-      console.error('Error in sendBulkNotification:', error);
+      console.error('Error in sendBulkNotification via Vonage:', error);
       return { success: 0, failed: users.length, errors: [error.message] };
     }
   };
