@@ -5,6 +5,7 @@ import AdminRegisterPage from './pages/AdminRegisterPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminApprovalsPage from './pages/AdminApprovalsPage';
 import AdminRafflesPage from './pages/AdminRafflesPage';
+import CreateRafflePageSimple from './pages/admin/CreateRafflePageSimple';
 import WinnersPage from './pages/WinnersPage';
 import MyNumbersPage from './pages/MyNumbersPage';
 import TestAdminPage from './pages/TestAdminPage';
@@ -48,6 +49,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <AdminRafflesPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/raffles/create" 
+            element={
+              <ProtectedRoute>
+                <CreateRafflePageSimple />
               </ProtectedRoute>
             } 
           />

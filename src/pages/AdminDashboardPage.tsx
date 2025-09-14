@@ -5,8 +5,13 @@ import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import { LogOut, Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, TrendingUp, Award, Settings, CheckCircle } from 'lucide-react';
+import { LogOut, Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, TrendingUp, Award, Settings, CheckCircle, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { WhatsAppTestPanel } from '../components/admin/WhatsAppTestPanel';
+import SandboxTest from '../components/admin/SandboxTest';
+import QuickTest from '../components/admin/QuickTest';
+import WhatsAppMonitoringPanelSimple from '../components/admin/WhatsAppMonitoringPanelSimple';
+import WhatsAppBulkNotificationPanelSimple from '../components/admin/WhatsAppBulkNotificationPanelSimple';
 
 export default function AdminDashboardPage() {
   const { signOut } = useAuth();
@@ -24,6 +29,11 @@ export default function AdminDashboardPage() {
   const [showDrawConfirm, setShowDrawConfirm] = useState(false);
   const [showResetNumbersConfirm, setShowResetNumbersConfirm] = useState(false);
   const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
+  const [showWhatsAppTest, setShowWhatsAppTest] = useState(false);
+  const [showSandboxTest, setShowSandboxTest] = useState(false);
+  const [showQuickTest, setShowQuickTest] = useState(false);
+  const [showWhatsAppMonitoring, setShowWhatsAppMonitoring] = useState(false);
+  const [showWhatsAppBulk, setShowWhatsAppBulk] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
   // Load pending requests count
@@ -333,13 +343,91 @@ export default function AdminDashboardPage() {
                   Crie e gerencie sorteios personalizados. Configure prêmios, 
                   datas e regras específicas para cada campanha.
                 </p>
-                <Link
-                  to="/admin/raffles"
-                  className="w-full py-4 px-6 rounded-2xl font-black transition-all duration-300 flex items-center justify-center gap-3 group bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 shadow-2xl hover:shadow-purple-500/25 transform hover:-translate-y-1 hover:scale-105"
-                >
-                  <Settings className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
-                  Gerenciar Sorteios
-                </Link>
+                <div className="space-y-3">
+                  <Link
+                    to="/admin/raffles"
+                    className="w-full py-3 px-6 rounded-xl font-bold transition-all duration-300 flex items-center justify-center gap-3 group bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 shadow-lg hover:shadow-purple-500/25"
+                  >
+                    <Settings className="h-4 w-4 group-hover:rotate-90 transition-transform duration-300" />
+                    Gerenciar Sorteios
+                  </Link>
+                  
+                  <Link
+                    to="/admin/raffles/create"
+                    className="w-full py-2 px-6 rounded-lg font-medium transition-all duration-300 flex items-center justify-center gap-2 group bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 shadow-md hover:shadow-green-500/25"
+                  >
+                    <span className="text-xs">🎯</span>
+                    Criar Novo Sorteio
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* WhatsApp Test Card */}
+            <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-green-400/20 backdrop-blur-sm hover:border-green-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-green-500/10">
+              <div className="bg-gradient-to-r from-green-500/10 to-green-600/10 p-4 sm:p-6 lg:p-8 border-b border-green-400/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl flex items-center justify-center mr-3 sm:mr-4 shadow-lg shadow-green-500/25">
+                      <MessageSquare className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg sm:text-xl font-black text-white mb-1">WhatsApp</h3>
+                      <p className="text-green-200 text-sm font-medium">Notificações</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xl sm:text-2xl font-black text-green-400">📱</div>
+                    <div className="text-xs text-green-300 font-medium">testar</div>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 sm:p-6 lg:p-8">
+                <p className="text-slate-300 mb-6 leading-relaxed font-medium text-sm">
+                  Teste as notificações WhatsApp. Envie mensagens de teste para verificar 
+                  se o sistema está funcionando corretamente.
+                </p>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setShowWhatsAppTest(true)}
+                    className="w-full py-3 px-6 rounded-xl font-bold transition-all duration-300 flex items-center justify-center gap-2 group bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 shadow-lg hover:shadow-green-500/25"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    Testar WhatsApp
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowQuickTest(true)}
+                    className="w-full py-2 px-6 rounded-lg font-medium transition-all duration-300 flex items-center justify-center gap-2 group bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 shadow-md hover:shadow-green-500/25"
+                  >
+                    <span className="text-xs">⚡</span>
+                    Teste Rápido
+                  </button>
+
+                  <button
+                    onClick={() => setShowSandboxTest(true)}
+                    className="w-full py-2 px-6 rounded-lg font-medium transition-all duration-300 flex items-center justify-center gap-2 group bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-blue-500/25"
+                  >
+                    <span className="text-xs">🧪</span>
+                    Teste Sandbox
+                  </button>
+
+                  <button
+                    onClick={() => setShowWhatsAppMonitoring(true)}
+                    className="w-full py-2 px-6 rounded-lg font-medium transition-all duration-300 flex items-center justify-center gap-2 group bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 shadow-md hover:shadow-purple-500/25"
+                  >
+                    <span className="text-xs">📊</span>
+                    Monitorar
+                  </button>
+
+                  <button
+                    onClick={() => setShowWhatsAppBulk(true)}
+                    className="w-full py-2 px-6 rounded-lg font-medium transition-all duration-300 flex items-center justify-center gap-2 group bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 shadow-md hover:shadow-orange-500/25"
+                  >
+                    <span className="text-xs">📢</span>
+                    Notificação em Massa
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -736,6 +824,98 @@ export default function AdminDashboardPage() {
                       Cancelar
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showWhatsAppTest && (
+            <WhatsAppTestPanel onClose={() => setShowWhatsAppTest(false)} />
+          )}
+
+          {showQuickTest && (
+            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-md">
+              <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div className="fixed inset-0 transition-opacity">
+                  <div className="absolute inset-0 bg-black/60"></div>
+                </div>
+                <div className="inline-block align-bottom bg-white rounded-2xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-gray-900">⚡ Teste Rápido</h3>
+                    <button
+                      onClick={() => setShowQuickTest(false)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <QuickTest />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showSandboxTest && (
+            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-md">
+              <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div className="fixed inset-0 transition-opacity">
+                  <div className="absolute inset-0 bg-black/60"></div>
+                </div>
+                <div className="inline-block align-bottom bg-slate-800 rounded-2xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-slate-600/30">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-white">🧪 Teste do Sandbox</h3>
+                    <button
+                      onClick={() => setShowSandboxTest(false)}
+                      className="text-slate-400 hover:text-white transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <SandboxTest />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showWhatsAppMonitoring && (
+            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-md">
+              <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div className="fixed inset-0 transition-opacity">
+                  <div className="absolute inset-0 bg-black/60"></div>
+                </div>
+                <div className="inline-block align-bottom bg-white rounded-2xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-gray-900">📊 Monitoramento WhatsApp</h3>
+                    <button
+                      onClick={() => setShowWhatsAppMonitoring(false)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <WhatsAppMonitoringPanelSimple />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showWhatsAppBulk && (
+            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-md">
+              <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div className="fixed inset-0 transition-opacity">
+                  <div className="absolute inset-0 bg-black/60"></div>
+                </div>
+                <div className="inline-block align-bottom bg-white rounded-2xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-gray-900">📢 Notificações em Massa</h3>
+                    <button
+                      onClick={() => setShowWhatsAppBulk(false)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <WhatsAppBulkNotificationPanelSimple />
                 </div>
               </div>
             </div>

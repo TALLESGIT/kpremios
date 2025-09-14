@@ -1,6 +1,7 @@
 import { createContext, useContext, ReactNode, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { User, RaffleNumber, ExtraNumberRequest, DrawResult } from '../types';
+import { whatsappServiceEnhanced } from '../services/whatsappServiceEnhanced';
 
 interface DataContextType {
   // User data
@@ -27,6 +28,16 @@ interface DataContextType {
   cleanupOrphanedNumbers: () => Promise<void>;
   getPendingRequestsCount: () => Promise<number>;
   
+  // WhatsApp notifications
+  notifyAllUsersAboutNewRaffle: (raffleData: {
+    title: string;
+    prize: string;
+    startDate: string;
+    endDate: string;
+  }) => Promise<{ success: boolean; error?: string; notified?: number; total?: number; results?: any[] }>;
+  notifyExtraNumbersApproved: (requestId: string) => Promise<{ success: boolean; error?: string }>;
+  sendBulkNotification: (users: Array<{whatsapp: string; name: string}>, type: string, data: any) => Promise<any>;
+  
   // Winners
   getDrawResults: () => DrawResult[];
   
@@ -48,6 +59,49 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   const [numbersLoading, setNumbersLoading] = useState(true);
   
   // Use authUser directly from AuthContext
+
+  // Função para gerar código de confirmação
+  const generateConfirmationCode = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  };
+
+  // Função para enviar notificação WhatsApp
+  const sendWhatsAppNotification = async (type: string, userData: any, additionalData?: any) => {
+    try {
+      const data = { ...userData, ...additionalData };
+      const result = await whatsappService.sendMessage({
+        to: userData.whatsapp,
+        message: '',
+        type: type as any
+      });
+      
+      if (result.success) {
+        console.log(`WhatsApp notification sent successfully: ${type}`);
+        
+        // Log da notificação no banco
+        await supabase.from('notification_logs').insert({
+          user_id: userData.id,
+          type: type,
+          phone_number: userData.whatsapp,
+          message_sid: result.messageSid,
+          status: 'sent'
+        });
+      } else {
+        console.error(`Failed to send WhatsApp notification: ${result.error}`);
+        
+        // Log do erro no banco
+        await supabase.from('notification_logs').insert({
+          user_id: userData.id,
+          type: type,
+          phone_number: userData.whatsapp,
+          status: 'failed',
+          error_message: result.error
+        });
+      }
+    } catch (error) {
+      console.error('Error sending WhatsApp notification:', error);
+    }
+  };
 
   // Load user data when auth user changes
   useEffect(() => {
@@ -217,10 +271,9 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       return;
     }
     
-    // Check if user is still authenticated
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || user.id !== authUser.id) {
-      console.log('User no longer authenticated, skipping request load');
+    // Skip authentication check if user is not authenticated
+    if (!authUser) {
+      console.log('No authenticated user, skipping request load');
       setCurrentUserRequest(null);
       return;
     }
@@ -355,6 +408,17 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           } else {
             console.log('User created successfully after sign in:', insertData);
             localStorage.removeItem('pendingUserData');
+            
+            // Enviar notificação WhatsApp de confirmação de cadastro
+            const confirmationCode = generateConfirmationCode();
+            await sendWhatsAppNotification('registration', {
+              id: userId,
+              name: name,
+              email: email,
+              whatsapp: whatsapp
+            }, {
+              confirmationCode: confirmationCode
+            });
           }
         } catch (error) {
           console.error('Error creating user after sign in:', error);
@@ -382,10 +446,16 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       
       console.log('Number reservation result:', numberUpdateData);
       
-      console.log('Registration completed successfully');
+      // Enviar notificação WhatsApp com o número atribuído
+      await sendWhatsAppNotification('numbers_assigned', {
+        id: userId,
+        name: name,
+        whatsapp: whatsapp
+      }, {
+        numbers: [selectedNumber]
+      });
       
-      // Set the auth user to trigger data loading
-      setAuthUser(authData.user);
+      console.log('Registration completed successfully');
       
       // Force immediate reload of all data
       await Promise.all([
@@ -535,9 +605,6 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       
       console.log('Admin registration completed successfully');
       
-      // Set the auth user to trigger data loading
-      setAuthUser(authData.user);
-      
       // Force immediate reload of all data
       await Promise.all([
         loadCurrentUser(),
@@ -660,8 +727,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         console.log('Admin user created successfully');
       }
       
-      // Set the auth user and reload data
-      setAuthUser(signInData.user);
+      // Reload data
       await Promise.all([
         loadCurrentUser(),
         loadNumbers(),
@@ -841,6 +907,122 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     }
   };
 
+  // Função para notificar todos os usuários sobre novo sorteio
+  const notifyAllUsersAboutNewRaffle = async (raffleData: {
+    title: string;
+    prize: string;
+    startDate: string;
+    endDate: string;
+  }) => {
+    try {
+      console.log('Notifying all users about new raffle:', raffleData);
+      
+      // Buscar todos os usuários
+      const { data: users, error } = await supabase
+        .from('users')
+        .select('id, name, whatsapp, email')
+        .not('whatsapp', 'is', null);
+      
+      if (error) {
+        console.error('Error fetching users for notification:', error);
+        return { success: false, error: error.message };
+      }
+      
+      if (!users || users.length === 0) {
+        console.log('No users found to notify');
+        return { success: true, notified: 0 };
+      }
+      
+      console.log(`Found ${users.length} users to notify`);
+      
+      // Usar o serviço aprimorado para envio em massa
+      const result = await whatsappServiceEnhanced.sendBulkNotification(
+        users.map(user => ({ whatsapp: user.whatsapp, name: user.name })),
+        'new_raffle',
+        {
+          raffleTitle: raffleData.title,
+          prize: raffleData.prize,
+          drawDate: raffleData.startDate,
+          raffleId: raffleData.title.toLowerCase().replace(/\s+/g, '-')
+        }
+      );
+
+      console.log(`Notified ${result.success}/${users.length} users successfully`);
+      
+      return { 
+        success: true, 
+        notified: result.success, 
+        total: users.length, 
+        results: result.errors 
+      };
+    } catch (error) {
+      console.error('Error in notifyAllUsersAboutNewRaffle:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // Função para notificar sobre números extras aprovados
+  const notifyExtraNumbersApproved = async (requestId: string) => {
+    try {
+      // Buscar dados da solicitação e usuário
+      const { data: requestData, error } = await supabase
+        .from('extra_number_requests')
+        .select(`
+          *,
+          users:user_id (
+            id, name, whatsapp, email
+          )
+        `)
+        .eq('id', requestId)
+        .single();
+      
+      if (error || !requestData) {
+        console.error('Error fetching request data:', error);
+        return { success: false, error: 'Request not found' };
+      }
+      
+      const user = requestData.users;
+      if (!user) {
+        console.error('User not found for request');
+        return { success: false, error: 'User not found' };
+      }
+      
+      // Enviar notificação
+      await sendWhatsAppNotification('extra_numbers_approved', {
+        id: user.id,
+        name: user.name,
+        whatsapp: user.whatsapp
+      }, {
+        numbers: requestData.assigned_numbers || [],
+        amount: requestData.payment_amount
+      });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error in notifyExtraNumbersApproved:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // Função para envio em massa de notificações
+  const sendBulkNotification = async (users: Array<{whatsapp: string; name: string}>, type: string, data: any) => {
+    try {
+      console.log('Sending bulk notification:', { users: users.length, type, data });
+      
+      const result = await whatsappServiceEnhanced.sendBulkNotification(
+        users,
+        type as any,
+        data
+      );
+      
+      console.log('Bulk notification result:', result);
+      return result;
+    } catch (error) {
+      console.error('Error in sendBulkNotification:', error);
+      return { success: 0, failed: users.length, errors: [error.message] };
+    }
+  };
+
   return (
     <DataContext.Provider value={{
       currentUser,
@@ -856,6 +1038,9 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       resetAllNumbers,
       cleanupOrphanedNumbers,
       getPendingRequestsCount,
+      notifyAllUsersAboutNewRaffle,
+      notifyExtraNumbersApproved,
+      sendBulkNotification,
       loading,
       numbersLoading
     }}>
