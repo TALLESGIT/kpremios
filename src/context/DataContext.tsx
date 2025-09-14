@@ -2,6 +2,7 @@ import { createContext, useContext, ReactNode, useEffect, useState } from 'react
 import { supabase } from '../lib/supabase';
 import { User, RaffleNumber, ExtraNumberRequest, DrawResult } from '../types';
 import { whatsappServiceEnhanced } from '../services/whatsappServiceEnhanced';
+import { vonageWhatsAppService } from '../services/vonageService';
 
 interface DataContextType {
   // User data
@@ -65,41 +66,91 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     return Math.floor(100000 + Math.random() * 900000).toString();
   };
 
-  // Função para enviar notificação WhatsApp
+  // Função para enviar notificação WhatsApp via Vonage
   const sendWhatsAppNotification = async (type: string, userData: any, additionalData?: any) => {
     try {
-      const data = { ...userData, ...additionalData };
-      const result = await whatsappService.sendMessage({
-        to: userData.whatsapp,
-        message: '',
-        type: type as any
+      console.log(`🚀 Enviando notificação ${type} via Vonage para ${userData.whatsapp}`);
+      
+      let result;
+      
+      switch (type) {
+        case 'registration':
+          result = await vonageWhatsAppService.sendRegistrationConfirmation({
+            name: userData.name,
+            whatsapp: userData.whatsapp,
+            confirmationCode: userData.confirmationCode || generateConfirmationCode()
+          });
+          break;
+          
+        case 'numbers_assigned':
+          result = await vonageWhatsAppService.sendNumbersAssigned({
+            name: userData.name,
+            whatsapp: userData.whatsapp,
+            numbers: userData.numbers || []
+          });
+          break;
+          
+        case 'extra_numbers_approved':
+          result = await vonageWhatsAppService.sendExtraNumbersApproved({
+            name: userData.name,
+            whatsapp: userData.whatsapp,
+            extraNumbers: userData.extraNumbers || []
+          });
+          break;
+          
+        case 'new_raffle':
+          result = await vonageWhatsAppService.sendNewRaffleNotification({
+            name: userData.name,
+            whatsapp: userData.whatsapp,
+            raffleName: userData.raffleName || 'Novo Sorteio',
+            appUrl: userData.appUrl || import.meta.env.VITE_APP_URL || 'http://localhost:5173'
+          });
+          break;
+          
+        case 'winner_announcement':
+          result = await vonageWhatsAppService.sendWinnerAnnouncement({
+            name: userData.name,
+            whatsapp: userData.whatsapp,
+            raffleName: userData.raffleName || 'Sorteio',
+            prize: userData.prize || 'Prêmio'
+          });
+          break;
+          
+        default:
+          // Fallback para mensagem simples
+          result = await vonageWhatsAppService.sendMessage({
+            to: userData.whatsapp,
+            message: userData.message || `Notificação do ZK Premios: ${type}`
+          });
+      }
+      
+      console.log(`✅ Notificação ${type} enviada com sucesso via Vonage:`, result);
+      
+      // Log da notificação no banco
+      await supabase.from('notification_logs').insert({
+        user_id: userData.id,
+        type: type,
+        phone_number: userData.whatsapp,
+        message_sid: result.message_uuid,
+        status: 'sent'
       });
       
-      if (result.success) {
-        console.log(`WhatsApp notification sent successfully: ${type}`);
-        
-        // Log da notificação no banco
-        await supabase.from('notification_logs').insert({
-          user_id: userData.id,
-          type: type,
-          phone_number: userData.whatsapp,
-          message_sid: result.messageSid,
-          status: 'sent'
-        });
-      } else {
-        console.error(`Failed to send WhatsApp notification: ${result.error}`);
-        
-        // Log do erro no banco
-        await supabase.from('notification_logs').insert({
-          user_id: userData.id,
-          type: type,
-          phone_number: userData.whatsapp,
-          status: 'failed',
-          error_message: result.error
-        });
-      }
     } catch (error) {
-      console.error('Error sending WhatsApp notification:', error);
+      console.error(`❌ Erro ao enviar notificação ${type} via Vonage:`, error);
+      
+      // Log do erro no banco
+      try {
+        await supabase.from('notification_logs').insert({
+          user_id: userData.id,
+          type: type,
+          phone_number: userData.whatsapp,
+          message_sid: null,
+          status: 'error',
+          error_message: error instanceof Error ? error.message : 'Unknown error'
+        });
+      } catch (logError) {
+        console.error('Error logging notification error:', logError);
+      }
     }
   };
 

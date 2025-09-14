@@ -12,6 +12,7 @@ import SandboxTest from '../components/admin/SandboxTest';
 import QuickTest from '../components/admin/QuickTest';
 import WhatsAppMonitoringPanelSimple from '../components/admin/WhatsAppMonitoringPanelSimple';
 import WhatsAppBulkNotificationPanelSimple from '../components/admin/WhatsAppBulkNotificationPanelSimple';
+import VonageTestPanel from '../components/admin/VonageTestPanel';
 
 export default function AdminDashboardPage() {
   const { signOut } = useAuth();
@@ -30,6 +31,7 @@ export default function AdminDashboardPage() {
   const [showResetNumbersConfirm, setShowResetNumbersConfirm] = useState(false);
   const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
   const [showWhatsAppTest, setShowWhatsAppTest] = useState(false);
+  const [showVonageTest, setShowVonageTest] = useState(false);
   const [showSandboxTest, setShowSandboxTest] = useState(false);
   const [showQuickTest, setShowQuickTest] = useState(false);
   const [showWhatsAppMonitoring, setShowWhatsAppMonitoring] = useState(false);
@@ -393,7 +395,15 @@ export default function AdminDashboardPage() {
                     className="w-full py-3 px-6 rounded-xl font-bold transition-all duration-300 flex items-center justify-center gap-2 group bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 shadow-lg hover:shadow-green-500/25"
                   >
                     <MessageSquare className="h-4 w-4" />
-                    Testar WhatsApp
+                    Testar WhatsApp (Twilio)
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowVonageTest(true)}
+                    className="w-full py-3 px-6 rounded-xl font-bold transition-all duration-300 flex items-center justify-center gap-2 group bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-blue-500/25"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    Testar Vonage WhatsApp
                   </button>
                   
                   <button
@@ -831,6 +841,28 @@ export default function AdminDashboardPage() {
 
           {showWhatsAppTest && (
             <WhatsAppTestPanel onClose={() => setShowWhatsAppTest(false)} />
+          )}
+
+          {showVonageTest && (
+            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-md">
+              <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div className="fixed inset-0 transition-opacity">
+                  <div className="absolute inset-0 bg-black/60"></div>
+                </div>
+                <div className="inline-block align-bottom bg-white rounded-2xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-gray-900">🚀 Teste Vonage WhatsApp</h3>
+                    <button
+                      onClick={() => setShowVonageTest(false)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <VonageTestPanel />
+                </div>
+              </div>
+            </div>
           )}
 
           {showQuickTest && (
