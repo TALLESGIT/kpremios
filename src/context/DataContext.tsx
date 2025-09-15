@@ -1,7 +1,7 @@
 import { createContext, useContext, ReactNode, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { User, RaffleNumber, ExtraNumberRequest, DrawResult } from '../types';
-import { vonageWhatsAppService } from '../services/vonageService';
+import { chatApiWhatsAppService } from '../services/chatApiService';
 
 interface DataContextType {
   // User data
@@ -68,13 +68,13 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   // Função para enviar notificação WhatsApp via Vonage
   const sendWhatsAppNotification = async (type: string, userData: any, additionalData?: any) => {
     try {
-      console.log(`🚀 Enviando notificação ${type} via Vonage para ${userData.whatsapp}`);
+      console.log(`🚀 Enviando notificação ${type} via ChatAPI para ${userData.whatsapp}`);
       
       let result;
       
       switch (type) {
         case 'registration':
-          result = await vonageWhatsAppService.sendRegistrationConfirmation({
+          result = await chatApiWhatsAppService.sendRegistrationConfirmation({
             name: userData.name,
             whatsapp: userData.whatsapp,
             confirmationCode: userData.confirmationCode || generateConfirmationCode()
@@ -82,7 +82,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           break;
           
         case 'numbers_assigned':
-          result = await vonageWhatsAppService.sendNumbersAssigned({
+          result = await chatApiWhatsAppService.sendNumbersAssigned({
             name: userData.name,
             whatsapp: userData.whatsapp,
             numbers: userData.numbers || []
@@ -90,7 +90,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           break;
           
         case 'extra_numbers_approved':
-          result = await vonageWhatsAppService.sendExtraNumbersApproved({
+          result = await chatApiWhatsAppService.sendExtraNumbersApproved({
             name: userData.name,
             whatsapp: userData.whatsapp,
             extraNumbers: userData.extraNumbers || []
@@ -98,7 +98,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           break;
           
         case 'new_raffle':
-          result = await vonageWhatsAppService.sendNewRaffleNotification({
+          result = await chatApiWhatsAppService.sendNewRaffleNotification({
             name: userData.name,
             whatsapp: userData.whatsapp,
             raffleName: userData.raffleName || 'Novo Sorteio',
@@ -107,7 +107,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           break;
           
         case 'winner_announcement':
-          result = await vonageWhatsAppService.sendWinnerAnnouncement({
+          result = await chatApiWhatsAppService.sendWinnerAnnouncement({
             name: userData.name,
             whatsapp: userData.whatsapp,
             raffleName: userData.raffleName || 'Sorteio',
@@ -117,13 +117,13 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           
         default:
           // Fallback para mensagem simples
-          result = await vonageWhatsAppService.sendMessage({
-            to: userData.whatsapp,
-            message: userData.message || `Notificação do ZK Premios: ${type}`
+          result = await chatApiWhatsAppService.sendMessage({
+            phone: userData.whatsapp,
+            body: userData.message || `Notificação do ZK Premios: ${type}`
           });
       }
       
-      console.log(`✅ Notificação ${type} enviada com sucesso via Vonage:`, result);
+      console.log(`✅ Notificação ${type} enviada com sucesso via ChatAPI:`, result);
       
       // Log da notificação no banco
       await supabase.from('notification_logs').insert({
@@ -135,7 +135,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       });
       
     } catch (error) {
-      console.error(`❌ Erro ao enviar notificação ${type} via Vonage:`, error);
+      console.error(`❌ Erro ao enviar notificação ${type} via ChatAPI:`, error);
       
       // Log do erro no banco
       try {
@@ -989,7 +989,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       const notifications = [];
       for (const user of users) {
         try {
-          const result = await vonageWhatsAppService.sendNewRaffleNotification({
+          const result = await chatApiWhatsAppService.sendNewRaffleNotification({
             name: user.name,
             whatsapp: user.whatsapp,
             raffleName: raffleData.title,
@@ -1077,7 +1077,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           let result;
           switch (type) {
             case 'new_raffle':
-              result = await vonageWhatsAppService.sendNewRaffleNotification({
+              result = await chatApiWhatsAppService.sendNewRaffleNotification({
                 name: user.name,
                 whatsapp: user.whatsapp,
                 raffleName: data.raffleTitle || data.title || 'Novo Sorteio',
@@ -1085,23 +1085,23 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
               });
               break;
             case 'numbers_assigned':
-              result = await vonageWhatsAppService.sendNumbersAssigned({
+              result = await chatApiWhatsAppService.sendNumbersAssigned({
                 name: user.name,
                 whatsapp: user.whatsapp,
                 numbers: data.numbers || []
               });
               break;
             case 'extra_numbers_approved':
-              result = await vonageWhatsAppService.sendExtraNumbersApproved({
+              result = await chatApiWhatsAppService.sendExtraNumbersApproved({
                 name: user.name,
                 whatsapp: user.whatsapp,
                 extraNumbers: data.numbers || []
               });
               break;
             default:
-              result = await vonageWhatsAppService.sendMessage({
-                to: user.whatsapp,
-                message: `Notificação do ZK Premios: ${type}`
+              result = await chatApiWhatsAppService.sendMessage({
+                phone: user.whatsapp,
+                body: `Notificação do ZK Premios: ${type}`
               });
           }
           notifications.push({ user: user.name, success: true, result });
