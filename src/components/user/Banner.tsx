@@ -1,6 +1,6 @@
 import { ArrowRight, Gift, Zap } from 'lucide-react';
 import { useState } from 'react';
-import ZKLogo from '../shared/ZKLogo';
+import { ZKLogo } from '../shared/ZKLogo';
 import ExtraNumbersModal from './ExtraNumbersModal';
 import { useData } from '../../context/DataContext';
 

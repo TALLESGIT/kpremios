@@ -78,4 +78,4 @@ function ZKLogo({ className = '', size = 'md' }: ZKLogoProps) {
   );
 }
 
-export default ZKLogo;
+export { ZKLogo };

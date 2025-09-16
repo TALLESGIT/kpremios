@@ -18,6 +18,7 @@ interface DataContextType {
   // Extra numbers
   requestExtraNumbers: (paymentAmount: number, quantity: number, paymentProofUrl?: string) => Promise<boolean>;
   getCurrentUserRequest: () => ExtraNumberRequest | null;
+  getUserRequestsHistory: () => Promise<ExtraNumberRequest[]>;
   
   // Numbers info
   getAvailableNumbersCount: () => number;
@@ -1015,11 +1016,11 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         success: true, 
         notified: result.success, 
         total: users.length, 
-        results: result.errors 
+        results: result.notifications.filter(n => !n.success).map(n => n.error)
       };
     } catch (error) {
       console.error('Error in notifyAllUsersAboutNewRaffle:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   };
 
@@ -1062,7 +1063,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       return { success: true };
     } catch (error) {
       console.error('Error in notifyExtraNumbersApproved:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   };
 
@@ -1120,7 +1121,31 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       return result;
     } catch (error) {
       console.error('Error in sendBulkNotification via Vonage:', error);
-      return { success: 0, failed: users.length, errors: [error.message] };
+      return { success: 0, failed: users.length, errors: [error instanceof Error ? error.message : 'Unknown error'] };
+    }
+  };
+
+  const getUserRequestsHistory = async (): Promise<ExtraNumberRequest[]> => {
+    if (!authUser || !authUser.id) {
+      return [];
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('extra_number_requests')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        console.error('Error loading user requests history:', error);
+        return [];
+      }
+      
+      return data || [];
+    } catch (error) {
+      console.error('Error in getUserRequestsHistory:', error);
+      return [];
     }
   };
 
@@ -1133,13 +1158,25 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       convertToAdmin,
       requestExtraNumbers,
       getCurrentUserRequest,
+      getUserRequestsHistory,
       getAvailableNumbersCount,
       getTakenNumbersCount,
       getDrawResults,
       resetAllNumbers,
       cleanupOrphanedNumbers,
       getPendingRequestsCount,
-      notifyAllUsersAboutNewRaffle,
+      notifyAllUsersAboutNewRaffle: notifyAllUsersAboutNewRaffle as (raffleData: {
+        title: string;
+        prize: string;
+        startDate: string;
+        endDate: string;
+      }) => Promise<{
+        success: boolean;
+        error?: string;
+        notified?: number;
+        total?: number;
+        results?: any[];
+      }>,
       notifyExtraNumbersApproved,
       sendBulkNotification,
       loading,

@@ -5,7 +5,7 @@ import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import { CheckCircle, XCircle, Clock, User, Phone, Mail, Hash, DollarSign, Calendar, AlertCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, User, Hash, DollarSign, Calendar, AlertCircle, Image, FileText } from 'lucide-react';
 
 interface ExtraNumberRequest {
   id: string;
@@ -19,6 +19,8 @@ interface ExtraNumberRequest {
   processed_at?: string;
   processed_by?: string;
   extra_numbers?: number[];
+  payment_proof_url?: string;
+  rejection_reason?: string;
 }
 
 export default function AdminApprovalsPage() {
@@ -28,6 +30,12 @@ export default function AdminApprovalsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<ExtraNumberRequest | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [requestToReject, setRequestToReject] = useState<string | null>(null);
+  const [showProofModal, setShowProofModal] = useState(false);
+  const [selectedProofUrl, setSelectedProofUrl] = useState<string | null>(null);
+  const [selectedProofRequest, setSelectedProofRequest] = useState<ExtraNumberRequest | null>(null);
 
   // Verificar se é admin
   useEffect(() => {
@@ -40,6 +48,27 @@ export default function AdminApprovalsPage() {
   useEffect(() => {
     loadRequests();
   }, []);
+
+  // Real-time subscription for requests updates
+  useEffect(() => {
+    if (!currentAppUser?.is_admin) return;
+
+    const subscription = supabase
+      .channel('admin-requests-changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'extra_number_requests' 
+      }, (payload) => {
+        console.log('Extra number requests updated:', payload);
+        loadRequests();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [currentAppUser?.is_admin]);
 
   const loadRequests = async () => {
     try {
@@ -71,7 +100,8 @@ export default function AdminApprovalsPage() {
         created_at: req.created_at,
         processed_at: req.processed_at,
         processed_by: req.processed_by,
-        extra_numbers: req.extra_numbers || []
+        extra_numbers: req.extra_numbers || [],
+        payment_proof_url: req.payment_proof_url
       }));
 
       setRequests(formattedRequests);
@@ -143,24 +173,53 @@ export default function AdminApprovalsPage() {
     }
   };
 
-  const handleReject = async (requestId: string) => {
+  const handleReject = (requestId: string) => {
+    setRequestToReject(requestId);
+    setShowRejectModal(true);
+  };
+
+  const confirmReject = async () => {
+    if (!requestToReject) return;
+    
     try {
+      // Encontrar a solicitação para obter os dados do usuário
+      const request = requests.find(r => r.id === requestToReject);
+      if (!request) {
+        throw new Error('Solicitação não encontrada');
+      }
+
       const { error } = await supabase
         .from('extra_number_requests')
         .update({
           status: 'rejected',
           processed_at: new Date().toISOString(),
-          processed_by: currentAppUser?.id
+          processed_by: currentAppUser?.id,
+          rejection_reason: rejectionReason || null
         })
-        .eq('id', requestId);
+        .eq('id', requestToReject);
 
       if (error) throw error;
 
+      // Enviar notificação WhatsApp para o usuário
+      try {
+        const { whatsappPersonalService } = await import('../services/whatsappPersonalService');
+        await whatsappPersonalService.sendExtraNumbersRejected({
+          name: request.user_name,
+          whatsapp: request.user_whatsapp,
+          amount: request.payment_amount,
+          reason: rejectionReason || undefined
+        });
+      } catch (whatsappError) {
+        console.error('Erro ao enviar notificação WhatsApp:', whatsappError);
+        // Não falha a operação se o WhatsApp falhar
+      }
+
       await loadRequests();
-      setShowModal(false);
-      setSelectedRequest(null);
+      setShowRejectModal(false);
+      setRequestToReject(null);
+      setRejectionReason('');
       
-      alert('Solicitação rejeitada');
+      alert('Solicitação rejeitada e usuário notificado via WhatsApp');
     } catch (error) {
       console.error('Erro ao rejeitar solicitação:', error);
       alert('Erro ao rejeitar solicitação');
@@ -322,6 +381,35 @@ export default function AdminApprovalsPage() {
                           </div>
                         </div>
                       )}
+
+                      {/* Comprovante de Pagamento */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center text-slate-300">
+                          <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                          <span className="text-xs sm:text-sm font-medium">Comprovante:</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {request.payment_proof_url ? (
+                            <>
+                              <span className="text-emerald-400 text-xs sm:text-sm font-medium">Enviado</span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedProofUrl(request.payment_proof_url!);
+                                  setSelectedProofRequest(request);
+                                  setShowProofModal(true);
+                                }}
+                                className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 px-2 py-1 rounded text-xs font-medium transition-colors duration-200 flex items-center gap-1"
+                              >
+                                <Image className="h-3 w-3" />
+                                Ver
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-red-400 text-xs sm:text-sm font-medium">Não enviado</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     {request.status === 'pending' && (
@@ -356,6 +444,192 @@ export default function AdminApprovalsPage() {
         </div>
       </main>
       <Footer />
+      
+      {/* Modal de Rejeição */}
+      {showRejectModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl shadow-2xl border border-slate-600/30 w-full max-w-md mx-auto">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-red-500/20 to-red-600/20 p-6 border-b border-slate-600/30 rounded-t-3xl">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
+                  <XCircle className="h-6 w-6 text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-white">Rejeitar Solicitação</h3>
+                  <p className="text-slate-300 text-sm">Informe o motivo da rejeição</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Conteúdo */}
+            <div className="p-6">
+              <div className="mb-6">
+                <label className="block text-sm font-bold text-slate-300 mb-3">
+                  Motivo da rejeição (opcional)
+                </label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Ex: Comprovante ilegível, valor incorreto, documento inválido..."
+                  className="w-full bg-slate-700/50 border border-slate-600/50 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200 resize-none"
+                  rows={4}
+                />
+              </div>
+              
+              <div className="text-xs text-slate-400 mb-6 bg-slate-700/30 p-3 rounded-xl">
+                💡 <strong>Dica:</strong> Fornecer um motivo ajuda o usuário a entender o problema e fazer uma nova solicitação correta.
+              </div>
+            </div>
+            
+            {/* Botões */}
+            <div className="p-6 pt-0 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowRejectModal(false);
+                  setRequestToReject(null);
+                  setRejectionReason('');
+                }}
+                className="flex-1 bg-slate-700/50 hover:bg-slate-700/70 text-slate-300 font-bold py-3 px-4 rounded-xl transition-all duration-200 border border-slate-600/30"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmReject}
+                className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                <XCircle className="h-4 w-4" />
+                Confirmar Rejeição
+              </button>
+            </div>
+          </div>
+        </div>
+       )}
+       
+       {/* Modal de Visualização de Comprovante */}
+       {showProofModal && selectedProofUrl && selectedProofRequest && (
+         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl shadow-2xl border border-slate-600/30 w-full max-w-4xl mx-auto max-h-[90vh] overflow-hidden">
+             {/* Header */}
+             <div className="bg-gradient-to-r from-blue-500/20 to-blue-600/20 p-6 border-b border-slate-600/30">
+               <div className="flex items-center justify-between">
+                 <div className="flex items-center gap-3">
+                   <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                     <Image className="h-6 w-6 text-blue-400" />
+                   </div>
+                   <div>
+                     <h3 className="text-xl font-black text-white">Comprovante de Pagamento</h3>
+                     <p className="text-slate-300 text-sm">{selectedProofRequest.user_name} - R$ {selectedProofRequest.payment_amount.toFixed(2)}</p>
+                   </div>
+                 </div>
+                 <button
+                   onClick={() => {
+                     setShowProofModal(false);
+                     setSelectedProofUrl(null);
+                     setSelectedProofRequest(null);
+                   }}
+                   className="w-10 h-10 bg-slate-700/50 hover:bg-slate-700/70 rounded-xl flex items-center justify-center transition-colors duration-200"
+                 >
+                   <XCircle className="h-5 w-5 text-slate-400" />
+                 </button>
+               </div>
+             </div>
+             
+             {/* Conteúdo */}
+             <div className="p-6 overflow-auto max-h-[calc(90vh-200px)]">
+               <div className="bg-slate-700/30 rounded-2xl p-4 mb-6">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                   <div>
+                     <span className="text-slate-400 font-medium">Usuário:</span>
+                     <p className="text-white font-bold">{selectedProofRequest.user_name}</p>
+                   </div>
+                   <div>
+                     <span className="text-slate-400 font-medium">Email:</span>
+                     <p className="text-white font-bold">{selectedProofRequest.user_email}</p>
+                   </div>
+                   <div>
+                     <span className="text-slate-400 font-medium">WhatsApp:</span>
+                     <p className="text-white font-bold">{selectedProofRequest.user_whatsapp}</p>
+                   </div>
+                   <div>
+                     <span className="text-slate-400 font-medium">Valor:</span>
+                     <p className="text-white font-bold">R$ {selectedProofRequest.payment_amount.toFixed(2)}</p>
+                   </div>
+                   <div>
+                     <span className="text-slate-400 font-medium">Data:</span>
+                     <p className="text-white font-bold">{new Date(selectedProofRequest.created_at).toLocaleDateString('pt-BR')}</p>
+                   </div>
+                   <div>
+                     <span className="text-slate-400 font-medium">Status:</span>
+                     <p className={`font-bold ${
+                       selectedProofRequest.status === 'approved' ? 'text-emerald-400' :
+                       selectedProofRequest.status === 'rejected' ? 'text-red-400' : 'text-amber-400'
+                     }`}>
+                       {selectedProofRequest.status === 'approved' ? 'Aprovado' :
+                        selectedProofRequest.status === 'rejected' ? 'Rejeitado' : 'Pendente'}
+                     </p>
+                   </div>
+                 </div>
+               </div>
+               
+               {/* Imagem do Comprovante */}
+               <div className="bg-white rounded-2xl p-4 flex items-center justify-center">
+                 <img
+                   src={selectedProofUrl}
+                   alt="Comprovante de Pagamento"
+                   className="max-w-full max-h-96 object-contain rounded-xl shadow-lg"
+                   onError={(e) => {
+                     const target = e.target as HTMLImageElement;
+                     target.style.display = 'none';
+                     const parent = target.parentElement;
+                     if (parent) {
+                       parent.innerHTML = `
+                         <div class="text-center py-8">
+                           <div class="w-16 h-16 bg-slate-200 rounded-xl flex items-center justify-center mx-auto mb-4">
+                             <svg class="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                             </svg>
+                           </div>
+                           <p class="text-slate-600 font-medium">Erro ao carregar imagem</p>
+                           <a href="${selectedProofUrl}" target="_blank" class="text-blue-600 hover:text-blue-700 font-medium text-sm mt-2 inline-block">Abrir em nova aba</a>
+                         </div>
+                       `;
+                     }
+                   }}
+                 />
+               </div>
+             </div>
+             
+             {/* Botões de Ação */}
+             {selectedProofRequest.status === 'pending' && (
+               <div className="p-6 pt-0 border-t border-slate-600/30">
+                 <div className="flex gap-3">
+                   <button
+                     onClick={() => {
+                       setShowProofModal(false);
+                       handleApprove(selectedProofRequest.id);
+                     }}
+                     className="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+                   >
+                     <CheckCircle className="h-4 w-4" />
+                     Aprovar
+                   </button>
+                   <button
+                     onClick={() => {
+                       setShowProofModal(false);
+                       handleReject(selectedProofRequest.id);
+                     }}
+                     className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+                   >
+                     <XCircle className="h-4 w-4" />
+                     Rejeitar
+                   </button>
+                 </div>
+               </div>
+             )}
+           </div>
+         </div>
+       )}
     </div>
   );
 }

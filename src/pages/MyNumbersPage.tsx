@@ -1,21 +1,67 @@
-import { Hash, Calendar, User, ArrowLeft, Zap, Trophy, TrendingUp, Plus } from 'lucide-react';
+import { Hash, Calendar, User, ArrowLeft, Zap, Trophy, TrendingUp, Plus, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import ExtraNumbersModal from '../components/user/ExtraNumbersModal';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
+import { ExtraNumberRequest } from '../types';
+import { supabase } from '../lib/supabase';
 
 function MyNumbersPage() {
-  const { getCurrentUserRequest, numbers } = useData();
+  const { getCurrentUserRequest, numbers, getUserRequestsHistory } = useData();
   const { currentAppUser } = useAuth();
   const [showExtraModal, setShowExtraModal] = useState(false);
+  const [requestsHistory, setRequestsHistory] = useState<ExtraNumberRequest[]>([]);
   
   const currentRequest = getCurrentUserRequest();
   const userExtraNumbers = currentAppUser?.extra_numbers || [];
   const totalNumbers = userExtraNumbers.length + (currentAppUser?.free_number ? 1 : 0);
   const totalParticipants = numbers.filter(n => !n.is_available).length;
+
+  // Load requests history
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (currentAppUser) {
+        try {
+          const history = await getUserRequestsHistory();
+          setRequestsHistory(history);
+        } catch (error) {
+          console.error('Erro ao carregar histórico:', error);
+        }
+      }
+    };
+    
+    loadHistory();
+  }, [currentAppUser, getUserRequestsHistory]);
+
+  // Real-time subscription for user requests updates
+  useEffect(() => {
+    if (!currentAppUser) return;
+
+    const subscription = supabase
+      .channel('user-requests-updates')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'extra_number_requests',
+        filter: `user_id=eq.${currentAppUser.id}`
+      }, async () => {
+        console.log('User requests updated, reloading history...');
+        try {
+          const history = await getUserRequestsHistory();
+          setRequestsHistory(history);
+        } catch (error) {
+          console.error('Erro ao recarregar histórico:', error);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [currentAppUser, getUserRequestsHistory]);
 
   // Redirect if user hasn't registered
   if (!currentAppUser) {
@@ -206,6 +252,120 @@ function MyNumbersPage() {
                     Sua solicitação está sendo analisada. Você será notificado quando for aprovada.
                   </p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Requests History */}
+          {requestsHistory.length > 0 && (
+            <div className="bg-slate-800/50 rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 backdrop-blur-sm border border-slate-600/30">
+              <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-amber-100 mb-6 sm:mb-8">
+                Histórico de Solicitações
+              </h3>
+              <div className="space-y-4">
+                {requestsHistory.map((request) => {
+                  const getStatusIcon = (status: string) => {
+                    switch (status) {
+                      case 'approved':
+                        return <CheckCircle className="h-5 w-5 text-emerald-400" />;
+                      case 'rejected':
+                        return <XCircle className="h-5 w-5 text-red-400" />;
+                      default:
+                        return <Clock className="h-5 w-5 text-amber-400" />;
+                    }
+                  };
+
+                  const getStatusColor = (status: string) => {
+                    switch (status) {
+                      case 'approved':
+                        return 'from-emerald-500/10 to-emerald-600/10 border-emerald-400/30';
+                      case 'rejected':
+                        return 'from-red-500/10 to-red-600/10 border-red-400/30';
+                      default:
+                        return 'from-amber-500/10 to-amber-600/10 border-amber-400/30';
+                    }
+                  };
+
+                  const getStatusText = (status: string) => {
+                    switch (status) {
+                      case 'approved':
+                        return 'Aprovada';
+                      case 'rejected':
+                        return 'Rejeitada';
+                      default:
+                        return 'Pendente';
+                    }
+                  };
+
+                  return (
+                    <div
+                      key={request.id}
+                      className={`bg-gradient-to-br ${getStatusColor(request.status)} rounded-xl p-4 border backdrop-blur-sm`}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                          {getStatusIcon(request.status)}
+                          <div>
+                            <p className="font-bold text-white text-lg">
+                              {getStatusText(request.status)}
+                            </p>
+                            <p className="text-slate-300 text-sm">
+                              {new Date(request.created_at).toLocaleDateString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-white font-bold text-lg">
+                            R$ {request.payment_amount.toFixed(2)}
+                          </p>
+                          <p className="text-slate-300 text-sm">
+                            {request.requested_quantity} números
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {request.status === 'approved' && request.assigned_numbers && request.assigned_numbers.length > 0 && (
+                        <div className="mt-4">
+                          <p className="text-emerald-300 text-sm font-medium mb-2">
+                            Números atribuídos:
+                          </p>
+                          <div className="grid grid-cols-8 sm:grid-cols-10 md:grid-cols-12 gap-1">
+                            {request.assigned_numbers?.slice(0, 24).map((num, index) => (
+                              <div
+                                key={index}
+                                className="h-6 w-full bg-emerald-500 rounded text-xs font-bold text-slate-900 flex items-center justify-center"
+                              >
+                                {num}
+                              </div>
+                            ))}
+                            {request.assigned_numbers && request.assigned_numbers.length > 24 && (
+                              <div className="h-6 w-full bg-emerald-400 rounded text-xs font-bold text-slate-900 flex items-center justify-center">
++{request.assigned_numbers.length - 24}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {request.status === 'rejected' && (request as any).rejection_reason && (
+                        <div className="mt-4 p-3 bg-red-500/10 rounded-lg border border-red-400/20">
+                          <p className="text-red-300 text-sm font-medium mb-1">
+                            Motivo da rejeição:
+                          </p>
+                          <p className="text-red-200 text-sm">
+                            {(request as any).rejection_reason || 'Nenhum motivo fornecido'}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

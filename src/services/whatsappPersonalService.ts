@@ -159,6 +159,28 @@ Parabéns! 🎊`;
       type: 'text'
     });
   }
+
+  /**
+   * Envia notificação de solicitação rejeitada
+   */
+  async sendExtraNumbersRejected(userData: { name: string; whatsapp: string; amount: number; reason?: string }): Promise<WhatsAppResponse> {
+    const reasonText = userData.reason ? `\n\n📝 Motivo: ${userData.reason}` : '';
+    const message = `❌ Olá ${userData.name}!
+
+😔 Sua solicitação de números extras no valor de R$ ${userData.amount.toFixed(2)} foi rejeitada.${reasonText}
+
+📱 Você pode fazer uma nova solicitação a qualquer momento!
+
+💬 Em caso de dúvidas, entre em contato conosco.
+
+Obrigado pela compreensão! 🙏`;
+
+    return this.sendMessage({
+      to: userData.whatsapp,
+      message: message,
+      type: 'text'
+    });
+  }
 }
 
 // Instância singleton

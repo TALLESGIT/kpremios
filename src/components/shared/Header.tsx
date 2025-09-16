@@ -1,9 +1,10 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, LogOut } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import ZKLogo from './ZKLogo';
+import { ZKLogo } from './ZKLogo';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { supabase } from '../../lib/supabase';
 
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -32,6 +33,27 @@ function Header() {
       loadPendingCount();
     }
   }, [currentAppUser]);
+
+  // Real-time subscription for pending requests count
+  useEffect(() => {
+    if (!currentAppUser?.is_admin) return;
+
+    const subscription = supabase
+      .channel('pending-requests-changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'extra_number_requests' 
+      }, () => {
+        console.log('Extra number requests updated, reloading pending count...');
+        loadPendingCount();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [currentAppUser?.is_admin]);
 
   const loadPendingCount = async () => {
     try {
@@ -83,13 +105,19 @@ function Header() {
               <>
                 <Link
                   to="/admin/approvals"
-                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 relative ${
                     location.pathname === '/admin/approvals' 
                       ? 'text-green-100 bg-green-500/20 backdrop-blur-sm shadow-lg' 
                       : 'text-slate-300 hover:text-green-400 hover:bg-slate-800/50 backdrop-blur-sm'
                   }`}
                 >
                   Aprovações
+                  {/* Badge para solicitações pendentes - Desktop */}
+                  {pendingCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] h-[18px] flex items-center justify-center">
+                      {pendingCount}
+                    </span>
+                  )}
                 </Link>
                 <Link
                   to="/admin/raffles"

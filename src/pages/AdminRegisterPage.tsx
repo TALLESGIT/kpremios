@@ -4,7 +4,7 @@ import { useData } from '../context/DataContext';
 import { Send, Loader2, Mail, User, Phone, Eye, EyeOff, Shield } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import ZKLogo from '../components/shared/ZKLogo';
+import { ZKLogo } from '../components/shared/ZKLogo';
 
 export default function AdminRegisterPage() {
   const { registerAdmin, convertToAdmin } = useData();

@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { LogIn, Eye, EyeOff } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import ZKLogo from '../components/shared/ZKLogo';
+import { ZKLogo } from '../components/shared/ZKLogo';
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');

@@ -55,6 +55,30 @@ export default function AdminDashboardPage() {
     loadPendingCount();
   }, [getPendingRequestsCount]);
 
+  // Real-time subscription for dashboard updates
+  useEffect(() => {
+    const subscription = supabase
+      .channel('dashboard-pending-updates')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'extra_number_requests' 
+      }, async () => {
+        console.log('Dashboard pending count updated, reloading...');
+        try {
+          const count = await getPendingRequestsCount();
+          setPendingCount(count);
+        } catch (error) {
+          console.error('Error reloading pending count:', error);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [getPendingRequestsCount]);
+
   const handleLogout = async () => {
     await signOut();
     navigate('/admin/login');
