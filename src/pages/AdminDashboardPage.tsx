@@ -13,6 +13,7 @@ import QuickTest from '../components/admin/QuickTest';
 import WhatsAppMonitoringPanelSimple from '../components/admin/WhatsAppMonitoringPanelSimple';
 import WhatsAppBulkNotificationPanelSimple from '../components/admin/WhatsAppBulkNotificationPanelSimple';
 import VonageTestPanel from '../components/admin/VonageTestPanel';
+import WhatsAppBusinessTestPanel from '../components/admin/WhatsAppBusinessTestPanel';
 
 export default function AdminDashboardPage() {
   const { signOut } = useAuth();
@@ -32,6 +33,7 @@ export default function AdminDashboardPage() {
   const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
   const [showWhatsAppTest, setShowWhatsAppTest] = useState(false);
   const [showVonageTest, setShowVonageTest] = useState(false);
+  const [showWhatsAppBusinessTest, setShowWhatsAppBusinessTest] = useState(false);
   const [showSandboxTest, setShowSandboxTest] = useState(false);
   const [showQuickTest, setShowQuickTest] = useState(false);
   const [showWhatsAppMonitoring, setShowWhatsAppMonitoring] = useState(false);

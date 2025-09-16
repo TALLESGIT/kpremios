@@ -10,7 +10,7 @@ import {
   Info
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { whatsappServiceEnhanced } from '../../services/whatsappServiceEnhanced';
+import { vonageWhatsAppService } from '../../services/vonageService';
 
 interface User {
   id: string;
@@ -118,7 +118,7 @@ const WhatsAppBulkNotificationPanelSimple: React.FC = () => {
         };
       }
 
-      const result = await whatsappServiceEnhanced.sendBulkNotification(
+      const result = await vonageWhatsAppService.sendBulkNotification(
         selectedUsersData.map(user => ({ whatsapp: user.whatsapp, name: user.name })),
         notificationType,
         messageData

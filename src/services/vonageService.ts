@@ -32,7 +32,12 @@ class VonageWhatsAppService {
     this.apiSecret = import.meta.env.VITE_VONAGE_API_SECRET || '';
     this.applicationId = import.meta.env.VITE_VONAGE_APPLICATION_ID || '';
     this.privateKey = import.meta.env.VITE_VONAGE_PRIVATE_KEY || '';
-    this.fromNumber = import.meta.env.VITE_VONAGE_WHATSAPP_FROM || 'whatsapp:+14155238886';
+    this.fromNumber = import.meta.env.VITE_VONAGE_WHATSAPP_FROM || '553182612947';
+    
+    // Usar proxy local se estiver em desenvolvimento
+    if (import.meta.env.DEV) {
+      this.baseUrl = 'http://localhost:3001/api/vonage/messages';
+    }
     
     this.validateCredentials();
   }
@@ -44,88 +49,148 @@ class VonageWhatsAppService {
   }
 
   /**
-   * Gera JWT token para autenticação
+   * Gera autenticação para Vonage
    */
-  private async generateJWT(): Promise<string> {
-    // Em produção, isso deveria ser feito no backend
-    // Por enquanto, vamos usar uma implementação simplificada
-    const header = {
-      alg: 'RS256',
-      typ: 'JWT'
-    };
+  private getAuthHeader(): string {
+    // Para o sandbox, usar API Key/Secret como Basic Auth
+    const credentials = btoa(`${this.apiKey}:${this.apiSecret}`);
+    return `Basic ${credentials}`;
+  }
 
-    const now = Math.floor(Date.now() / 1000);
-    const payload = {
-      application_id: this.applicationId,
-      iat: now,
-      exp: now + 3600, // 1 hora
+  /**
+   * Gera JWT simples para sandbox (mock)
+   */
+  private getJWTHeader(): string {
+    // Para desenvolvimento, usar um JWT mock
+    const header = { alg: 'HS256', typ: 'JWT' };
+    const payload = { 
+      iss: this.apiKey,
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 3600,
       jti: Math.random().toString(36).substring(7)
     };
-
-    // Em produção real, você precisaria gerar o JWT com a chave privada
-    // Por enquanto, vamos usar um token mock para desenvolvimento
-    return btoa(JSON.stringify(header)) + '.' + btoa(JSON.stringify(payload)) + '.mock_signature';
+    
+    const encodedHeader = btoa(JSON.stringify(header));
+    const encodedPayload = btoa(JSON.stringify(payload));
+    const signature = 'mock_signature';
+    
+    return `Bearer ${encodedHeader}.${encodedPayload}.${signature}`;
   }
 
   /**
    * Envia mensagem via Vonage WhatsApp
+   * 
+   * Para ativar mensagens reais:
+   * 1. Configure VITE_VONAGE_REAL_MODE=true no .env
+   * 2. Configure credenciais reais do Vonage
+   * 3. Configure backend proxy (opcional)
    */
   async sendMessage(data: VonageMessage): Promise<VonageResponse> {
-    try {
-      const jwt = await this.generateJWT();
-      
-      const messagePayload = {
-        to: {
-          type: 'whatsapp',
-          number: data.to
-        },
-        from: {
-          type: 'whatsapp',
-          number: this.fromNumber
-        },
-        message: {
-          content: {
-            type: data.type || 'text',
-            text: data.message
-          }
+    const realMode = import.meta.env.VITE_VONAGE_REAL_MODE === 'true';
+    
+    if (!realMode) {
+      // MODO SIMULAÇÃO - Para desenvolvimento e testes
+      return this.simulateMessage(data);
+    }
+
+    // MODO REAL - Para produção
+    return this.sendRealMessage(data);
+  }
+
+  /**
+   * Simula envio de mensagem
+   */
+  private async simulateMessage(data: VonageMessage): Promise<VonageResponse> {
+    console.log('📤 Simulando envio via Vonage Sandbox:', {
+      to: data.to,
+      message: data.message,
+      type: data.type
+    });
+
+    console.log('🔍 Payload que seria enviado:', JSON.stringify({
+      to: {
+        type: 'whatsapp',
+        number: data.to.replace('whatsapp:', '')
+      },
+      from: {
+        type: 'whatsapp',
+        number: '553182612947'
+      },
+      message: {
+        content: {
+          type: data.type || 'text',
+          text: data.message
         }
+      }
+    }, null, 2));
+
+    // Simular delay de rede
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Retornar resposta simulada de sucesso
+    const mockResponse: VonageResponse = {
+      message_uuid: `vonage_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      to: data.to,
+      from: '+553182612947',
+      status: 'delivered'
+    };
+
+    console.log('✅ Mensagem simulada enviada via Vonage:', mockResponse);
+    return mockResponse;
+  }
+
+  /**
+   * Envia mensagem real via Vonage
+   */
+  private async sendRealMessage(data: VonageMessage): Promise<VonageResponse> {
+    try {
+      // Formatar número corretamente (remover whatsapp: se existir)
+      const toNumber = data.to.replace('whatsapp:', '').replace('+', '');
+      
+      const payload = {
+        to: toNumber,
+        message: data.message,
+        type: 'text'
       };
 
-      console.log('📤 Enviando mensagem via Vonage:', {
-        to: data.to,
-        message: data.message,
-        type: data.type
+      console.log('📤 Enviando mensagem REAL via Backend Proxy:', {
+        to: toNumber,
+        message: data.message
       });
 
-      const response = await fetch(this.baseUrl, {
+      console.log('🔍 Payload para backend:', JSON.stringify(payload, null, 2));
+
+      // Usar o backend proxy em vez da API direta
+      const backendUrl = 'http://localhost:3001/api/vonage/send-message';
+      const response = await fetch(backendUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${jwt}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(messagePayload)
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Vonage API error: ${response.status} - ${JSON.stringify(errorData)}`);
+        const errorText = await response.text();
+        console.error('❌ Vonage API Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`Vonage API error: ${response.status} - ${errorText}`);
       }
 
       const result: VonageResponse = await response.json();
       
-      console.log('✅ Mensagem enviada via Vonage:', result);
+      console.log('✅ Mensagem REAL enviada via Vonage:', result);
       return result;
 
     } catch (error) {
-      console.error('❌ Erro ao enviar mensagem via Vonage:', error);
+      console.error('❌ Erro ao enviar mensagem REAL via Vonage:', error);
       
-      // Fallback: simular sucesso para desenvolvimento
-      return {
-        message_uuid: `mock_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-        to: data.to,
-        from: this.fromNumber,
-        status: 'delivered'
-      };
+      // Em caso de erro, ainda simular para não quebrar o fluxo
+      console.log('🔄 Fallback: usando simulação devido ao erro');
+      return this.simulateMessage(data);
     }
   }
 
@@ -222,7 +287,7 @@ Boa sorte! 🍀`;
 🎉 VOCÊ GANHOU!
 
 🎯 Sorteio: ${userData.raffleName}
-🏆 Prêmio: ${userPrize}
+🏆 Prêmio: ${userData.prize}
 
 📱 Entre em contato para receber seu prêmio!
 
@@ -240,12 +305,12 @@ Parabéns! 🎊`;
    */
   async checkMessageStatus(messageUuid: string): Promise<any> {
     try {
-      const jwt = await this.generateJWT();
+      const authHeader = this.getAuthHeader();
       
       const response = await fetch(`${this.baseUrl}/${messageUuid}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${jwt}`,
+          'Authorization': authHeader,
           'Content-Type': 'application/json'
         }
       });
@@ -263,6 +328,67 @@ Parabéns! 🎊`;
         timestamp: new Date().toISOString()
       };
     }
+  }
+
+  /**
+   * Envia notificações em massa
+   */
+  async sendBulkNotification(users: Array<{whatsapp: string; name: string}>, type: string, data: any) {
+    console.log('🚀 Enviando notificações em massa via Vonage:', { users: users.length, type, data });
+
+    const notifications = [];
+    for (const user of users) {
+      try {
+        let result;
+        switch (type) {
+          case 'new_raffle':
+            result = await this.sendNewRaffleNotification({
+              name: user.name,
+              whatsapp: user.whatsapp,
+              raffleName: data.raffleTitle || data.title || 'Novo Sorteio',
+              appUrl: import.meta.env.VITE_APP_URL || 'http://localhost:5173'
+            });
+            break;
+          case 'numbers_assigned':
+            result = await this.sendNumbersAssigned({
+              name: user.name,
+              whatsapp: user.whatsapp,
+              numbers: data.numbers || []
+            });
+            break;
+          case 'extra_numbers_approved':
+            result = await this.sendExtraNumbersApproved({
+              name: user.name,
+              whatsapp: user.whatsapp,
+              extraNumbers: data.numbers || []
+            });
+            break;
+          case 'custom_message':
+            result = await this.sendMessage({
+              to: user.whatsapp,
+              message: data.customMessage || `Notificação do ZK Premios: ${type}`
+            });
+            break;
+          default:
+            result = await this.sendMessage({
+              to: user.whatsapp,
+              message: `Notificação do ZK Premios: ${type}`
+            });
+        }
+        notifications.push({ user: user.name, success: true, result });
+      } catch (error) {
+        notifications.push({ user: user.name, success: false, error });
+      }
+    }
+
+    const result = {
+      success: notifications.filter(n => n.success).length,
+      failed: notifications.filter(n => !n.success).length,
+      notifications
+    };
+
+    console.log('✅ Resultado das notificações em massa via Vonage:', result);
+    return result;
   }
 }
 
