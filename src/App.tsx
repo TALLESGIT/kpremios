@@ -9,6 +9,7 @@ import CreateRafflePageSimple from './pages/admin/CreateRafflePageSimple';
 import WinnersPage from './pages/WinnersPage';
 import MyNumbersPage from './pages/MyNumbersPage';
 import TestAdminPage from './pages/TestAdminPage';
+import LoadingDemo from './components/shared/LoadingDemo';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import ProtectedRoute from './components/shared/ProtectedRoute';
@@ -28,6 +29,7 @@ function AppContent() {
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/admin/register" element={<AdminRegisterPage />} />
           <Route path="/test-admin" element={<TestAdminPage />} />
+          <Route path="/loading-demo" element={<LoadingDemo />} />
           <Route 
             path="/admin/dashboard" 
             element={
