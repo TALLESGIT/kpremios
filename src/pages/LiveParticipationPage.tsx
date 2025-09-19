@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { useLiveGameRealtime } from '../hooks/useLiveGameRealtime';
@@ -29,6 +30,7 @@ interface Participant {
 const LiveParticipationPage: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const { user } = useAuth();
+  const { currentAppUser } = useData();
   const navigate = useNavigate();
   const [luckyNumber, setLuckyNumber] = useState('');
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -49,7 +51,13 @@ const LiveParticipationPage: React.FC = () => {
       navigate('/login');
       return;
     }
-  }, [user, navigate]);
+    
+    // Se for admin, redirecionar para página de controle
+    if (currentAppUser?.is_admin) {
+      navigate(`/admin/live-games/${gameId}/control`);
+      return;
+    }
+  }, [user, currentAppUser, navigate, gameId]);
 
   // Mostrar modal de eliminação quando o usuário for eliminado
   useEffect(() => {
