@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
-import { Edit3, Download, Settings, Trash2, Eye, Play } from 'lucide-react';
+import { Edit3, Download, Trash2, Eye, Play } from 'lucide-react';
 import EditRaffleModal from '../components/admin/EditRaffleModal';
 import ExportParticipantsModal from '../components/admin/ExportParticipantsModal';
 

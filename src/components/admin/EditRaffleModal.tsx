@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Users, Calendar, Edit3 } from 'lucide-react';
+import { X, Save, Users, Edit3 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 
@@ -10,6 +10,7 @@ interface LiveGame {
   max_participants: number;
   status: 'waiting' | 'active' | 'finished';
   created_at: string;
+  participants_count?: number;
 }
 
 interface EditRaffleModalProps {
