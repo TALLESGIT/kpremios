@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Play, Users, Target, Trophy, Crown, Zap, Clock, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { useLiveGameRealtime } from '../hooks/useLiveGameRealtime';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 
@@ -32,16 +33,21 @@ interface LiveRaffle {
 
 const LiveRafflePage: React.FC = () => {
   const { user } = useAuth();
-  const [raffle, setRaffle] = useState<LiveRaffle | null>(null);
-  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error' | 'info'>('info');
+  const [activeGameId, setActiveGameId] = useState<string | null>(null);
 
   // Estados para controle do sorteio
   const [isStarting, setIsStarting] = useState(false);
   const [isEliminating, setIsEliminating] = useState(false);
   const [eliminatedNumbers, setEliminatedNumbers] = useState<number[]>([]);
   const [timeLeft, setTimeLeft] = useState(0);
+
+  // Hook de tempo real para o jogo ativo
+  const { game: raffle, participants, loading, isEliminated, refreshData } = useLiveGameRealtime(
+    activeGameId || '', 
+    user?.id
+  );
 
   useEffect(() => {
     // Só carregar se o usuário estiver autenticado
@@ -76,12 +82,6 @@ const LiveRafflePage: React.FC = () => {
     try {
       console.log('Loading active live raffle for user:', user.id);
       
-      // Verificar se há usuário autenticado
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-      console.log('Current auth user:', authUser?.id ? 'authenticated' : 'not authenticated');
-      console.log('Auth error:', authError);
-      console.log('Auth user details:', authUser);
-      
       const { data, error } = await supabase
         .from('live_games')
         .select('*')
@@ -98,24 +98,7 @@ const LiveRafflePage: React.FC = () => {
       if (data && data.length > 0) {
         const game = data[0];
         console.log('Live raffle loaded successfully:', game);
-        
-        // Carregar participantes da tabela live_participants
-        const { data: participants, error: participantsError } = await supabase
-          .from('live_participants')
-          .select('*')
-          .eq('game_id', game.id);
-
-        if (participantsError) {
-          console.error('Erro ao carregar participantes:', participantsError);
-        }
-
-        // Adicionar participantes ao objeto do jogo
-        const gameWithParticipants = {
-          ...game,
-          participants: participants || []
-        };
-
-        setRaffle(gameWithParticipants);
+        setActiveGameId(game.id);
         
         // Se o jogo está ativo, configurar timer
         if (game.status === 'active') {
@@ -124,7 +107,7 @@ const LiveRafflePage: React.FC = () => {
         }
       } else {
         console.log('No active live raffle found');
-        setRaffle(null);
+        setActiveGameId(null);
       }
     } catch (error) {
       console.error('Erro ao carregar sorteio:', error);
@@ -246,8 +229,8 @@ const LiveRafflePage: React.FC = () => {
 
       if (updateError) throw updateError;
 
-      // Recarregar dados do jogo
-      await loadActiveRaffle();
+      // Atualizar dados em tempo real
+      refreshData();
       
       showMessage(`✅ Você escolheu o número ${number}! Boa sorte!`, 'success');
     } catch (error) {
@@ -259,7 +242,7 @@ const LiveRafflePage: React.FC = () => {
   };
 
   const startElimination = async () => {
-    if (!raffle || (raffle.participants?.length || 0) < 2) {
+    if (!raffle || participants.length < 2) {
       showMessage('❌ Precisa de pelo menos 2 participantes para começar!', 'error');
       return;
     }
@@ -296,7 +279,7 @@ const LiveRafflePage: React.FC = () => {
   const eliminateNext = async () => {
     if (!raffle) return;
 
-    const activeParticipants = raffle.participants?.filter(p => !p.is_eliminated) || [];
+    const activeParticipants = participants.filter(p => p.status === 'active');
     
     if (activeParticipants.length <= 1) {
       // Temos um vencedor!
@@ -305,32 +288,27 @@ const LiveRafflePage: React.FC = () => {
       return;
     }
 
-    // Escolher número aleatório para eliminação
-    const availableNumbers = activeParticipants.map(p => p.number);
-    const randomIndex = Math.floor(Math.random() * availableNumbers.length);
-    const eliminatedNumber = availableNumbers[randomIndex];
+    // Escolher participante aleatório para eliminação
+    const randomIndex = Math.floor(Math.random() * activeParticipants.length);
+    const eliminatedParticipant = activeParticipants[randomIndex];
 
-    setEliminatedNumbers(prev => [...prev, eliminatedNumber]);
-    showMessage(`💀 Número ${eliminatedNumber} foi eliminado!`, 'info');
+    setEliminatedNumbers(prev => [...prev, eliminatedParticipant.lucky_number]);
+    showMessage(`💀 ${eliminatedParticipant.user_name} (${eliminatedParticipant.lucky_number}) foi eliminado!`, 'info');
 
-    // Atualizar participante eliminado
-    const updatedParticipants = (raffle.participants || []).map(p => 
-      p.number === eliminatedNumber ? { ...p, is_eliminated: true } : p
-    );
-
-    // Atualizar no banco
+    // Atualizar participante eliminado no banco
     try {
       const { error } = await supabase
-        .from('live_games')
+        .from('live_participants')
         .update({ 
-          participants: updatedParticipants,
-          current_round: raffle.current_round + 1
+          status: 'eliminated',
+          eliminated_at: new Date().toISOString()
         })
-        .eq('id', raffle.id);
+        .eq('id', eliminatedParticipant.id);
 
       if (error) throw error;
 
-      setRaffle({ ...raffle, participants: updatedParticipants, current_round: raffle.current_round + 1 });
+      // Atualizar dados em tempo real
+      refreshData();
     } catch (error) {
       console.error('Erro ao atualizar eliminação:', error);
     }
@@ -339,7 +317,7 @@ const LiveRafflePage: React.FC = () => {
     setTimeLeft(raffle.elimination_interval || 60);
   };
 
-  const endRaffle = async (winner: Participant) => {
+  const endRaffle = async (winner: any) => {
     if (!raffle) return;
 
     setIsEliminating(false);
@@ -348,16 +326,17 @@ const LiveRafflePage: React.FC = () => {
       const { error } = await supabase
         .from('live_games')
         .update({ 
-          is_active: false, 
-          winner: winner,
-          ended_at: new Date().toISOString()
+          status: 'finished',
+          winner_id: winner.user_id,
+          finished_at: new Date().toISOString()
         })
         .eq('id', raffle.id);
 
       if (error) throw error;
 
-      setRaffle({ ...raffle, winner, is_active: false, ended_at: new Date().toISOString() });
-      showMessage(`🏆 VENCEDOR: ${winner.name} com o número ${winner.number}!`, 'success');
+      // Atualizar dados em tempo real
+      refreshData();
+      showMessage(`🏆 VENCEDOR: ${winner.user_name} com o número ${winner.lucky_number}!`, 'success');
       
       // Aqui você pode integrar com WhatsApp para notificar o vencedor
       // await notifyWinner(winner);
@@ -367,10 +346,10 @@ const LiveRafflePage: React.FC = () => {
     }
   };
 
-  const isAdmin = user?.id === raffle?.admin_id;
-  const userParticipant = raffle?.participants?.find(p => p.id === user?.id);
-  const activeParticipants = raffle?.participants?.filter(p => !p.is_eliminated) || [];
-  const eliminatedParticipants = raffle?.participants?.filter(p => p.is_eliminated) || [];
+  const isAdmin = user?.id === raffle?.created_by;
+  const userParticipant = participants.find(p => p.user_id === user?.id);
+  const activeParticipants = participants.filter(p => p.status === 'active') || [];
+  const eliminatedParticipants = participants.filter(p => p.status === 'eliminated') || [];
 
   // Função para formatar tempo
   const formatTime = (seconds: number) => {
@@ -467,7 +446,7 @@ const LiveRafflePage: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-blue-600 text-sm font-medium">Total</p>
-                      <p className="text-blue-900 text-xl font-bold">{raffle.participants?.length || 0}</p>
+                      <p className="text-blue-900 text-xl font-bold">{participants.length}</p>
                     </div>
                   </div>
                 </div>
@@ -525,7 +504,7 @@ const LiveRafflePage: React.FC = () => {
                   )}
 
                   <div className="flex space-x-4">
-                    {(raffle.participants?.length || 0) === 0 && (
+                    {participants.length === 0 && (
                       <button
                         onClick={createLiveRaffle}
                         disabled={loading}
@@ -535,7 +514,7 @@ const LiveRafflePage: React.FC = () => {
                       </button>
                     )}
 
-                    {(raffle.participants?.length || 0) >= 2 && !isStarting && !isEliminating && !raffle.ended_at && (
+                    {participants.length >= 2 && !isStarting && !isEliminating && !raffle?.ended_at && (
                       <button
                         onClick={startElimination}
                         className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold py-2 px-6 rounded-lg transition-all duration-200"
@@ -575,7 +554,7 @@ const LiveRafflePage: React.FC = () => {
                 {userParticipant && (
                   <div className="text-right">
                     <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
-                      Seu número: #{userParticipant.number}
+                      Seu número: #{userParticipant.lucky_number}
                     </span>
                     <p className="text-xs text-gray-600 mt-1">Você está participando!</p>
                   </div>
@@ -594,13 +573,14 @@ const LiveRafflePage: React.FC = () => {
               <div className="grid grid-cols-5 sm:grid-cols-10 gap-3 sm:gap-2 mb-6">
                 {Array.from({ length: 50 }, (_, i) => {
                   const number = i + 1;
-                  const isTaken = raffle.participants?.some(p => p.number === number) || false;
-                  const isEliminated = eliminatedNumbers.includes(number);
-                  const isUserNumber = userParticipant?.number === number;
+                  const participant = participants.find(p => p.lucky_number === number);
+                  const isTaken = !!participant;
+                  const isEliminated = participant?.status === 'eliminated';
+                  const isUserNumber = userParticipant?.lucky_number === number;
 
                   // Verificar se o usuário já está participando
                   const userAlreadyParticipating = userParticipant !== undefined;
-                  const canSelect = !isTaken && !isAdmin && !loading && !raffle.ended_at && !raffle.started_at && !userAlreadyParticipating;
+                  const canSelect = !isTaken && !isAdmin && !loading && !raffle?.ended_at && !raffle?.started_at && !userAlreadyParticipating;
 
                   return (
                     <button
@@ -653,24 +633,24 @@ const LiveRafflePage: React.FC = () => {
             </div>
 
             {/* Participants List */}
-            {(raffle.participants?.length || 0) > 0 && (
+            {participants.length > 0 && (
               <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Participantes</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {(raffle.participants || []).map((participant) => (
+                  {participants.map((participant) => (
                     <div
                       key={participant.id}
                       className={`p-4 rounded-lg border ${
-                        participant.is_eliminated 
+                        participant.status === 'eliminated'
                           ? 'bg-red-50 border-red-200 text-red-800' 
                           : 'bg-green-50 border-green-200 text-green-800'
                       }`}
                     >
                       <div className="flex justify-between items-center">
-                        <span className="font-semibold">{participant.name}</span>
-                        <span className="text-lg font-bold">#{participant.number}</span>
+                        <span className="font-semibold">{participant.user_name}</span>
+                        <span className="text-lg font-bold">#{participant.lucky_number}</span>
                       </div>
-                      {participant.is_eliminated && (
+                      {participant.status === 'eliminated' && (
                         <p className="text-sm mt-1 text-red-600">💀 Eliminado</p>
                       )}
                     </div>
@@ -680,14 +660,17 @@ const LiveRafflePage: React.FC = () => {
             )}
 
             {/* Winner */}
-            {raffle.winner && (
+            {raffle?.winner_id && (
               <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-xl p-8 text-center shadow-lg">
                 <div className="w-20 h-20 bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Crown className="h-10 w-10 text-white" />
                 </div>
                 <h2 className="text-3xl font-bold text-yellow-900 mb-2">🏆 VENCEDOR!</h2>
                 <p className="text-xl text-yellow-800 font-semibold">
-                  {raffle.winner.name} com o número #{raffle.winner.number}
+                  {(() => {
+                    const winner = participants.find(p => p.user_id === raffle.winner_id);
+                    return winner ? `${winner.user_name} com o número #${winner.lucky_number}` : 'Vencedor!';
+                  })()}
                 </p>
               </div>
             )}

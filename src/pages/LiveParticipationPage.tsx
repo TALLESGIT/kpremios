@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { useLiveGameNotifications } from '../hooks/useLiveGameNotifications';
+import { useLiveGameRealtime } from '../hooks/useLiveGameRealtime';
 import LiveGameNumberGrid from '../components/user/LiveGameNumberGrid';
 
 interface LiveGame {
@@ -30,33 +30,26 @@ const LiveParticipationPage: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [game, setGame] = useState<LiveGame | null>(null);
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [loading, setLoading] = useState(true);
   const [luckyNumber, setLuckyNumber] = useState('');
-  const [myParticipation, setMyParticipation] = useState<Participant | null>(null);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [joining, setJoining] = useState(false);
   const [showEliminationModal, setShowEliminationModal] = useState(false);
 
-  // Hook de notificações
-  const { isEliminated, requestNotificationPermission, clearEliminations } = useLiveGameNotifications(
+  // Hook de tempo real
+  const { game, participants, loading, isEliminated, refreshData } = useLiveGameRealtime(
     gameId || '', 
     user?.id
   );
+
+  // Encontrar participação do usuário atual
+  const myParticipation = participants.find(p => p.user_id === user?.id) || null;
 
   useEffect(() => {
     if (!user) {
       navigate('/login');
       return;
     }
-    
-    if (gameId) {
-      loadGameData();
-      setupRealtimeSubscription();
-      requestNotificationPermission();
-    }
-  }, [gameId, user]);
+  }, [user, navigate]);
 
   // Mostrar modal de eliminação quando o usuário for eliminado
   useEffect(() => {
@@ -64,84 +57,6 @@ const LiveParticipationPage: React.FC = () => {
       setShowEliminationModal(true);
     }
   }, [isEliminated]);
-
-  const loadGameData = async () => {
-    try {
-      // Carregar dados do jogo
-      const { data: gameData, error: gameError } = await supabase
-        .from('live_games')
-        .select('*')
-        .eq('id', gameId)
-        .single();
-
-      if (gameError) throw gameError;
-      setGame(gameData);
-
-      // Carregar participantes
-      const { data: participantsData, error: participantsError } = await supabase
-        .from('live_participants')
-        .select(`
-          *,
-          users:user_id (
-            name
-          )
-        `)
-        .eq('game_id', gameId)
-        .order('lucky_number', { ascending: true });
-
-      if (participantsError) throw participantsError;
-      
-      const formattedParticipants = participantsData.map(p => ({
-        ...p,
-        user_name: p.users?.name || 'Usuário'
-      }));
-      
-      setParticipants(formattedParticipants);
-      
-      // Verificar se o usuário já está participando
-      const myParticipation = formattedParticipants.find(p => p.user_id === user?.id);
-      setMyParticipation(myParticipation || null);
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-      toast.error('Erro ao carregar dados do jogo');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const setupRealtimeSubscription = () => {
-    const subscription = supabase
-      .channel(`live_game_${gameId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'live_participants',
-          filter: `game_id=eq.${gameId}`
-        },
-        () => {
-          loadGameData();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'live_games',
-          filter: `id=eq.${gameId}`
-        },
-        () => {
-          loadGameData();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  };
 
   const joinGame = async () => {
     if (!luckyNumber || isNaN(parseInt(luckyNumber))) {
@@ -184,6 +99,9 @@ const LiveParticipationPage: React.FC = () => {
       toast.success(`Você entrou no jogo com o número ${number}!`);
       setShowJoinModal(false);
       setLuckyNumber('');
+      
+      // Atualizar dados em tempo real
+      refreshData();
     } catch (error) {
       console.error('Erro ao entrar no jogo:', error);
       toast.error('Erro ao entrar no jogo');
@@ -548,7 +466,6 @@ participant.user_id === user?.id
                 <button
                   onClick={() => {
                     setShowEliminationModal(false);
-                    clearEliminations();
                   }}
                   className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300"
                 >
