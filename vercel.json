@@ -54,10 +54,5 @@
         }
       ]
     }
-  ],
-  "functions": {
-    "backend/vonage-proxy.js": {
-      "runtime": "nodejs18.x"
-    }
-  }
+  ]
 }
