@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { useLiveGameNotifications } from '../hooks/useLiveGameNotifications';
+import LiveGameNumberGrid from '../components/user/LiveGameNumberGrid';
 
 interface LiveGame {
   id: string;
@@ -344,6 +345,24 @@ const LiveParticipationPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Number Grid */}
+        <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl sm:rounded-2xl p-4 sm:p-6 mb-6">
+          <h3 className="text-lg sm:text-xl font-bold text-white mb-4 flex items-center gap-2">
+            🎯 Números da Sorte (1-{game.max_participants})
+          </h3>
+          
+          <LiveGameNumberGrid
+            participants={participants}
+            currentUserId={user?.id}
+            onNumberClick={canJoin ? (number) => {
+              setLuckyNumber(number.toString());
+              setShowJoinModal(true);
+            } : undefined}
+            disabled={!canJoin}
+            maxNumbers={game.max_participants}
+          />
+        </div>
+
         {/* Participants Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Active Participants */}
@@ -439,12 +458,12 @@ participant.user_id === user?.id
             <div className="space-y-4">
               <div>
                 <label className="block text-slate-300 text-sm font-bold mb-2">
-                  Número da Sorte (1-999)
+                  Número da Sorte (1-{game.max_participants})
                 </label>
                 <input
                   type="number"
                   min="1"
-                  max="999"
+                  max={game.max_participants}
                   value={luckyNumber}
                   onChange={(e) => setLuckyNumber(e.target.value)}
                   className="w-full bg-slate-700 border border-slate-600 rounded-lg sm:rounded-xl px-3 sm:px-4 py-3 text-white text-center text-xl sm:text-2xl font-bold placeholder-slate-400 focus:outline-none focus:border-purple-500 transition-colors"
@@ -453,6 +472,42 @@ participant.user_id === user?.id
                 />
                 <p className="text-slate-400 text-xs mt-2 text-center">
                   Escolha um número que ainda não foi selecionado
+                </p>
+              </div>
+
+              {/* Grid de números no modal */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Selecione um número disponível:
+                </label>
+                <div className="grid grid-cols-5 gap-2 max-h-40 overflow-y-auto border border-slate-600 rounded-lg p-3 bg-slate-700/50">
+                  {Array.from({ length: game.max_participants }, (_, i) => {
+                    const number = i + 1;
+                    const isTaken = participants.some(p => p.lucky_number === number);
+                    const isSelected = parseInt(luckyNumber) === number;
+                    
+                    return (
+                      <button
+                        key={number}
+                        onClick={() => !isTaken && setLuckyNumber(number.toString())}
+                        disabled={isTaken}
+                        className={`
+                          w-8 h-8 rounded text-xs font-bold transition-all duration-200
+                          ${isSelected 
+                            ? 'bg-amber-500 text-white border-2 border-amber-400' 
+                            : isTaken 
+                              ? 'bg-red-500 text-white border-2 border-red-400 cursor-not-allowed opacity-60'
+                              : 'bg-slate-600 text-slate-300 border-2 border-slate-500 hover:bg-slate-500 hover:border-slate-400'
+                          }
+                        `}
+                      >
+                        {number}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-slate-400 text-xs mt-2">
+                  Números em vermelho já foram escolhidos
                 </p>
               </div>
             </div>
