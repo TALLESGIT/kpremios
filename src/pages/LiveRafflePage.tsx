@@ -45,35 +45,19 @@ const LiveRafflePage: React.FC = () => {
   const [isJoining, setIsJoining] = useState(false);
 
   // Hook de tempo real para o jogo ativo
-  const { game: raffle, participants, loading, isEliminated, refreshData } = useLiveGameRealtime(
+  const { game, participants, loading, isEliminated, refreshData } = useLiveGameRealtime(
     activeGameId || '', 
     user?.id
   );
 
-  useEffect(() => {
-    // Só carregar se o usuário estiver autenticado
-    if (user) {
-      loadActiveRaffle();
-    }
-  }, [user]);
+  // Função para mostrar mensagens
+  const showMessage = (msg: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setMessage(msg);
+    setMessageType(type);
+    setTimeout(() => setMessage(''), 5000);
+  };
 
-  // Timer para eliminação
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isEliminating && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            eliminateNext();
-            return game?.elimination_interval || 60;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isEliminating, timeLeft, game?.elimination_interval]);
-
+  // Função para carregar sorteio ativo
   const loadActiveRaffle = async () => {
     if (!user) {
       console.log('Usuário não autenticado, pulando carregamento do sorteio');
@@ -116,11 +100,101 @@ const LiveRafflePage: React.FC = () => {
     }
   };
 
-  const showMessage = (msg: string, type: 'success' | 'error' | 'info' = 'info') => {
-    setMessage(msg);
-    setMessageType(type);
-    setTimeout(() => setMessage(''), 5000);
+  // Função para finalizar o sorteio
+  const endRaffle = async (winner: any) => {
+    if (!game) return;
+
+    setIsEliminating(false);
+    
+    try {
+      const { error } = await supabase
+        .from('live_games')
+        .update({ 
+          status: 'finished',
+          winner_id: winner.user_id,
+          finished_at: new Date().toISOString()
+        })
+        .eq('id', game.id);
+
+      if (error) throw error;
+
+      // Atualizar dados em tempo real
+      refreshData();
+      showMessage(`🏆 VENCEDOR: ${winner.user_name} com o número ${winner.lucky_number}!`, 'success');
+      
+      // Aqui você pode integrar com WhatsApp para notificar o vencedor
+      // await notifyWinner(winner);
+    } catch (error) {
+      console.error('Erro ao finalizar sorteio:', error);
+      showMessage('❌ Erro ao finalizar sorteio', 'error');
+    }
   };
+
+  // Função para eliminar próximo participante
+  const eliminateNext = async () => {
+    if (!game) return;
+
+    const activeParticipants = participants.filter(p => p.status === 'active');
+    
+    if (activeParticipants.length <= 1) {
+      // Temos um vencedor!
+      const winner = activeParticipants[0];
+      await endRaffle(winner);
+      return;
+    }
+
+    // Escolher participante aleatório para eliminação
+    const randomIndex = Math.floor(Math.random() * activeParticipants.length);
+    const eliminatedParticipant = activeParticipants[randomIndex];
+
+    setEliminatedNumbers(prev => [...prev, eliminatedParticipant.lucky_number]);
+    showMessage(`💀 ${eliminatedParticipant.user_name} (${eliminatedParticipant.lucky_number}) foi eliminado!`, 'info');
+
+    // Atualizar participante eliminado no banco
+    try {
+      const { error } = await supabase
+        .from('live_participants')
+        .update({ 
+          status: 'eliminated',
+          eliminated_at: new Date().toISOString()
+        })
+        .eq('id', eliminatedParticipant.id);
+
+      if (error) throw error;
+
+      // Atualizar dados em tempo real
+      refreshData();
+    } catch (error) {
+      console.error('Erro ao atualizar eliminação:', error);
+    }
+
+    // Resetar timer para próxima eliminação
+    setTimeLeft(game.elimination_interval || 60);
+  };
+
+  useEffect(() => {
+    // Só carregar se o usuário estiver autenticado
+    if (user) {
+      loadActiveRaffle();
+    }
+  }, [user]);
+
+  // Timer para eliminação
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isEliminating && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            eliminateNext();
+            return game?.elimination_interval || 60;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isEliminating, timeLeft, game?.elimination_interval, eliminateNext]);
 
   const createLiveRaffle = async () => {
     if (!user) return;
@@ -274,76 +348,6 @@ const LiveRafflePage: React.FC = () => {
       console.error('Erro ao iniciar eliminação:', error);
       showMessage('❌ Erro ao iniciar eliminação', 'error');
       setIsStarting(false);
-    }
-  };
-
-  const eliminateNext = async () => {
-    if (!game) return;
-
-    const activeParticipants = participants.filter(p => p.status === 'active');
-    
-    if (activeParticipants.length <= 1) {
-      // Temos um vencedor!
-      const winner = activeParticipants[0];
-      await endRaffle(winner);
-      return;
-    }
-
-    // Escolher participante aleatório para eliminação
-    const randomIndex = Math.floor(Math.random() * activeParticipants.length);
-    const eliminatedParticipant = activeParticipants[randomIndex];
-
-    setEliminatedNumbers(prev => [...prev, eliminatedParticipant.lucky_number]);
-    showMessage(`💀 ${eliminatedParticipant.user_name} (${eliminatedParticipant.lucky_number}) foi eliminado!`, 'info');
-
-    // Atualizar participante eliminado no banco
-    try {
-      const { error } = await supabase
-        .from('live_participants')
-        .update({ 
-          status: 'eliminated',
-          eliminated_at: new Date().toISOString()
-        })
-        .eq('id', eliminatedParticipant.id);
-
-      if (error) throw error;
-
-      // Atualizar dados em tempo real
-      refreshData();
-    } catch (error) {
-      console.error('Erro ao atualizar eliminação:', error);
-    }
-
-    // Resetar timer para próxima eliminação
-    setTimeLeft(game.elimination_interval || 60);
-  };
-
-  const endRaffle = async (winner: any) => {
-    if (!game) return;
-
-    setIsEliminating(false);
-    
-    try {
-      const { error } = await supabase
-        .from('live_games')
-        .update({ 
-          status: 'finished',
-          winner_id: winner.user_id,
-          finished_at: new Date().toISOString()
-        })
-        .eq('id', game.id);
-
-      if (error) throw error;
-
-      // Atualizar dados em tempo real
-      refreshData();
-      showMessage(`🏆 VENCEDOR: ${winner.user_name} com o número ${winner.lucky_number}!`, 'success');
-      
-      // Aqui você pode integrar com WhatsApp para notificar o vencedor
-      // await notifyWinner(winner);
-    } catch (error) {
-      console.error('Erro ao finalizar sorteio:', error);
-      showMessage('❌ Erro ao finalizar sorteio', 'error');
     }
   };
 
