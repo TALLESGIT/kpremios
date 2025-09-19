@@ -3,6 +3,9 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
+import { Edit3, Download, Settings, Trash2, Eye, Play } from 'lucide-react';
+import EditRaffleModal from '../components/admin/EditRaffleModal';
+import ExportParticipantsModal from '../components/admin/ExportParticipantsModal';
 
 interface LiveGame {
   id: string;
@@ -21,6 +24,9 @@ const AdminLiveGamesPage: React.FC = () => {
   const [games, setGames] = useState<LiveGame[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<LiveGame | null>(null);
   const [newGame, setNewGame] = useState({
     title: '',
     description: '',
@@ -116,6 +122,22 @@ const AdminLiveGamesPage: React.FC = () => {
     }
   };
 
+  const handleEditGame = (game: LiveGame) => {
+    setSelectedGame(game);
+    setShowEditModal(true);
+  };
+
+  const handleExportParticipants = (game: LiveGame) => {
+    setSelectedGame(game);
+    setShowExportModal(true);
+  };
+
+  const handleCloseModals = () => {
+    setShowEditModal(false);
+    setShowExportModal(false);
+    setSelectedGame(null);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'waiting':
@@ -183,13 +205,29 @@ const AdminLiveGamesPage: React.FC = () => {
                     <p className="text-slate-300 text-sm mb-3">{game.description || 'Jogo "Resta Um"'}</p>
                     {getStatusBadge(game.status)}
                   </div>
-                  <button
-                    onClick={() => deleteGame(game.id)}
-                    className="text-red-400 hover:text-red-300 transition-colors ml-2"
-                    title="Excluir jogo"
-                  >
-                    🗑️
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleEditGame(game)}
+                      className="text-blue-400 hover:text-blue-300 transition-colors p-1"
+                      title="Editar jogo"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleExportParticipants(game)}
+                      className="text-green-400 hover:text-green-300 transition-colors p-1"
+                      title="Exportar participantes"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => deleteGame(game.id)}
+                      className="text-red-400 hover:text-red-300 transition-colors p-1"
+                      title="Excluir jogo"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="space-y-2 mb-4">
@@ -212,9 +250,17 @@ const AdminLiveGamesPage: React.FC = () => {
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Link
                     to={`/admin/live-games/${game.id}/control`}
-                    className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white py-2 sm:py-2 px-4 rounded-lg font-medium transition-all duration-300 text-center"
+                    className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white py-2 sm:py-2 px-4 rounded-lg font-medium transition-all duration-300 text-center flex items-center justify-center gap-2"
                   >
+                    <Play className="w-4 h-4" />
                     Controlar
+                  </Link>
+                  <Link
+                    to={`/live-games/${game.id}`}
+                    className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2 sm:py-2 px-4 rounded-lg font-medium transition-all duration-300 text-center flex items-center justify-center gap-2"
+                  >
+                    <Eye className="w-4 h-4" />
+                    Visualizar
                   </Link>
                 </div>
               </div>
@@ -316,6 +362,20 @@ const AdminLiveGamesPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Modals */}
+        <EditRaffleModal
+          isOpen={showEditModal}
+          onClose={handleCloseModals}
+          raffle={selectedGame}
+          onUpdate={loadGames}
+        />
+
+        <ExportParticipantsModal
+          isOpen={showExportModal}
+          onClose={handleCloseModals}
+          raffle={selectedGame}
+        />
       </div>
       <Toaster position="top-right" />
     </div>
