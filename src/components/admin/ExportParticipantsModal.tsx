@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Download, FileText, Users, Hash, Calendar } from 'lucide-react';
+import { X, Download, FileText, Users, Hash, Calendar, FileImage } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 
@@ -119,6 +119,186 @@ const ExportParticipantsModal: React.FC<ExportParticipantsModalProps> = ({
     }
   };
 
+  const exportToPDF = () => {
+    if (participants.length === 0) {
+      toast.error('Nenhum participante para exportar');
+      return;
+    }
+
+    setExportLoading(true);
+    try {
+      // Criar conteúdo HTML para PDF
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Lista de Participantes - ${raffle?.title}</title>
+          <style>
+            body {
+              font-family: 'Arial', sans-serif;
+              margin: 0;
+              padding: 20px;
+              background: white;
+              color: #333;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 3px solid #3b82f6;
+              padding-bottom: 20px;
+            }
+            .header h1 {
+              color: #1e40af;
+              margin: 0;
+              font-size: 28px;
+            }
+            .header p {
+              color: #6b7280;
+              margin: 5px 0 0 0;
+              font-size: 16px;
+            }
+            .stats {
+              display: flex;
+              justify-content: center;
+              gap: 30px;
+              margin-bottom: 30px;
+              flex-wrap: wrap;
+            }
+            .stat-box {
+              background: #f8fafc;
+              border: 2px solid #e2e8f0;
+              border-radius: 10px;
+              padding: 15px 25px;
+              text-align: center;
+              min-width: 120px;
+            }
+            .stat-number {
+              font-size: 24px;
+              font-weight: bold;
+              color: #1e40af;
+              margin: 0;
+            }
+            .stat-label {
+              font-size: 14px;
+              color: #6b7280;
+              margin: 5px 0 0 0;
+            }
+            .participants-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+              gap: 15px;
+              margin-bottom: 30px;
+            }
+            .participant-card {
+              background: #f8fafc;
+              border: 2px solid #e2e8f0;
+              border-radius: 12px;
+              padding: 20px;
+              text-align: center;
+              transition: all 0.3s ease;
+            }
+            .participant-card:hover {
+              border-color: #3b82f6;
+              box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+            }
+            .number-badge {
+              background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+              color: white;
+              width: 60px;
+              height: 60px;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 24px;
+              font-weight: bold;
+              margin: 0 auto 15px auto;
+              box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+            }
+            .participant-name {
+              font-size: 18px;
+              font-weight: 600;
+              color: #1f2937;
+              margin: 0;
+            }
+            .footer {
+              text-align: center;
+              margin-top: 40px;
+              padding-top: 20px;
+              border-top: 2px solid #e2e8f0;
+              color: #6b7280;
+              font-size: 14px;
+            }
+            .print-date {
+              color: #9ca3af;
+              font-size: 12px;
+            }
+            @media print {
+              body { margin: 0; padding: 15px; }
+              .participants-grid { grid-template-columns: repeat(3, 1fr); }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>🎮 ${raffle?.title}</h1>
+            <p>Lista de Participantes para Sorteio Manual</p>
+          </div>
+          
+          <div class="stats">
+            <div class="stat-box">
+              <p class="stat-number">${participants.length}</p>
+              <p class="stat-label">Total de Participantes</p>
+            </div>
+            <div class="stat-box">
+              <p class="stat-number">${participants.filter(p => p.status === 'active').length}</p>
+              <p class="stat-label">Participantes Ativos</p>
+            </div>
+            <div class="stat-box">
+              <p class="stat-number">${participants.filter(p => p.status === 'eliminated').length}</p>
+              <p class="stat-label">Eliminados</p>
+            </div>
+          </div>
+          
+          <div class="participants-grid">
+            ${participants.map(p => `
+              <div class="participant-card">
+                <div class="number-badge">${p.lucky_number}</div>
+                <p class="participant-name">${p.user_name}</p>
+              </div>
+            `).join('')}
+          </div>
+          
+          <div class="footer">
+            <p>📅 Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+            <p class="print-date">Este documento contém ${participants.length} participantes para o sorteio "Resta Um"</p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      // Criar blob e fazer download
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `participantes_${raffle?.title.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.html`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success('Arquivo HTML gerado! Abra no navegador e use Ctrl+P para imprimir em PDF');
+    } catch (error) {
+      console.error('Erro ao exportar dados:', error);
+      toast.error('Erro ao exportar dados');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   const exportToExcel = () => {
     if (participants.length === 0) {
       toast.error('Nenhum participante para exportar');
@@ -229,11 +409,19 @@ const ExportParticipantsModal: React.FC<ExportParticipantsModalProps> = ({
 
           {/* Export Buttons */}
           <div className="p-6 border-b border-slate-700">
-            <div className="flex gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <button
+                onClick={exportToPDF}
+                disabled={loading || exportLoading || participants.length === 0}
+                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3 px-6 rounded-lg font-medium transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FileImage className="w-4 h-4" />
+                {exportLoading ? 'Gerando...' : 'Gerar PDF'}
+              </button>
               <button
                 onClick={exportToCSV}
                 disabled={loading || exportLoading || participants.length === 0}
-                className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 px-6 rounded-lg font-medium transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 px-6 rounded-lg font-medium transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <FileText className="w-4 h-4" />
                 {exportLoading ? 'Exportando...' : 'Exportar CSV'}
@@ -241,11 +429,16 @@ const ExportParticipantsModal: React.FC<ExportParticipantsModalProps> = ({
               <button
                 onClick={exportToExcel}
                 disabled={loading || exportLoading || participants.length === 0}
-                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-3 px-6 rounded-lg font-medium transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-3 px-6 rounded-lg font-medium transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Download className="w-4 h-4" />
                 {exportLoading ? 'Exportando...' : 'Exportar JSON'}
               </button>
+            </div>
+            <div className="mt-3 text-center">
+              <p className="text-slate-400 text-sm">
+                💡 <strong>Recomendado:</strong> Use "Gerar PDF" para uma lista visual organizada e fácil de usar no sorteio manual
+              </p>
             </div>
           </div>
 
