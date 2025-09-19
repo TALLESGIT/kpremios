@@ -380,6 +380,7 @@ const AdminLiveGamesPage: React.FC = () => {
           isOpen={showEditModal}
           onClose={handleCloseModals}
           game={selectedGame}
+          onUpdate={loadGames}
         />
 
         <ExportParticipantsModal

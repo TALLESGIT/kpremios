@@ -1,35 +1,159 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { X, Save, Users, Edit3 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { toast } from 'react-hot-toast';
 
 interface SimpleEditModalProps {
   isOpen: boolean;
   onClose: () => void;
   game: any;
+  onUpdate?: () => void;
 }
 
-const SimpleEditModal: React.FC<SimpleEditModalProps> = ({ isOpen, onClose, game }) => {
+const SimpleEditModal: React.FC<SimpleEditModalProps> = ({ isOpen, onClose, game, onUpdate }) => {
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    max_participants: 50,
+    elimination_interval: 60
+  });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (game) {
+      setFormData({
+        title: game.title || '',
+        description: game.description || '',
+        max_participants: game.max_participants || 50,
+        elimination_interval: game.elimination_interval || 60
+      });
+    }
+  }, [game]);
+
+  const handleSave = async () => {
+    if (!game?.id) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('live_games')
+        .update({
+          title: formData.title,
+          description: formData.description,
+          max_participants: formData.max_participants,
+          elimination_interval: formData.elimination_interval
+        })
+        .eq('id', game.id);
+
+      if (error) throw error;
+
+      toast.success('Sorteio atualizado com sucesso!');
+      onUpdate?.();
+      onClose();
+    } catch (error) {
+      console.error('Erro ao atualizar sorteio:', error);
+      toast.error('Erro ao atualizar sorteio');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-        <h2 className="text-xl font-bold mb-4">Editar Sorteio</h2>
-        <p className="text-gray-600 mb-4">Título: {game?.title}</p>
-        <p className="text-gray-600 mb-4">Max Participantes: {game?.max_participants}</p>
-        <div className="flex gap-3">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">Editar Sorteio</h2>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+            className="text-gray-400 hover:text-gray-600"
           >
-            Fechar
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Título do Jogo
+            </label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={(e) => setFormData({...formData, title: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Título do jogo"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Descrição
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              rows={3}
+              placeholder="Descrição do jogo"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Máximo de Participantes
+            </label>
+            <input
+              type="number"
+              min="10"
+              max="1000"
+              value={formData.max_participants}
+              onChange={(e) => setFormData({...formData, max_participants: parseInt(e.target.value) || 50})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Intervalo de Eliminação (segundos)
+            </label>
+            <select
+              value={formData.elimination_interval}
+              onChange={(e) => setFormData({...formData, elimination_interval: parseInt(e.target.value)})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value={30}>30 segundos</option>
+              <option value={60}>1 minuto</option>
+              <option value={120}>2 minutos</option>
+              <option value={300}>5 minutos</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+          >
+            Cancelar
           </button>
           <button
-            onClick={() => {
-              alert('Salvando...');
-              onClose();
-            }}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            onClick={handleSave}
+            disabled={loading || !formData.title.trim()}
+            className="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
           >
-            Salvar
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Salvando...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Salvar
+              </>
+            )}
           </button>
         </div>
       </div>
