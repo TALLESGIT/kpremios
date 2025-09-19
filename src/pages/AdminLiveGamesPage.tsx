@@ -6,6 +6,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import { Edit3, Download, Trash2, Eye, Play } from 'lucide-react';
 import EditRaffleModal from '../components/admin/EditRaffleModal';
 import ExportParticipantsModal from '../components/admin/ExportParticipantsModal';
+import TestModal from '../components/admin/TestModal';
 
 interface LiveGame {
   id: string;
@@ -26,6 +27,7 @@ const AdminLiveGamesPage: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showTestModal, setShowTestModal] = useState(false);
   const [selectedGame, setSelectedGame] = useState<LiveGame | null>(null);
   const [newGame, setNewGame] = useState({
     title: '',
@@ -173,12 +175,20 @@ const AdminLiveGamesPage: React.FC = () => {
                 Gerencie jogos de "Resta Um" ao vivo
               </p>
             </div>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-amber-500/25"
-            >
-              ➕ Criar Novo Jogo
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowTestModal(true)}
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-blue-500/25"
+              >
+                🧪 Testar Modais
+              </button>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-amber-500/25"
+              >
+                ➕ Criar Novo Jogo
+              </button>
+            </div>
           </div>
         </div>
 
@@ -375,6 +385,12 @@ const AdminLiveGamesPage: React.FC = () => {
           isOpen={showExportModal}
           onClose={handleCloseModals}
           raffle={selectedGame}
+        />
+
+        <TestModal
+          isOpen={showTestModal}
+          onClose={() => setShowTestModal(false)}
+          title="Teste de Modal"
         />
       </div>
       <Toaster position="top-right" />
