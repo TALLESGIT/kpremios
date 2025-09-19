@@ -87,23 +87,13 @@ const ExportParticipantsModal: React.FC<ExportParticipantsModalProps> = ({
     setExportLoading(true);
     try {
       const headers = [
-        'ID',
-        'Nome',
         'Número da Sorte',
-        'Status',
-        'Telefone',
-        'Data de Inscrição',
-        'Data de Eliminação'
+        'Nome do Participante'
       ];
 
       const csvData = participants.map(p => [
-        p.id,
-        p.user_name,
         p.lucky_number,
-        p.status === 'active' ? 'Ativo' : 'Eliminado',
-        p.user_phone || 'Não informado',
-        new Date(p.joined_at).toLocaleString('pt-BR'),
-        p.eliminated_at ? new Date(p.eliminated_at).toLocaleString('pt-BR') : 'N/A'
+        p.user_name
       ]);
 
       const csvContent = [headers, ...csvData]
@@ -137,15 +127,10 @@ const ExportParticipantsModal: React.FC<ExportParticipantsModalProps> = ({
 
     setExportLoading(true);
     try {
-      // Criar dados para Excel (formato simplificado)
+      // Criar dados simplificados - apenas Número e Nome
       const excelData = participants.map(p => ({
-        'ID': p.id,
-        'Nome': p.user_name,
         'Número da Sorte': p.lucky_number,
-        'Status': p.status === 'active' ? 'Ativo' : 'Eliminado',
-        'Telefone': p.user_phone || 'Não informado',
-        'Data de Inscrição': new Date(p.joined_at).toLocaleString('pt-BR'),
-        'Data de Eliminação': p.eliminated_at ? new Date(p.eliminated_at).toLocaleString('pt-BR') : 'N/A'
+        'Nome do Participante': p.user_name
       }));
 
       // Converter para JSON e fazer download
@@ -192,7 +177,7 @@ const ExportParticipantsModal: React.FC<ExportParticipantsModalProps> = ({
             </div>
             <div>
               <h2 className="text-xl font-bold text-white">Exportar Participantes</h2>
-              <p className="text-slate-400 text-sm">{raffle.title}</p>
+              <p className="text-slate-400 text-sm">{raffle.title} - Apenas Número e Nome</p>
             </div>
           </div>
           <button
