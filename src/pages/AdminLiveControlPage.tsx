@@ -146,15 +146,36 @@ const AdminLiveControlPage: React.FC = () => {
     }
   };
 
+  const closeSystem = async () => {
+    try {
+      const { error } = await supabase
+        .from('live_games')
+        .update({
+          status: 'active', // Mudar para 'active' para impedir novos participantes
+          started_at: new Date().toISOString()
+        })
+        .eq('id', gameId);
+
+      if (error) throw error;
+
+      setGameActive(true);
+      toast.success('🔒 Sistema fechado! Novos participantes não podem mais entrar. Agora você pode fazer o sorteio manual.');
+      loadGame();
+    } catch (error) {
+      console.error('Erro ao fechar sistema:', error);
+      toast.error('Erro ao fechar sistema');
+    }
+  };
+
   const endGame = async () => {
     try {
       const activeParticipants = participants.filter(p => p.status === 'active');
       if (activeParticipants.length === 1) {
         const winner = activeParticipants[0];
-        
+
         const { error: gameError } = await supabase
           .from('live_games')
-          .update({ 
+          .update({
             status: 'finished',
             winner_id: winner.user_id,
             finished_at: new Date().toISOString()
@@ -162,12 +183,12 @@ const AdminLiveControlPage: React.FC = () => {
           .eq('id', gameId);
 
         if (gameError) throw gameError;
-        
+
         toast.success(`🎉 Vencedor: ${winner.user_name} - Número ${winner.lucky_number}!`);
       } else {
         const { error } = await supabase
           .from('live_games')
-          .update({ 
+          .update({
             status: 'finished',
             finished_at: new Date().toISOString()
           })
@@ -176,7 +197,7 @@ const AdminLiveControlPage: React.FC = () => {
         if (error) throw error;
         toast.success('Jogo finalizado!');
       }
-      
+
       setGameActive(false);
       loadGame();
     } catch (error) {
@@ -378,32 +399,78 @@ Obrigado por participar! 🎉`;
           <h2 className="text-xl font-bold text-white mb-4">🎯 Controles do Jogo</h2>
           <div className="flex flex-wrap gap-4">
             {!gameActive && game.status === 'waiting' && (
-              <button
-                onClick={startGame}
-                disabled={activeParticipants.length < 2}
-                className={`px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
-                  activeParticipants.length < 2
-                    ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white'
-                }`}
-              >
-                {activeParticipants.length < 2 
-                  ? `⏳ Aguardando Participantes (${activeParticipants.length}/2)`
-                  : `▶️ Iniciar Jogo (${activeParticipants.length} participantes)`
-                }
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={startGame}
+                  disabled={activeParticipants.length < 2}
+                  className={`px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
+                    activeParticipants.length < 2
+                      ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white'
+                  }`}
+                >
+                  {activeParticipants.length < 2 
+                    ? `⏳ Aguardando Participantes (${activeParticipants.length}/2)`
+                    : `▶️ Iniciar Jogo (${activeParticipants.length} participantes)`
+                  }
+                </button>
+                
+                <button
+                  onClick={closeSystem}
+                  disabled={activeParticipants.length === 0}
+                  className={`px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
+                    activeParticipants.length === 0
+                      ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white'
+                  }`}
+                >
+                  🔒 Fechar Sistema para Sorteio Manual
+                </button>
+              </div>
             )}
             
             {gameActive && (
-              <button
-                onClick={endGame}
-                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300"
-              >
-                ⏹️ Finalizar
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={endGame}
+                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300"
+                >
+                  ⏹️ Finalizar Jogo
+                </button>
+                
+                <div className="bg-green-500/20 border border-green-500/30 rounded-xl p-3 text-center">
+                  <p className="text-green-400 font-medium">🔒 Sistema Fechado</p>
+                  <p className="text-green-300 text-sm">Novos participantes não podem entrar</p>
+                </div>
+              </div>
             )}
           </div>
         </div>
+
+        {/* Instructions for Manual Draw */}
+        {gameActive && (
+          <div className="bg-blue-500/20 backdrop-blur-sm rounded-2xl p-6 mb-8 border border-blue-500/30">
+            <h2 className="text-xl font-bold text-white mb-4">📋 Instruções para Sorteio Manual</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-slate-300">
+              <div>
+                <h3 className="font-semibold text-blue-400 mb-2">1. Exportar Lista de Participantes</h3>
+                <p className="text-sm">Use o botão "Exportar Participantes" para gerar uma lista em PDF com todos os números e nomes.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-blue-400 mb-2">2. Fazer Sorteio Manual</h3>
+                <p className="text-sm">Use a lista exportada para fazer o sorteio manual fora do sistema.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-blue-400 mb-2">3. Eliminar Participantes</h3>
+                <p className="text-sm">Use os controles abaixo para eliminar participantes conforme o sorteio manual.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-blue-400 mb-2">4. Finalizar Jogo</h3>
+                <p className="text-sm">Quando restar apenas 1 participante, clique em "Finalizar Jogo" para declarar o vencedor.</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Manual Elimination */}
         {gameActive && (
