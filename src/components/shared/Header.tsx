@@ -11,7 +11,8 @@ function Header() {
   const [pendingCount, setPendingCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
-  const { currentAppUser, signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  const { currentUser: currentAppUser } = useData();
   const { getPendingRequestsCount } = useData();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
@@ -100,6 +101,23 @@ function Header() {
               Ganhadores
             </Link>
             
+            {/* Live Games - disponível apenas para usuários não-admin */}
+            {currentAppUser && !currentAppUser.is_admin && (
+              <Link
+                to="/live-games"
+                className={`relative px-6 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
+                  location.pathname.startsWith('/live-games') 
+                    ? 'text-white bg-gradient-to-r from-red-500 to-red-600 shadow-lg shadow-red-500/25' 
+                    : 'text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 shadow-lg shadow-red-500/25 hover:shadow-red-400/30 hover:scale-105'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  🎮 Lives
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></span>
+                </span>
+              </Link>
+            )}
+            
             {/* Admin buttons */}
             {currentAppUser && currentAppUser.is_admin && (
               <>
@@ -129,6 +147,17 @@ function Header() {
                 >
                   Sorteios
                 </Link>
+                <Link
+                  to="/admin/live-games"
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
+                    location.pathname.startsWith('/admin/live-games') 
+                      ? 'text-red-100 bg-red-500/20 backdrop-blur-sm shadow-lg' 
+                      : 'text-slate-300 hover:text-red-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                  }`}
+                >
+                  Lives Admin
+                </Link>
+
               </>
             )}
             
@@ -226,6 +255,25 @@ function Header() {
                 Ganhadores
               </Link>
               
+              {/* Live Games - botão destacado apenas para usuários não-admin */}
+              {currentAppUser && !currentAppUser.is_admin && (
+                <Link
+                  to="/live-games"
+                  className={`relative flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 ${
+                    location.pathname.startsWith('/live-games')
+                      ? 'text-white bg-gradient-to-r from-red-500 to-red-600 shadow-lg shadow-red-500/25'
+                      : 'text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 shadow-lg shadow-red-500/25 hover:shadow-red-400/30'
+                  }`}
+                  onClick={closeMenu}
+                >
+                  <span className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center mr-3 text-slate-900 font-black">
+                    🎮
+                  </span>
+                  Lives
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></span>
+                </Link>
+              )}
+              
               {currentAppUser && !currentAppUser.is_admin && (
                 <Link
                   to="/my-numbers"
@@ -267,20 +315,38 @@ function Header() {
               )}
 
               {currentAppUser && currentAppUser.is_admin && (
-                <Link
-                  to="/admin/raffles"
-                  className={`flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 ${
-                    location.pathname === '/admin/raffles'
-                      ? 'text-amber-100 bg-amber-500/20 backdrop-blur-sm shadow-lg'
-                      : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 backdrop-blur-sm'
-                  }`}
-                  onClick={closeMenu}
-                >
-                  <span className="w-8 h-8 bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg flex items-center justify-center mr-3 text-slate-900 font-black">
-                    🎯
-                  </span>
-                  Sorteios
-                </Link>
+                <>
+                  <Link
+                    to="/admin/raffles"
+                    className={`flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 ${
+                      location.pathname === '/admin/raffles'
+                        ? 'text-amber-100 bg-amber-500/20 backdrop-blur-sm shadow-lg'
+                        : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                    }`}
+                    onClick={closeMenu}
+                  >
+                    <span className="w-8 h-8 bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg flex items-center justify-center mr-3 text-slate-900 font-black">
+                      🎯
+                    </span>
+                    Sorteios
+                  </Link>
+                  <Link
+                    to="/admin/live-games"
+                    className={`flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 ${
+                      location.pathname.startsWith('/admin/live-games')
+                        ? 'text-red-100 bg-red-500/20 backdrop-blur-sm shadow-lg'
+                        : 'text-slate-300 hover:text-red-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                    }`}
+                    onClick={closeMenu}
+                  >
+                    <span className="w-8 h-8 bg-gradient-to-r from-red-500 to-red-600 rounded-lg flex items-center justify-center mr-3 text-white font-black">
+                      🎮
+                    </span>
+                    Lives Admin
+                  </Link>
+                  
+
+                </>
               )}
 
               {/* Botão Sair - sempre visível se usuário estiver logado */}

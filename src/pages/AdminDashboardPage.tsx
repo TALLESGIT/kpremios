@@ -14,6 +14,8 @@ import WhatsAppMonitoringPanelSimple from '../components/admin/WhatsAppMonitorin
 import WhatsAppBulkNotificationPanelSimple from '../components/admin/WhatsAppBulkNotificationPanelSimple';
 import VonageTestPanel from '../components/admin/VonageTestPanel';
 import WhatsAppBusinessTestPanel from '../components/admin/WhatsAppBusinessTestPanel';
+import LiveRaffleControlPage from './admin/LiveRaffleControlPage';
+import UserManagementPanel from '../components/admin/UserManagementPanel';
 
 export default function AdminDashboardPage() {
   const { signOut } = useAuth();
@@ -38,6 +40,8 @@ export default function AdminDashboardPage() {
   const [showQuickTest, setShowQuickTest] = useState(false);
   const [showWhatsAppMonitoring, setShowWhatsAppMonitoring] = useState(false);
   const [showWhatsAppBulk, setShowWhatsAppBulk] = useState(false);
+  const [showLiveRaffleControl, setShowLiveRaffleControl] = useState(false);
+  const [showUserManagement, setShowUserManagement] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
   // Load pending requests count
@@ -433,6 +437,14 @@ export default function AdminDashboardPage() {
                   </button>
                   
                   <button
+                    onClick={() => setShowLiveRaffleControl(true)}
+                    className="w-full py-3 px-6 rounded-xl font-bold transition-all duration-300 flex items-center justify-center gap-2 group bg-gradient-to-r from-indigo-500 to-indigo-600 text-white hover:from-indigo-600 hover:to-indigo-700 shadow-lg hover:shadow-indigo-500/25"
+                  >
+                    <Award className="h-4 w-4" />
+                    🎮 Sorteios ao Vivo
+                  </button>
+                  
+                  <button
                     onClick={() => setShowQuickTest(true)}
                     className="w-full py-2 px-6 rounded-lg font-medium transition-all duration-300 flex items-center justify-center gap-2 group bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 shadow-md hover:shadow-green-500/25"
                   >
@@ -462,6 +474,14 @@ export default function AdminDashboardPage() {
                   >
                     <span className="text-xs">📢</span>
                     Notificação em Massa
+                  </button>
+
+                  <button
+                    onClick={() => setShowUserManagement(true)}
+                    className="w-full py-2 px-6 rounded-lg font-medium transition-all duration-300 flex items-center justify-center gap-2 group bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 shadow-md hover:shadow-red-500/25"
+                  >
+                    <span className="text-xs">👥</span>
+                    Gerenciar Usuários
                   </button>
                 </div>
               </div>
@@ -974,6 +994,50 @@ export default function AdminDashboardPage() {
                     </button>
                   </div>
                   <WhatsAppBulkNotificationPanelSimple />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showLiveRaffleControl && (
+            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-md">
+              <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div className="fixed inset-0 transition-opacity">
+                  <div className="absolute inset-0 bg-black/60"></div>
+                </div>
+                <div className="inline-block align-bottom bg-white rounded-2xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-7xl sm:w-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-gray-900">🎮 Controle de Sorteios ao Vivo</h3>
+                    <button
+                      onClick={() => setShowLiveRaffleControl(false)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <LiveRaffleControlPage />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showUserManagement && (
+            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-md">
+              <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div className="fixed inset-0 transition-opacity">
+                  <div className="absolute inset-0 bg-black/60"></div>
+                </div>
+                <div className="inline-block align-bottom bg-white rounded-2xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-7xl sm:w-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-gray-900">👥 Gerenciamento de Usuários</h3>
+                    <button
+                      onClick={() => setShowUserManagement(false)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <UserManagementPanel />
                 </div>
               </div>
             </div>

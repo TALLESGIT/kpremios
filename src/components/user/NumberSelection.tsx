@@ -3,6 +3,7 @@ import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { X, Lock, Hash } from 'lucide-react';
 import { RaffleNumber } from '../../types';
+import { supabase } from '../../lib/supabase';
 
 interface NumberSelectionProps {
   onSelectNumber: (number: number) => void;
@@ -15,6 +16,8 @@ function NumberSelection({ onSelectNumber, selectedNumber }: NumberSelectionProp
   const [filteredNumbers, setFilteredNumbers] = useState<RaffleNumber[]>([]);
   const [currentRange, setCurrentRange] = useState(0);
   const [hoveredNumber, setHoveredNumber] = useState<number | null>(null);
+  const [hasActiveRaffle, setHasActiveRaffle] = useState<boolean>(false);
+  const [loadingActiveRaffle, setLoadingActiveRaffle] = useState(true);
   const numbersPerPage = 100;
 
   // Create ranges for pagination
@@ -23,6 +26,58 @@ function NumberSelection({ onSelectNumber, selectedNumber }: NumberSelectionProp
     const end = Math.min(i + numbersPerPage - 1, 1000);
     numberRanges.push({ start: i, end, label: `${i}-${end}` });
   }
+
+  // Verificar se há sorteios ativos
+  useEffect(() => {
+    checkActiveRaffles();
+  }, []);
+
+  // Subscription em tempo real para mudanças nos sorteios
+  useEffect(() => {
+    const subscription = supabase
+      .channel('active-raffles-check')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'raffles'
+      }, () => {
+        checkActiveRaffles();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const checkActiveRaffles = async () => {
+    try {
+      console.log('Checking for active raffles...');
+      
+      // Verificar se há usuário autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Current user for raffles check:', user?.id ? 'authenticated' : 'not authenticated');
+      
+      const { data, error } = await supabase
+        .from('raffles')
+        .select('id')
+        .eq('is_active', true)
+        .limit(1);
+
+      if (error) {
+        console.error('Erro ao verificar sorteios ativos:', error);
+        setHasActiveRaffle(false);
+      } else {
+        console.log('Active raffles check result:', data);
+        setHasActiveRaffle(data && data.length > 0);
+      }
+    } catch (error) {
+      console.error('Erro ao verificar sorteios ativos:', error);
+      setHasActiveRaffle(false);
+    } finally {
+      setLoadingActiveRaffle(false);
+    }
+  };
 
   // Filter numbers based on current range
   useEffect(() => {
@@ -103,12 +158,39 @@ function NumberSelection({ onSelectNumber, selectedNumber }: NumberSelectionProp
     return 'bg-slate-800/50 border-slate-600 text-slate-300 hover:border-amber-400 hover:text-amber-400 hover:bg-slate-700/50 hover:shadow-lg hover:shadow-amber-500/10 transform hover:scale-105 backdrop-blur-sm font-bold';
   };
 
-  if (numbersLoading) {
+  if (numbersLoading || loadingActiveRaffle) {
     return (
       <div className="py-16 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-amber-500/30 border-t-amber-500 mx-auto"></div>
-          <p className="mt-6 text-amber-200 font-medium text-lg">Carregando números...</p>
+          <p className="mt-6 text-amber-200 font-medium text-lg">
+            {numbersLoading ? 'Carregando números...' : 'Verificando sorteios ativos...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Se não há sorteios ativos, não exibir a seleção de números
+  if (!hasActiveRaffle) {
+    return (
+      <div className="py-16 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="w-20 h-20 bg-gradient-to-r from-amber-500/20 to-amber-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span className="text-4xl">🎯</span>
+          </div>
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-4 sm:mb-6 tracking-tight">
+            Nenhum sorteio ativo no momento
+          </h2>
+          <p className="max-w-2xl mx-auto text-base sm:text-lg lg:text-xl text-slate-300 font-medium leading-relaxed px-2 sm:px-0 mb-6">
+            Não há sorteios ativos disponíveis para participação no momento. 
+            Fique atento para novos sorteios em breve!
+          </p>
+          <div className="bg-gradient-to-r from-amber-500/10 to-amber-600/10 border border-amber-400/30 rounded-2xl p-4 sm:p-6 backdrop-blur-sm">
+            <p className="text-amber-200 font-medium">
+              💡 <strong>Dica:</strong> Acesse o dashboard para ver suas estatísticas e atividades recentes!
+            </p>
+          </div>
         </div>
       </div>
     );

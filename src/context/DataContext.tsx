@@ -14,6 +14,7 @@ interface DataContextType {
   registerUser: (name: string, email: string, whatsapp: string, password: string, selectedNumber: number) => Promise<void>;
   registerAdmin: (name: string, email: string, whatsapp: string, password: string) => Promise<void>;
   convertToAdmin: (name: string, email: string, whatsapp: string, password: string) => Promise<void>;
+  registerRestaUmUser: (name: string, email: string, phone: string, password: string) => Promise<void>;
   
   // Extra numbers
   requestExtraNumbers: (paymentAmount: number, quantity: number, paymentProofUrl?: string) => Promise<boolean>;
@@ -191,6 +192,12 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           loadCurrentUser();
         }
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        console.log('Profiles updated (Resta Um), reloading current user...');
+        if (authUser) {
+          loadCurrentUser();
+        }
+      })
       .subscribe();
 
     return () => {
@@ -208,12 +215,39 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     
     try {
       console.log('Loading current user data for:', authUser.id);
-      const { data, error } = await supabase
+      
+      // First try to load from users table (main system)
+      let { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', authUser.id)
         .limit(1);
+      
+      // If not found in users, try profiles table (Resta Um)
+      if (!data || data.length === 0) {
+        console.log('User not found in users table, checking profiles table...');
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authUser.id)
+          .limit(1);
         
+        if (profileData && profileData.length > 0) {
+          console.log('User found in profiles table (Resta Um)');
+          data = profileData;
+          error = profileError;
+        }
+      }
+      
+      // If we have data, set the current user
+      if (data && data.length > 0) {
+        console.log('User found, setting current user:', data[0]);
+        setCurrentUser(data[0]);
+        setLoading(false);
+        return;
+      }
+        
+      // Only check for pending data if we don't have user data and there's an error
       if (error) {
         console.error('Error loading user:', error);
         
@@ -422,8 +456,9 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         id: userId,
         name,
         email,
-        whatsapp,
+        whatsapp: whatsapp, // Using 'whatsapp' column for users table
         free_number: selectedNumber,
+        is_admin: false, // Regular user
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -610,7 +645,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         id: userId,
         name,
         email,
-        whatsapp,
+        whatsapp: whatsapp, // Using 'whatsapp' column for users table
         is_admin: true, // Mark as admin
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -633,6 +668,8 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         console.log('Admin signed in successfully:', signInData.user?.id);
         // Try to create admin immediately after successful sign in
         try {
+          console.log('Attempting to create admin profile with data:', adminData);
+          
           const { data: insertData, error: insertError } = await supabase
             .from('users')
             .upsert(adminData, { 
@@ -643,6 +680,12 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
             
           if (insertError) {
             console.error('Admin creation after sign in failed:', insertError);
+            console.error('Error details:', {
+              message: insertError.message,
+              code: insertError.code,
+              details: insertError.details,
+              hint: insertError.hint
+            });
             console.log('Admin data will be processed later');
           } else {
             console.log('Admin created successfully after sign in:', insertData);
@@ -673,6 +716,8 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
             console.log('Found pending admin data, attempting to create admin...');
             const adminData = JSON.parse(pendingAdminData);
             
+            console.log('Fallback: Attempting to create admin profile with data:', adminData);
+            
             const { data: insertData, error: insertError } = await supabase
               .from('users')
               .upsert(adminData, { 
@@ -683,6 +728,12 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
               
             if (insertError) {
               console.error('Fallback admin creation failed:', insertError);
+              console.error('Fallback error details:', {
+                message: insertError.message,
+                code: insertError.code,
+                details: insertError.details,
+                hint: insertError.hint
+              });
             } else {
               console.log('Fallback admin creation successful:', insertData);
               localStorage.removeItem('pendingAdminData');
@@ -740,7 +791,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           .update({
             is_admin: true,
             name: name,
-            whatsapp: whatsapp,
+            whatsapp: whatsapp, // Using 'whatsapp' column for users table
             updated_at: new Date().toISOString()
           })
           .eq('id', userId);
@@ -757,7 +808,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           id: userId,
           name,
           email,
-          whatsapp,
+          whatsapp: whatsapp, // Using 'whatsapp' column for users table
           is_admin: true,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -787,6 +838,145 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       
     } catch (error) {
       console.error('Error in convertToAdmin:', error);
+      throw error;
+    }
+  };
+
+  const registerRestaUmUser = async (name: string, email: string, phone: string, password: string): Promise<void> => {
+    try {
+      console.log('Starting Resta Um user registration process...');
+      
+      // First, create the auth user
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: undefined, // Disable email confirmation
+          data: {
+            name: name,
+            phone: phone
+          }
+        }
+      });
+
+      if (signUpError) {
+        console.error('SignUp error:', signUpError);
+        if (signUpError.message.includes('already registered') || 
+            signUpError.message.includes('email-already-in-use') ||
+            signUpError.message.includes('User already registered')) {
+          throw new Error('Este email já está cadastrado');
+        } else if (signUpError.message.includes('For security purposes, you can only request this after')) {
+          const waitTime = signUpError.message.match(/(\d+) seconds?/)?.[1] || '60';
+          throw new Error(`Por medidas de segurança, aguarde ${waitTime} segundos antes de tentar novamente.`);
+        } else if (signUpError.message.includes('weak-password') ||
+                   signUpError.message.includes('Password should be at least')) {
+          throw new Error('Senha muito fraca. Use pelo menos 6 caracteres.');
+        } else if (signUpError.message.includes('invalid-email') ||
+                   signUpError.message.includes('Invalid email')) {
+          throw new Error('Email inválido');
+        } else {
+          throw new Error(`Erro na criação da conta: ${signUpError.message}`);
+        }
+      }
+
+      if (!authData.user) {
+        throw new Error('Erro na criação da conta. Tente novamente.');
+      }
+
+      const userId = authData.user.id;
+      console.log('Auth user created for Resta Um:', userId);
+      
+      // Store user data in localStorage for later processing
+      const userData = {
+        id: userId,
+        name,
+        email,
+        phone: phone, // Using 'phone' column for profiles table
+        is_admin: false, // Regular user for Resta Um
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      localStorage.setItem('pendingRestaUmData', JSON.stringify(userData));
+      console.log('Resta Um user data stored in localStorage for later processing');
+      
+      // Try to sign in the user immediately after signup
+      console.log('Attempting to sign in Resta Um user after signup...');
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (signInError) {
+        console.log('Resta Um sign in failed:', signInError.message);
+        console.log('Resta Um user data will be processed on next login');
+      } else {
+        console.log('Resta Um user signed in successfully:', signInData.user?.id);
+        // Try to create user immediately after successful sign in
+        try {
+          const { data: insertData, error: insertError } = await supabase
+            .from('profiles')
+            .upsert(userData, { 
+              onConflict: 'id',
+              ignoreDuplicates: false 
+            })
+            .select();
+            
+          if (insertError) {
+            console.error('Resta Um user creation after sign in failed:', insertError);
+            console.log('Resta Um user data will be processed later');
+          } else {
+            console.log('Resta Um user created successfully after sign in:', insertData);
+            localStorage.removeItem('pendingRestaUmData');
+          }
+        } catch (error) {
+          console.error('Error creating Resta Um user after sign in:', error);
+          console.log('Resta Um user data will be processed later');
+        }
+      }
+      
+      console.log('Resta Um user registration completed successfully');
+      
+      // Force immediate reload of all data
+      await Promise.all([
+        loadCurrentUser(),
+        loadNumbers(),
+        loadDrawResults()
+      ]);
+      
+      // Try to create user from localStorage if it exists (fallback)
+      setTimeout(async () => {
+        try {
+          console.log('=== CHECKING FOR PENDING RESTA UM DATA ===');
+          const pendingRestaUmData = localStorage.getItem('pendingRestaUmData');
+          
+          if (pendingRestaUmData) {
+            console.log('Found pending Resta Um data, attempting creation...');
+            const userData = JSON.parse(pendingRestaUmData);
+            
+            const { data: insertData, error: insertError } = await supabase
+              .from('profiles')
+              .upsert(userData, { 
+                onConflict: 'id',
+                ignoreDuplicates: false 
+              })
+              .select();
+              
+            if (insertError) {
+              console.error('Fallback Resta Um user creation failed:', insertError);
+            } else {
+              console.log('Fallback Resta Um user creation successful:', insertData);
+              localStorage.removeItem('pendingRestaUmData');
+              await loadCurrentUser();
+            }
+          }
+        } catch (error) {
+          console.error('Error in fallback Resta Um user creation:', error);
+        }
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error in registerRestaUmUser:', error);
       throw error;
     }
   };
@@ -992,7 +1182,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         try {
           const result = await vonageWhatsAppService.sendNewRaffleNotification({
             name: user.name,
-            whatsapp: user.whatsapp,
+            whatsapp: user.whatsapp, // Using 'whatsapp' field from users table
             raffleName: raffleData.title,
             appUrl: import.meta.env.VITE_APP_URL || 'http://localhost:5173'
           });
@@ -1054,7 +1244,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       await sendWhatsAppNotification('extra_numbers_approved', {
         id: user.id,
         name: user.name,
-        whatsapp: user.whatsapp
+        whatsapp: user.phone // Using 'phone' field from database
       }, {
         numbers: requestData.assigned_numbers || [],
         amount: requestData.payment_amount
@@ -1080,7 +1270,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
             case 'new_raffle':
               result = await vonageWhatsAppService.sendNewRaffleNotification({
                 name: user.name,
-                whatsapp: user.whatsapp,
+                whatsapp: user.phone, // Using 'phone' field from database
                 raffleName: data.raffleTitle || data.title || 'Novo Sorteio',
                 appUrl: import.meta.env.VITE_APP_URL || 'http://localhost:5173'
               });
@@ -1088,20 +1278,20 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
             case 'numbers_assigned':
               result = await vonageWhatsAppService.sendNumbersAssigned({
                 name: user.name,
-                whatsapp: user.whatsapp,
+                whatsapp: user.phone, // Using 'phone' field from database
                 numbers: data.numbers || []
               });
               break;
             case 'extra_numbers_approved':
               result = await vonageWhatsAppService.sendExtraNumbersApproved({
                 name: user.name,
-                whatsapp: user.whatsapp,
+                whatsapp: user.phone, // Using 'phone' field from database
                 extraNumbers: data.numbers || []
               });
               break;
             default:
               result = await vonageWhatsAppService.sendMessage({
-                to: user.whatsapp,
+                to: user.phone, // Using 'phone' field from database
                 message: `Notificação do ZK Premios: ${type}`
               });
           }
@@ -1156,6 +1346,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       registerUser,
       registerAdmin,
       convertToAdmin,
+      registerRestaUmUser,
       requestExtraNumbers,
       getCurrentUserRequest,
       getUserRequestsHistory,

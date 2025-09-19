@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Users, Trophy, ArrowRight, Star, Gift, Zap } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { supabase } from '../../lib/supabase';
 
 interface Raffle {
   id: string;
@@ -40,24 +41,58 @@ export default function RaffleBanner() {
     }
   ];
 
-  // Simular sorteio ativo (em produção viria do banco de dados)
+  // Carregar sorteio ativo do banco de dados
   useEffect(() => {
-    // Mock de sorteio ativo - em produção, buscar do banco
-    const mockRaffle: Raffle = {
-      id: '1',
-      title: 'iPhone 15 Pro Max',
-      description: 'Participe do nosso sorteio especial e concorra a um iPhone 15 Pro Max de 256GB!',
-      prize: 'iPhone 15 Pro Max 256GB',
-      total_numbers: 1000,
-      start_date: new Date().toISOString(),
-      end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 dias
-      is_active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    
-    setActiveRaffle(mockRaffle);
+    loadActiveRaffle();
   }, []);
+
+  // Subscription em tempo real para mudanças nos sorteios
+  useEffect(() => {
+    const subscription = supabase
+      .channel('raffles-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'raffles'
+      }, () => {
+        loadActiveRaffle();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const loadActiveRaffle = async () => {
+    try {
+      console.log('Loading active raffle...');
+      
+      // Verificar se há usuário autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Current user:', user?.id ? 'authenticated' : 'not authenticated');
+      
+      const { data, error } = await supabase
+        .from('raffles')
+        .select('*')
+        .eq('is_active', true)
+        .limit(1);
+
+      if (error) {
+        console.log('Error loading active raffle:', error);
+        console.error('Erro ao carregar sorteio ativo:', error);
+        setActiveRaffle(null);
+        return;
+      }
+
+      console.log('Active raffle loaded:', data);
+      // Como usamos .limit(1), data é um array, pegamos o primeiro elemento se existir
+      setActiveRaffle(data && data.length > 0 ? data[0] : null);
+    } catch (error) {
+      console.error('Erro ao carregar sorteio ativo:', error);
+      setActiveRaffle(null);
+    }
+  };
 
   // Rotação automática das imagens
   useEffect(() => {
