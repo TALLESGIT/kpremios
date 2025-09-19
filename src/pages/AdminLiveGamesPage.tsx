@@ -31,8 +31,7 @@ const AdminLiveGamesPage: React.FC = () => {
   const [newGame, setNewGame] = useState({
     title: '',
     description: '',
-    max_participants: 50,
-    elimination_interval: 60 // segundos
+    max_participants: 50
   });
 
   useEffect(() => {
@@ -82,7 +81,6 @@ const AdminLiveGamesPage: React.FC = () => {
           title: newGame.title,
           description: newGame.description,
           max_participants: newGame.max_participants,
-          elimination_interval: newGame.elimination_interval,
           status: 'waiting'
         })
         .select();
@@ -95,8 +93,7 @@ const AdminLiveGamesPage: React.FC = () => {
       setNewGame({
         title: '',
         description: '',
-        max_participants: 50,
-        elimination_interval: 60
+        max_participants: 50
       });
       loadGames();
     } catch (error) {
@@ -329,21 +326,6 @@ const AdminLiveGamesPage: React.FC = () => {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Intervalo de Eliminação
-                    </label>
-                    <select
-                      value={newGame.elimination_interval}
-                      onChange={(e) => setNewGame({...newGame, elimination_interval: parseInt(e.target.value)})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors"
-                    >
-                      <option value={30}>30 segundos</option>
-                      <option value={60}>1 minuto</option>
-                      <option value={120}>2 minutos</option>
-                      <option value={300}>5 minutos</option>
-                    </select>
-                  </div>
                 </div>
                 
                 <div className="flex flex-col sm:flex-row gap-3 mt-6">
