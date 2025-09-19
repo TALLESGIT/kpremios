@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
+import { useLiveGameNotifications } from '../hooks/useLiveGameNotifications';
 
 interface LiveGame {
   id: string;
@@ -35,6 +36,13 @@ const LiveParticipationPage: React.FC = () => {
   const [myParticipation, setMyParticipation] = useState<Participant | null>(null);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [showEliminationModal, setShowEliminationModal] = useState(false);
+
+  // Hook de notificações
+  const { isEliminated, requestNotificationPermission, clearEliminations } = useLiveGameNotifications(
+    gameId || '', 
+    user?.id
+  );
 
   useEffect(() => {
     if (!user) {
@@ -45,8 +53,16 @@ const LiveParticipationPage: React.FC = () => {
     if (gameId) {
       loadGameData();
       setupRealtimeSubscription();
+      requestNotificationPermission();
     }
   }, [gameId, user]);
+
+  // Mostrar modal de eliminação quando o usuário for eliminado
+  useEffect(() => {
+    if (isEliminated) {
+      setShowEliminationModal(true);
+    }
+  }, [isEliminated]);
 
   const loadGameData = async () => {
     try {
@@ -299,6 +315,21 @@ const LiveParticipationPage: React.FC = () => {
               </div>
             )}
 
+            {/* Elimination Alert */}
+            {isEliminated && (
+              <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-4 mb-4 animate-pulse">
+                <div className="text-center">
+                  <div className="text-4xl mb-2">💀</div>
+                  <h3 className="text-lg font-bold text-red-400 mb-2">
+                    Você foi eliminado!
+                  </h3>
+                  <p className="text-red-300 text-sm">
+                    Infelizmente sua sorte não foi desta vez. Continue participando dos próximos jogos!
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Join Button */}
             {canJoin && (
               <div className="text-center">
@@ -441,6 +472,40 @@ participant.user_id === user?.id
               >
                 {joining ? 'Entrando...' : 'Participar'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Elimination Modal */}
+      {showEliminationModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-red-500/30 animate-bounce">
+            <div className="text-center">
+              <div className="text-6xl mb-4">💀</div>
+              <h2 className="text-2xl font-bold text-red-400 mb-4">
+                Você foi eliminado!
+              </h2>
+              <p className="text-slate-300 mb-6">
+                Infelizmente sua sorte não foi desta vez. Continue participando dos próximos jogos!
+              </p>
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    setShowEliminationModal(false);
+                    clearEliminations();
+                  }}
+                  className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300"
+                >
+                  Entendi
+                </button>
+                <button
+                  onClick={() => navigate('/live-games')}
+                  className="w-full bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300"
+                >
+                  Ver Outros Jogos
+                </button>
+              </div>
             </div>
           </div>
         </div>

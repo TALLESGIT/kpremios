@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
+import { useWhatsApp } from '../hooks/useWhatsApp';
+import EliminationNotification from '../components/shared/EliminationNotification';
 
 interface LiveGame {
   id: string;
@@ -32,6 +34,12 @@ const AdminLiveControlPage: React.FC = () => {
   const [gameActive, setGameActive] = useState(false);
   const [eliminationTimer, setEliminationTimer] = useState<number | null>(null);
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
+  const [recentEliminations, setRecentEliminations] = useState<Array<{
+    user_name: string;
+    lucky_number: number;
+    eliminated_at: string;
+  }>>([]);
+  const { sendWhatsAppMessage } = useWhatsApp();
 
   useEffect(() => {
     if (gameId) {
@@ -198,6 +206,16 @@ const AdminLiveControlPage: React.FC = () => {
 
       if (error) throw error;
       
+      // Enviar notificação por WhatsApp
+      await sendEliminationNotification(participantToEliminate);
+      
+      // Adicionar à lista de eliminações recentes para notificação visual
+      setRecentEliminations(prev => [...prev, {
+        user_name: participantToEliminate.user_name || 'Usuário',
+        lucky_number: participantToEliminate.lucky_number,
+        eliminated_at: new Date().toISOString()
+      }]);
+      
       toast.error(`❌ ${participantToEliminate.user_name} (${participantToEliminate.lucky_number}) foi eliminado!`);
       loadParticipants();
     } catch (error) {
@@ -213,6 +231,11 @@ const AdminLiveControlPage: React.FC = () => {
     }
 
     try {
+      // Encontrar participantes que serão eliminados
+      const participantsToEliminate = participants.filter(p => 
+        selectedNumbers.includes(p.lucky_number) && p.status === 'active'
+      );
+
       const { error } = await supabase
         .from('live_participants')
         .update({ 
@@ -224,12 +247,52 @@ const AdminLiveControlPage: React.FC = () => {
 
       if (error) throw error;
       
+      // Enviar notificações por WhatsApp para todos os eliminados
+      for (const participant of participantsToEliminate) {
+        await sendEliminationNotification(participant);
+        
+        // Adicionar à lista de eliminações recentes
+        setRecentEliminations(prev => [...prev, {
+          user_name: participant.user_name || 'Usuário',
+          lucky_number: participant.lucky_number,
+          eliminated_at: new Date().toISOString()
+        }]);
+      }
+      
       toast.success(`${selectedNumbers.length} participantes eliminados!`);
       setSelectedNumbers([]);
       loadParticipants();
     } catch (error) {
       console.error('Erro ao eliminar participantes:', error);
       toast.error('Erro ao eliminar participantes');
+    }
+  };
+
+  const sendEliminationNotification = async (participant: Participant) => {
+    try {
+      if (!participant.user_phone) {
+        console.log('Participante sem telefone, pulando notificação WhatsApp');
+        return;
+      }
+
+      const message = `💀 *ELIMINAÇÃO NO JOGO RESTA UM* 💀
+
+❌ *Você foi eliminado!*
+
+🎮 *Jogo:* ${game?.title || 'Resta Um'}
+🔢 *Seu número:* ${participant.lucky_number}
+⏰ *Eliminado em:* ${new Date().toLocaleString('pt-BR')}
+
+😔 Infelizmente sua sorte não foi desta vez, mas continue participando dos próximos jogos!
+
+🎯 *Próximos jogos:* Acesse o app para ver quando haverá novos sorteios.
+
+Obrigado por participar! 🎉`;
+
+      await sendWhatsAppMessage(participant.user_phone, message);
+      console.log(`Notificação de eliminação enviada para ${participant.user_name}`);
+    } catch (error) {
+      console.error('Erro ao enviar notificação de eliminação:', error);
     }
   };
 
@@ -464,6 +527,19 @@ const AdminLiveControlPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Notificações de Eliminação */}
+        {recentEliminations.map((elimination, index) => (
+          <EliminationNotification
+            key={`${elimination.lucky_number}-${elimination.eliminated_at}-${index}`}
+            participant={elimination}
+            onClose={() => {
+              setRecentEliminations(prev => 
+                prev.filter((_, i) => i !== index)
+              );
+            }}
+          />
+        ))}
       </div>
     </div>
   );
