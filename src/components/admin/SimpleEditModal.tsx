@@ -14,8 +14,7 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({ isOpen, onClose, game
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    max_participants: 50,
-    elimination_interval: 60
+    max_participants: 50
   });
   const [loading, setLoading] = useState(false);
 
@@ -24,8 +23,7 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({ isOpen, onClose, game
       setFormData({
         title: game.title || '',
         description: game.description || '',
-        max_participants: game.max_participants || 50,
-        elimination_interval: game.elimination_interval || 60
+        max_participants: game.max_participants || 50
       });
     }
   }, [game]);
@@ -40,8 +38,7 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({ isOpen, onClose, game
         .update({
           title: formData.title,
           description: formData.description,
-          max_participants: formData.max_participants,
-          elimination_interval: formData.elimination_interval
+          max_participants: formData.max_participants
         })
         .eq('id', game.id);
 
@@ -114,21 +111,6 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({ isOpen, onClose, game
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Intervalo de Eliminação (segundos)
-            </label>
-            <select
-              value={formData.elimination_interval}
-              onChange={(e) => setFormData({...formData, elimination_interval: parseInt(e.target.value)})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value={30}>30 segundos</option>
-              <option value={60}>1 minuto</option>
-              <option value={120}>2 minutos</option>
-              <option value={300}>5 minutos</option>
-            </select>
-          </div>
         </div>
 
         <div className="flex gap-3 mt-6">
