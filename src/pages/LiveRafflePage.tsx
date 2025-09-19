@@ -185,12 +185,18 @@ const LiveRafflePage: React.FC = () => {
     setLoading(true);
     try {
       // Verificar se o usuário já está participando
-      const { data: existingParticipant } = await supabase
+      const { data: existingParticipant, error: participantError } = await supabase
         .from('live_participants')
         .select('id')
         .eq('game_id', raffle.id)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
+
+      if (participantError) {
+        console.error('Erro ao verificar participação:', participantError);
+        showMessage('❌ Erro ao verificar participação. Tente novamente.', 'error');
+        return;
+      }
 
       if (existingParticipant) {
         showMessage('❌ Você já está participando deste sorteio!', 'error');
@@ -198,12 +204,18 @@ const LiveRafflePage: React.FC = () => {
       }
 
       // Verificar se o número já foi escolhido
-      const { data: numberTaken } = await supabase
+      const { data: numberTaken, error: numberError } = await supabase
         .from('live_participants')
         .select('id')
         .eq('game_id', raffle.id)
         .eq('lucky_number', number)
-        .single();
+        .maybeSingle();
+
+      if (numberError) {
+        console.error('Erro ao verificar número:', numberError);
+        showMessage('❌ Erro ao verificar número. Tente novamente.', 'error');
+        return;
+      }
 
       if (numberTaken) {
         showMessage('❌ Este número já foi escolhido!', 'error');
