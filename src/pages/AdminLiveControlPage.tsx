@@ -352,7 +352,7 @@ Obrigado por participar! 🎉`;
         <div className="text-center">
           <h2 className="text-2xl font-bold text-white mb-4">Jogo não encontrado</h2>
           <button
-            onClick={() => navigate('/admin/live-games')}
+            onClick={() => navigate(-1)}
             className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300"
           >
             Voltar para Lista
@@ -373,7 +373,7 @@ Obrigado por participar! 🎉`;
           <div className="flex items-center justify-between mb-6">
             <div>
               <button
-                onClick={() => navigate('/admin/live-games')}
+                onClick={() => navigate(-1)}
                 className="text-amber-400 hover:text-amber-300 mb-2 flex items-center gap-2 transition-colors"
               >
                 ← Voltar para Lista

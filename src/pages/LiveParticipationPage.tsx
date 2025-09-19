@@ -147,7 +147,7 @@ const LiveParticipationPage: React.FC = () => {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-white mb-4">Jogo não encontrado</h2>
           <button
-            onClick={() => navigate('/live-games')}
+            onClick={() => navigate(-1)}
             className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300"
           >
             Voltar para Lista
@@ -163,7 +163,7 @@ const LiveParticipationPage: React.FC = () => {
         {/* Header */}
         <div className="mb-6 sm:mb-8">
           <button
-            onClick={() => navigate('/live-games')}
+            onClick={() => navigate(-1)}
             className="text-purple-400 hover:text-purple-300 mb-4 flex items-center gap-2 transition-colors text-sm sm:text-base"
           >
             ← Voltar para Lista
