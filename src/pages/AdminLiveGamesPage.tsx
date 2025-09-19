@@ -7,6 +7,7 @@ import { Edit3, Download, Trash2, Eye, Play } from 'lucide-react';
 import EditRaffleModal from '../components/admin/EditRaffleModal';
 import ExportParticipantsModal from '../components/admin/ExportParticipantsModal';
 import TestModal from '../components/admin/TestModal';
+import SimpleEditModal from '../components/admin/SimpleEditModal';
 
 interface LiveGame {
   id: string;
@@ -127,6 +128,7 @@ const AdminLiveGamesPage: React.FC = () => {
   const handleEditGame = (game: LiveGame) => {
     setSelectedGame(game);
     setShowEditModal(true);
+    console.log('Editando jogo:', game);
   };
 
   const handleExportParticipants = (game: LiveGame) => {
@@ -374,11 +376,10 @@ const AdminLiveGamesPage: React.FC = () => {
         )}
 
         {/* Modals */}
-        <EditRaffleModal
+        <SimpleEditModal
           isOpen={showEditModal}
           onClose={handleCloseModals}
-          raffle={selectedGame}
-          onUpdate={loadGames}
+          game={selectedGame}
         />
 
         <ExportParticipantsModal
