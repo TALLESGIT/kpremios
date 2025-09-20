@@ -67,6 +67,88 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     return Math.floor(100000 + Math.random() * 900000).toString();
   };
 
+  const loadCurrentUser = async () => {
+    console.log('loadCurrentUser called with authUser:', authUser);
+    if (!authUser || !authUser.id) {
+      console.log('No authUser or authUser.id, setting currentUser to null');
+      setCurrentUser(null);
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      console.log('Loading current user data for:', authUser.id);
+      
+      // First try to load from users table (main system)
+      let { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .limit(1);
+      
+      // If not found in users, try profiles table (Resta Um)
+      if (!data || data.length === 0) {
+        console.log('User not found in users table, checking profiles table...');
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authUser.id)
+          .limit(1);
+        
+        if (profileData && profileData.length > 0) {
+          console.log('User found in profiles table (Resta Um)');
+          data = profileData;
+          error = profileError;
+        }
+      }
+      
+      // If we have data, set the current user
+      if (data && data.length > 0) {
+        console.log('User found, setting current user:', data[0]);
+        setCurrentUser(data[0]);
+        setLoading(false);
+        return;
+      }
+        
+      // Only check for pending data if we don't have user data and there's an error
+      if (error) {
+        console.error('Error loading user:', error);
+        
+        // If user doesn't exist, check if we have pending data in localStorage
+        const pendingUserData = localStorage.getItem('pendingUserData');
+        if (pendingUserData) {
+          console.log('Found pending user data, creating user...');
+          const userData = JSON.parse(pendingUserData);
+          
+          // Try to create the user now that they are authenticated
+          const { data: insertData, error: insertError } = await supabase
+            .from('users')
+            .upsert(userData, { 
+              onConflict: 'id',
+              ignoreDuplicates: false 
+            })
+            .select();
+            
+          if (insertError) {
+            console.error('Error creating user from pending data:', insertError);
+            setCurrentUser(null);
+          } else {
+            console.log('User created from pending data:', insertData);
+            setCurrentUser(insertData[0]);
+            localStorage.removeItem('pendingUserData');
+          }
+        } else {
+          setCurrentUser(null);
+        }
+        return;
+      }
+
+      setCurrentUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Função para enviar notificação WhatsApp via Vonage
   const sendWhatsAppNotification = async (type: string, userData: any, additionalData?: any) => {
     try {
@@ -204,98 +286,6 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       subscription.unsubscribe();
     };
   }, []);
-  const loadCurrentUser = async () => {
-    console.log('loadCurrentUser called with authUser:', authUser);
-    if (!authUser || !authUser.id) {
-      console.log('No authUser or authUser.id, setting currentUser to null');
-      setCurrentUser(null);
-      setLoading(false);
-      return;
-    }
-    
-    try {
-      console.log('Loading current user data for:', authUser.id);
-      
-      // First try to load from users table (main system)
-      let { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', authUser.id)
-        .limit(1);
-      
-      // If not found in users, try profiles table (Resta Um)
-      if (!data || data.length === 0) {
-        console.log('User not found in users table, checking profiles table...');
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authUser.id)
-          .limit(1);
-        
-        if (profileData && profileData.length > 0) {
-          console.log('User found in profiles table (Resta Um)');
-          data = profileData;
-          error = profileError;
-        }
-      }
-      
-      // If we have data, set the current user
-      if (data && data.length > 0) {
-        console.log('User found, setting current user:', data[0]);
-        setCurrentUser(data[0]);
-        setLoading(false);
-        return;
-      }
-        
-      // Only check for pending data if we don't have user data and there's an error
-      if (error) {
-        console.error('Error loading user:', error);
-        
-        // If user doesn't exist, check if we have pending data in localStorage
-        const pendingUserData = localStorage.getItem('pendingUserData');
-        if (pendingUserData) {
-          console.log('Found pending user data, creating user...');
-          const userData = JSON.parse(pendingUserData);
-          
-          // Try to create the user now that they are authenticated
-          const { data: insertData, error: insertError } = await supabase
-            .from('users')
-            .upsert(userData, { 
-              onConflict: 'id',
-              ignoreDuplicates: false 
-            })
-            .select();
-            
-          if (insertError) {
-            console.error('Error creating user from pending data:', insertError);
-            setCurrentUser(null);
-          } else {
-            console.log('User created from pending data:', insertData);
-            setCurrentUser(insertData[0]);
-            localStorage.removeItem('pendingUserData');
-          }
-        } else {
-          setCurrentUser(null);
-        }
-        return;
-      }
-      
-      console.log('User data loaded:', data);
-      const userData = data?.[0] || null;
-      console.log('Setting currentUser to:', userData);
-      setCurrentUser(userData);
-      
-      // Force a re-render of NumberSelection by updating the dependency
-      if (userData) {
-        console.log('Current user set successfully, should trigger NumberSelection update');
-      }
-    } catch (error) {
-      console.error('Error loading user:', error);
-      setCurrentUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const loadNumbers = async () => {
     setNumbersLoading(true);
