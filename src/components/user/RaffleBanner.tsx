@@ -20,27 +20,9 @@ interface Raffle {
 export default function RaffleBanner() {
   const { numbers } = useData();
   const [activeRaffle, setActiveRaffle] = useState<Raffle | null>(null);
-  const [currentImage, setCurrentImage] = useState(0);
   
-  // Imagens do Unsplash para diferentes tipos de prêmios
-  const bannerImages = [
-    {
-      url: 'https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
-      alt: 'iPhone moderno'
-    },
-    {
-      url: 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?ixlib=rb-4.0.3&auto=format&fit=crop&w=2126&q=80',
-      alt: 'Notebook premium'
-    },
-    {
-      url: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2340&q=80',
-      alt: 'Dinheiro e prêmios'
-    },
-    {
-      url: 'https://images.unsplash.com/photo-1607082349566-187342175e2f?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
-      alt: 'Tecnologia moderna'
-    }
-  ];
+  // Imagem padrão de fallback quando não há imagem do prêmio
+  const defaultBannerImage = 'https://images.unsplash.com/photo-1607082349566-187342175e2f?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80';
 
   // Carregar sorteio ativo do banco de dados
   useEffect(() => {
@@ -95,14 +77,6 @@ export default function RaffleBanner() {
     }
   };
 
-  // Rotação automática das imagens
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentImage((prev) => (prev + 1) % bannerImages.length);
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [bannerImages.length]);
 
   if (!activeRaffle) {
     return null;
@@ -134,7 +108,7 @@ export default function RaffleBanner() {
         <div 
           className="w-full h-full bg-cover bg-center bg-no-repeat transition-all duration-1000 ease-in-out"
           style={{
-            backgroundImage: `url(${bannerImages[currentImage].url})`,
+            backgroundImage: `url(${activeRaffle.prize_image || defaultBannerImage})`,
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-800/80 to-slate-900/90" />
