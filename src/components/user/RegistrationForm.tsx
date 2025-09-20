@@ -10,9 +10,11 @@ interface RegistrationFormProps {
 
 function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) {
   const { registerUser } = useData();
-  const { signUp, user, currentAppUser } = useAuth();
+  const { signUp, user, currentAppUser, signIn } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoginMode, setIsLoginMode] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -26,6 +28,59 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
     return null;
   }
 
+  // Verificar se email já existe quando usuário digita
+  const checkEmailExists = async (email: string) => {
+    if (!email || !email.includes('@')) return;
+    
+    setCheckingEmail(true);
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (!error && data) {
+        // Email já existe, trocar para modo login
+        setIsLoginMode(true);
+        setErrors({});
+      } else {
+        // Email não existe, manter modo cadastro
+        setIsLoginMode(false);
+        setErrors({});
+      }
+    } catch (error) {
+      console.error('Erro ao verificar email:', error);
+    } finally {
+      setCheckingEmail(false);
+    }
+  };
+
+  // Função para fazer login
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedNumber) return;
+
+    setLoading(true);
+    setErrors({});
+
+    try {
+      const { error } = await signIn(formData.email, formData.password);
+      
+      if (error) {
+        setErrors({ general: 'Email ou senha incorretos' });
+        return;
+      }
+
+      onSuccess();
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setErrors({ general: 'Erro ao fazer login' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedNumber) return;
@@ -36,12 +91,16 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
     try {
       // Validate form
       const newErrors: Record<string, string> = {};
-      if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
       if (!formData.email.trim()) newErrors.email = 'Email é obrigatório';
       if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email inválido';
-      if (!formData.whatsapp.trim()) newErrors.whatsapp = 'WhatsApp é obrigatório';
       if (!formData.password.trim() || formData.password.length < 6) {
         newErrors.password = 'Senha deve ter pelo menos 6 caracteres';
+      }
+      
+      // Validações específicas para cadastro
+      if (!isLoginMode) {
+        if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
+        if (!formData.whatsapp.trim()) newErrors.whatsapp = 'WhatsApp é obrigatório';
       }
       
       if (Object.keys(newErrors).length > 0) {
@@ -49,14 +108,24 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
         return;
       }
 
-      // Register user directly (it will handle auth internally)
-      await registerUser(
-        formData.name,
-        formData.email,
-        formData.whatsapp,
-        formData.password,
-        selectedNumber
-      );
+      if (isLoginMode) {
+        // Fazer login
+        const { error } = await signIn(formData.email, formData.password);
+        
+        if (error) {
+          setErrors({ general: 'Email ou senha incorretos' });
+          return;
+        }
+      } else {
+        // Fazer cadastro
+        await registerUser(
+          formData.name,
+          formData.email,
+          formData.whatsapp,
+          formData.password,
+          selectedNumber
+        );
+      }
       
       onSuccess();
       
@@ -109,6 +178,12 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
               </div>
             )}
 
+            {isLoginMode && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <p className="text-blue-800 text-sm font-medium">Email encontrado! Faça login com sua senha.</p>
+              </div>
+            )}
+
             {errors.general && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
                 <p className="text-red-800 text-sm">{errors.general}</p>
@@ -117,29 +192,32 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
 
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Name */}
-              <div>
-                <label htmlFor="name" className="block text-sm font-semibold text-slate-700 mb-2">
-                  Nome Completo *
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-slate-400" />
+              {/* Nome - apenas no modo cadastro */}
+              {!isLoginMode && (
+                <div>
+                  <label htmlFor="name" className="block text-sm font-semibold text-slate-700 mb-2">
+                    Nome Completo *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <input
+                      type="text"
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      autoComplete="name"
+                      className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors ${
+                        errors.name ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white'
+                      }`}
+                      placeholder="Digite seu nome completo"
+                    />
                   </div>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    autoComplete="name"
-                    className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors ${
-                      errors.name ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white'
-                    }`}
-                    placeholder="Digite seu nome completo"
-                  />
+                  {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
                 </div>
-                {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
-              </div>
+              )}
 
               {/* Email */}
               <div>
@@ -155,44 +233,55 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
                     id="email"
                     name="email"
                     value={formData.email}
-                    onChange={handleChange}
+                    onChange={(e) => {
+                      handleChange(e);
+                      // Verificar email após 1 segundo de pausa na digitação
+                      setTimeout(() => checkEmailExists(e.target.value), 1000);
+                    }}
                     autoComplete="email"
                     className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors ${
                       errors.email ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white'
                     }`}
                     placeholder="seu.email@exemplo.com"
                   />
+                  {checkingEmail && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-500"></div>
+                    </div>
+                  )}
                 </div>
                 {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
               </div>
 
-              {/* WhatsApp */}
-              <div>
-                <label htmlFor="whatsapp" className="block text-sm font-semibold text-slate-700 mb-2">
-                  WhatsApp *
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Phone className="h-5 w-5 text-slate-400" />
+              {/* WhatsApp - apenas no modo cadastro */}
+              {!isLoginMode && (
+                <div>
+                  <label htmlFor="whatsapp" className="block text-sm font-semibold text-slate-700 mb-2">
+                    WhatsApp *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Phone className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <input
+                      type="tel"
+                      id="whatsapp"
+                      name="whatsapp"
+                      value={formData.whatsapp}
+                      onChange={handleChange}
+                      autoComplete="tel"
+                      className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors ${
+                        errors.whatsapp ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white'
+                      }`}
+                      placeholder="(11) 99999-9999"
+                    />
                   </div>
-                  <input
-                    type="tel"
-                    id="whatsapp"
-                    name="whatsapp"
-                    value={formData.whatsapp}
-                    onChange={handleChange}
-                    autoComplete="tel"
-                    className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors ${
-                      errors.whatsapp ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white'
-                    }`}
-                    placeholder="(11) 99999-9999"
-                  />
+                  {errors.whatsapp && <p className="mt-1 text-sm text-red-600">{errors.whatsapp}</p>}
+                  <p className="mt-1 text-xs text-slate-500">
+                    Usado para contato em caso de vitória
+                  </p>
                 </div>
-                {errors.whatsapp && <p className="mt-1 text-sm text-red-600">{errors.whatsapp}</p>}
-                <p className="mt-1 text-xs text-slate-500">
-                  Usado para contato em caso de vitória
-                </p>
-              </div>
+              )}
 
               {/* Password */}
               <div>
@@ -240,11 +329,11 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
                 {loading ? (
                   <>
                     <Loader2 className="animate-spin" size={20} />
-                    Processando...
+                    {isLoginMode ? 'Entrando...' : 'Processando...'}
                   </>
                 ) : (
                   <>
-                    Confirmar Cadastro
+                    {isLoginMode ? 'Fazer Login' : 'Confirmar Cadastro'}
                     <Send size={20} />
                   </>
                 )}
@@ -252,7 +341,35 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-xs text-slate-500">
+              {isLoginMode ? (
+                <p className="text-sm text-slate-600">
+                  Não tem uma conta?{' '}
+                  <button 
+                    onClick={() => {
+                      setIsLoginMode(false);
+                      setErrors({});
+                    }}
+                    className="text-amber-600 hover:text-amber-700 font-semibold transition-colors duration-200"
+                  >
+                    Cadastre-se aqui
+                  </button>
+                </p>
+              ) : (
+                <p className="text-sm text-slate-600">
+                  Já tem uma conta?{' '}
+                  <button 
+                    onClick={() => {
+                      setIsLoginMode(true);
+                      setErrors({});
+                    }}
+                    className="text-amber-600 hover:text-amber-700 font-semibold transition-colors duration-200"
+                  >
+                    Faça login aqui
+                  </button>
+                </p>
+              )}
+              
+              <p className="text-xs text-slate-500 mt-2">
                 Ao se cadastrar, você concorda com nossos termos de uso e política de privacidade
               </p>
             </div>
