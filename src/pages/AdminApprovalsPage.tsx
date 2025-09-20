@@ -120,6 +120,12 @@ export default function AdminApprovalsPage() {
         throw new Error('Solicitação não encontrada');
       }
       
+      // Verificar se há comprovante de pagamento
+      if (!request.payment_proof_url) {
+        alert('⚠️ Esta solicitação não possui comprovante de pagamento. É recomendado rejeitar ou solicitar o comprovante antes de aprovar.');
+        return;
+      }
+      
       // Calcular quantidade correta: 100 números por cada R$ 10,00
       const quantity = Math.floor(request.payment_amount / 10) * 100;
       
@@ -324,7 +330,7 @@ export default function AdminApprovalsPage() {
                   className={`group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border backdrop-blur-sm hover:border-amber-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-500/10 cursor-pointer ${
                     request.payment_proof_url 
                       ? 'border-emerald-500/30 hover:border-emerald-400/50' 
-                      : 'border-slate-600/30'
+                      : 'border-amber-500/30 hover:border-amber-400/50'
                   }`}
                   onClick={() => {
                     setSelectedRequest(request);
@@ -334,10 +340,15 @@ export default function AdminApprovalsPage() {
                   {/* Header */}
                   <div className="bg-gradient-to-r from-slate-700/50 to-slate-800/50 p-3 sm:p-6 border-b border-slate-600/30 relative">
                     {/* Badge de Comprovante */}
-                    {request.payment_proof_url && (
+                    {request.payment_proof_url ? (
                       <div className="absolute top-3 right-3 bg-emerald-500/20 border border-emerald-400/30 rounded-full px-2 py-1 flex items-center gap-1">
                         <Image className="h-3 w-3 text-emerald-400" />
                         <span className="text-emerald-400 text-xs font-bold">Comprovante</span>
+                      </div>
+                    ) : (
+                      <div className="absolute top-3 right-3 bg-amber-500/20 border border-amber-400/30 rounded-full px-2 py-1 flex items-center gap-1">
+                        <FileText className="h-3 w-3 text-amber-400" />
+                        <span className="text-amber-400 text-xs font-bold">Sem Comprovante</span>
                       </div>
                     )}
                     
@@ -437,10 +448,14 @@ export default function AdminApprovalsPage() {
                             e.stopPropagation();
                             handleApprove(request.id);
                           }}
-                          className="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold py-2 sm:py-3 px-3 sm:px-4 rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm"
+                          className={`flex-1 font-bold py-2 sm:py-3 px-3 sm:px-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm ${
+                            !request.payment_proof_url
+                              ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white'
+                              : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white'
+                          }`}
                         >
                           <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
-                          Aprovar
+                          {!request.payment_proof_url ? 'Aprovar (Sem Comprovante)' : 'Aprovar'}
                         </button>
                         <button
                           onClick={(e) => {
