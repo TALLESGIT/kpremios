@@ -243,6 +243,24 @@ export default function AdminApprovalsPage() {
     return numbers.sort((a, b) => a - b);
   };
 
+  // Função para organizar números em faixas de 100
+  const organizeNumbersInRanges = (numbers: number[]) => {
+    const ranges: { [key: string]: number[] } = {};
+    
+    numbers.forEach(num => {
+      const rangeStart = Math.floor((num - 1) / 100) * 100 + 1;
+      const rangeEnd = rangeStart + 99;
+      const rangeKey = `${rangeStart}-${rangeEnd}`;
+      
+      if (!ranges[rangeKey]) {
+        ranges[rangeKey] = [];
+      }
+      ranges[rangeKey].push(num);
+    });
+    
+    return ranges;
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'text-yellow-400 bg-yellow-400/20 border-yellow-400/30';
@@ -390,16 +408,28 @@ export default function AdminApprovalsPage() {
                       </div>
 
                       {request.extra_numbers && request.extra_numbers.length > 0 && (
-                        <div className="flex items-start justify-between">
+                        <div className="space-y-3">
                           <div className="flex items-center text-slate-300">
                             <Hash className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                            <span className="text-xs sm:text-sm font-medium">Números:</span>
+                            <span className="text-xs sm:text-sm font-medium">Números Extras:</span>
                           </div>
-                          <div className="flex gap-1 flex-wrap justify-end">
-                            {request.extra_numbers.map((num, index) => (
-                              <span key={index} className="bg-amber-500/20 text-amber-200 px-1 py-0.5 sm:px-2 sm:py-1 rounded text-xs font-bold">
-                                {num}
-                              </span>
+                          
+                          {/* Faixas de números */}
+                          <div className="space-y-2">
+                            {Object.entries(organizeNumbersInRanges(request.extra_numbers)).map(([range, numbers]) => (
+                              <div key={range} className="bg-slate-700/30 rounded-lg p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-amber-400 font-bold text-sm">{range}</span>
+                                  <span className="text-slate-400 text-xs">{numbers.length} números</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                  {numbers.map((num, index) => (
+                                    <span key={index} className="bg-amber-500/20 text-amber-200 px-2 py-1 rounded text-xs font-bold">
+                                      {num}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
                             ))}
                           </div>
                         </div>
