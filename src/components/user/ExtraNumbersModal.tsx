@@ -44,9 +44,15 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
     console.log('ExtraNumbersModal - user:', user);
     console.log('ExtraNumbersModal - currentAppUser:', currentAppUser);
     
-    if (!user || !currentAppUser) {
+    if (!user) {
       console.log('ExtraNumbersModal - User not authenticated');
       setError('Você precisa estar logado para solicitar números extras.');
+      return;
+    }
+
+    if (!currentAppUser) {
+      console.log('ExtraNumbersModal - User data not loaded yet');
+      setError('Carregando dados do usuário...');
       return;
     }
 
