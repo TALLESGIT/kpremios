@@ -35,6 +35,7 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
     
     setCheckingEmail(true);
     try {
+      // Verificar se existe na tabela users
       const { data, error } = await supabase
         .from('users')
         .select('id')
@@ -42,7 +43,7 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
         .maybeSingle();
 
       if (!error && data) {
-        // Email já existe, trocar para modo login
+        // Email já existe na tabela users, sugerir modo login
         setIsLoginMode(true);
         setErrors({});
       } else {
@@ -52,6 +53,8 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
       }
     } catch (error) {
       console.error('Erro ao verificar email:', error);
+      // Em caso de erro, manter modo cadastro
+      setIsLoginMode(false);
     } finally {
       setCheckingEmail(false);
     }
@@ -72,7 +75,14 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
       });
 
       if (error) {
-        setErrors({ general: 'Email ou senha incorretos' });
+        console.error('Login error details:', error);
+        if (error.message.includes('Invalid login credentials')) {
+          setErrors({ general: 'Email ou senha incorretos' });
+        } else if (error.message.includes('Email not confirmed')) {
+          setErrors({ general: 'Email não confirmado. Verifique sua caixa de entrada.' });
+        } else {
+          setErrors({ general: `Erro no login: ${error.message}` });
+        }
         return;
       }
 
@@ -122,7 +132,14 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
         });
         
         if (error) {
-          setErrors({ general: 'Email ou senha incorretos' });
+          console.error('Login error details:', error);
+          if (error.message.includes('Invalid login credentials')) {
+            setErrors({ general: 'Email ou senha incorretos' });
+          } else if (error.message.includes('Email not confirmed')) {
+            setErrors({ general: 'Email não confirmado. Verifique sua caixa de entrada.' });
+          } else {
+            setErrors({ general: `Erro no login: ${error.message}` });
+          }
           return;
         }
 
@@ -194,7 +211,13 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
 
             {isLoginMode && (
               <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                <p className="text-blue-800 text-sm font-medium">Email encontrado! Faça login com sua senha.</p>
+                <p className="text-blue-800 text-sm font-medium">
+                  Email encontrado! Faça login com sua senha.
+                </p>
+                <p className="text-blue-600 text-xs mt-1">
+                  Se não conseguir fazer login, pode ser que o usuário não foi criado no sistema de autenticação. 
+                  Tente fazer cadastro novamente.
+                </p>
               </div>
             )}
 

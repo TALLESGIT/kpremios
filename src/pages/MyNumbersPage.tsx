@@ -10,8 +10,8 @@ import { ExtraNumberRequest } from '../types';
 import { supabase } from '../lib/supabase';
 
 function MyNumbersPage() {
-  const { getCurrentUserRequest, numbers, getUserRequestsHistory } = useData();
-  const { currentAppUser } = useAuth();
+  const { getCurrentUserRequest, numbers, getUserRequestsHistory, currentUser: currentAppUser } = useData();
+  const { user } = useAuth();
   const [showExtraModal, setShowExtraModal] = useState(false);
   const [requestsHistory, setRequestsHistory] = useState<ExtraNumberRequest[]>([]);
   
@@ -64,8 +64,8 @@ function MyNumbersPage() {
   }, [currentAppUser, getUserRequestsHistory]);
 
   // Redirect if user hasn't registered
-  if (!currentAppUser) {
-    return <Navigate to="/" replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
 
   return (
