@@ -15,6 +15,8 @@ const RegisterPage: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isLoginMode, setIsLoginMode] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -22,6 +24,87 @@ const RegisterPage: React.FC = () => {
       ...formData,
       [e.target.name]: e.target.value,
     });
+  };
+
+  // Verificar se email já existe quando usuário digita
+  const checkEmailExists = async (email: string) => {
+    if (!email || !email.includes('@')) return;
+    
+    setCheckingEmail(true);
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (!error && data) {
+        // Email já existe, trocar para modo login
+        setIsLoginMode(true);
+        setError('');
+      } else {
+        // Email não existe, manter modo cadastro
+        setIsLoginMode(false);
+        setError('');
+      }
+    } catch (error) {
+      console.error('Erro ao verificar email:', error);
+    } finally {
+      setCheckingEmail(false);
+    }
+  };
+
+  // Função para fazer login
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Verificar se é admin
+        const { data: profile, error: profileError } = await supabase
+          .from('users')
+          .select('is_admin')
+          .eq('id', data.user.id)
+          .single();
+
+        // Se não há perfil, criar um básico
+        if (profileError && profileError.code === 'PGRST116') {
+          const { error: insertError } = await supabase
+            .from('users')
+            .insert({
+              id: data.user.id,
+              name: data.user.email?.split('@')[0] || 'Usuário',
+              email: data.user.email || '',
+              whatsapp: '',
+              is_admin: false,
+            });
+
+          if (insertError) {
+            console.error('Erro ao criar perfil:', insertError);
+          }
+        }
+
+        // Redirecionar baseado no perfil ou padrão
+        if (profile?.is_admin) {
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/dashboard');
+        }
+      }
+    } catch (error: any) {
+      setError('Email ou senha incorretos');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -100,54 +183,64 @@ const RegisterPage: React.FC = () => {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl mb-4">
               <span className="text-2xl font-bold text-white">ZK</span>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Crie sua conta</h1>
-            <p className="text-gray-600">Junte-se ao ZK Prêmios e comece a ganhar!</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              {isLoginMode ? 'Faça seu login' : 'Crie sua conta'}
+            </h1>
+            <p className="text-gray-600">
+              {isLoginMode 
+                ? 'Entre com seu email e senha para acessar sua conta' 
+                : 'Junte-se ao ZK Prêmios e comece a ganhar!'
+              }
+            </p>
           </div>
 
           {/* Formulário */}
           <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
-            <form onSubmit={handleRegister} className="space-y-5">
+            <form onSubmit={isLoginMode ? handleLogin : handleRegister} className="space-y-5">
+              {isLoginMode && (
+                <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle className="h-5 w-5" />
+                    <div className="flex-1">
+                      <span className="font-medium">Email encontrado! Faça login com sua senha.</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
                   <div className="flex items-center space-x-2">
                     <AlertCircle className="h-5 w-5" />
                     <div className="flex-1">
                       <span className="font-medium">{error}</span>
-                      {error.includes('já está cadastrado') && (
-                        <div className="mt-2">
-                          <Link 
-                            to="/login" 
-                            className="text-blue-600 hover:text-blue-800 underline font-medium"
-                          >
-                            → Clique aqui para fazer login
-                          </Link>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
               )}
 
-              <div>
-                <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Nome Completo
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-gray-400" />
+              {!isLoginMode && (
+                <div>
+                  <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Nome Completo
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      id="name"
+                      name="name"
+                      type="text"
+                      value={formData.name}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                      placeholder="Seu nome completo"
+                      required
+                    />
                   </div>
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
-                    placeholder="Seu nome completo"
-                    required
-                  />
                 </div>
-              </div>
+              )}
 
               <div>
                 <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
@@ -162,33 +255,44 @@ const RegisterPage: React.FC = () => {
                     name="email"
                     type="email"
                     value={formData.email}
-                    onChange={handleChange}
+                    onChange={(e) => {
+                      handleChange(e);
+                      // Verificar email após 1 segundo de pausa na digitação
+                      setTimeout(() => checkEmailExists(e.target.value), 1000);
+                    }}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
                     placeholder="seu@email.com"
                     required
                   />
+                  {checkingEmail && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-500"></div>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2">
-                  WhatsApp <span className="text-gray-500 text-sm font-normal">(opcional)</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Phone className="h-5 w-5 text-gray-400" />
+              {!isLoginMode && (
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2">
+                    WhatsApp <span className="text-gray-500 text-sm font-normal">(opcional)</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Phone className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                      placeholder="(31) 99999-9999"
+                    />
                   </div>
-                  <input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
-                    placeholder="(31) 99999-9999"
-                  />
                 </div>
-              </div>
+              )}
 
               <div>
                 <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
@@ -211,26 +315,28 @@ const RegisterPage: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Confirmar Senha
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
+              {!isLoginMode && (
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Confirmar Senha
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type="password"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                      placeholder="Digite a senha novamente"
+                      required
+                    />
                   </div>
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
-                    placeholder="Digite a senha novamente"
-                    required
-                  />
                 </div>
-              </div>
+              )}
 
               <button
                 type="submit"
@@ -240,11 +346,11 @@ const RegisterPage: React.FC = () => {
                 {loading ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    <span>Criando conta...</span>
+                    <span>{isLoginMode ? 'Entrando...' : 'Criando conta...'}</span>
                   </>
                 ) : (
                   <>
-                    <span>Criar Conta</span>
+                    <span>{isLoginMode ? 'Entrar' : 'Criar Conta'}</span>
                     <ArrowRight className="h-5 w-5" />
                   </>
                 )}
@@ -252,15 +358,33 @@ const RegisterPage: React.FC = () => {
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-gray-600">
-                Já tem uma conta?{' '}
-                <Link 
-                  to="/login" 
-                  className="text-amber-600 hover:text-amber-700 font-semibold transition-colors duration-200"
-                >
-                  Faça login aqui
-                </Link>
-              </p>
+              {isLoginMode ? (
+                <p className="text-gray-600">
+                  Não tem uma conta?{' '}
+                  <button 
+                    onClick={() => {
+                      setIsLoginMode(false);
+                      setError('');
+                    }}
+                    className="text-amber-600 hover:text-amber-700 font-semibold transition-colors duration-200"
+                  >
+                    Cadastre-se aqui
+                  </button>
+                </p>
+              ) : (
+                <p className="text-gray-600">
+                  Já tem uma conta?{' '}
+                  <button 
+                    onClick={() => {
+                      setIsLoginMode(true);
+                      setError('');
+                    }}
+                    className="text-amber-600 hover:text-amber-700 font-semibold transition-colors duration-200"
+                  >
+                    Faça login aqui
+                  </button>
+                </p>
+              )}
             </div>
           </div>
 
