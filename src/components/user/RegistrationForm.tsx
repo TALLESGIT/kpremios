@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Send, Loader2, Mail, User, Phone, Eye, EyeOff } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 interface RegistrationFormProps {
   selectedNumber: number | null;
@@ -10,7 +11,7 @@ interface RegistrationFormProps {
 
 function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) {
   const { registerUser } = useData();
-  const { signUp, user, currentAppUser, signIn } = useAuth();
+  const { signUp, user, currentAppUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoginMode, setIsLoginMode] = useState(false);
@@ -65,14 +66,19 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
     setErrors({});
 
     try {
-      const { error } = await signIn(formData.email, formData.password);
-      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
       if (error) {
         setErrors({ general: 'Email ou senha incorretos' });
         return;
       }
 
-      onSuccess();
+      if (data.user) {
+        onSuccess();
+      }
     } catch (error: any) {
       console.error('Login error:', error);
       setErrors({ general: 'Erro ao fazer login' });
@@ -110,10 +116,18 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
 
       if (isLoginMode) {
         // Fazer login
-        const { error } = await signIn(formData.email, formData.password);
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
         
         if (error) {
           setErrors({ general: 'Email ou senha incorretos' });
+          return;
+        }
+
+        if (!data.user) {
+          setErrors({ general: 'Erro ao fazer login' });
           return;
         }
       } else {
