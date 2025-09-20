@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { X, Gift, Calendar, Bell } from 'lucide-react';
 
 interface UserStats {
   totalRaffles: number;
@@ -21,6 +23,8 @@ interface RecentActivity {
 
 const UserDashboardPage: React.FC = () => {
   const { user, signOut } = useAuth();
+  const { currentUser: currentAppUser } = useData();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats>({
     totalRaffles: 0,
     wonRaffles: 0,
@@ -28,6 +32,7 @@ const UserDashboardPage: React.FC = () => {
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showNoRafflesModal, setShowNoRafflesModal] = useState(false);
 
   useEffect(() => {
     loadUserStats();
@@ -159,6 +164,16 @@ const UserDashboardPage: React.FC = () => {
     }
   };
 
+  const handleViewRaffles = () => {
+    if (stats.currentRaffles > 0) {
+      // Se há sorteios ativos, navegar para a página inicial
+      navigate('/');
+    } else {
+      // Se não há sorteios ativos, mostrar modal
+      setShowNoRafflesModal(true);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
@@ -273,7 +288,7 @@ const UserDashboardPage: React.FC = () => {
                 Participe de sorteios gratuitos e ganhe prêmios incríveis sem pagar nada!
               </p>
               <button
-                onClick={() => {/* Navegar para sorteios gratuitos */}}
+                onClick={handleViewRaffles}
                 className="inline-block bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold py-3 px-8 rounded-lg transition-all duration-200 transform hover:scale-105"
               >
                 Ver Sorteios
@@ -325,6 +340,79 @@ const UserDashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal - Nenhum Sorteio Ativo */}
+      {showNoRafflesModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl shadow-2xl border border-slate-600/30 w-full max-w-md mx-auto">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-amber-500/20 to-amber-600/20 p-6 border-b border-slate-600/30 rounded-t-3xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl flex items-center justify-center">
+                    <Gift className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-white">Sorteios Gratuitos</h3>
+                    <p className="text-slate-300 text-sm">Aguarde novos sorteios</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowNoRafflesModal(false)}
+                  className="w-10 h-10 bg-slate-700/50 hover:bg-slate-700/70 rounded-xl flex items-center justify-center transition-colors duration-200"
+                >
+                  <X className="h-5 w-5 text-slate-400" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Conteúdo */}
+            <div className="p-6">
+              <div className="text-center mb-6">
+                <div className="w-20 h-20 bg-gradient-to-r from-amber-500/20 to-amber-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Calendar className="h-10 w-10 text-amber-400" />
+                </div>
+                <h4 className="text-lg font-bold text-white mb-2">Nenhum Sorteio Ativo</h4>
+                <p className="text-slate-300 text-sm leading-relaxed">
+                  No momento não há sorteios gratuitos disponíveis. 
+                  Fique atento às nossas redes sociais para não perder os próximos sorteios!
+                </p>
+              </div>
+              
+              <div className="bg-slate-700/30 rounded-xl p-4 mb-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <Bell className="h-5 w-5 text-amber-400" />
+                  <h5 className="font-bold text-white">Como ser notificado?</h5>
+                </div>
+                <ul className="text-sm text-slate-300 space-y-2">
+                  <li>• Siga nossas redes sociais</li>
+                  <li>• Ative as notificações do app</li>
+                  <li>• Verifique regularmente esta página</li>
+                </ul>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowNoRafflesModal(false)}
+                  className="flex-1 bg-slate-700/50 hover:bg-slate-700/70 text-slate-300 font-bold py-3 px-4 rounded-xl transition-all duration-200 border border-slate-600/30"
+                >
+                  Entendi
+                </button>
+                <button
+                  onClick={() => {
+                    setShowNoRafflesModal(false);
+                    navigate('/');
+                  }}
+                  className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                  <Calendar className="h-4 w-4" />
+                  Ver Página
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

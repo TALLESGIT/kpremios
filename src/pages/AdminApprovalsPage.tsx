@@ -24,7 +24,7 @@ interface ExtraNumberRequest {
 }
 
 export default function AdminApprovalsPage() {
-  const { currentAppUser } = useAuth();
+  const { currentUser: currentAppUser } = useData();
   const navigate = useNavigate();
   const [requests, setRequests] = useState<ExtraNumberRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -321,14 +321,26 @@ export default function AdminApprovalsPage() {
               {requests.map((request) => (
                 <div
                   key={request.id}
-                  className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-slate-600/30 backdrop-blur-sm hover:border-amber-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-500/10 cursor-pointer"
+                  className={`group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border backdrop-blur-sm hover:border-amber-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-500/10 cursor-pointer ${
+                    request.payment_proof_url 
+                      ? 'border-emerald-500/30 hover:border-emerald-400/50' 
+                      : 'border-slate-600/30'
+                  }`}
                   onClick={() => {
                     setSelectedRequest(request);
                     setShowModal(true);
                   }}
                 >
                   {/* Header */}
-                  <div className="bg-gradient-to-r from-slate-700/50 to-slate-800/50 p-3 sm:p-6 border-b border-slate-600/30">
+                  <div className="bg-gradient-to-r from-slate-700/50 to-slate-800/50 p-3 sm:p-6 border-b border-slate-600/30 relative">
+                    {/* Badge de Comprovante */}
+                    {request.payment_proof_url && (
+                      <div className="absolute top-3 right-3 bg-emerald-500/20 border border-emerald-400/30 rounded-full px-2 py-1 flex items-center gap-1">
+                        <Image className="h-3 w-3 text-emerald-400" />
+                        <span className="text-emerald-400 text-xs font-bold">Comprovante</span>
+                      </div>
+                    )}
+                    
                     <div className="flex items-center justify-between">
                       <div className="flex items-center min-w-0 flex-1">
                         <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
@@ -391,7 +403,10 @@ export default function AdminApprovalsPage() {
                         <div className="flex items-center gap-2">
                           {request.payment_proof_url ? (
                             <>
-                              <span className="text-emerald-400 text-xs sm:text-sm font-medium">Enviado</span>
+                              <div className="flex items-center gap-1">
+                                <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
+                                <span className="text-emerald-400 text-xs sm:text-sm font-medium">Enviado</span>
+                              </div>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -399,14 +414,17 @@ export default function AdminApprovalsPage() {
                                   setSelectedProofRequest(request);
                                   setShowProofModal(true);
                                 }}
-                                className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 px-2 py-1 rounded text-xs font-medium transition-colors duration-200 flex items-center gap-1"
+                                className="bg-gradient-to-r from-blue-500/20 to-blue-600/20 hover:from-blue-500/30 hover:to-blue-600/30 text-blue-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 border border-blue-400/30"
                               >
                                 <Image className="h-3 w-3" />
-                                Ver
+                                Visualizar
                               </button>
                             </>
                           ) : (
-                            <span className="text-red-400 text-xs sm:text-sm font-medium">Não enviado</span>
+                            <div className="flex items-center gap-1">
+                              <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                              <span className="text-red-400 text-xs sm:text-sm font-medium">Não enviado</span>
+                            </div>
                           )}
                         </div>
                       </div>

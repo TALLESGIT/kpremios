@@ -11,7 +11,8 @@ interface RegistrationFormProps {
 
 function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) {
   const { registerUser } = useData();
-  const { signUp, user, currentAppUser } = useAuth();
+  const { signUp, user } = useAuth();
+  const { currentUser: currentAppUser } = useData();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoginMode, setIsLoginMode] = useState(false);

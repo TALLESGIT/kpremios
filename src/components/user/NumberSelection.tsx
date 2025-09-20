@@ -12,7 +12,7 @@ interface NumberSelectionProps {
 
 function NumberSelection({ onSelectNumber, selectedNumber }: NumberSelectionProps) {
   const { numbers, numbersLoading } = useData();
-  const { currentAppUser } = useAuth();
+  const { currentUser: currentAppUser } = useData();
   const [filteredNumbers, setFilteredNumbers] = useState<RaffleNumber[]>([]);
   const [currentRange, setCurrentRange] = useState(0);
   const [hoveredNumber, setHoveredNumber] = useState<number | null>(null);

@@ -20,6 +20,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import UserDashboardPage from './pages/UserDashboardPage';
 import LiveRafflePage from './pages/LiveRafflePage';
+import FreeRafflesPage from './pages/FreeRafflesPage';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
@@ -52,6 +53,11 @@ function AppContent() {
           <Route path="/live-raffle" element={
             <UserProtectedRoute>
               <LiveRafflePage />
+            </UserProtectedRoute>
+          } />
+          <Route path="/free-raffles" element={
+            <UserProtectedRoute>
+              <FreeRafflesPage />
             </UserProtectedRoute>
           } />
           

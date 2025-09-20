@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
@@ -31,7 +32,7 @@ interface Participant {
 }
 
 export default function LiveGamesPage() {
-  const { currentAppUser } = useAuth();
+  const { currentUser: currentAppUser } = useData();
   const navigate = useNavigate();
   const [games, setGames] = useState<LiveGame[]>([]);
   const [loading, setLoading] = useState(true);

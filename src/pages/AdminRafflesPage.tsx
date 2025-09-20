@@ -21,7 +21,7 @@ interface Raffle {
 }
 
 export default function AdminRafflesPage() {
-  const { currentAppUser } = useAuth();
+  const { currentUser: currentAppUser } = useData();
   const navigate = useNavigate();
   const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [loading, setLoading] = useState(true);

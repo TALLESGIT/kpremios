@@ -10,8 +10,8 @@ interface ExtraNumbersModalProps {
 }
 
 function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
-  const { requestExtraNumbers, getCurrentUserRequest } = useData();
-  const { user, currentAppUser } = useAuth();
+  const { requestExtraNumbers, getCurrentUserRequest, currentUser: currentAppUser } = useData();
+  const { user } = useAuth();
   const [paymentAmount, setPaymentAmount] = useState('10');
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);

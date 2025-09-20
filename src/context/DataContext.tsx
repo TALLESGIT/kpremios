@@ -68,16 +68,16 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   };
 
   const loadCurrentUser = useCallback(async () => {
-    console.log('loadCurrentUser called with authUser:', authUser);
+    console.log('🚀 loadCurrentUser called with authUser:', authUser);
     if (!authUser || !authUser.id) {
-      console.log('No authUser or authUser.id, setting currentUser to null');
+      console.log('❌ No authUser or authUser.id, setting currentUser to null');
       setCurrentUser(null);
       setLoading(false);
       return;
     }
     
     try {
-      console.log('Loading current user data for:', authUser.id);
+      console.log('🔍 Loading current user data for:', authUser.id);
       
       // First try to load from users table (main system)
       let { data, error } = await supabase
@@ -104,7 +104,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       
       // If we have data, set the current user
       if (data && data.length > 0) {
-        console.log('User found, setting current user:', data[0]);
+        console.log('✅ User found, setting current user:', data[0]);
         setCurrentUser(data[0]);
         setLoading(false);
         return;
@@ -150,7 +150,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   }, [authUser]);
 
   // Função para enviar notificação WhatsApp via Vonage
-  const sendWhatsAppNotification = async (type: string, userData: any, additionalData?: any) => {
+  const sendWhatsAppNotification = async (type: string, userData: any, _additionalData?: any) => {
     try {
       console.log(`🚀 Enviando notificação ${type} via Vonage para ${userData.whatsapp}`);
       
@@ -239,16 +239,17 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
   // Load user data when auth user changes
   useEffect(() => {
-    console.log('DataContext - authUser changed:', authUser);
+    console.log('🔄 DataContext - authUser changed:', authUser);
+    console.log('🔄 DataContext - loadCurrentUser function:', loadCurrentUser);
     if (authUser && authUser.id) {
-      console.log('DataContext - loading current user for ID:', authUser.id);
+      console.log('🔄 DataContext - loading current user for ID:', authUser.id);
       loadCurrentUser();
       // Only load user request after a longer delay to ensure user is fully authenticated
       setTimeout(() => {
         loadCurrentUserRequest();
       }, 3000);
     } else {
-      console.log('DataContext - no auth user, clearing current user');
+      console.log('🔄 DataContext - no auth user, clearing current user');
       setCurrentUser(null);
       setCurrentUserRequest(null);
     }
@@ -1261,7 +1262,9 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   };
 
   // Função para envio em massa de notificações via Vonage
-  const sendBulkNotification = async (users: Array<{whatsapp: string; name: string}>, type: string, data: any) => {
+  const sendBulkNotification = async (users: Array<{
+    [x: string]: string;whatsapp: string; name: string
+}>, type: string, data: any) => {
     try {
       console.log('Sending bulk notification via Vonage:', { users: users.length, type, data });
       

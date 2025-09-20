@@ -1,7 +1,10 @@
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 
 function TestAdminPage() {
-  const { user, isAdmin, currentAppUser, loading } = useAuth();
+  const { user, loading } = useAuth();
+  const { currentUser: currentAppUser } = useData();
+  const isAdmin = currentAppUser?.is_admin || false;
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-8">

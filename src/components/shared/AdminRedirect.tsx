@@ -1,9 +1,12 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useData } from '../../context/DataContext';
 
 function AdminRedirect() {
-  const { currentAppUser, isAdmin, loading } = useAuth();
+  const { loading } = useAuth();
+  const { currentUser: currentAppUser } = useData();
+  const isAdmin = currentAppUser?.is_admin || false;
   const navigate = useNavigate();
 
   useEffect(() => {
