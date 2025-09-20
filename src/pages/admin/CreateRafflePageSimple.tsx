@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
+import { supabase } from '../../lib/supabase';
 import Header from '../../components/shared/Header';
 import Footer from '../../components/shared/Footer';
 import { 
@@ -24,7 +25,8 @@ const CreateRafflePageSimple: React.FC = () => {
     endDate: '',
     description: '',
     maxParticipants: 1000,
-    notifyUsers: true
+    notifyUsers: true,
+    prizeImage: ''
   });
   
   const [isLoading, setIsLoading] = useState(false);
@@ -35,12 +37,57 @@ const CreateRafflePageSimple: React.FC = () => {
     total?: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [imageType, setImageType] = useState<'upload' | 'url'>('upload');
 
   const handleInputChange = (field: string, value: string | number | boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+  };
+
+  // Função para lidar com upload de arquivo
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Verificar se é uma imagem
+      if (!file.type.startsWith('image/')) {
+        setError('Por favor, selecione apenas arquivos de imagem');
+        return;
+      }
+      
+      // Verificar tamanho (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('A imagem deve ter no máximo 5MB');
+        return;
+      }
+      
+      setImageFile(file);
+      setImageType('upload');
+      
+      // Criar preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Função para lidar com URL de imagem
+  const handleImageUrl = (url: string) => {
+    setFormData(prev => ({...prev, prizeImage: url}));
+    setImagePreview(url);
+    setImageType('url');
+  };
+
+  // Função para remover imagem
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview('');
+    setFormData(prev => ({...prev, prizeImage: ''}));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,9 +114,30 @@ const CreateRafflePageSimple: React.FC = () => {
         throw new Error('Data de fim é obrigatória');
       }
 
+      // Upload da imagem se fornecida
+      let imageUrl = formData.prizeImage;
+      
+      if (imageFile && imageType === 'upload') {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `prize-images/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('prize-images')
+          .upload(filePath, imageFile);
+        
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('prize-images')
+          .getPublicUrl(filePath);
+        
+        imageUrl = publicUrl;
+      }
+
       // TODO: Salvar sorteio no banco de dados
       // Por enquanto, apenas simular a criação
-      console.log('Creating raffle:', formData);
+      console.log('Creating raffle:', { ...formData, prizeImage: imageUrl });
       
       // Simular delay
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -197,6 +265,90 @@ const CreateRafflePageSimple: React.FC = () => {
                     className="w-full px-3 py-2 bg-slate-700 border border-slate-600 text-white placeholder-slate-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
+                </div>
+
+                {/* Imagem do Prêmio */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    🏆 Imagem do Prêmio (opcional)
+                  </label>
+                  
+                  {/* Tabs para escolher tipo de imagem */}
+                  <div className="flex mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setImageType('upload')}
+                      className={`px-3 py-2 text-sm font-medium rounded-l-lg border ${
+                        imageType === 'upload'
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : 'bg-slate-700 text-slate-300 border-slate-600 hover:bg-slate-600'
+                      }`}
+                    >
+                      📁 Upload do PC
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setImageType('url')}
+                      className={`px-3 py-2 text-sm font-medium rounded-r-lg border-t border-r border-b ${
+                        imageType === 'url'
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : 'bg-slate-700 text-slate-300 border-slate-600 hover:bg-slate-600'
+                      }`}
+                    >
+                      🌐 URL (Unsplash)
+                    </button>
+                  </div>
+
+                  {/* Upload de arquivo */}
+                  {imageType === 'upload' && (
+                    <div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-slate-400 mt-1">
+                        Formatos aceitos: JPG, PNG, GIF, WebP. Máximo: 5MB
+                      </p>
+                    </div>
+                  )}
+
+                  {/* URL de imagem */}
+                  {imageType === 'url' && (
+                    <div>
+                      <input
+                        type="url"
+                        value={formData.prizeImage}
+                        onChange={(e) => handleImageUrl(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 text-white placeholder-slate-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="https://images.unsplash.com/photo-..."
+                      />
+                      <p className="text-xs text-slate-400 mt-1">
+                        Cole aqui a URL da imagem (Unsplash, Imgur, etc.)
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Preview da imagem */}
+                  {imagePreview && (
+                    <div className="mt-3">
+                      <div className="relative inline-block">
+                        <img
+                          src={imagePreview}
+                          alt="Preview do prêmio"
+                          className="w-32 h-32 object-cover rounded-lg border border-slate-600"
+                        />
+                        <button
+                          type="button"
+                          onClick={removeImage}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Datas */}
