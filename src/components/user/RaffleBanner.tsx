@@ -14,6 +14,7 @@ interface Raffle {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  prize_image?: string;
 }
 
 export default function RaffleBanner() {
@@ -171,12 +172,23 @@ export default function RaffleBanner() {
               </p>
 
               {/* Prize Highlight */}
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl sm:rounded-2xl flex items-center justify-center">
-                  <Trophy className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white" />
-                </div>
-                <div>
-                  <p className="text-amber-400 font-bold text-sm sm:text-base lg:text-lg">Prêmio:</p>
+              <div className="flex items-start space-x-3 sm:space-x-4">
+                {/* Imagem do Prêmio ou Ícone */}
+                {activeRaffle.prize_image ? (
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-xl sm:rounded-2xl overflow-hidden border-2 border-amber-500/30 shadow-lg">
+                    <img
+                      src={activeRaffle.prize_image}
+                      alt={activeRaffle.prize}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl sm:rounded-2xl flex items-center justify-center">
+                    <Trophy className="h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-white" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <p className="text-amber-400 font-bold text-sm sm:text-base lg:text-lg mb-1">Prêmio:</p>
                   <p className="text-white font-black text-base sm:text-lg lg:text-xl">{activeRaffle.prize}</p>
                 </div>
               </div>
