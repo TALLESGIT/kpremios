@@ -27,6 +27,9 @@ export default function AdminRafflesPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingRaffle, setEditingRaffle] = useState<Raffle | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [imageType, setImageType] = useState<'upload' | 'url'>('upload');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -34,7 +37,8 @@ export default function AdminRafflesPage() {
     total_numbers: 1000,
     start_date: '',
     end_date: '',
-    is_active: true
+    is_active: true,
+    prize_image: ''
   });
 
   // Verificar se é admin
@@ -48,6 +52,48 @@ export default function AdminRafflesPage() {
   useEffect(() => {
     loadRaffles();
   }, []);
+
+  // Função para lidar com upload de arquivo
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Verificar se é uma imagem
+      if (!file.type.startsWith('image/')) {
+        alert('Por favor, selecione apenas arquivos de imagem');
+        return;
+      }
+      
+      // Verificar tamanho (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('A imagem deve ter no máximo 5MB');
+        return;
+      }
+      
+      setImageFile(file);
+      setImageType('upload');
+      
+      // Criar preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Função para lidar com URL de imagem
+  const handleImageUrl = (url: string) => {
+    setFormData({...formData, prize_image: url});
+    setImagePreview(url);
+    setImageType('url');
+  };
+
+  // Função para remover imagem
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview('');
+    setFormData({...formData, prize_image: ''});
+  };
 
   const loadRaffles = async () => {
     try {
@@ -97,8 +143,30 @@ export default function AdminRafflesPage() {
 
   const handleSaveRaffle = async () => {
     try {
+      // Upload da imagem se fornecida
+      let imageUrl = formData.prize_image;
+      
+      if (imageFile && imageType === 'upload') {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `prize-images/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('prize-images')
+          .upload(filePath, imageFile);
+        
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('prize-images')
+          .getPublicUrl(filePath);
+        
+        imageUrl = publicUrl;
+      }
+
       const raffleData = {
         ...formData,
+        prize_image: imageUrl,
         start_date: new Date(formData.start_date).toISOString(),
         end_date: new Date(formData.end_date).toISOString(),
         updated_at: new Date().toISOString()
@@ -127,6 +195,8 @@ export default function AdminRafflesPage() {
       await loadRaffles();
       setShowModal(false);
       setEditingRaffle(null);
+      setImageFile(null);
+      setImagePreview('');
       
       alert(editingRaffle ? 'Sorteio atualizado com sucesso!' : 'Sorteio criado com sucesso!');
     } catch (error) {
@@ -387,6 +457,90 @@ export default function AdminRafflesPage() {
                           className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                           placeholder="Ex: iPhone 15 Pro Max 256GB"
                         />
+                      </div>
+
+                      {/* Imagem do Prêmio */}
+                      <div>
+                        <label className="block text-sm font-bold text-slate-300 mb-2">
+                          🏆 Imagem do Prêmio (opcional)
+                        </label>
+                        
+                        {/* Tabs para escolher tipo de imagem */}
+                        <div className="flex mb-3">
+                          <button
+                            type="button"
+                            onClick={() => setImageType('upload')}
+                            className={`px-3 py-2 text-sm font-medium rounded-l-lg border ${
+                              imageType === 'upload'
+                                ? 'bg-amber-500 text-white border-amber-500'
+                                : 'bg-slate-700 text-slate-300 border-slate-600 hover:bg-slate-600'
+                            }`}
+                          >
+                            📁 Upload do PC
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setImageType('url')}
+                            className={`px-3 py-2 text-sm font-medium rounded-r-lg border-t border-r border-b ${
+                              imageType === 'url'
+                                ? 'bg-amber-500 text-white border-amber-500'
+                                : 'bg-slate-700 text-slate-300 border-slate-600 hover:bg-slate-600'
+                            }`}
+                          >
+                            🌐 URL (Unsplash)
+                          </button>
+                        </div>
+
+                        {/* Upload de arquivo */}
+                        {imageType === 'upload' && (
+                          <div>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleImageUpload}
+                              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                            />
+                            <p className="text-xs text-slate-400 mt-1">
+                              Formatos aceitos: JPG, PNG, GIF, WebP. Máximo: 5MB
+                            </p>
+                          </div>
+                        )}
+
+                        {/* URL de imagem */}
+                        {imageType === 'url' && (
+                          <div>
+                            <input
+                              type="url"
+                              value={formData.prize_image}
+                              onChange={(e) => handleImageUrl(e.target.value)}
+                              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                              placeholder="https://images.unsplash.com/photo-..."
+                            />
+                            <p className="text-xs text-slate-400 mt-1">
+                              Cole aqui a URL da imagem (Unsplash, Imgur, etc.)
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Preview da imagem */}
+                        {imagePreview && (
+                          <div className="mt-3">
+                            <div className="relative inline-block">
+                              <img
+                                src={imagePreview}
+                                alt="Preview do prêmio"
+                                className="w-32 h-32 object-cover rounded-lg border border-slate-600"
+                              />
+                              <button
+                                type="button"
+                                onClick={removeImage}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
