@@ -77,7 +77,13 @@ const RegisterPage: React.FC = () => {
         });
       }
     } catch (error: any) {
-      setError(error.message);
+      if (error.message.includes('already registered') || 
+          error.message.includes('email-already-in-use') ||
+          error.message.includes('User already registered')) {
+        setError('Este email já está cadastrado! Faça login em vez de se cadastrar novamente.');
+      } else {
+        setError(error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -105,7 +111,19 @@ const RegisterPage: React.FC = () => {
                 <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
                   <div className="flex items-center space-x-2">
                     <AlertCircle className="h-5 w-5" />
-                    <span className="font-medium">{error}</span>
+                    <div className="flex-1">
+                      <span className="font-medium">{error}</span>
+                      {error.includes('já está cadastrado') && (
+                        <div className="mt-2">
+                          <Link 
+                            to="/login" 
+                            className="text-blue-600 hover:text-blue-800 underline font-medium"
+                          >
+                            → Clique aqui para fazer login
+                          </Link>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

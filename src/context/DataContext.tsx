@@ -428,7 +428,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         if (signUpError.message.includes('already registered') || 
             signUpError.message.includes('email-already-in-use') ||
             signUpError.message.includes('User already registered')) {
-          throw new Error('Este email já está cadastrado');
+          throw new Error('Este email já está cadastrado! Faça login em vez de se cadastrar novamente.');
         } else if (signUpError.message.includes('For security purposes, you can only request this after')) {
           const waitTime = signUpError.message.match(/(\d+) seconds?/)?.[1] || '60';
           throw new Error(`Por medidas de segurança, aguarde ${waitTime} segundos antes de tentar novamente.`);
@@ -618,7 +618,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         if (signUpError.message.includes('already registered') || 
             signUpError.message.includes('email-already-in-use') ||
             signUpError.message.includes('User already registered')) {
-          throw new Error('Este email já está cadastrado');
+          throw new Error('Este email já está cadastrado! Faça login em vez de se cadastrar novamente.');
         } else if (signUpError.message.includes('For security purposes, you can only request this after')) {
           const waitTime = signUpError.message.match(/(\d+) seconds?/)?.[1] || '60';
           throw new Error(`Por medidas de segurança, aguarde ${waitTime} segundos antes de tentar novamente.`);
@@ -864,7 +864,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         if (signUpError.message.includes('already registered') || 
             signUpError.message.includes('email-already-in-use') ||
             signUpError.message.includes('User already registered')) {
-          throw new Error('Este email já está cadastrado');
+          throw new Error('Este email já está cadastrado! Faça login em vez de se cadastrar novamente.');
         } else if (signUpError.message.includes('For security purposes, you can only request this after')) {
           const waitTime = signUpError.message.match(/(\d+) seconds?/)?.[1] || '60';
           throw new Error(`Por medidas de segurança, aguarde ${waitTime} segundos antes de tentar novamente.`);
