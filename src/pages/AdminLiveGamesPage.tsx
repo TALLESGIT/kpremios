@@ -28,15 +28,61 @@ const AdminLiveGamesPage: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedGame, setSelectedGame] = useState<LiveGame | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [imageType, setImageType] = useState<'upload' | 'url'>('upload');
   const [newGame, setNewGame] = useState({
     title: '',
     description: '',
-    max_participants: 50
+    max_participants: 50,
+    prize_image: ''
   });
 
   useEffect(() => {
     loadGames();
   }, []);
+
+  // Função para lidar com upload de arquivo
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Verificar se é uma imagem
+      if (!file.type.startsWith('image/')) {
+        toast.error('Por favor, selecione apenas arquivos de imagem');
+        return;
+      }
+      
+      // Verificar tamanho (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('A imagem deve ter no máximo 5MB');
+        return;
+      }
+      
+      setImageFile(file);
+      setImageType('upload');
+      
+      // Criar preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Função para lidar com URL de imagem
+  const handleImageUrl = (url: string) => {
+    setNewGame({...newGame, prize_image: url});
+    setImagePreview(url);
+    setImageType('url');
+  };
+
+  // Função para remover imagem
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview('');
+    setNewGame({...newGame, prize_image: ''});
+  };
 
   const loadGames = async () => {
     try {
@@ -75,12 +121,35 @@ const AdminLiveGamesPage: React.FC = () => {
 
     try {
       console.log('Creating new game:', newGame);
+      
+      let imageUrl = newGame.prize_image;
+      
+      // Se for upload de arquivo, fazer upload para Supabase Storage
+      if (imageFile && imageType === 'upload') {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `prize-images/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('prize-images')
+          .upload(filePath, imageFile);
+        
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('prize-images')
+          .getPublicUrl(filePath);
+        
+        imageUrl = publicUrl;
+      }
+      
       const { data, error } = await supabase
         .from('live_games')
         .insert({
           title: newGame.title,
           description: newGame.description,
           max_participants: newGame.max_participants,
+          prize_image: imageUrl,
           status: 'waiting'
         })
         .select();
@@ -93,8 +162,11 @@ const AdminLiveGamesPage: React.FC = () => {
       setNewGame({
         title: '',
         description: '',
-        max_participants: 50
+        max_participants: 50,
+        prize_image: ''
       });
+      setImageFile(null);
+      setImagePreview('');
       loadGames();
     } catch (error) {
       console.error('Erro ao criar jogo:', error);
@@ -324,6 +396,90 @@ const AdminLiveGamesPage: React.FC = () => {
                       onChange={(e) => setNewGame({...newGame, max_participants: parseInt(e.target.value) || 50})}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors"
                     />
+                  </div>
+
+                  {/* Campo de Imagem do Prêmio */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      🏆 Imagem do Prêmio (opcional)
+                    </label>
+                    
+                    {/* Tabs para escolher tipo de imagem */}
+                    <div className="flex mb-3">
+                      <button
+                        type="button"
+                        onClick={() => setImageType('upload')}
+                        className={`px-3 py-2 text-sm font-medium rounded-l-lg border ${
+                          imageType === 'upload'
+                            ? 'bg-amber-500 text-white border-amber-500'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        📁 Upload do PC
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImageType('url')}
+                        className={`px-3 py-2 text-sm font-medium rounded-r-lg border-t border-r border-b ${
+                          imageType === 'url'
+                            ? 'bg-amber-500 text-white border-amber-500'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        🌐 URL (Unsplash)
+                      </button>
+                    </div>
+
+                    {/* Upload de arquivo */}
+                    {imageType === 'upload' && (
+                      <div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Formatos aceitos: JPG, PNG, GIF. Máximo: 5MB
+                        </p>
+                      </div>
+                    )}
+
+                    {/* URL de imagem */}
+                    {imageType === 'url' && (
+                      <div>
+                        <input
+                          type="url"
+                          value={newGame.prize_image}
+                          onChange={(e) => handleImageUrl(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors"
+                          placeholder="https://images.unsplash.com/photo-..."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Cole aqui a URL da imagem (Unsplash, Imgur, etc.)
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Preview da imagem */}
+                    {imagePreview && (
+                      <div className="mt-3">
+                        <div className="relative inline-block">
+                          <img
+                            src={imagePreview}
+                            alt="Preview do prêmio"
+                            className="w-32 h-32 object-cover rounded-lg border border-gray-300"
+                          />
+                          <button
+                            type="button"
+                            onClick={removeImage}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                 </div>
