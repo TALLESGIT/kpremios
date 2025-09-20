@@ -6,7 +6,6 @@ import RaffleBanner from '../components/user/RaffleBanner';
 import NumberSelection from '../components/user/NumberSelection';
 import RegistrationForm from '../components/user/RegistrationForm';
 import SuccessModal from '../components/shared/SuccessModal';
-import NumberStatusDebug from '../components/debug/NumberStatusDebug';
 
 function HomePage() {
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
@@ -22,8 +21,6 @@ function HomePage() {
     <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-8">
       <Header />
       <main className="flex-grow">
-        {/* Debug Component - Temporary */}
-        <NumberStatusDebug />
         {/* Live Games Section */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-8">
           <div className="flex items-center justify-between mb-4">

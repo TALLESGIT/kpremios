@@ -532,6 +532,19 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       
       console.log('Number reservation result:', numberUpdateData);
       
+      // Update user's free_number in the database
+      const { error: userUpdateError } = await supabase
+        .from('users')
+        .update({ free_number: selectedNumber })
+        .eq('id', userId);
+        
+      if (userUpdateError) {
+        console.error('Error updating user free_number:', userUpdateError);
+        // Don't throw error here, as the number is already reserved
+      } else {
+        console.log('User free_number updated successfully');
+      }
+      
       // Enviar notificação WhatsApp com o número atribuído
       await sendWhatsAppNotification('numbers_assigned', {
         id: userId,
