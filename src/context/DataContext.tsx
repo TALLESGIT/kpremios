@@ -1,4 +1,4 @@
-import { createContext, useContext, ReactNode, useEffect, useState } from 'react';
+import { createContext, useContext, ReactNode, useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { User, RaffleNumber, ExtraNumberRequest, DrawResult } from '../types';
 import { vonageWhatsAppService } from '../services/vonageService';
@@ -67,7 +67,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     return Math.floor(100000 + Math.random() * 900000).toString();
   };
 
-  const loadCurrentUser = async () => {
+  const loadCurrentUser = useCallback(async () => {
     console.log('loadCurrentUser called with authUser:', authUser);
     if (!authUser || !authUser.id) {
       console.log('No authUser or authUser.id, setting currentUser to null');
@@ -147,7 +147,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     } finally {
       setLoading(false);
     }
-  };
+  }, [authUser]);
 
   // Função para enviar notificação WhatsApp via Vonage
   const sendWhatsAppNotification = async (type: string, userData: any, additionalData?: any) => {
@@ -252,7 +252,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       setCurrentUser(null);
       setCurrentUserRequest(null);
     }
-  }, [authUser]);
+  }, [authUser, loadCurrentUser]);
 
   // Load numbers and draw results
   useEffect(() => {
