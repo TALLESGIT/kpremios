@@ -286,13 +286,56 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
               </div>
 
               {/* Payment Instructions */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                <h3 className="font-semibold text-slate-800 mb-2">Dados para Pagamento:</h3>
-                <div className="text-sm text-slate-600 space-y-1">
-                  <p><strong>PIX:</strong> zkpremios@exemplo.com</p>
-                  <p><strong>Banco:</strong> Banco do Brasil</p>
-                  <p><strong>Conta:</strong> 12345-6</p>
-                  <p><strong>Agência:</strong> 1234-5</p>
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-6">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-lg">💳</span>
+                  </div>
+                  <h3 className="font-bold text-slate-800 text-lg">Como Pagar</h3>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="bg-white rounded-lg p-4 border border-amber-100">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">1</span>
+                      </div>
+                      <h4 className="font-semibold text-slate-800">Escolha sua forma de pagamento</h4>
+                    </div>
+                    <p className="text-sm text-slate-600 ml-9">
+                      PIX, transferência bancária ou boleto - todas as opções disponíveis
+                    </p>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg p-4 border border-amber-100">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">2</span>
+                      </div>
+                      <h4 className="font-semibold text-slate-800">Realize o pagamento</h4>
+                    </div>
+                    <p className="text-sm text-slate-600 ml-9">
+                      Use os dados bancários que serão enviados por WhatsApp após a solicitação
+                    </p>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg p-4 border border-amber-100">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">3</span>
+                      </div>
+                      <h4 className="font-semibold text-slate-800">Aguarde a aprovação</h4>
+                    </div>
+                    <p className="text-sm text-slate-600 ml-9">
+                      Nossos administradores validarão o pagamento em até 24h
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="mt-4 p-3 bg-amber-100 border border-amber-200 rounded-lg">
+                  <p className="text-sm text-amber-800 font-medium">
+                    💡 <strong>Dica:</strong> Após solicitar, você receberá os dados bancários completos por WhatsApp para facilitar o pagamento!
+                  </p>
                 </div>
               </div>
 
