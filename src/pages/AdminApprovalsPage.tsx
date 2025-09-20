@@ -36,6 +36,10 @@ export default function AdminApprovalsPage() {
   const [showProofModal, setShowProofModal] = useState(false);
   const [selectedProofUrl, setSelectedProofUrl] = useState<string | null>(null);
   const [selectedProofRequest, setSelectedProofRequest] = useState<ExtraNumberRequest | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [itemsPerPage] = useState(10);
 
   // Verificar se é admin
   useEffect(() => {
@@ -261,6 +265,34 @@ export default function AdminApprovalsPage() {
     return ranges;
   };
 
+  // Funções de filtro e paginação
+  const filteredRequests = requests.filter(request => {
+    const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
+    const matchesSearch = searchTerm === '' || 
+      request.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      request.user_email.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
+
+  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedRequests = filteredRequests.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleStatusFilter = (status: string) => {
+    setStatusFilter(status);
+    setCurrentPage(1);
+  };
+
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    setCurrentPage(1);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'text-yellow-400 bg-yellow-400/20 border-yellow-400/30';
@@ -331,18 +363,79 @@ export default function AdminApprovalsPage() {
           </div>
         </div>
 
+        {/* Controles de Filtro e Busca */}
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 mb-6 sm:mb-8">
+          <div className="bg-slate-800/50 rounded-2xl shadow-2xl p-4 sm:p-6 backdrop-blur-sm border border-slate-600/30">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Busca */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Buscar por nome ou email
+                </label>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  placeholder="Digite nome ou email..."
+                  className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/30 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50"
+                />
+              </div>
+
+              {/* Filtro por Status */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Filtrar por status
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => handleStatusFilter(e.target.value)}
+                  className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50"
+                >
+                  <option value="all">Todos ({requests.length})</option>
+                  <option value="pending">Pendentes ({requests.filter(r => r.status === 'pending').length})</option>
+                  <option value="approved">Aprovados ({requests.filter(r => r.status === 'approved').length})</option>
+                  <option value="rejected">Rejeitados ({requests.filter(r => r.status === 'rejected').length})</option>
+                </select>
+              </div>
+
+              {/* Estatísticas */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Estatísticas
+                </label>
+                <div className="text-slate-400 text-sm">
+                  <p>Mostrando {paginatedRequests.length} de {filteredRequests.length} solicitações</p>
+                  <p>Página {currentPage} de {totalPages}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Lista de Solicitações */}
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+        </div>
+
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
-          {requests.length === 0 ? (
+          {filteredRequests.length === 0 ? (
             <div className="text-center py-8 sm:py-16">
               <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-800/50 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6">
                 <Clock className="h-8 w-8 sm:h-10 sm:w-10 text-slate-400" />
               </div>
-              <h3 className="text-xl sm:text-2xl font-black text-white mb-2 sm:mb-4">Nenhuma solicitação</h3>
-              <p className="text-slate-400 text-base sm:text-lg px-4">Não há solicitações de números extras no momento.</p>
+              <h3 className="text-xl sm:text-2xl font-black text-white mb-2 sm:mb-4">
+                {searchTerm || statusFilter !== 'all' ? 'Nenhuma solicitação encontrada' : 'Nenhuma solicitação'}
+              </h3>
+              <p className="text-slate-400 text-base sm:text-lg px-4">
+                {searchTerm || statusFilter !== 'all' 
+                  ? 'Tente ajustar os filtros de busca ou status.' 
+                  : 'Não há solicitações de números extras no momento.'
+                }
+              </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
-              {requests.map((request) => (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
+                {paginatedRequests.map((request) => (
                 <div
                   key={request.id}
                   className={`group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border backdrop-blur-sm hover:border-amber-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-500/10 cursor-pointer ${
@@ -502,7 +595,45 @@ export default function AdminApprovalsPage() {
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+
+              {/* Paginação */}
+              {totalPages > 1 && (
+                <div className="mt-8 flex justify-center">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 bg-slate-700/50 text-slate-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600/50 transition-colors"
+                    >
+                      Anterior
+                    </button>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`px-3 py-2 rounded-lg transition-colors ${
+                          currentPage === page
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-2 bg-slate-700/50 text-slate-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600/50 transition-colors"
+                    >
+                      Próximo
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>

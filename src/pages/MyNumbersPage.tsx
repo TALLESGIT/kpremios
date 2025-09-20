@@ -20,6 +20,24 @@ function MyNumbersPage() {
   const totalNumbers = userExtraNumbers.length + (currentAppUser?.free_number ? 1 : 0);
   const totalParticipants = numbers.filter(n => !n.is_available).length;
 
+  // Função para organizar números em faixas de 100
+  const organizeNumbersInRanges = (numbers: number[]) => {
+    const ranges: { [key: string]: number[] } = {};
+    
+    numbers.forEach(num => {
+      const rangeStart = Math.floor((num - 1) / 100) * 100 + 1;
+      const rangeEnd = rangeStart + 99;
+      const rangeKey = `${rangeStart}-${rangeEnd}`;
+      
+      if (!ranges[rangeKey]) {
+        ranges[rangeKey] = [];
+      }
+      ranges[rangeKey].push(num);
+    });
+    
+    return ranges;
+  };
+
   // Load requests history
   useEffect(() => {
     const loadHistory = async () => {
@@ -183,17 +201,30 @@ function MyNumbersPage() {
           {userExtraNumbers.length > 0 && (
             <div className="bg-slate-800/50 rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 backdrop-blur-sm border border-slate-600/30">
               <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-amber-100 mb-4 sm:mb-6">Números Extras</h3>
-              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 sm:gap-3 mb-3 sm:mb-4">
-                {userExtraNumbers.map((num, index) => (
-                  <div
-                    key={index}
-                    className="h-8 sm:h-10 lg:h-12 w-full bg-gradient-to-br from-amber-500 to-amber-600 border-2 border-amber-400 rounded-xl flex items-center justify-center text-xs sm:text-sm font-black text-slate-900 shadow-lg"
-                  >
-                    {num}
+              
+              {/* Faixas de números */}
+              <div className="space-y-4">
+                {Object.entries(organizeNumbersInRanges(userExtraNumbers)).map(([range, numbers]) => (
+                  <div key={range} className="bg-slate-700/30 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-amber-400 font-bold text-lg">{range}</span>
+                      <span className="text-slate-400 text-sm">{numbers.length} números</span>
+                    </div>
+                    <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+                      {numbers.map((num, index) => (
+                        <div
+                          key={index}
+                          className="h-8 sm:h-10 lg:h-12 w-full bg-gradient-to-br from-amber-500 to-amber-600 border-2 border-amber-400 rounded-xl flex items-center justify-center text-xs sm:text-sm font-black text-slate-900 shadow-lg"
+                        >
+                          {num}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
-              <p className="text-slate-400 text-xs sm:text-sm font-medium">
+              
+              <p className="text-slate-400 text-xs sm:text-sm font-medium mt-4">
                 Total de {userExtraNumbers.length} números extras adicionais
               </p>
             </div>
@@ -332,23 +363,33 @@ function MyNumbersPage() {
                       
                       {request.status === 'approved' && request.assigned_numbers && request.assigned_numbers.length > 0 && (
                         <div className="mt-4">
-                          <p className="text-emerald-300 text-sm font-medium mb-2">
+                          <p className="text-emerald-300 text-sm font-medium mb-3">
                             Números atribuídos:
                           </p>
-                          <div className="grid grid-cols-8 sm:grid-cols-10 md:grid-cols-12 gap-1">
-                            {request.assigned_numbers?.slice(0, 24).map((num, index) => (
-                              <div
-                                key={index}
-                                className="h-6 w-full bg-emerald-500 rounded text-xs font-bold text-slate-900 flex items-center justify-center"
-                              >
-                                {num}
+                          <div className="space-y-3">
+                            {Object.entries(organizeNumbersInRanges(request.assigned_numbers)).map(([range, numbers]) => (
+                              <div key={range} className="bg-slate-700/30 rounded-lg p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-emerald-400 font-bold text-sm">{range}</span>
+                                  <span className="text-slate-400 text-xs">{numbers.length} números</span>
+                                </div>
+                                <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-1">
+                                  {numbers.slice(0, 20).map((num, index) => (
+                                    <div
+                                      key={index}
+                                      className="h-6 w-full bg-emerald-500 rounded text-xs font-bold text-slate-900 flex items-center justify-center"
+                                    >
+                                      {num}
+                                    </div>
+                                  ))}
+                                  {numbers.length > 20 && (
+                                    <div className="h-6 w-full bg-emerald-400 rounded text-xs font-bold text-slate-900 flex items-center justify-center">
+                                      +{numbers.length - 20}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             ))}
-                            {request.assigned_numbers && request.assigned_numbers.length > 24 && (
-                              <div className="h-6 w-full bg-emerald-400 rounded text-xs font-bold text-slate-900 flex items-center justify-center">
-+{request.assigned_numbers.length - 24}
-                              </div>
-                            )}
                           </div>
                         </div>
                       )}
