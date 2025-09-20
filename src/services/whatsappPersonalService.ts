@@ -181,6 +181,37 @@ Obrigado pela compreensão! 🙏`;
       type: 'text'
     });
   }
+
+  async sendWinnerNotification(data: {
+    name: string;
+    whatsapp: string;
+    winningNumber: number;
+    prize: string;
+  }): Promise<WhatsAppResponse> {
+    const message = `🎉 *PARABÉNS! VOCÊ GANHOU!* 🎉
+
+Olá *${data.name}*! 🏆
+
+🎯 *SEU NÚMERO FOI SORTEADO!*
+
+*Número da Sorte:* #${data.winningNumber}
+*Prêmio:* ${data.prize}
+
+🎊 *Você é o ganhador oficial do sorteio!* 🎊
+
+Entre em contato conosco imediatamente para receber seu prêmio!
+
+📱 *WhatsApp:* +55 33 99903-0124
+📧 *Email:* contato@kpremios.com
+
+*Parabéns e boa sorte!* 🍀✨`;
+
+    return this.sendMessage({
+      to: data.whatsapp,
+      message: message,
+      type: 'text'
+    });
+  }
 }
 
 // Instância singleton

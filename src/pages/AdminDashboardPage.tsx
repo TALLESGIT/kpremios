@@ -43,6 +43,10 @@ export default function AdminDashboardPage() {
   const [showLiveRaffleControl, setShowLiveRaffleControl] = useState(false);
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [showDrawAnimation, setShowDrawAnimation] = useState(false);
+  const [showDrawResult, setShowDrawResult] = useState(false);
+  const [winnerData, setWinnerData] = useState<any>(null);
+  const [countdown, setCountdown] = useState(0);
 
   // Load pending requests count
   useEffect(() => {
@@ -153,10 +157,128 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleDraw = () => {
-    // TODO: Implement draw functionality
-    console.log('Draw functionality not yet implemented');
-    setShowDrawConfirm(false);
+  const handleDraw = async () => {
+    try {
+      setShowDrawConfirm(false);
+      setShowDrawAnimation(true);
+      setCountdown(5);
+
+      // Contagem regressiva
+      const countdownInterval = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval);
+            performDraw();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+    } catch (error) {
+      console.error('Erro ao iniciar sorteio:', error);
+      setShowDrawAnimation(false);
+    }
+  };
+
+  const performDraw = async () => {
+    try {
+      // Buscar todos os números selecionados com dados dos usuários
+      const { data: selectedNumbers, error } = await supabase
+        .from('numbers')
+        .select(`
+          number,
+          selected_by,
+          users!inner (
+            id,
+            name,
+            email,
+            whatsapp,
+            free_number,
+            extra_numbers
+          )
+        `)
+        .eq('is_available', false);
+
+      if (error) throw error;
+
+      if (!selectedNumbers || selectedNumbers.length === 0) {
+        throw new Error('Nenhum número selecionado encontrado');
+      }
+
+      // Seleção aleatória justa
+      const randomIndex = Math.floor(Math.random() * selectedNumbers.length);
+      const winnerNumber = selectedNumbers[randomIndex];
+      const winner = winnerNumber.users;
+
+      // Preparar dados do ganhador (camuflados)
+      const maskedEmail = winner.email.replace(/(.{2}).*(@.*)/, '$1***$2');
+      const maskedWhatsapp = winner.whatsapp.replace(/(.{2}).*(.{2})/, '$1***$2');
+
+      const winnerInfo = {
+        number: winnerNumber.number,
+        name: winner.name, // Nome não camuflado
+        email: maskedEmail,
+        whatsapp: maskedWhatsapp,
+        userId: winner.id,
+        freeNumber: winner.free_number,
+        extraNumbers: winner.extra_numbers || []
+      };
+
+      // Registrar resultado no banco de dados
+      const { error: drawError } = await supabase
+        .from('raffle_results')
+        .insert({
+          winner_number: winnerNumber.number,
+          winner_user_id: winner.id,
+          winner_name: winner.name,
+          total_participants: selectedNumbers.length,
+          drawn_at: new Date().toISOString(),
+          drawn_by: currentAppUser?.id
+        });
+
+      if (drawError) {
+        console.error('Erro ao registrar resultado:', drawError);
+        // Continuar mesmo com erro de registro
+      }
+
+      // Atualizar status do usuário como ganhador
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ 
+          is_winner: true,
+          won_at: new Date().toISOString(),
+          won_prize: 'Sorteio Principal'
+        })
+        .eq('id', winner.id);
+
+      if (updateError) {
+        console.error('Erro ao atualizar status do ganhador:', updateError);
+      }
+
+      // Enviar notificação WhatsApp para o ganhador
+      try {
+        const { whatsappPersonalService } = await import('../services/whatsappPersonalService');
+        await whatsappPersonalService.sendWinnerNotification({
+          name: winner.name,
+          whatsapp: winner.whatsapp,
+          winningNumber: winnerNumber.number,
+          prize: 'Sorteio Principal'
+        });
+      } catch (whatsappError) {
+        console.error('Erro ao enviar notificação WhatsApp:', whatsappError);
+        // Não falha a operação se o WhatsApp falhar
+      }
+
+      setWinnerData(winnerInfo);
+      setShowDrawAnimation(false);
+      setShowDrawResult(true);
+
+    } catch (error) {
+      console.error('Erro no sorteio:', error);
+      setShowDrawAnimation(false);
+      alert('Erro ao realizar sorteio. Tente novamente.');
+    }
   };
 
   const handleCleanup = async () => {
@@ -690,6 +812,137 @@ export default function AdminDashboardPage() {
                     >
                       Cancelar
                     </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de Contagem Regressiva */}
+          {showDrawAnimation && (
+            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-sm">
+              <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:p-0">
+                <div className="fixed inset-0 transition-opacity">
+                  <div className="absolute inset-0 bg-black/80"></div>
+                </div>
+                <div className="relative bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl px-8 py-12 text-center overflow-hidden shadow-2xl transform transition-all sm:max-w-lg sm:w-full border border-amber-400/30">
+                  {/* Efeito de partículas */}
+                  <div className="absolute inset-0 overflow-hidden">
+                    {[...Array(20)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="absolute w-2 h-2 bg-amber-400 rounded-full animate-ping"
+                        style={{
+                          left: `${Math.random() * 100}%`,
+                          top: `${Math.random() * 100}%`,
+                          animationDelay: `${Math.random() * 2}s`,
+                          animationDuration: `${1 + Math.random() * 2}s`
+                        }}
+                      />
+                    ))}
+                  </div>
+                  
+                  <div className="relative z-10">
+                    <div className="w-24 h-24 bg-gradient-to-r from-amber-500 to-amber-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-amber-500/25">
+                      <Trophy className="h-12 w-12 text-white animate-bounce" />
+                    </div>
+                    
+                    <h3 className="text-3xl font-black text-white mb-4">
+                      Sorteio em Andamento
+                    </h3>
+                    
+                    <div className="text-6xl font-black text-amber-400 mb-6 animate-pulse">
+                      {countdown}
+                    </div>
+                    
+                    <p className="text-slate-300 text-lg font-medium">
+                      Selecionando ganhador...
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de Resultado */}
+          {showDrawResult && winnerData && (
+            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-sm">
+              <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:p-0">
+                <div className="fixed inset-0 transition-opacity">
+                  <div className="absolute inset-0 bg-black/80"></div>
+                </div>
+                <div className="relative bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl px-8 py-12 text-center overflow-hidden shadow-2xl transform transition-all sm:max-w-2xl sm:w-full border border-emerald-400/30">
+                  {/* Confetes animados */}
+                  <div className="absolute inset-0 overflow-hidden">
+                    {[...Array(30)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="absolute w-3 h-3 bg-emerald-400 rounded-full animate-bounce"
+                        style={{
+                          left: `${Math.random() * 100}%`,
+                          top: `${Math.random() * 100}%`,
+                          animationDelay: `${Math.random() * 3}s`,
+                          animationDuration: `${2 + Math.random() * 2}s`
+                        }}
+                      />
+                    ))}
+                  </div>
+                  
+                  <div className="relative z-10">
+                    <div className="w-32 h-32 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-emerald-500/25">
+                      <Trophy className="h-16 w-16 text-white animate-pulse" />
+                    </div>
+                    
+                    <h3 className="text-4xl font-black text-white mb-2">
+                      🎉 GANHADOR SORTEADO! 🎉
+                    </h3>
+                    
+                    <div className="bg-gradient-to-r from-emerald-500/20 to-emerald-600/20 border border-emerald-400/30 rounded-2xl p-6 mb-8">
+                      <div className="text-6xl font-black text-emerald-400 mb-4">
+                        #{winnerData.number}
+                      </div>
+                      <p className="text-2xl font-bold text-white mb-2">
+                        {winnerData.name}
+                      </p>
+                      <p className="text-slate-300 text-lg">
+                        Parabéns! Você foi o ganhador do sorteio!
+                      </p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                      <div className="bg-slate-700/30 rounded-xl p-4">
+                        <p className="text-slate-400 text-sm font-medium mb-1">Email</p>
+                        <p className="text-white font-bold">{winnerData.email}</p>
+                      </div>
+                      <div className="bg-slate-700/30 rounded-xl p-4">
+                        <p className="text-slate-400 text-sm font-medium mb-1">WhatsApp</p>
+                        <p className="text-white font-bold">{winnerData.whatsapp}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-4 justify-center">
+                      <button
+                        onClick={() => {
+                          setShowDrawResult(false);
+                          setWinnerData(null);
+                        }}
+                        className="px-8 py-3 bg-slate-700/50 hover:bg-slate-700/70 text-slate-300 font-bold rounded-xl transition-all duration-200 border border-slate-600/30"
+                      >
+                        Fechar
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowDrawResult(false);
+                          setWinnerData(null);
+                          // Recarregar dados
+                          window.location.reload();
+                        }}
+                        className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold rounded-xl transition-all duration-200 flex items-center gap-2"
+                      >
+                        <Trophy className="h-4 w-4" />
+                        Ver Dashboard
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
