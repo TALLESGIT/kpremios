@@ -286,40 +286,40 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
               </div>
 
               {/* Payment Instructions */}
-              <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-6">
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
                 <div className="flex items-center space-x-3 mb-4">
-                  <div className="w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full flex items-center justify-center">
-                    <span className="text-white text-lg">💳</span>
+                  <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-lg">✅</span>
                   </div>
-                  <h3 className="font-bold text-slate-800 text-lg">Como Pagar</h3>
+                  <h3 className="font-bold text-slate-800 text-lg">Comprovante de Pagamento</h3>
                 </div>
                 
                 <div className="space-y-4">
-                  <div className="bg-white rounded-lg p-4 border border-amber-100">
+                  <div className="bg-white rounded-lg p-4 border border-green-100">
                     <div className="flex items-center space-x-3 mb-2">
                       <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
                         <span className="text-white text-xs font-bold">1</span>
                       </div>
-                      <h4 className="font-semibold text-slate-800">Escolha sua forma de pagamento</h4>
+                      <h4 className="font-semibold text-slate-800">Você já comprou a ação da rifa</h4>
                     </div>
                     <p className="text-sm text-slate-600 ml-9">
-                      PIX, transferência bancária ou boleto - todas as opções disponíveis
+                      Perfeito! Agora só falta enviar o comprovante de pagamento
                     </p>
                   </div>
                   
-                  <div className="bg-white rounded-lg p-4 border border-amber-100">
+                  <div className="bg-white rounded-lg p-4 border border-green-100">
                     <div className="flex items-center space-x-3 mb-2">
                       <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
                         <span className="text-white text-xs font-bold">2</span>
                       </div>
-                      <h4 className="font-semibold text-slate-800">Realize o pagamento</h4>
+                      <h4 className="font-semibold text-slate-800">Envie o comprovante</h4>
                     </div>
                     <p className="text-sm text-slate-600 ml-9">
-                      Use os dados bancários que serão enviados por WhatsApp após a solicitação
+                      Faça upload da foto ou print do comprovante de pagamento
                     </p>
                   </div>
                   
-                  <div className="bg-white rounded-lg p-4 border border-amber-100">
+                  <div className="bg-white rounded-lg p-4 border border-green-100">
                     <div className="flex items-center space-x-3 mb-2">
                       <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
                         <span className="text-white text-xs font-bold">3</span>
@@ -332,9 +332,9 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
                   </div>
                 </div>
                 
-                <div className="mt-4 p-3 bg-amber-100 border border-amber-200 rounded-lg">
-                  <p className="text-sm text-amber-800 font-medium">
-                    💡 <strong>Dica:</strong> Após solicitar, você receberá os dados bancários completos por WhatsApp para facilitar o pagamento!
+                <div className="mt-4 p-3 bg-green-100 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-800 font-medium">
+                    💡 <strong>Dica:</strong> Você pode enviar o comprovante agora ou depois - o importante é que seja enviado para liberar seus números!
                   </p>
                 </div>
               </div>
