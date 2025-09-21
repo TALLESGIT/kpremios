@@ -198,17 +198,10 @@ export default function AdminRafflesPage() {
           throw new Error('Erro ao resetar números');
         }
 
-        // Resetar dados dos usuários
+        // Resetar dados dos usuários usando função SQL
 
         const { error: userResetError } = await supabase
-          .from('users')
-          .update({
-            free_number: null,
-            extra_numbers: null,
-            is_winner: false,
-            won_at: null,
-            won_prize: null
-          }); // Reset all users
+          .rpc('reset_users_data');
         
         if (userResetError) {
 

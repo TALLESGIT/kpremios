@@ -120,18 +120,26 @@ const UserManagementPanel: React.FC = () => {
   };
 
   const openWhatsApp = (phoneNumber: string, userName: string) => {
-    // Remove caracteres não numéricos e adiciona código do país se necessário
-    const cleanNumber = phoneNumber.replace(/\D/g, '');
-    const whatsappNumber = cleanNumber.startsWith('55') ? cleanNumber : `55${cleanNumber}`;
-    
-    // Mensagem padrão
-    const message = `Olá ${userName}! 👋\n\nSou administrador do ZK Premios e gostaria de entrar em contato com você.`;
-    
-    // URL do WhatsApp Web/App
-    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-    
-    // Abrir em nova aba
-    window.open(whatsappUrl, '_blank');
+    try {
+      // Remove caracteres não numéricos e adiciona código do país se necessário
+      const cleanNumber = phoneNumber.replace(/\D/g, '');
+      const whatsappNumber = cleanNumber.startsWith('55') ? cleanNumber : `55${cleanNumber}`;
+      
+      // Mensagem padrão
+      const message = `Olá ${userName}! 👋\n\nSou administrador do ZK Premios e gostaria de entrar em contato com você.`;
+      
+      // URL do WhatsApp Web/App
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+      
+      // Debug: mostrar no console
+      console.log('Opening WhatsApp:', whatsappUrl);
+      
+      // Abrir em nova aba
+      window.open(whatsappUrl, '_blank');
+    } catch (error) {
+      console.error('Erro ao abrir WhatsApp:', error);
+      alert('Erro ao abrir WhatsApp. Tente novamente.');
+    }
   };
 
   return (
@@ -287,15 +295,24 @@ const UserManagementPanel: React.FC = () => {
                       
                       {user.whatsapp && (
                         <div className="flex items-center gap-1">
-                          <Phone className="h-4 w-4" />
-                          <button
-                            onClick={() => openWhatsApp(user.whatsapp, user.name)}
-                            className="flex items-center gap-1 text-green-600 hover:text-green-700 hover:underline transition-colors duration-200 font-medium"
-                            title="Clique para entrar em contato via WhatsApp"
+                          <Phone className="h-4 w-4 text-gray-400" />
+                          <a
+                            href={`https://wa.me/55${user.whatsapp.replace(/\D/g, '')}?text=Olá ${user.name}! 👋 Sou administrador do ZK Premios e gostaria de entrar em contato com você.`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-green-600 hover:text-green-700 hover:underline transition-colors duration-200 font-medium cursor-pointer"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              const cleanNumber = user.whatsapp.replace(/\D/g, '');
+                              const whatsappNumber = cleanNumber.startsWith('55') ? cleanNumber : `55${cleanNumber}`;
+                              const message = `Olá ${user.name}! 👋\n\nSou administrador do ZK Premios e gostaria de entrar em contato com você.`;
+                              const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+                              window.open(whatsappUrl, '_blank');
+                            }}
                           >
                             <MessageCircle className="h-4 w-4" />
                             <span>{user.whatsapp}</span>
-                          </button>
+                          </a>
                         </div>
                       )}
                       
