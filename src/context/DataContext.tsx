@@ -74,9 +74,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   };
 
   const loadCurrentUser = useCallback(async () => {
-
     if (!authUser || !authUser.id) {
-
       setCurrentUser(null);
       setLoading(false);
       return;
@@ -267,7 +265,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       setCurrentUserRequest(null);
       setLoading(false);
     }
-  }, [authUser?.id, loadCurrentUser]); // Include loadCurrentUser in dependencies
+  }, [authUser?.id]); // Remove loadCurrentUser from dependencies to avoid infinite loop
 
   // Load user requests when currentUser changes
   useEffect(() => {

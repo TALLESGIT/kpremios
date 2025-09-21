@@ -68,8 +68,8 @@ export default function AdminLoginPage() {
                     <p><strong>1.</strong> Abra seu Supabase Dashboard</p>
                     <p><strong>2.</strong> Vá em Authentication → Users</p>
                     <p><strong>3.</strong> Clique em "Add User"</p>
-                    <p><strong>4.</strong> Email: <code className="bg-red-200 px-1 rounded font-mono">admin@zkpremios.com</code></p>
-                    <p><strong>5.</strong> Senha: <code className="bg-red-200 px-1 rounded font-mono">admin123</code></p>
+                    <p><strong>4.</strong> Digite um email e senha para o admin</p>
+                    <p><strong>5.</strong> Use credenciais seguras</p>
                     <p><strong>6.</strong> ✅ Marque "Confirm email" como true</p>
                     <p><strong>7.</strong> Clique em "Create User"</p>
                     <p><strong>8.</strong> Depois vá na tabela `users` e defina `is_admin=true`</p>
@@ -78,17 +78,6 @@ export default function AdminLoginPage() {
               </div>
             )}
             
-            {!error && (
-              <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="text-sm">
-                  <p className="font-semibold mb-2 text-blue-800">💡 Credenciais do Admin:</p>
-                  <div className="text-blue-700 space-y-1">
-                    <p>Email: <code className="bg-blue-100 px-2 py-1 rounded font-mono">admin@zkpremios.com</code></p>
-                    <p>Senha: <code className="bg-blue-100 px-2 py-1 rounded font-mono">admin123</code></p>
-                  </div>
-                </div>
-              </div>
-            )}
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
