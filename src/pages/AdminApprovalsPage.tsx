@@ -450,20 +450,20 @@ export default function AdminApprovalsPage() {
                 >
                   {/* Header */}
                   <div className="bg-gradient-to-r from-slate-700/50 to-slate-800/50 p-3 sm:p-6 border-b border-slate-600/30 relative">
-                    {/* Badge de Comprovante */}
+                    {/* Badge de Comprovante - posicionado no canto superior direito */}
                     {request.payment_proof_url ? (
-                      <div className="absolute top-3 right-3 bg-emerald-500/20 border border-emerald-400/30 rounded-full px-2 py-1 flex items-center gap-1">
+                      <div className="absolute top-3 right-3 bg-emerald-500/20 border border-emerald-400/30 rounded-full px-2 py-1 flex items-center gap-1 z-10">
                         <Image className="h-3 w-3 text-emerald-400" />
                         <span className="text-emerald-400 text-xs font-bold">Comprovante</span>
                       </div>
                     ) : (
-                      <div className="absolute top-3 right-3 bg-amber-500/20 border border-amber-400/30 rounded-full px-2 py-1 flex items-center gap-1">
+                      <div className="absolute top-3 right-3 bg-amber-500/20 border border-amber-400/30 rounded-full px-2 py-1 flex items-center gap-1 z-10">
                         <FileText className="h-3 w-3 text-amber-400" />
                         <span className="text-amber-400 text-xs font-bold">Sem Comprovante</span>
                       </div>
                     )}
                     
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between pr-20">
                       <div className="flex items-center min-w-0 flex-1">
                         <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
                           <User className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
@@ -473,7 +473,8 @@ export default function AdminApprovalsPage() {
                           <p className="text-slate-300 text-xs sm:text-sm truncate">{request.user_email}</p>
                         </div>
                       </div>
-                      <div className={`px-2 py-1 rounded-full text-xs font-bold border flex-shrink-0 ml-2 ${getStatusColor(request.status)}`}>
+                      {/* Badge de Status - posicionado abaixo do badge de comprovante */}
+                      <div className={`absolute top-12 right-3 px-2 py-1 rounded-full text-xs font-bold border flex-shrink-0 ${getStatusColor(request.status)}`}>
                         {getStatusText(request.status)}
                       </div>
                     </div>
