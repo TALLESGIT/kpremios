@@ -154,7 +154,7 @@ const CreateRafflePageSimple: React.FC = () => {
         .from('users')
         .update({
           free_number: null,
-          extra_numbers_count: 0,
+          extra_numbers: null,
           is_winner: false,
           won_at: null,
           won_prize: null
