@@ -30,6 +30,15 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
     return null;
   }
 
+  // Debug log para verificar estado
+  console.log('🔍 DEBUG - Render RegistrationForm:', {
+    selectedNumber,
+    loading,
+    isLoginMode,
+    errors,
+    formData: { email: formData.email, password: formData.password ? '***' : '' }
+  });
+
   // Verificar se dados já existem quando usuário digita
   const checkDataExists = async (email: string, whatsapp: string, name: string) => {
     if (!email || !email.includes('@')) return;
@@ -48,10 +57,12 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
 
         if (!emailError && emailData) {
           // Email existe - mudar para modo login sem erro
+          console.log('🔍 DEBUG - Email encontrado, mudando para modo login');
           setIsLoginMode(true);
           // Limpar erro de email para permitir login
           delete newErrors.email;
         } else {
+          console.log('🔍 DEBUG - Email não encontrado, mudando para modo cadastro');
           setIsLoginMode(false);
         }
       }
@@ -558,12 +569,20 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={!selectedNumber || loading || (!isLoginMode && (errors.whatsapp || errors.name))}
+                disabled={(!selectedNumber && !isLoginMode) || loading || (!isLoginMode && (errors.whatsapp || errors.name))}
                 className={`w-full py-4 px-6 rounded-xl flex items-center justify-center gap-3 font-semibold text-white transition-all duration-200 ${
-                  selectedNumber && !loading && (isLoginMode || (!errors.whatsapp && !errors.name))
+                  (selectedNumber || isLoginMode) && !loading && (isLoginMode || (!errors.whatsapp && !errors.name))
                     ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5' 
                     : 'bg-slate-400 cursor-not-allowed'
                 }`}
+                onClick={() => {
+                  console.log('🔍 DEBUG - Botão clicado!');
+                  console.log('selectedNumber:', selectedNumber);
+                  console.log('loading:', loading);
+                  console.log('isLoginMode:', isLoginMode);
+                  console.log('errors:', errors);
+                  console.log('disabled condition:', !selectedNumber || loading || (!isLoginMode && (errors.whatsapp || errors.name)));
+                }}
               >
                 {loading ? (
                   <>
