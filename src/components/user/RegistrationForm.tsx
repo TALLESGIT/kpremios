@@ -558,9 +558,9 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={!selectedNumber || loading || !isLoginMode && (errors.email || errors.whatsapp || errors.name)}
+                disabled={!selectedNumber || loading || (!isLoginMode && (errors.whatsapp || errors.name))}
                 className={`w-full py-4 px-6 rounded-xl flex items-center justify-center gap-3 font-semibold text-white transition-all duration-200 ${
-                  selectedNumber && !loading && (isLoginMode || (!errors.email && !errors.whatsapp && !errors.name))
+                  selectedNumber && !loading && (isLoginMode || (!errors.whatsapp && !errors.name))
                     ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5' 
                     : 'bg-slate-400 cursor-not-allowed'
                 }`}
