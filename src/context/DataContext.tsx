@@ -50,6 +50,9 @@ interface DataContextType {
   // Force reload user data
   reloadUserData: () => Promise<void>;
   
+  // Clear all user data
+  clearUserData: () => void;
+  
   // Auth management - removed setAuthUser as it's now passed as prop
 }
 
@@ -295,8 +298,10 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     } else {
       console.log('🔄 DataContext - no auth user, clearing current user');
       console.log('🔄 DataContext - authUser is null or has no id');
+      // Limpar todos os dados do usuário imediatamente
       setCurrentUser(null);
       setCurrentUserRequest(null);
+      setLoading(false);
     }
   }, [authUser?.id]); // Only depend on authUser.id to avoid infinite loops
 
@@ -447,6 +452,13 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       }
     }
   }, [authUser?.id, loadCurrentUser, currentUser?.is_admin]);
+
+  const clearUserData = useCallback(() => {
+    console.log('🧹 clearUserData called - clearing all user data');
+    setCurrentUser(null);
+    setCurrentUserRequest(null);
+    setLoading(false);
+  }, []);
 
   const registerUser = async (name: string, email: string, whatsapp: string, password: string, selectedNumber: number): Promise<void> => {
     try {
@@ -1475,6 +1487,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       notifyExtraNumbersApproved,
       sendBulkNotification,
       reloadUserData,
+      clearUserData,
       loading,
       numbersLoading
     }}>

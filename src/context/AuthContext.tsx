@@ -58,11 +58,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.log('User signed in successfully:', session.user.id);
             setUser(session.user);
           } else if (event === 'SIGNED_OUT') {
-            console.log('User signed out');
+            console.log('User signed out - clearing user state');
             setUser(null);
           } else if (event === 'TOKEN_REFRESHED' && session?.user) {
             console.log('Token refreshed for user:', session.user.id);
             setUser(session.user);
+          } else if (event === 'INITIAL_SESSION') {
+            console.log('Initial session loaded:', session?.user?.id ? 'User logged in' : 'No user');
+            setUser(session?.user ?? null);
           } else {
             console.log('Other auth event:', event);
             setUser(session?.user ?? null);
@@ -97,8 +100,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     console.log('AuthContext - signOut called');
     console.log('AuthContext - current user before signOut:', user);
-    await supabase.auth.signOut();
-    console.log('AuthContext - signOut completed');
+    
+    try {
+      // Limpar o estado do usuário imediatamente
+      setUser(null);
+      setLoading(false);
+      
+      // Fazer logout do Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('AuthContext - Error during signOut:', error);
+      } else {
+        console.log('AuthContext - signOut completed successfully');
+      }
+    } catch (err) {
+      console.error('AuthContext - Unexpected error during signOut:', err);
+      // Mesmo com erro, garantir que o estado seja limpo
+      setUser(null);
+      setLoading(false);
+    }
   };
 
   const value = {

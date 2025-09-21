@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { X, Lock, Hash } from 'lucide-react';
 import { RaffleNumber } from '../../types';
 import { supabase } from '../../lib/supabase';
+import { Link } from 'react-router-dom';
 
 interface NumberSelectionProps {
   onSelectNumber: (number: number) => void;
@@ -214,9 +215,21 @@ function NumberSelection({ onSelectNumber, selectedNumber }: NumberSelectionProp
             <p className="text-amber-200 mb-1 sm:mb-2">
               Seu número gratuito: <span className="font-black text-2xl sm:text-3xl text-amber-400">#{currentAppUser.free_number}</span>
             </p>
-            <p className="text-xs sm:text-sm text-amber-300 font-medium">
-              Quer mais chances de ganhar? Solicite números extras no banner acima!
-            </p>
+            <div className="text-xs sm:text-sm text-amber-300 font-medium">
+              <p className="mb-2">
+                Quer mais chances de ganhar?
+              </p>
+              <Link 
+                to="/my-numbers" 
+                className="inline-block text-white hover:text-amber-200 font-bold transition-all duration-300 cursor-pointer transform hover:scale-110 relative px-3 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 shadow-lg hover:shadow-xl border-2 border-amber-400 hover:border-amber-300 animate-pulse"
+                style={{
+                  animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite, bounce 2s infinite'
+                }}
+              >
+                <span className="relative z-10">🎯 Solicite números extras aqui! 🎯</span>
+                <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg opacity-20 animate-ping"></div>
+              </Link>
+            </div>
           </div>
         )}
         
@@ -235,7 +248,7 @@ function NumberSelection({ onSelectNumber, selectedNumber }: NumberSelectionProp
           {/* Range tabs */}
           <div className="mb-6 sm:mb-8">
             <div className="border-b border-amber-400/20">
-              <div className="flex overflow-x-auto scrollbar-hide space-x-1 sm:space-x-2">
+              <div className="flex overflow-x-auto no-scrollbar space-x-1 sm:space-x-2">
                 {numberRanges.map((range, index) => (
                   <button
                     key={index}

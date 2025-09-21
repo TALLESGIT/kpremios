@@ -569,20 +569,29 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={(!selectedNumber && !isLoginMode) || loading || (!isLoginMode && (errors.whatsapp || errors.name))}
-                className={`w-full py-4 px-6 rounded-xl flex items-center justify-center gap-3 font-semibold text-white transition-all duration-200 ${
-                  (selectedNumber || isLoginMode) && !loading && (isLoginMode || (!errors.whatsapp && !errors.name))
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5' 
-                    : 'bg-slate-400 cursor-not-allowed'
-                }`}
-                onClick={() => {
-                  console.log('🔍 DEBUG - Botão clicado!');
+                disabled={(() => {
+                  const condition1 = loading;
+                  const condition2 = (!isLoginMode && !selectedNumber);
+                  const condition3 = (!isLoginMode && (errors.whatsapp || errors.name));
+                  const finalCondition = condition1 || condition2 || condition3;
+                  
+                  console.log('🔍 DEBUG - Botão disabled calculation:');
                   console.log('selectedNumber:', selectedNumber);
                   console.log('loading:', loading);
                   console.log('isLoginMode:', isLoginMode);
                   console.log('errors:', errors);
-                  console.log('disabled condition:', !selectedNumber || loading || (!isLoginMode && (errors.whatsapp || errors.name)));
-                }}
+                  console.log('Condition 1 (loading):', condition1);
+                  console.log('Condition 2 (!isLoginMode && !selectedNumber):', condition2);
+                  console.log('Condition 3 (!isLoginMode && errors):', condition3);
+                  console.log('Final disabled condition:', finalCondition);
+                  
+                  return finalCondition;
+                })()}
+                className={`w-full py-4 px-6 rounded-xl flex items-center justify-center gap-3 font-semibold text-white transition-all duration-200 ${
+                  !loading && (isLoginMode || (selectedNumber && !errors.whatsapp && !errors.name))
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5' 
+                    : 'bg-slate-400 cursor-not-allowed'
+                }`}
               >
                 {loading ? (
                   <>

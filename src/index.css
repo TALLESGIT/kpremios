@@ -21,6 +21,30 @@
     @apply bg-gray-50 text-gray-900 font-sans;
   }
 
+  /* Esconder barras de rolagem apenas no mobile */
+  @media (max-width: 768px) {
+    * {
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE and Edge */
+    }
+
+    *::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Opera */
+    }
+
+    /* Garantir que elementos com overflow não mostrem scrollbar no mobile */
+    html, body {
+      overflow-x: hidden;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold tracking-tight;
   }

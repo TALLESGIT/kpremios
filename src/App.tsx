@@ -30,16 +30,31 @@ import UserProtectedRoute from './components/ProtectedRoute';
 import AdminRedirect from './components/shared/AdminRedirect';
 
 function AppContent() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   
   console.log('AppContent - user from useAuth:', user);
+  console.log('AppContent - loading:', loading);
   console.log('AppContent - user type:', typeof user);
   console.log('AppContent - user keys:', user ? Object.keys(user) : 'null');
+  
+  // Mostrar loading enquanto verifica a sessão
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl mb-4">
+            <span className="text-2xl font-bold text-white">ZK</span>
+          </div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto"></div>
+          <p className="text-white mt-4">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <DataProvider authUser={user}>
       <Router>
-        <AdminRedirect />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/winners" element={<WinnersPage />} />

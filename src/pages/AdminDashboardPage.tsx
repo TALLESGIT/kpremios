@@ -755,7 +755,7 @@ export default function AdminDashboardPage() {
         {/* Enhanced Confirmation Modals */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {showResetConfirm && (
-            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-md">
+            <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">
               <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                 <div className="fixed inset-0 transition-opacity">
                   <div className="absolute inset-0 bg-black/60"></div>
@@ -802,7 +802,7 @@ export default function AdminDashboardPage() {
           )}
 
           {showDrawConfirm && (
-            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-sm">
+            <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-sm">
               <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                 <div className="fixed inset-0 transition-opacity">
                   <div className="absolute inset-0 bg-black opacity-50"></div>
@@ -852,7 +852,7 @@ export default function AdminDashboardPage() {
 
           {/* Modal de Contagem Regressiva */}
           {showDrawAnimation && (
-            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-sm">
+            <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-sm">
               <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:p-0">
                 <div className="fixed inset-0 transition-opacity">
                   <div className="absolute inset-0 bg-black/80"></div>
@@ -898,7 +898,7 @@ export default function AdminDashboardPage() {
 
           {/* Modal de Resultado */}
           {showDrawResult && winnerData && (
-            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-sm">
+            <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-sm">
               <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:p-0">
                 <div className="fixed inset-0 transition-opacity">
                   <div className="absolute inset-0 bg-black/80"></div>
@@ -982,7 +982,7 @@ export default function AdminDashboardPage() {
           )}
 
           {showResetNumbersConfirm && (
-            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-sm">
+            <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-sm">
               <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                 <div className="fixed inset-0 transition-opacity">
                   <div className="absolute inset-0 bg-black opacity-50"></div>
@@ -1031,7 +1031,7 @@ export default function AdminDashboardPage() {
           )}
 
           {showCleanupConfirm && (
-            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-sm">
+            <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-sm">
               <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                 <div className="fixed inset-0 transition-opacity">
                   <div className="absolute inset-0 bg-black opacity-50"></div>
@@ -1084,7 +1084,7 @@ export default function AdminDashboardPage() {
           )}
 
           {showVonageTest && (
-            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-md">
+            <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">
               <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                 <div className="fixed inset-0 transition-opacity">
                   <div className="absolute inset-0 bg-black/60"></div>
@@ -1106,7 +1106,7 @@ export default function AdminDashboardPage() {
           )}
 
           {showQuickTest && (
-            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-md">
+            <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">
               <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                 <div className="fixed inset-0 transition-opacity">
                   <div className="absolute inset-0 bg-black/60"></div>
@@ -1128,7 +1128,7 @@ export default function AdminDashboardPage() {
           )}
 
           {showSandboxTest && (
-            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-md">
+            <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">
               <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                 <div className="fixed inset-0 transition-opacity">
                   <div className="absolute inset-0 bg-black/60"></div>
@@ -1150,7 +1150,7 @@ export default function AdminDashboardPage() {
           )}
 
           {showWhatsAppMonitoring && (
-            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-md">
+            <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">
               <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                 <div className="fixed inset-0 transition-opacity">
                   <div className="absolute inset-0 bg-black/60"></div>
@@ -1172,7 +1172,7 @@ export default function AdminDashboardPage() {
           )}
 
           {showWhatsAppBulk && (
-            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-md">
+            <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">
               <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                 <div className="fixed inset-0 transition-opacity">
                   <div className="absolute inset-0 bg-black/60"></div>
@@ -1194,7 +1194,7 @@ export default function AdminDashboardPage() {
           )}
 
           {showLiveRaffleControl && (
-            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-md">
+            <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">
               <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                 <div className="fixed inset-0 transition-opacity">
                   <div className="absolute inset-0 bg-black/60"></div>
@@ -1216,7 +1216,7 @@ export default function AdminDashboardPage() {
           )}
 
           {showUserManagement && (
-            <div className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-md">
+            <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">
               <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                 <div className="fixed inset-0 transition-opacity">
                   <div className="absolute inset-0 bg-black/60"></div>

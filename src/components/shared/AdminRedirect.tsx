@@ -1,29 +1,29 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useData } from '../../context/DataContext';
 
 function AdminRedirect() {
-  const { loading } = useAuth();
-  const { currentUser: currentAppUser } = useData();
-  const isAdmin = currentAppUser?.is_admin || false;
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     // Wait for loading to complete
     if (loading) return;
 
-    // If user is admin and not already on admin dashboard, redirect
-    if (isAdmin && currentAppUser) {
+    // Only redirect if user is actually logged in
+    if (user) {
       const currentPath = window.location.pathname;
       
-      // Only redirect if not already on admin pages
-      if (!currentPath.startsWith('/admin')) {
-        console.log('Admin detected, redirecting to dashboard...');
-        navigate('/admin/dashboard', { replace: true });
+      // Only redirect if not already on admin pages and not on login/register pages
+      if (!currentPath.startsWith('/admin') && 
+          !currentPath.startsWith('/login') && 
+          !currentPath.startsWith('/register')) {
+        console.log('User detected, checking admin status...');
+        // We'll let the DataProvider handle the admin check
+        // This component just ensures we don't redirect unnecessarily
       }
     }
-  }, [isAdmin, currentAppUser, loading, navigate]);
+  }, [user, loading, navigate]);
 
   return null; // This component doesn't render anything
 }

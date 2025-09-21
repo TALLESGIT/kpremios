@@ -27,5 +27,29 @@ export default {
       },
     },
   },
-  plugins: [],
+    plugins: [
+      function({ addUtilities }) {
+        const newUtilities = {
+          '.no-scrollbar': {
+            '@media (max-width: 768px)': {
+              '-ms-overflow-style': 'none',
+              'scrollbar-width': 'none',
+              '&::-webkit-scrollbar': {
+                display: 'none'
+              }
+            }
+          },
+          '.hide-scrollbar': {
+            '@media (max-width: 768px)': {
+              '-ms-overflow-style': 'none',
+              'scrollbar-width': 'none',
+              '&::-webkit-scrollbar': {
+                display: 'none'
+              }
+            }
+          }
+        }
+        addUtilities(newUtilities)
+      }
+    ],
 };

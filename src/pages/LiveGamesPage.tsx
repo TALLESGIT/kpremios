@@ -45,10 +45,13 @@ export default function LiveGamesPage() {
 
   // Verificar se está logado
   useEffect(() => {
+    // Aguardar o carregamento completo antes de redirecionar
+    if (loading) return;
+    
     if (!currentAppUser) {
       navigate('/login');
     }
-  }, [currentAppUser, navigate]);
+  }, [currentAppUser, loading, navigate]);
 
   // Carregar jogos
   useEffect(() => {
@@ -478,7 +481,7 @@ export default function LiveGamesPage() {
                     <label className="block text-sm font-medium text-slate-300 mb-2">
                       Números já escolhidos:
                     </label>
-                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto no-scrollbar">
                       {participants.map((participant) => (
                         <span
                           key={participant.id}

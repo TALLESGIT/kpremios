@@ -12,19 +12,33 @@ function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { currentUser: currentAppUser } = useData();
+  const { currentUser: currentAppUser, clearUserData } = useData();
   const { getPendingRequestsCount } = useData();
+
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => setIsMenuOpen(false);
 
   const handleLogout = async () => {
-    await signOut();
-    closeMenu();
-    if (location.pathname.startsWith('/admin')) {
-      navigate('/admin/login');
-    } else {
-      navigate('/');
+    try {
+      console.log('Header - Iniciando logout...');
+      
+      // Limpar dados do usuário imediatamente
+      clearUserData();
+      
+      // Fazer logout do Supabase
+      await signOut();
+      console.log('Header - Logout concluído');
+      closeMenu();
+      
+      // Forçar navegação para a página inicial
+      navigate('/', { replace: true });
+      
+    } catch (error) {
+      console.error('Erro durante logout:', error);
+      // Mesmo com erro, limpar dados e redirecionar
+      clearUserData();
+      navigate('/', { replace: true });
     }
   };
 
@@ -173,6 +187,24 @@ function Header() {
               >
                 Meus Números
               </Link>
+            )}
+
+            {/* Login/Register buttons - apenas quando usuário não estiver logado */}
+            {!currentAppUser && (
+              <>
+                <Link
+                  to="/login"
+                  className="px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 backdrop-blur-sm"
+                >
+                  Entrar
+                </Link>
+                <Link
+                  to="/register"
+                  className="px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg hover:shadow-amber-500/25"
+                >
+                  Cadastrar
+                </Link>
+              </>
             )}
           </nav>
 
@@ -346,6 +378,32 @@ function Header() {
                   </Link>
                   
 
+                </>
+              )}
+
+              {/* Botões de Login/Registro - apenas quando usuário não estiver logado */}
+              {!currentAppUser && (
+                <>
+                  <Link
+                    to="/login"
+                    className="flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 backdrop-blur-sm"
+                    onClick={closeMenu}
+                  >
+                    <span className="w-8 h-8 bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg flex items-center justify-center mr-3 text-slate-900 font-black">
+                      🔑
+                    </span>
+                    Entrar
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg hover:shadow-amber-500/25"
+                    onClick={closeMenu}
+                  >
+                    <span className="w-8 h-8 bg-gradient-to-r from-amber-600 to-amber-700 rounded-lg flex items-center justify-center mr-3 text-white font-black">
+                      ✨
+                    </span>
+                    Cadastrar
+                  </Link>
                 </>
               )}
 

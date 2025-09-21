@@ -268,7 +268,7 @@ function MyNumbersPage() {
               {/* Range tabs - Estilo igual à HomePage */}
               <div className="mb-6 sm:mb-8">
                 <div className="border-b border-amber-400/20">
-                  <div className="flex overflow-x-auto scrollbar-hide space-x-1 sm:space-x-2">
+                  <div className="flex overflow-x-auto no-scrollbar space-x-1 sm:space-x-2">
                     {numberRanges.map((range, index) => {
                       const numbersInRange = userExtraNumbers.filter(num => 
                         num >= range.start && num <= range.end

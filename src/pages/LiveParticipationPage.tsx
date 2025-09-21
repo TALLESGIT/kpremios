@@ -47,6 +47,9 @@ const LiveParticipationPage: React.FC = () => {
   const myParticipation = participants.find(p => p.user_id === user?.id) || null;
 
   useEffect(() => {
+    // Aguardar o carregamento completo antes de redirecionar
+    if (loading) return;
+    
     if (!user) {
       navigate('/login');
       return;
@@ -57,7 +60,7 @@ const LiveParticipationPage: React.FC = () => {
       navigate(`/admin/live-games/${gameId}/control`);
       return;
     }
-  }, [user, currentAppUser, navigate, gameId]);
+  }, [user, currentAppUser, loading, navigate, gameId]);
 
   // Mostrar modal de eliminação quando o usuário for eliminado
   useEffect(() => {
@@ -298,7 +301,7 @@ const LiveParticipationPage: React.FC = () => {
             </h3>
             
             {activeParticipants.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 max-h-80 sm:max-h-96 overflow-y-auto">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 max-h-80 sm:max-h-96 overflow-y-auto no-scrollbar">
                 {activeParticipants.map((participant) => (
                   <div
                     key={participant.id}
@@ -338,7 +341,7 @@ const LiveParticipationPage: React.FC = () => {
             </h3>
             
             {eliminatedParticipants.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 max-h-80 sm:max-h-96 overflow-y-auto">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 max-h-80 sm:max-h-96 overflow-y-auto no-scrollbar">
                 {eliminatedParticipants.map((participant) => (
                   <div
                     key={participant.id}
@@ -406,7 +409,7 @@ participant.user_id === user?.id
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Selecione um número disponível:
                 </label>
-                <div className="grid grid-cols-5 gap-2 max-h-40 overflow-y-auto border border-slate-600 rounded-lg p-3 bg-slate-700/50">
+                <div className="grid grid-cols-5 gap-2 max-h-40 overflow-y-auto no-scrollbar border border-slate-600 rounded-lg p-3 bg-slate-700/50">
                   {Array.from({ length: game.max_participants }, (_, i) => {
                     const number = i + 1;
                     const isTaken = participants.some(p => p.lucky_number === number);
