@@ -78,40 +78,64 @@ export default function AdminApprovalsPage() {
     try {
       setLoading(true);
       
-      // Buscar solicitações com dados do usuário
-      const { data, error } = await supabase
+      // Primeiro, buscar todas as solicitações
+      const { data: requestsData, error: requestsError } = await supabase
         .from('extra_number_requests')
-        .select(`
-          *,
-          users(
-            name,
-            email,
-            whatsapp
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Erro ao carregar solicitações:', error);
-        throw error;
+      if (requestsError) {
+        console.error('Erro ao carregar solicitações:', requestsError);
+        throw requestsError;
       }
 
-      console.log('Dados brutos recebidos:', data);
+      console.log('Solicitações recebidas:', requestsData);
 
-      const formattedRequests: ExtraNumberRequest[] = data.map((req: any) => ({
-        id: req.id,
-        user_id: req.user_id,
-        user_name: req.users?.name || 'Usuário não encontrado',
-        user_email: req.users?.email || 'Email não encontrado',
-        user_whatsapp: req.users?.whatsapp || 'WhatsApp não encontrado',
-        payment_amount: req.payment_amount,
-        status: req.status,
-        created_at: req.created_at,
-        processed_at: req.processed_at,
-        processed_by: req.processed_by,
-        extra_numbers: req.extra_numbers || [],
-        payment_proof_url: req.payment_proof_url
-      }));
+      if (!requestsData || requestsData.length === 0) {
+        setRequests([]);
+        return;
+      }
+
+      // Buscar dados dos usuários separadamente
+      const userIds = [...new Set(requestsData.map(req => req.user_id))];
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, name, email, whatsapp')
+        .in('id', userIds);
+
+      if (usersError) {
+        console.error('Erro ao carregar usuários:', usersError);
+        // Continuar mesmo com erro nos usuários
+      }
+
+      console.log('Usuários recebidos:', usersData);
+
+      // Criar mapa de usuários para facilitar a busca
+      const usersMap = new Map();
+      if (usersData) {
+        usersData.forEach(user => {
+          usersMap.set(user.id, user);
+        });
+      }
+
+      const formattedRequests: ExtraNumberRequest[] = requestsData.map((req: any) => {
+        const user = usersMap.get(req.user_id);
+        return {
+          id: req.id,
+          user_id: req.user_id,
+          user_name: user?.name || 'Usuário não encontrado',
+          user_email: user?.email || 'Email não encontrado',
+          user_whatsapp: user?.whatsapp || 'WhatsApp não encontrado',
+          payment_amount: req.payment_amount,
+          status: req.status,
+          created_at: req.created_at,
+          processed_at: req.processed_at,
+          processed_by: req.processed_by,
+          extra_numbers: req.extra_numbers || [],
+          payment_proof_url: req.payment_proof_url,
+          rejection_reason: req.rejection_reason
+        };
+      });
 
       console.log('Solicitações formatadas:', formattedRequests);
       setRequests(formattedRequests);

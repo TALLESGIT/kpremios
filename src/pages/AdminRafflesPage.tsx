@@ -291,7 +291,7 @@ export default function AdminRafflesPage() {
         .from('users')
         .update({
           free_number: null,
-          extra_numbers: null,
+          extra_numbers: [],
           is_winner: false,
           won_at: null,
           won_prize: null

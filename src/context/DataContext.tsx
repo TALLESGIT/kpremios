@@ -1084,7 +1084,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         .from('users')
         .update({
           free_number: null,
-          extra_numbers: null
+          extra_numbers: []
         }); // Update all users
       
       if (usersError) {
