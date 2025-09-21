@@ -136,6 +136,30 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
 
       if (success) {
         console.log('ExtraNumbersModal - Request successful');
+        
+        // Enviar comprovante para o WhatsApp do admin se houver
+        if (paymentProofUrl && currentAppUser) {
+          try {
+            console.log('ExtraNumbersModal - Sending payment proof to admin WhatsApp');
+            const { whatsappPersonalService } = await import('../../services/whatsappPersonalService');
+            
+            await whatsappPersonalService.sendPaymentProofToAdmin({
+              userName: currentAppUser.name,
+              userWhatsapp: currentAppUser.whatsapp,
+              userEmail: currentAppUser.email,
+              amount: parseFloat(paymentAmount),
+              quantity: calculatedNumbers,
+              proofUrl: paymentProofUrl,
+              requestId: `REQ_${Date.now()}_${Math.random().toString(36).substring(7)}`
+            });
+            
+            console.log('ExtraNumbersModal - Payment proof sent to admin successfully');
+          } catch (whatsappError) {
+            console.warn('ExtraNumbersModal - Failed to send payment proof to admin:', whatsappError);
+            // Não falha a operação se o WhatsApp falhar
+          }
+        }
+        
         setSuccess(true);
         setTimeout(() => {
           onClose();
@@ -207,8 +231,18 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
             <h3 className="text-lg font-semibold text-slate-900 mb-2">
               Solicitação Enviada!
             </h3>
-            <p className="text-slate-600">
+            <p className="text-slate-600 mb-3">
               Sua solicitação foi enviada com sucesso e está sendo analisada.
+            </p>
+            {paymentProof && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <p className="text-blue-800 text-sm">
+                  📱 <strong>Comprovante enviado!</strong> O comprovante de pagamento foi enviado automaticamente para o WhatsApp do administrador para análise.
+                </p>
+              </div>
+            )}
+            <p className="text-slate-500 text-sm">
+              Você será notificado quando a solicitação for aprovada ou rejeitada.
             </p>
           </div>
         ) : (

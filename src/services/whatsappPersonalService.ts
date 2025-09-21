@@ -212,6 +212,45 @@ Entre em contato conosco imediatamente para receber seu prêmio!
       type: 'text'
     });
   }
+
+  /**
+   * Envia comprovante de pagamento para o admin
+   */
+  async sendPaymentProofToAdmin(data: {
+    userName: string;
+    userWhatsapp: string;
+    userEmail: string;
+    amount: number;
+    quantity: number;
+    proofUrl: string;
+    requestId: string;
+  }): Promise<WhatsAppResponse> {
+    const adminNumber = '+5531972393341'; // Número do admin
+    const message = `📋 *NOVA SOLICITAÇÃO DE NÚMEROS EXTRAS*
+
+👤 *Cliente:*
+• Nome: ${data.userName}
+• WhatsApp: ${data.userWhatsapp}
+• Email: ${data.userEmail}
+
+💰 *Pagamento:*
+• Valor: R$ ${data.amount.toFixed(2)}
+• Quantidade: ${data.quantity} números extras
+• ID da Solicitação: ${data.requestId}
+
+📎 *Comprovante:*
+${data.proofUrl}
+
+🔗 *Acesse o painel admin para aprovar/rejeitar*
+
+⏰ *Data:* ${new Date().toLocaleString('pt-BR')}`;
+
+    return this.sendMessage({
+      to: adminNumber,
+      message: message,
+      type: 'text'
+    });
+  }
 }
 
 // Instância singleton
