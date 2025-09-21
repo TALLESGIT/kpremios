@@ -47,8 +47,10 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
           .maybeSingle();
 
         if (!emailError && emailData) {
-          newErrors.email = 'Este email já está cadastrado. Faça login ou use outro email.';
+          // Email existe - mudar para modo login sem erro
           setIsLoginMode(true);
+          // Limpar erro de email para permitir login
+          delete newErrors.email;
         } else {
           setIsLoginMode(false);
         }
@@ -397,14 +399,13 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
               </div>
             )}
 
-            {/* Aviso sobre dados duplicados */}
-            {(errors.email || errors.whatsapp || errors.name) && (
+            {/* Aviso sobre dados duplicados - apenas para WhatsApp e nome, não para email */}
+            {(errors.whatsapp || errors.name) && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
                 <p className="text-red-800 text-sm font-medium mb-2">
                   ⚠️ Dados já cadastrados no sistema
                 </p>
                 <div className="text-red-700 text-xs space-y-1">
-                  {errors.email && <p>• {errors.email}</p>}
                   {errors.whatsapp && <p>• {errors.whatsapp}</p>}
                   {errors.name && <p>• {errors.name}</p>}
                 </div>
