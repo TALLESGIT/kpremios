@@ -83,7 +83,7 @@ export default function AdminApprovalsPage() {
         .from('extra_number_requests')
         .select(`
           *,
-          users!inner(
+          users(
             name,
             email,
             whatsapp
@@ -101,9 +101,9 @@ export default function AdminApprovalsPage() {
       const formattedRequests: ExtraNumberRequest[] = data.map((req: any) => ({
         id: req.id,
         user_id: req.user_id,
-        user_name: req.users.name,
-        user_email: req.users.email,
-        user_whatsapp: req.users.whatsapp,
+        user_name: req.users?.name || 'Usuário não encontrado',
+        user_email: req.users?.email || 'Email não encontrado',
+        user_whatsapp: req.users?.whatsapp || 'WhatsApp não encontrado',
         payment_amount: req.payment_amount,
         status: req.status,
         created_at: req.created_at,
