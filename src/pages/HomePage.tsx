@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import RaffleBanner from '../components/user/RaffleBanner';
@@ -8,6 +8,7 @@ import RegistrationForm from '../components/user/RegistrationForm';
 import SuccessModal from '../components/shared/SuccessModal';
 
 function HomePage() {
+  const navigate = useNavigate();
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successNumber, setSuccessNumber] = useState<number | null>(null);
@@ -15,6 +16,11 @@ function HomePage() {
   const handleRegistrationSuccess = () => {
     setSuccessNumber(selectedNumber);
     setShowSuccess(true);
+  };
+
+  const handleUpsellClick = () => {
+    setShowSuccess(false);
+    navigate('/my-numbers');
   };
 
   return (
@@ -76,11 +82,13 @@ function HomePage() {
       <SuccessModal
         isOpen={showSuccess}
         onClose={() => setShowSuccess(false)}
-        title="🎉 Cadastro Realizado!"
-        message="Seu número foi reservado com sucesso! Agora você pode acessar 'Meus Números' para solicitar números extras e aumentar suas chances de ganhar."
+        title="🎉 Número Selecionado!"
+        message={`Seu número gratuito #${successNumber} foi reservado com sucesso!`}
         selectedNumber={successNumber || undefined}
         autoClose={false}
         autoCloseTime={8000}
+        showUpsell={true}
+        onUpsellClick={handleUpsellClick}
       />
       
       <Footer />

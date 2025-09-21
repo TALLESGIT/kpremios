@@ -9,6 +9,8 @@ interface SuccessModalProps {
   selectedNumber?: number;
   autoClose?: boolean;
   autoCloseTime?: number;
+  showUpsell?: boolean;
+  onUpsellClick?: () => void;
 }
 
 function SuccessModal({ 
@@ -18,7 +20,9 @@ function SuccessModal({
   message, 
   selectedNumber,
   autoClose = true,
-  autoCloseTime = 5000 
+  autoCloseTime = 5000,
+  showUpsell = false,
+  onUpsellClick
 }: SuccessModalProps) {
   const [progress, setProgress] = useState(100);
   const [timeLeft, setTimeLeft] = useState(autoCloseTime / 1000);
@@ -102,14 +106,61 @@ function SuccessModal({
             {message}
           </p>
 
+          {/* Upsell Section */}
+          {showUpsell && (
+            <div className="mb-6 p-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl">
+              <div className="text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Sparkles className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="text-lg font-bold text-amber-800 mb-2">
+                  Quer mais chances de ganhar?
+                </h3>
+                <p className="text-amber-700 text-sm mb-4 leading-relaxed">
+                  Solicite seus números extras aqui e multiplique suas chances de ganhar!
+                </p>
+                <div className="bg-white/60 rounded-xl p-4 mb-4">
+                  <div className="text-center">
+                    <p className="text-amber-800 font-semibold text-sm mb-2">Aumente suas Chances!</p>
+                    <p className="text-amber-700 text-xs mb-2">
+                      Solicite números extras e multiplique suas chances de ganhar. A partir de R$ 10,00 você ganha 100 números aleatórios!
+                    </p>
+                    <div className="text-xs text-amber-600 space-y-1">
+                      <p>• Cada R$ 10,00 = 100 números extras</p>
+                      <p>• Números atribuídos automaticamente</p>
+                      <p>• Aprovação rápida pelo admin</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Action buttons */}
           <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold py-3 px-6 rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-            >
-              Continuar
-            </button>
+            {showUpsell && onUpsellClick ? (
+              <>
+                <button
+                  onClick={onClose}
+                  className="flex-1 bg-gray-500 text-white font-semibold py-3 px-6 rounded-xl hover:bg-gray-600 transition-all duration-200"
+                >
+                  Depois
+                </button>
+                <button
+                  onClick={onUpsellClick}
+                  className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold py-3 px-6 rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                >
+                  Solicitar Números Extras
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={onClose}
+                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold py-3 px-6 rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              >
+                Continuar
+              </button>
+            )}
           </div>
         </div>
 

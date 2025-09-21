@@ -14,6 +14,7 @@ import LiveGamesPage from './pages/LiveGamesPage';
 import LiveParticipationPage from './pages/LiveParticipationPage';
 import AdminLiveGamesPage from './pages/AdminLiveGamesPage';
 import AdminLiveControlPage from './pages/AdminLiveControlPage';
+import AdminUsersPage from './pages/AdminUsersPage';
 
 // Novas páginas de autenticação e sorteio ao vivo
 import LoginPage from './pages/LoginPage';
@@ -79,6 +80,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <AdminApprovalsPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/users" 
+            element={
+              <ProtectedRoute>
+                <AdminUsersPage />
               </ProtectedRoute>
             } 
           />

@@ -17,15 +17,72 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     setError('');
 
+    // Validações básicas
+    if (!email.trim()) {
+      setError('Email é obrigatório');
+      setLoading(false);
+      return;
+    }
+
+    if (!password.trim()) {
+      setError('Senha é obrigatória');
+      setLoading(false);
+      return;
+    }
+
+    // Validação de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Email inválido');
+      setLoading(false);
+      return;
+    }
+
     try {
+      console.log('Tentando fazer login com:', { email, passwordLength: password.length });
+      
+      // Testar conexão com Supabase primeiro
+      const { data: testData, error: testError } = await supabase
+        .from('users')
+        .select('count')
+        .limit(1);
+      
+      if (testError) {
+        console.error('Erro de conexão com Supabase:', testError);
+        setError('Erro de conexão com o servidor. Tente novamente.');
+        return;
+      }
+      
+      console.log('Conexão com Supabase OK, tentando login...');
+      
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: email.trim(),
+        password: password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro de login:', error);
+        
+        // Tratar erros específicos
+        if (error.message.includes('Invalid login credentials')) {
+          setError('Email ou senha incorretos');
+        } else if (error.message.includes('Email not confirmed')) {
+          setError('Email não confirmado. Verifique sua caixa de entrada.');
+        } else if (error.message.includes('Too many requests')) {
+          setError('Muitas tentativas. Aguarde alguns minutos e tente novamente.');
+        } else if (error.message.includes('Invalid email')) {
+          setError('Email inválido');
+        } else if (error.message.includes('Password should be at least')) {
+          setError('Senha muito curta');
+        } else {
+          setError(`Erro de login: ${error.message}`);
+        }
+        return;
+      }
 
       if (data.user) {
+        console.log('Login bem-sucedido para usuário:', data.user.id);
+        
         // Verificar se é admin
         const { data: profile, error: profileError } = await supabase
           .from('users')
@@ -35,6 +92,7 @@ const LoginPage: React.FC = () => {
 
         // Se não há perfil, criar um básico
         if (profileError && profileError.code === 'PGRST116') {
+          console.log('Criando perfil básico para usuário:', data.user.id);
           const { error: insertError } = await supabase
             .from('users')
             .insert({
@@ -47,18 +105,23 @@ const LoginPage: React.FC = () => {
 
           if (insertError) {
             console.error('Erro ao criar perfil:', insertError);
+            setError('Erro ao criar perfil do usuário');
+            return;
           }
         }
 
         // Redirecionar baseado no perfil ou padrão
         if (profile?.is_admin) {
+          console.log('Redirecionando para admin dashboard');
           navigate('/admin/dashboard');
         } else {
+          console.log('Redirecionando para dashboard do usuário');
           navigate('/dashboard');
         }
       }
     } catch (error: any) {
-      setError(error.message);
+      console.error('Erro inesperado no login:', error);
+      setError('Erro inesperado. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -88,6 +151,17 @@ const LoginPage: React.FC = () => {
                     <AlertCircle className="h-5 w-5" />
                     <span className="font-medium">{error}</span>
                   </div>
+                </div>
+              )}
+
+              {/* Debug Info - apenas em desenvolvimento */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="bg-gray-50 border border-gray-200 text-gray-700 px-4 py-3 rounded-lg text-xs">
+                  <div className="font-semibold mb-2">Debug Info:</div>
+                  <div>Email: {email || 'vazio'}</div>
+                  <div>Senha: {password ? '***' + password.slice(-2) : 'vazia'}</div>
+                  <div>Supabase URL: {import.meta.env.VITE_SUPABASE_URL ? 'Configurado' : 'Não configurado'}</div>
+                  <div>Supabase Key: {import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Configurado' : 'Não configurado'}</div>
                 </div>
               )}
 

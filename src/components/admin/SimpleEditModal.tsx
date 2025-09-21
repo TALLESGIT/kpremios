@@ -101,14 +101,39 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({ isOpen, onClose, game
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Máximo de Participantes
             </label>
-            <input
-              type="number"
-              min="10"
-              max="1000"
-              value={formData.max_participants}
-              onChange={(e) => setFormData({...formData, max_participants: parseInt(e.target.value) || 50})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+            <div className="relative">
+              <input
+                type="tel"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                min="10"
+                max="1000"
+                value={formData.max_participants}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, ''); // Remove non-numeric characters
+                  const numValue = parseInt(value) || 50;
+                  if (numValue >= 10 && numValue <= 1000) {
+                    setFormData({...formData, max_participants: numValue});
+                  }
+                }}
+                onBlur={(e) => {
+                  const value = parseInt(e.target.value) || 50;
+                  if (value < 10) {
+                    setFormData({...formData, max_participants: 10});
+                  } else if (value > 1000) {
+                    setFormData({...formData, max_participants: 1000});
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center text-lg font-semibold"
+                placeholder="50"
+              />
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">
+                números
+              </div>
+            </div>
+            <p className="text-gray-500 text-xs mt-1 text-center">
+              Números disponíveis de 1 a {formData.max_participants}
+            </p>
           </div>
 
         </div>

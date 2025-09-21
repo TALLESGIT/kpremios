@@ -386,6 +386,37 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     try {
       console.log('Starting registration process...');
       
+      // Validações adicionais no backend
+      const { data: existingEmail } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+      
+      if (existingEmail) {
+        throw new Error('Este email já está cadastrado. Faça login ou use outro email.');
+      }
+      
+      const { data: existingWhatsapp } = await supabase
+        .from('users')
+        .select('id')
+        .eq('whatsapp', whatsapp)
+        .maybeSingle();
+      
+      if (existingWhatsapp) {
+        throw new Error('Este WhatsApp já está cadastrado. Use outro número.');
+      }
+      
+      const { data: existingName } = await supabase
+        .from('users')
+        .select('id')
+        .eq('name', name)
+        .maybeSingle();
+      
+      if (existingName) {
+        throw new Error('Este nome já está cadastrado. Use outro nome.');
+      }
+      
       // Check if number is still available
       const { data: numberData, error: numberCheckError } = await supabase
         .from('numbers')

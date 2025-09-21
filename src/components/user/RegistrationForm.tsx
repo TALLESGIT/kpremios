@@ -30,31 +30,59 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
     return null;
   }
 
-  // Verificar se email já existe quando usuário digita
-  const checkEmailExists = async (email: string) => {
+  // Verificar se dados já existem quando usuário digita
+  const checkDataExists = async (email: string, whatsapp: string, name: string) => {
     if (!email || !email.includes('@')) return;
     
     setCheckingEmail(true);
     try {
-      // Verificar se existe na tabela users
-      const { data, error } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .maybeSingle();
+      const newErrors: Record<string, string> = {};
 
-      if (!error && data) {
-        // Email já existe na tabela users, sugerir modo login
-        setIsLoginMode(true);
-        setErrors({});
-      } else {
-        // Email não existe, manter modo cadastro
-        setIsLoginMode(false);
-        setErrors({});
+      // Verificar se email já existe
+      if (email && email.includes('@')) {
+        const { data: emailData, error: emailError } = await supabase
+          .from('users')
+          .select('id, email')
+          .eq('email', email.trim())
+          .maybeSingle();
+
+        if (!emailError && emailData) {
+          newErrors.email = 'Este email já está cadastrado. Faça login ou use outro email.';
+          setIsLoginMode(true);
+        } else {
+          setIsLoginMode(false);
+        }
       }
+
+      // Verificar se WhatsApp já existe
+      if (whatsapp && whatsapp.trim().length >= 10) {
+        const { data: whatsappData, error: whatsappError } = await supabase
+          .from('users')
+          .select('id, whatsapp')
+          .eq('whatsapp', whatsapp.trim())
+          .maybeSingle();
+
+        if (!whatsappError && whatsappData) {
+          newErrors.whatsapp = 'Este WhatsApp já está cadastrado. Use outro número.';
+        }
+      }
+
+      // Verificar se nome já existe
+      if (name && name.trim().length >= 2) {
+        const { data: nameData, error: nameError } = await supabase
+          .from('users')
+          .select('id, name')
+          .eq('name', name.trim())
+          .maybeSingle();
+
+        if (!nameError && nameData) {
+          newErrors.name = 'Este nome já está cadastrado. Use outro nome.';
+        }
+      }
+
+      setErrors(newErrors);
     } catch (error) {
-      console.error('Erro ao verificar email:', error);
-      // Em caso de erro, manter modo cadastro
+      console.error('Erro ao verificar dados:', error);
       setIsLoginMode(false);
     } finally {
       setCheckingEmail(false);
@@ -108,18 +136,120 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
     try {
       // Validate form
       const newErrors: Record<string, string> = {};
-      if (!formData.email.trim()) newErrors.email = 'Email é obrigatório';
-      if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email inválido';
+      
+      // Validação de email mais rigorosa
+      if (!formData.email.trim()) {
+        newErrors.email = 'Email é obrigatório';
+      } else {
+        const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+        if (!emailRegex.test(formData.email)) {
+          newErrors.email = 'Email inválido. Use um email real (ex: usuario@gmail.com)';
+        } else if (formData.email.includes('@gmail.com') && !formData.email.match(/^[a-zA-Z0-9.]+@gmail\.com$/)) {
+          newErrors.email = 'Email Gmail inválido. Use apenas letras, números e pontos';
+        } else if (formData.email.includes('@hotmail.com') && !formData.email.match(/^[a-zA-Z0-9.]+@hotmail\.com$/)) {
+          newErrors.email = 'Email Hotmail inválido. Use apenas letras, números e pontos';
+        } else if (formData.email.includes('@outlook.com') && !formData.email.match(/^[a-zA-Z0-9.]+@outlook\.com$/)) {
+          newErrors.email = 'Email Outlook inválido. Use apenas letras, números e pontos';
+        }
+      }
+      
       if (!formData.password.trim() || formData.password.length < 6) {
         newErrors.password = 'Senha deve ter pelo menos 6 caracteres';
       }
       
       // Validações específicas para cadastro
       if (!isLoginMode) {
-        if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
-        if (!formData.whatsapp.trim()) newErrors.whatsapp = 'WhatsApp é obrigatório';
+        if (!formData.name.trim()) {
+          newErrors.name = 'Nome é obrigatório';
+        } else if (formData.name.trim().length < 2) {
+          newErrors.name = 'Nome deve ter pelo menos 2 caracteres';
+        } else if (!/^[a-zA-ZÀ-ÿ\s]+$/.test(formData.name.trim())) {
+          newErrors.name = 'Nome deve conter apenas letras e espaços';
+        }
+        
+        if (!formData.whatsapp.trim()) {
+          newErrors.whatsapp = 'WhatsApp é obrigatório';
+        } else {
+          // Limpar WhatsApp (remover caracteres não numéricos)
+          const cleanWhatsapp = formData.whatsapp.replace(/\D/g, '');
+          if (cleanWhatsapp.length < 10 || cleanWhatsapp.length > 11) {
+            newErrors.whatsapp = 'WhatsApp deve ter 10 ou 11 dígitos (ex: 11999999999)';
+          } else if (!cleanWhatsapp.startsWith('11') && !cleanWhatsapp.startsWith('12') && 
+                     !cleanWhatsapp.startsWith('13') && !cleanWhatsapp.startsWith('14') && 
+                     !cleanWhatsapp.startsWith('15') && !cleanWhatsapp.startsWith('16') && 
+                     !cleanWhatsapp.startsWith('17') && !cleanWhatsapp.startsWith('18') && 
+                     !cleanWhatsapp.startsWith('19') && !cleanWhatsapp.startsWith('21') && 
+                     !cleanWhatsapp.startsWith('22') && !cleanWhatsapp.startsWith('24') && 
+                     !cleanWhatsapp.startsWith('27') && !cleanWhatsapp.startsWith('28') && 
+                     !cleanWhatsapp.startsWith('31') && !cleanWhatsapp.startsWith('32') && 
+                     !cleanWhatsapp.startsWith('33') && !cleanWhatsapp.startsWith('34') && 
+                     !cleanWhatsapp.startsWith('35') && !cleanWhatsapp.startsWith('37') && 
+                     !cleanWhatsapp.startsWith('38') && !cleanWhatsapp.startsWith('41') && 
+                     !cleanWhatsapp.startsWith('42') && !cleanWhatsapp.startsWith('43') && 
+                     !cleanWhatsapp.startsWith('44') && !cleanWhatsapp.startsWith('45') && 
+                     !cleanWhatsapp.startsWith('46') && !cleanWhatsapp.startsWith('47') && 
+                     !cleanWhatsapp.startsWith('48') && !cleanWhatsapp.startsWith('49') && 
+                     !cleanWhatsapp.startsWith('51') && !cleanWhatsapp.startsWith('53') && 
+                     !cleanWhatsapp.startsWith('54') && !cleanWhatsapp.startsWith('55') && 
+                     !cleanWhatsapp.startsWith('61') && !cleanWhatsapp.startsWith('62') && 
+                     !cleanWhatsapp.startsWith('63') && !cleanWhatsapp.startsWith('64') && 
+                     !cleanWhatsapp.startsWith('65') && !cleanWhatsapp.startsWith('66') && 
+                     !cleanWhatsapp.startsWith('67') && !cleanWhatsapp.startsWith('68') && 
+                     !cleanWhatsapp.startsWith('69') && !cleanWhatsapp.startsWith('71') && 
+                     !cleanWhatsapp.startsWith('73') && !cleanWhatsapp.startsWith('74') && 
+                     !cleanWhatsapp.startsWith('75') && !cleanWhatsapp.startsWith('77') && 
+                     !cleanWhatsapp.startsWith('79') && !cleanWhatsapp.startsWith('81') && 
+                     !cleanWhatsapp.startsWith('82') && !cleanWhatsapp.startsWith('83') && 
+                     !cleanWhatsapp.startsWith('84') && !cleanWhatsapp.startsWith('85') && 
+                     !cleanWhatsapp.startsWith('86') && !cleanWhatsapp.startsWith('87') && 
+                     !cleanWhatsapp.startsWith('88') && !cleanWhatsapp.startsWith('89') && 
+                     !cleanWhatsapp.startsWith('91') && !cleanWhatsapp.startsWith('92') && 
+                     !cleanWhatsapp.startsWith('93') && !cleanWhatsapp.startsWith('94') && 
+                     !cleanWhatsapp.startsWith('95') && !cleanWhatsapp.startsWith('96') && 
+                     !cleanWhatsapp.startsWith('97') && !cleanWhatsapp.startsWith('98') && 
+                     !cleanWhatsapp.startsWith('99')) {
+            newErrors.whatsapp = 'DDD inválido. Use um DDD brasileiro válido';
+          }
+        }
       }
       
+      // Verificar se há dados duplicados antes de prosseguir
+      if (!isLoginMode) {
+        const { data: existingEmail } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', formData.email.trim())
+          .maybeSingle();
+        
+        if (existingEmail) {
+          setErrors({ email: 'Este email já está cadastrado. Faça login ou use outro email.' });
+          setIsLoginMode(true);
+          return;
+        }
+        
+        const { data: existingWhatsapp } = await supabase
+          .from('users')
+          .select('id')
+          .eq('whatsapp', formData.whatsapp.trim())
+          .maybeSingle();
+        
+        if (existingWhatsapp) {
+          setErrors({ whatsapp: 'Este WhatsApp já está cadastrado. Use outro número.' });
+          return;
+        }
+        
+        const { data: existingName } = await supabase
+          .from('users')
+          .select('id')
+          .eq('name', formData.name.trim())
+          .maybeSingle();
+        
+        if (existingName) {
+          setErrors({ name: 'Este nome já está cadastrado. Use outro nome.' });
+          return;
+        }
+      }
+
       if (Object.keys(newErrors).length > 0) {
         setErrors(newErrors);
         return;
@@ -216,8 +346,24 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
                   Email encontrado! Faça login com sua senha.
                 </p>
                 <p className="text-blue-600 text-xs mt-1">
-                  Se não conseguir fazer login, pode ser que o usuário não foi criado no sistema de autenticação. 
-                  Tente fazer cadastro novamente.
+                  Este email já está cadastrado no sistema. Use sua senha para fazer login.
+                </p>
+              </div>
+            )}
+
+            {/* Aviso sobre dados duplicados */}
+            {(errors.email || errors.whatsapp || errors.name) && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+                <p className="text-red-800 text-sm font-medium mb-2">
+                  ⚠️ Dados já cadastrados no sistema
+                </p>
+                <div className="text-red-700 text-xs space-y-1">
+                  {errors.email && <p>• {errors.email}</p>}
+                  {errors.whatsapp && <p>• {errors.whatsapp}</p>}
+                  {errors.name && <p>• {errors.name}</p>}
+                </div>
+                <p className="text-red-600 text-xs mt-2">
+                  Use dados diferentes ou faça login se já tem uma conta.
                 </p>
               </div>
             )}
@@ -245,7 +391,11 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
                       id="name"
                       name="name"
                       value={formData.name}
-                      onChange={handleChange}
+                      onChange={(e) => {
+                        handleChange(e);
+                        // Verificar dados após 1 segundo de pausa na digitação
+                        setTimeout(() => checkDataExists(formData.email, formData.whatsapp, e.target.value), 1000);
+                      }}
                       autoComplete="name"
                       className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors ${
                         errors.name ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white'
@@ -273,8 +423,8 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
                     value={formData.email}
                     onChange={(e) => {
                       handleChange(e);
-                      // Verificar email após 1 segundo de pausa na digitação
-                      setTimeout(() => checkEmailExists(e.target.value), 1000);
+                      // Verificar dados após 1 segundo de pausa na digitação
+                      setTimeout(() => checkDataExists(e.target.value, formData.whatsapp, formData.name), 1000);
                     }}
                     autoComplete="email"
                     className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors ${
@@ -306,7 +456,11 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
                       id="whatsapp"
                       name="whatsapp"
                       value={formData.whatsapp}
-                      onChange={handleChange}
+                      onChange={(e) => {
+                        handleChange(e);
+                        // Verificar dados após 1 segundo de pausa na digitação
+                        setTimeout(() => checkDataExists(formData.email, e.target.value, formData.name), 1000);
+                      }}
                       autoComplete="tel"
                       className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors ${
                         errors.whatsapp ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white'
@@ -357,9 +511,9 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={!selectedNumber || loading}
+                disabled={!selectedNumber || loading || !isLoginMode && (errors.email || errors.whatsapp || errors.name)}
                 className={`w-full py-4 px-6 rounded-xl flex items-center justify-center gap-3 font-semibold text-white transition-all duration-200 ${
-                  selectedNumber && !loading
+                  selectedNumber && !loading && (isLoginMode || (!errors.email && !errors.whatsapp && !errors.name))
                     ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5' 
                     : 'bg-slate-400 cursor-not-allowed'
                 }`}

@@ -473,6 +473,38 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
+            {/* Usuários Card */}
+            <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-blue-400/20 backdrop-blur-sm hover:border-blue-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/10">
+              <div className="bg-gradient-to-r from-blue-500/10 to-blue-600/10 p-4 sm:p-6 lg:p-8 border-b border-blue-400/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mr-3 sm:mr-4 shadow-lg shadow-blue-500/25">
+                      <Users className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg sm:text-xl font-bold text-white mb-1">Usuários</h3>
+                      <div className="text-blue-300 text-sm font-medium">Gerenciar usuários</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 sm:p-6 lg:p-8">
+                <p className="text-slate-300 mb-6 leading-relaxed font-medium text-sm">
+                  Visualize e gerencie todos os usuários cadastrados no sistema. 
+                  Veja estatísticas, dados de contato e histórico de participações.
+                </p>
+                <div className="space-y-3">
+                  <Link
+                    to="/admin/users"
+                    className="w-full py-4 px-6 rounded-2xl font-black transition-all duration-300 flex items-center justify-center gap-3 group bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-2xl hover:shadow-blue-500/25 transform hover:-translate-y-1 hover:scale-105"
+                  >
+                    <Users className="h-5 w-5 group-hover:scale-110 transition-transform duration-300" />
+                    Gerenciar Usuários
+                  </Link>
+                </div>
+              </div>
+            </div>
+
             {/* Sorteios Card */}
             <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-purple-400/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-purple-500/10">
               <div className="bg-gradient-to-r from-purple-500/10 to-purple-600/10 p-4 sm:p-6 lg:p-8 border-b border-purple-400/20">
