@@ -286,16 +286,9 @@ export default function AdminRafflesPage() {
         console.warn('Erro ao resetar números:', numbersError);
       }
 
-      // 4. Resetar dados dos usuários relacionados
+      // 4. Resetar dados dos usuários relacionados usando função SQL
       const { error: usersError } = await supabase
-        .from('users')
-        .update({
-          free_number: null,
-          extra_numbers: [],
-          is_winner: false,
-          won_at: null,
-          won_prize: null
-        }); // Reset all users
+        .rpc('reset_users_data');
 
       if (usersError) {
         console.warn('Erro ao resetar dados dos usuários:', usersError);
