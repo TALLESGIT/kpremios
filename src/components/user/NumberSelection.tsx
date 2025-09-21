@@ -53,12 +53,10 @@ function NumberSelection({ onSelectNumber, selectedNumber }: NumberSelectionProp
 
   const checkActiveRaffles = async () => {
     try {
-      console.log('Checking for active raffles...');
-      
+
       // Verificar se há usuário autenticado
       const { data: { user } } = await supabase.auth.getUser();
-      console.log('Current user for raffles check:', user?.id ? 'authenticated' : 'not authenticated');
-      
+
       const { data, error } = await supabase
         .from('raffles')
         .select('id')
@@ -66,14 +64,14 @@ function NumberSelection({ onSelectNumber, selectedNumber }: NumberSelectionProp
         .limit(1);
 
       if (error) {
-        console.error('Erro ao verificar sorteios ativos:', error);
+
         setHasActiveRaffle(false);
       } else {
-        console.log('Active raffles check result:', data);
+
         setHasActiveRaffle(data && data.length > 0);
       }
     } catch (error) {
-      console.error('Erro ao verificar sorteios ativos:', error);
+
       setHasActiveRaffle(false);
     } finally {
       setLoadingActiveRaffle(false);
@@ -114,14 +112,14 @@ function NumberSelection({ onSelectNumber, selectedNumber }: NumberSelectionProp
       setTimeout(() => {
         const formElement = document.getElementById('registration-form');
         if (formElement) {
-          console.log('Scrolling to registration form...');
+
           formElement.scrollIntoView({ 
             behavior: 'smooth',
             block: 'start',
             inline: 'nearest'
           });
         } else {
-          console.log('Registration form not found, trying alternative...');
+
           // Try to scroll to the form section
           const formSection = document.querySelector('section[id="registration-form"]');
           if (formSection) {

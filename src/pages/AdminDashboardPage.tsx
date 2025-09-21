@@ -55,7 +55,7 @@ export default function AdminDashboardPage() {
         const count = await getPendingRequestsCount();
         setPendingCount(count);
       } catch (error) {
-        console.error('Error loading pending count:', error);
+
         setPendingCount(0);
       }
     };
@@ -72,12 +72,12 @@ export default function AdminDashboardPage() {
         schema: 'public', 
         table: 'extra_number_requests' 
       }, async () => {
-        console.log('Dashboard pending count updated, reloading...');
+
         try {
           const count = await getPendingRequestsCount();
           setPendingCount(count);
         } catch (error) {
-          console.error('Error reloading pending count:', error);
+
         }
       })
       .subscribe();
@@ -94,8 +94,7 @@ export default function AdminDashboardPage() {
 
   const handleReset = async () => {
     try {
-      console.log('Resetting entire system...');
-      
+
       // Reset all numbers first
       await resetAllNumbers();
       
@@ -106,7 +105,7 @@ export default function AdminDashboardPage() {
         .eq('is_admin', false); // Delete only non-admin users
       
       if (usersError) {
-        console.error('Error deleting users:', usersError);
+
         throw new Error('Erro ao deletar usuários');
       }
       
@@ -117,7 +116,7 @@ export default function AdminDashboardPage() {
         .neq('id', '00000000-0000-0000-0000-000000000000');
       
       if (requestsError) {
-        console.error('Error deleting requests:', requestsError);
+
         // Don't throw error for this, as it's not critical
       }
       
@@ -128,11 +127,10 @@ export default function AdminDashboardPage() {
         .neq('id', '00000000-0000-0000-0000-000000000000');
       
       if (drawResultsError) {
-        console.error('Error deleting draw results:', drawResultsError);
+
         // Don't throw error for this, as it's not critical
       }
-      
-      console.log('System reset completed successfully');
+
     setShowResetConfirm(false);
       
       // Force logout to clear user session
@@ -142,7 +140,7 @@ export default function AdminDashboardPage() {
       window.location.reload();
       
     } catch (error) {
-      console.error('Error resetting system:', error);
+
       alert('Erro ao resetar o sistema. Verifique o console para mais detalhes.');
     }
   };
@@ -150,10 +148,10 @@ export default function AdminDashboardPage() {
   const handleResetNumbers = async () => {
     try {
       await resetAllNumbers();
-      console.log('Numbers reset successfully');
+
       setShowResetNumbersConfirm(false);
     } catch (error) {
-      console.error('Error resetting numbers:', error);
+
     }
   };
 
@@ -176,7 +174,7 @@ export default function AdminDashboardPage() {
       }, 1000);
 
     } catch (error) {
-      console.error('Erro ao iniciar sorteio:', error);
+
       setShowDrawAnimation(false);
     }
   };
@@ -238,7 +236,7 @@ export default function AdminDashboardPage() {
         });
 
       if (drawError) {
-        console.error('Erro ao registrar resultado:', drawError);
+
         // Continuar mesmo com erro de registro
       }
 
@@ -253,7 +251,7 @@ export default function AdminDashboardPage() {
         .eq('id', winner.id);
 
       if (updateError) {
-        console.error('Erro ao atualizar status do ganhador:', updateError);
+
       }
 
       // Enviar notificação WhatsApp para o ganhador
@@ -266,7 +264,7 @@ export default function AdminDashboardPage() {
           prize: 'Sorteio Principal'
         });
       } catch (whatsappError) {
-        console.error('Erro ao enviar notificação WhatsApp:', whatsappError);
+
         // Não falha a operação se o WhatsApp falhar
       }
 
@@ -275,7 +273,7 @@ export default function AdminDashboardPage() {
       setShowDrawResult(true);
 
     } catch (error) {
-      console.error('Erro no sorteio:', error);
+
       setShowDrawAnimation(false);
       alert('Erro ao realizar sorteio. Tente novamente.');
     }
@@ -284,10 +282,10 @@ export default function AdminDashboardPage() {
   const handleCleanup = async () => {
     try {
       await cleanupOrphanedNumbers();
-      console.log('Orphaned numbers cleaned up successfully');
+
       setShowCleanupConfirm(false);
     } catch (error) {
-      console.error('Error cleaning up orphaned numbers:', error);
+
     }
   };
 
@@ -548,7 +546,6 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
             </div>
-
 
             <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-amber-400/20 backdrop-blur-sm hover:border-amber-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-500/10">
               {/* Header com gradiente */}

@@ -33,7 +33,6 @@ export const WhatsAppNotificationPanel: React.FC<WhatsAppNotificationPanelProps>
         alert(`Erro ao enviar notificação: ${result.error}`);
       }
     } catch (error) {
-      console.error('Error sending notification:', error);
       alert('Erro ao enviar notificação');
     }
   };
@@ -52,7 +51,6 @@ export const WhatsAppNotificationPanel: React.FC<WhatsAppNotificationPanelProps>
       setNotificationResult(result);
       alert(`Teste enviado! ${result.notified}/${result.total} usuários notificados.`);
     } catch (error) {
-      console.error('Error sending test notification:', error);
       alert('Erro ao enviar teste');
     }
   };

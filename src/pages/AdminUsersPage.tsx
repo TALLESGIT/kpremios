@@ -82,7 +82,6 @@ const AdminUsersPage: React.FC = () => {
 
       setUsers(processedUsers);
     } catch (error) {
-      console.error('Erro ao carregar usuários:', error);
       toast.error('Erro ao carregar usuários');
     } finally {
       setLoading(false);

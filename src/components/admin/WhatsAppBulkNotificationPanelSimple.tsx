@@ -57,7 +57,7 @@ const WhatsAppBulkNotificationPanelSimple: React.FC = () => {
 
       setUsers(data || []);
     } catch (err) {
-      console.error('Error loading users:', err);
+
       setError('Erro ao carregar usuários');
     }
   };
@@ -136,7 +136,7 @@ const WhatsAppBulkNotificationPanelSimple: React.FC = () => {
         setCustomMessage('');
       }
     } catch (err) {
-      console.error('Error sending bulk notification:', err);
+
       setError('Erro ao enviar notificações em massa');
     } finally {
       setIsLoading(false);

@@ -56,7 +56,6 @@ const UserManagementPanel: React.FC = () => {
 
       setUsers(data || []);
     } catch (err: any) {
-      console.error('Erro ao carregar usuários:', err);
       setError('Erro ao carregar usuários: ' + err.message);
     } finally {
       setLoading(false);
@@ -88,7 +87,6 @@ const UserManagementPanel: React.FC = () => {
       await loadUsers();
       
     } catch (err: any) {
-      console.error('Erro ao excluir usuário:', err);
       setError(`Erro ao excluir usuário: ${err.message}`);
     } finally {
       setDeletingUser(null);

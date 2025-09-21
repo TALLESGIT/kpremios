@@ -99,8 +99,6 @@ export const WhatsAppTestPanel: React.FC<WhatsAppTestPanelProps> = ({ onClose })
       const status = await checkMessageStatus(sid);
       results.push({ sid, status });
     }
-
-    console.log('Message statuses:', results);
     setResult({
       type: 'status_check',
       success: true,

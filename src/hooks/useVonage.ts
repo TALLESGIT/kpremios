@@ -32,13 +32,10 @@ export const useVonage = (): UseVonageReturn => {
     setError(null);
 
     try {
-      console.log(`🚀 Executando ${operationName} via Vonage...`);
       const result = await operation();
-      console.log(`✅ ${operationName} executado com sucesso via Vonage`);
       return result;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
-      console.error(`❌ Erro em ${operationName} via Vonage:`, errorMessage);
       setError(errorMessage);
       throw err;
     } finally {

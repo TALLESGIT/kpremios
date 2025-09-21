@@ -114,7 +114,7 @@ const LiveParticipationPage: React.FC = () => {
       // Atualizar dados em tempo real
       refreshData();
     } catch (error) {
-      console.error('Erro ao entrar no jogo:', error);
+
       toast.error('Erro ao entrar no jogo');
     } finally {
       setJoining(false);

@@ -13,15 +13,12 @@ const SandboxTest: React.FC = () => {
     setResult(null);
 
     try {
-      console.log('🚀 Enviando mensagem via Vonage...');
-      
+
       const result = await vonageWhatsAppService.sendMessage({
         to: phoneNumber,
         message: message
       });
 
-      console.log('✅ Mensagem enviada via Vonage:', result);
-      
       setResult({
         success: true,
         message: `Mensagem enviada com sucesso via Vonage!`,
@@ -29,8 +26,7 @@ const SandboxTest: React.FC = () => {
       });
 
     } catch (error) {
-      console.error('❌ Erro ao enviar mensagem via Vonage:', error);
-      
+
       setResult({
         success: false,
         message: `Erro ao enviar mensagem: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
@@ -45,16 +41,13 @@ const SandboxTest: React.FC = () => {
     setResult(null);
 
     try {
-      console.log('🚀 Testando confirmação de cadastro via Vonage...');
-      
+
       const result = await vonageWhatsAppService.sendRegistrationConfirmation({
         name: 'Usuário Teste',
         whatsapp: phoneNumber,
         confirmationCode: 'TEST123'
       });
 
-      console.log('✅ Confirmação de cadastro enviada via Vonage:', result);
-      
       setResult({
         success: true,
         message: `Confirmação de cadastro enviada com sucesso!`,
@@ -62,8 +55,7 @@ const SandboxTest: React.FC = () => {
       });
 
     } catch (error) {
-      console.error('❌ Erro ao enviar confirmação via Vonage:', error);
-      
+
       setResult({
         success: false,
         message: `Erro ao enviar confirmação: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
@@ -78,16 +70,13 @@ const SandboxTest: React.FC = () => {
     setResult(null);
 
     try {
-      console.log('🚀 Testando números selecionados via Vonage...');
-      
+
       const result = await vonageWhatsAppService.sendNumbersAssigned({
         name: 'Usuário Teste',
         whatsapp: phoneNumber,
         numbers: [7, 13, 21, 33]
       });
 
-      console.log('✅ Números selecionados enviados via Vonage:', result);
-      
       setResult({
         success: true,
         message: `Números selecionados enviados com sucesso!`,
@@ -95,8 +84,7 @@ const SandboxTest: React.FC = () => {
       });
 
     } catch (error) {
-      console.error('❌ Erro ao enviar números via Vonage:', error);
-      
+
       setResult({
         success: false,
         message: `Erro ao enviar números: ${error instanceof Error ? error.message : 'Erro desconhecido'}`

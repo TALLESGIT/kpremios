@@ -43,7 +43,7 @@ export const useLiveGames = () => {
       if (error) throw error;
       setGames(data || []);
     } catch (err) {
-      console.error('Erro ao carregar jogos:', err);
+
       setError('Erro ao carregar jogos');
       toast.error('Erro ao carregar jogos');
     } finally {
@@ -72,7 +72,7 @@ export const useLiveGames = () => {
       await loadGames();
       return data;
     } catch (err) {
-      console.error('Erro ao criar jogo:', err);
+
       toast.error('Erro ao criar jogo');
       throw err;
     }
@@ -99,7 +99,7 @@ export const useLiveGames = () => {
       toast.success('Jogo deletado com sucesso!');
       await loadGames();
     } catch (err) {
-      console.error('Erro ao deletar jogo:', err);
+
       toast.error('Erro ao deletar jogo');
       throw err;
     }
@@ -123,7 +123,7 @@ export const useLiveGames = () => {
       toast.success(statusMessages[status]);
       await loadGames();
     } catch (err) {
-      console.error('Erro ao atualizar status do jogo:', err);
+
       toast.error('Erro ao atualizar status do jogo');
       throw err;
     }
@@ -198,7 +198,7 @@ export const useGameParticipants = (gameId: string | undefined) => {
       
       setParticipants(formattedParticipants);
     } catch (err) {
-      console.error('Erro ao carregar participantes:', err);
+
       setError('Erro ao carregar participantes');
       toast.error('Erro ao carregar participantes');
     } finally {
@@ -221,7 +221,7 @@ export const useGameParticipants = (gameId: string | undefined) => {
       toast.success('Participante eliminado!');
       await loadParticipants();
     } catch (err) {
-      console.error('Erro ao eliminar participante:', err);
+
       toast.error('Erro ao eliminar participante');
       throw err;
     }
@@ -242,7 +242,7 @@ export const useGameParticipants = (gameId: string | undefined) => {
       toast.success('Participante reativado!');
       await loadParticipants();
     } catch (err) {
-      console.error('Erro ao reativar participante:', err);
+
       toast.error('Erro ao reativar participante');
       throw err;
     }
@@ -266,7 +266,7 @@ export const useGameParticipants = (gameId: string | undefined) => {
       
       toast.success(`Jogo finalizado! Vencedor: ${winnerParticipant.user_name} (${winnerParticipant.lucky_number})`);
     } catch (err) {
-      console.error('Erro ao finalizar jogo:', err);
+
       toast.error('Erro ao finalizar jogo');
       throw err;
     }
@@ -303,7 +303,7 @@ export const useGameParticipants = (gameId: string | undefined) => {
       toast.success('Jogo reiniciado!');
       await loadParticipants();
     } catch (err) {
-      console.error('Erro ao reiniciar jogo:', err);
+
       toast.error('Erro ao reiniciar jogo');
       throw err;
     }

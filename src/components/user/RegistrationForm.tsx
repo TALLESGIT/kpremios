@@ -31,13 +31,6 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
   }
 
   // Debug log para verificar estado
-  console.log('🔍 DEBUG - Render RegistrationForm:', {
-    selectedNumber,
-    loading,
-    isLoginMode,
-    errors,
-    formData: { email: formData.email, password: formData.password ? '***' : '' }
-  });
 
   // Verificar se dados já existem quando usuário digita
   const checkDataExists = async (email: string, whatsapp: string, name: string) => {
@@ -57,12 +50,12 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
 
         if (!emailError && emailData) {
           // Email existe - mudar para modo login sem erro
-          console.log('🔍 DEBUG - Email encontrado, mudando para modo login');
+
           setIsLoginMode(true);
           // Limpar erro de email para permitir login
           delete newErrors.email;
         } else {
-          console.log('🔍 DEBUG - Email não encontrado, mudando para modo cadastro');
+
           setIsLoginMode(false);
         }
       }
@@ -95,7 +88,7 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
 
       setErrors(newErrors);
     } catch (error) {
-      console.error('Erro ao verificar dados:', error);
+
       setIsLoginMode(false);
     } finally {
       setCheckingEmail(false);
@@ -111,18 +104,14 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
     setErrors({});
 
     try {
-      console.log('Tentando fazer login com:', { email: formData.email, passwordLength: formData.password.length });
-      
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
 
       if (error) {
-        console.error('Login error details:', error);
-        console.error('Login error status:', error.status);
-        console.error('Login error message:', error.message);
-        
+
         if (error.message.includes('Invalid login credentials')) {
           setErrors({ general: 'Email ou senha incorretos' });
         } else if (error.message.includes('Email not confirmed')) {
@@ -136,14 +125,14 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
       }
 
       if (data.user) {
-        console.log('Login bem-sucedido:', data.user.id);
+
         onSuccess();
       } else {
-        console.error('Login retornou sem usuário');
+
         setErrors({ general: 'Erro ao fazer login' });
       }
     } catch (error: any) {
-      console.error('Login error:', error);
+
       setErrors({ general: 'Erro ao fazer login' });
     } finally {
       setLoading(false);
@@ -287,7 +276,7 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
         });
         
         if (error) {
-          console.error('Login error details:', error);
+
           if (error.message.includes('Invalid login credentials')) {
             setErrors({ general: 'Email ou senha incorretos' });
           } else if (error.message.includes('Email not confirmed')) {
@@ -317,15 +306,14 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
           if (error.message.includes('já está cadastrado') || 
               error.message.includes('already registered') ||
               error.message.includes('email-already-in-use')) {
-            
-            console.log('Usuário já existe, tentando fazer login...');
+
             const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
               email: formData.email,
               password: formData.password,
             });
             
             if (loginError) {
-              console.error('Login error with existing user:', loginError);
+
               if (loginError.message.includes('Invalid login credentials')) {
                 setErrors({ general: 'Email ou senha incorretos. Verifique suas credenciais.' });
               } else if (loginError.message.includes('Email not confirmed')) {
@@ -339,7 +327,7 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
             
             if (loginData.user) {
               // Login bem-sucedido, continuar normalmente
-              console.log('Login bem-sucedido com usuário existente');
+
             }
           } else {
             // Outros erros, mostrar normalmente
@@ -351,7 +339,7 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
       onSuccess();
       
     } catch (error: any) {
-      console.error('Registration error:', error);
+
       if (error.message) {
         setErrors({ general: error.message });
       } else {
@@ -574,17 +562,7 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
                   const condition2 = (!isLoginMode && !selectedNumber);
                   const condition3 = (!isLoginMode && (errors.whatsapp || errors.name));
                   const finalCondition = condition1 || condition2 || condition3;
-                  
-                  console.log('🔍 DEBUG - Botão disabled calculation:');
-                  console.log('selectedNumber:', selectedNumber);
-                  console.log('loading:', loading);
-                  console.log('isLoginMode:', isLoginMode);
-                  console.log('errors:', errors);
-                  console.log('Condition 1 (loading):', condition1);
-                  console.log('Condition 2 (!isLoginMode && !selectedNumber):', condition2);
-                  console.log('Condition 3 (!isLoginMode && errors):', condition3);
-                  console.log('Final disabled condition:', finalCondition);
-                  
+
                   return finalCondition;
                 })()}
                 className={`w-full py-4 px-6 rounded-xl flex items-center justify-center gap-3 font-semibold text-white transition-all duration-200 ${

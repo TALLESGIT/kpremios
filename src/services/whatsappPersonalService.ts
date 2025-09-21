@@ -29,12 +29,6 @@ class WhatsAppPersonalService {
    * Em produção, isso seria integrado com WhatsApp Web API
    */
   async sendMessage(data: WhatsAppMessage): Promise<WhatsAppResponse> {
-    console.log('📱 Simulando envio via WhatsApp Pessoal:', {
-      to: data.to,
-      message: data.message,
-      from: this.fromNumber
-    });
-
     // Simular delay de rede
     await new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -49,8 +43,6 @@ class WhatsAppPersonalService {
       from: this.fromNumber,
       status: 'delivered'
     };
-
-    console.log('✅ Mensagem simulada enviada via WhatsApp Pessoal:', mockResponse);
     return mockResponse;
   }
 

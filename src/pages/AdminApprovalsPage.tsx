@@ -64,7 +64,7 @@ export default function AdminApprovalsPage() {
         schema: 'public', 
         table: 'extra_number_requests' 
       }, (payload) => {
-        console.log('Extra number requests updated:', payload);
+
         loadRequests();
       })
       .subscribe();
@@ -110,7 +110,7 @@ export default function AdminApprovalsPage() {
 
       setRequests(formattedRequests);
     } catch (error) {
-      console.error('Erro ao carregar solicitações:', error);
+
     } finally {
       setLoading(false);
     }
@@ -178,7 +178,7 @@ export default function AdminApprovalsPage() {
       
       alert('Solicitação aprovada com sucesso!');
     } catch (error) {
-      console.error('Erro ao aprovar solicitação:', error);
+
       alert('Erro ao aprovar solicitação');
     }
   };
@@ -220,7 +220,7 @@ export default function AdminApprovalsPage() {
           reason: rejectionReason || undefined
         });
       } catch (whatsappError) {
-        console.error('Erro ao enviar notificação WhatsApp:', whatsappError);
+
         // Não falha a operação se o WhatsApp falhar
       }
 
@@ -231,7 +231,7 @@ export default function AdminApprovalsPage() {
       
       alert('Solicitação rejeitada e usuário notificado via WhatsApp');
     } catch (error) {
-      console.error('Erro ao rejeitar solicitação:', error);
+
       alert('Erro ao rejeitar solicitação');
     }
   };
@@ -450,20 +450,22 @@ export default function AdminApprovalsPage() {
                 >
                   {/* Header */}
                   <div className="bg-gradient-to-r from-slate-700/50 to-slate-800/50 p-3 sm:p-6 border-b border-slate-600/30 relative">
-                    {/* Badge de Comprovante - posicionado no canto superior direito */}
+                    {/* Badge de Comprovante - posicionado no canto superior direito, responsivo */}
                     {request.payment_proof_url ? (
-                      <div className="absolute top-3 right-3 bg-emerald-500/20 border border-emerald-400/30 rounded-full px-2 py-1 flex items-center gap-1 z-10">
+                      <div className="absolute top-2 sm:top-3 right-2 sm:right-3 bg-emerald-500/20 border border-emerald-400/30 rounded-full px-1.5 sm:px-2 py-0.5 sm:py-1 flex items-center gap-1 z-10">
                         <Image className="h-3 w-3 text-emerald-400" />
-                        <span className="text-emerald-400 text-xs font-bold">Comprovante</span>
+                        <span className="text-emerald-400 text-xs font-bold hidden sm:inline">Comprovante</span>
+                        <span className="text-emerald-400 text-xs font-bold sm:hidden">Comp</span>
                       </div>
                     ) : (
-                      <div className="absolute top-3 right-3 bg-amber-500/20 border border-amber-400/30 rounded-full px-2 py-1 flex items-center gap-1 z-10">
+                      <div className="absolute top-2 sm:top-3 right-2 sm:right-3 bg-amber-500/20 border border-amber-400/30 rounded-full px-1.5 sm:px-2 py-0.5 sm:py-1 flex items-center gap-1 z-10">
                         <FileText className="h-3 w-3 text-amber-400" />
-                        <span className="text-amber-400 text-xs font-bold">Sem Comprovante</span>
+                        <span className="text-amber-400 text-xs font-bold hidden sm:inline">Sem Comprovante</span>
+                        <span className="text-amber-400 text-xs font-bold sm:hidden">Sem</span>
                       </div>
                     )}
                     
-                    <div className="flex items-center justify-between pr-20">
+                    <div className="flex items-center justify-between pr-16 sm:pr-20">
                       <div className="flex items-center min-w-0 flex-1">
                         <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
                           <User className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
@@ -473,9 +475,14 @@ export default function AdminApprovalsPage() {
                           <p className="text-slate-300 text-xs sm:text-sm truncate">{request.user_email}</p>
                         </div>
                       </div>
-                      {/* Badge de Status - posicionado abaixo do badge de comprovante */}
-                      <div className={`absolute top-12 right-3 px-2 py-1 rounded-full text-xs font-bold border flex-shrink-0 ${getStatusColor(request.status)}`}>
-                        {getStatusText(request.status)}
+                      {/* Badge de Status - posicionado abaixo do badge de comprovante, menor no mobile */}
+                      <div className={`absolute top-10 sm:top-12 right-2 sm:right-3 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-bold border flex-shrink-0 ${getStatusColor(request.status)}`}>
+                        <span className="hidden sm:inline">{getStatusText(request.status)}</span>
+                        <span className="sm:hidden">
+                          {request.status === 'pending' ? 'Pend' : 
+                           request.status === 'approved' ? 'Aprov' : 
+                           request.status === 'rejected' ? 'Rej' : '?'}
+                        </span>
                       </div>
                     </div>
                   </div>

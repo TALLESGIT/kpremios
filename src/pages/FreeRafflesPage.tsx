@@ -63,7 +63,6 @@ const FreeRafflesPage: React.FC = () => {
 
       setRaffles(rafflesWithParticipants);
     } catch (error) {
-      console.error('Erro ao carregar sorteios:', error);
       setRaffles([]);
     } finally {
       setLoading(false);

@@ -61,7 +61,7 @@ export default function LiveGamesPage() {
   // Fallback: verificar jogos periodicamente (caso a subscription falhe)
   useEffect(() => {
     const interval = setInterval(() => {
-      console.log('Fallback: verificando jogos periodicamente...');
+
       loadGames();
     }, 10000); // Verifica a cada 10 segundos
 
@@ -77,11 +77,11 @@ export default function LiveGamesPage() {
         schema: 'public', 
         table: 'live_games' 
       }, (payload) => {
-        console.log('Live games subscription triggered:', payload);
+
         loadGames();
       })
       .subscribe((status) => {
-        console.log('Live games subscription status:', status);
+
       });
 
     return () => {
@@ -91,21 +91,20 @@ export default function LiveGamesPage() {
 
   const loadGames = async () => {
     try {
-      console.log('Loading live games...');
+
       const { data, error } = await supabase
         .from('live_games')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Erro ao carregar jogos:', error);
+
         throw error;
       }
-      
-      console.log('Live games loaded:', data);
+
       setGames(data || []);
     } catch (error) {
-      console.error('Erro ao carregar jogos:', error);
+
     } finally {
       setLoading(false);
     }
@@ -135,15 +134,15 @@ export default function LiveGamesPage() {
       
       setParticipants(formattedParticipants);
     } catch (error) {
-      console.error('Erro ao carregar participantes:', error);
+
     }
   };
 
   const handleJoinGame = async (game: LiveGame) => {
-    console.log('handleJoinGame called with game:', game);
+
     setSelectedGame(game);
     await loadParticipants(game.id);
-    console.log('Setting showJoinModal to true');
+
     setShowJoinModal(true);
   };
 
@@ -187,7 +186,7 @@ export default function LiveGamesPage() {
       setLuckyNumber('');
       loadGames(); // Recarregar para atualizar contadores
     } catch (error: any) {
-      console.error('Erro ao entrar no jogo:', error);
+
       if (error.code === '23505') {
         toast.error('Você já está participando deste jogo');
       } else {

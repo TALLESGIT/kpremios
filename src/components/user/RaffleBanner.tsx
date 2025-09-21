@@ -49,12 +49,10 @@ export default function RaffleBanner() {
 
   const loadActiveRaffle = async () => {
     try {
-      console.log('Loading active raffle...');
-      
+
       // Verificar se há usuário autenticado
       const { data: { user } } = await supabase.auth.getUser();
-      console.log('Current user:', user?.id ? 'authenticated' : 'not authenticated');
-      
+
       const { data, error } = await supabase
         .from('raffles')
         .select('*')
@@ -62,21 +60,18 @@ export default function RaffleBanner() {
         .limit(1);
 
       if (error) {
-        console.log('Error loading active raffle:', error);
-        console.error('Erro ao carregar sorteio ativo:', error);
+
         setActiveRaffle(null);
         return;
       }
 
-      console.log('Active raffle loaded:', data);
       // Como usamos .limit(1), data é um array, pegamos o primeiro elemento se existir
       setActiveRaffle(data && data.length > 0 ? data[0] : null);
     } catch (error) {
-      console.error('Erro ao carregar sorteio ativo:', error);
+
       setActiveRaffle(null);
     }
   };
-
 
   if (!activeRaffle) {
     return null;

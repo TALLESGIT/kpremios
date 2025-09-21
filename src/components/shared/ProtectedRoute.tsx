@@ -14,14 +14,6 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
   // Check if user is admin
   const isAdmin = currentAppUser?.is_admin || false;
 
-  console.log('🔒 ProtectedRoute - user:', user);
-  console.log('🔒 ProtectedRoute - currentAppUser:', currentAppUser);
-  console.log('🔒 ProtectedRoute - isAdmin:', isAdmin);
-  console.log('🔒 ProtectedRoute - loading:', loading);
-  console.log('🔒 ProtectedRoute - user exists:', !!user);
-  console.log('🔒 ProtectedRoute - isAdmin value:', isAdmin);
-  console.log('🔒 ProtectedRoute - will redirect:', !user || !isAdmin);
-
   // Show loading if auth is still loading or data is still loading
   if (loading || dataLoading) {
     return (
@@ -41,11 +33,10 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!user || !isAdmin) {
-    console.log('🔒 Redirecting to admin login - user:', !!user, 'isAdmin:', isAdmin);
+
     return <Navigate to="/admin/login" replace />;
   }
 
-  console.log('🔒 Access granted to admin dashboard');
   return <>{children}</>;
 }
 

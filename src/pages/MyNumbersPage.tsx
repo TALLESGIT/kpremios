@@ -48,7 +48,7 @@ function MyNumbersPage() {
           const history = await getUserRequestsHistory();
           setRequestsHistory(history);
         } catch (error) {
-          console.error('Erro ao carregar histórico:', error);
+
         }
       }
     };
@@ -68,12 +68,12 @@ function MyNumbersPage() {
         table: 'extra_number_requests',
         filter: `user_id=eq.${currentAppUser.id}`
       }, async () => {
-        console.log('User requests updated, reloading history...');
+
         try {
           const history = await getUserRequestsHistory();
           setRequestsHistory(history);
         } catch (error) {
-          console.error('Erro ao recarregar histórico:', error);
+
         }
       })
       .subscribe();

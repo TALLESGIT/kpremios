@@ -86,7 +86,7 @@ const AdminLiveGamesPage: React.FC = () => {
 
   const loadGames = async () => {
     try {
-      console.log('Loading live games...');
+
       const { data, error } = await supabase
         .from('live_games')
         .select(`
@@ -96,8 +96,7 @@ const AdminLiveGamesPage: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      console.log('Live games loaded:', data);
-      
+
       // Processar os dados para extrair o count corretamente
       const processedGames = (data || []).map(game => ({
         ...game,
@@ -106,7 +105,7 @@ const AdminLiveGamesPage: React.FC = () => {
       
       setGames(processedGames);
     } catch (error) {
-      console.error('Erro ao carregar jogos:', error);
+
       toast.error('Erro ao carregar jogos');
     } finally {
       setLoading(false);
@@ -120,8 +119,7 @@ const AdminLiveGamesPage: React.FC = () => {
     }
 
     try {
-      console.log('Creating new game:', newGame);
-      
+
       let imageUrl = newGame.prize_image;
       
       // Se for upload de arquivo, fazer upload para Supabase Storage
@@ -155,7 +153,6 @@ const AdminLiveGamesPage: React.FC = () => {
         .select();
 
       if (error) throw error;
-      console.log('Game created successfully:', data);
 
       toast.success('Jogo criado com sucesso!');
       setShowCreateModal(false);
@@ -169,7 +166,7 @@ const AdminLiveGamesPage: React.FC = () => {
       setImagePreview('');
       loadGames();
     } catch (error) {
-      console.error('Erro ao criar jogo:', error);
+
       toast.error('Erro ao criar jogo');
     }
   };
@@ -187,7 +184,7 @@ const AdminLiveGamesPage: React.FC = () => {
       toast.success('Jogo excluído com sucesso!');
       loadGames();
     } catch (error) {
-      console.error('Erro ao excluir jogo:', error);
+
       toast.error('Erro ao excluir jogo');
     }
   };
@@ -195,7 +192,7 @@ const AdminLiveGamesPage: React.FC = () => {
   const handleEditGame = (game: LiveGame) => {
     setSelectedGame(game);
     setShowEditModal(true);
-    console.log('Editando jogo:', game);
+
   };
 
   const handleExportParticipants = (game: LiveGame) => {

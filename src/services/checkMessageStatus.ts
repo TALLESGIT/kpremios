@@ -16,7 +16,6 @@ export const checkMessageStatus = async (messageSid: string) => {
     const message = await response.json();
     return message;
   } catch (error) {
-    console.error('Error checking message status:', error);
     return null;
   }
 };
@@ -40,7 +39,6 @@ export const checkSandboxStatus = async () => {
     const data = await response.json();
     return data;
   } catch (error) {
-    console.error('Error checking sandbox status:', error);
     return null;
   }
 };

@@ -26,7 +26,6 @@ const WhatsAppBusinessTestPanel: React.FC = () => {
         type: 'text'
       });
     } catch (error) {
-      console.error('Erro ao enviar mensagem de teste:', error);
     }
   };
 
@@ -38,7 +37,6 @@ const WhatsAppBusinessTestPanel: React.FC = () => {
         confirmationCode: 'ABC123'
       });
     } catch (error) {
-      console.error('Erro ao enviar confirmação de cadastro:', error);
     }
   };
 
@@ -50,7 +48,6 @@ const WhatsAppBusinessTestPanel: React.FC = () => {
         numbers: [7, 13, 21, 33]
       });
     } catch (error) {
-      console.error('Erro ao enviar números selecionados:', error);
     }
   };
 
@@ -62,7 +59,6 @@ const WhatsAppBusinessTestPanel: React.FC = () => {
         extraNumbers: [5, 15, 25]
       });
     } catch (error) {
-      console.error('Erro ao enviar números extras:', error);
     }
   };
 
@@ -75,7 +71,6 @@ const WhatsAppBusinessTestPanel: React.FC = () => {
         appUrl: 'https://zkpremios.com'
       });
     } catch (error) {
-      console.error('Erro ao enviar notificação de novo sorteio:', error);
     }
   };
 
@@ -88,7 +83,6 @@ const WhatsAppBusinessTestPanel: React.FC = () => {
         prize: 'iPhone 15 Pro Max'
       });
     } catch (error) {
-      console.error('Erro ao enviar anúncio de ganhador:', error);
     }
   };
 

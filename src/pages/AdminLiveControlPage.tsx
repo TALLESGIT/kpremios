@@ -67,7 +67,7 @@ const AdminLiveControlPage: React.FC = () => {
 
   const loadGame = async () => {
     try {
-      console.log('Loading game with ID:', gameId);
+
       const { data, error } = await supabase
         .from('live_games')
         .select('*')
@@ -75,18 +75,18 @@ const AdminLiveControlPage: React.FC = () => {
         .single();
 
       if (error) throw error;
-      console.log('Game loaded:', data);
+
       setGame(data);
       setGameActive(data.status === 'active');
     } catch (error) {
-      console.error('Erro ao carregar jogo:', error);
+
       toast.error('Erro ao carregar jogo');
     }
   };
 
   const loadParticipants = async () => {
     try {
-      console.log('Loading participants for game:', gameId);
+
       const { data, error } = await supabase
         .from('live_participants')
         .select(`
@@ -97,8 +97,7 @@ const AdminLiveControlPage: React.FC = () => {
         .order('lucky_number');
 
       if (error) throw error;
-      console.log('Participants loaded:', data);
-      
+
       // Processar os dados para extrair as informações do usuário
       const processedParticipants = (data || []).map(participant => ({
         ...participant,
@@ -108,7 +107,7 @@ const AdminLiveControlPage: React.FC = () => {
       
       setParticipants(processedParticipants);
     } catch (error) {
-      console.error('Erro ao carregar participantes:', error);
+
       toast.error('Erro ao carregar participantes');
     }
   };
@@ -141,7 +140,7 @@ const AdminLiveControlPage: React.FC = () => {
       toast.success(`Jogo iniciado com ${activeParticipants.length} participantes!`);
       loadGame();
     } catch (error) {
-      console.error('Erro ao iniciar jogo:', error);
+
       toast.error('Erro ao iniciar jogo');
     }
   };
@@ -162,7 +161,7 @@ const AdminLiveControlPage: React.FC = () => {
       toast.success('🔒 Sistema fechado! Novos participantes não podem mais entrar. Agora você pode fazer o sorteio manual.');
       loadGame();
     } catch (error) {
-      console.error('Erro ao fechar sistema:', error);
+
       toast.error('Erro ao fechar sistema');
     }
   };
@@ -201,7 +200,7 @@ const AdminLiveControlPage: React.FC = () => {
       setGameActive(false);
       loadGame();
     } catch (error) {
-      console.error('Erro ao finalizar jogo:', error);
+
       toast.error('Erro ao finalizar jogo');
     }
   };
@@ -240,7 +239,7 @@ const AdminLiveControlPage: React.FC = () => {
       toast.error(`❌ ${participantToEliminate.user_name} (${participantToEliminate.lucky_number}) foi eliminado!`);
       loadParticipants();
     } catch (error) {
-      console.error('Erro ao eliminar participante:', error);
+
       toast.error('Erro ao eliminar participante');
     }
   };
@@ -284,7 +283,7 @@ const AdminLiveControlPage: React.FC = () => {
       setSelectedNumbers([]);
       loadParticipants();
     } catch (error) {
-      console.error('Erro ao eliminar participantes:', error);
+
       toast.error('Erro ao eliminar participantes');
     }
   };
@@ -292,7 +291,7 @@ const AdminLiveControlPage: React.FC = () => {
   const sendEliminationNotification = async (participant: Participant) => {
     try {
       if (!participant.user_phone) {
-        console.log('Participante sem telefone, pulando notificação WhatsApp');
+
         return;
       }
 
@@ -311,9 +310,9 @@ const AdminLiveControlPage: React.FC = () => {
 Obrigado por participar! 🎉`;
 
       await sendWhatsAppMessage(participant.user_phone, message);
-      console.log(`Notificação de eliminação enviada para ${participant.user_name}`);
+
     } catch (error) {
-      console.error('Erro ao enviar notificação de eliminação:', error);
+
     }
   };
 

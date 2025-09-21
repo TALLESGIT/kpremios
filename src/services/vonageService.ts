@@ -44,7 +44,7 @@ class VonageWhatsAppService {
 
   private validateCredentials(): void {
     if (!this.apiKey || !this.apiSecret || !this.applicationId || !this.privateKey) {
-      console.warn('⚠️ Vonage credentials not fully configured. Some features may not work.');
+
     }
   }
 
@@ -101,28 +101,6 @@ class VonageWhatsAppService {
    * Simula envio de mensagem
    */
   private async simulateMessage(data: VonageMessage): Promise<VonageResponse> {
-    console.log('📤 Simulando envio via Vonage Sandbox:', {
-      to: data.to,
-      message: data.message,
-      type: data.type
-    });
-
-    console.log('🔍 Payload que seria enviado:', JSON.stringify({
-      to: {
-        type: 'whatsapp',
-        number: data.to.replace('whatsapp:', '')
-      },
-      from: {
-        type: 'whatsapp',
-        number: '553182612947'
-      },
-      message: {
-        content: {
-          type: data.type || 'text',
-          text: data.message
-        }
-      }
-    }, null, 2));
 
     // Simular delay de rede
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -135,7 +113,6 @@ class VonageWhatsAppService {
       status: 'delivered'
     };
 
-    console.log('✅ Mensagem simulada enviada via Vonage:', mockResponse);
     return mockResponse;
   }
 
@@ -153,13 +130,6 @@ class VonageWhatsAppService {
         type: 'text'
       };
 
-      console.log('📤 Enviando mensagem REAL via Backend Proxy:', {
-        to: toNumber,
-        message: data.message
-      });
-
-      console.log('🔍 Payload para backend:', JSON.stringify(payload, null, 2));
-
       // Usar o backend proxy em vez da API direta
       const backendUrl = 'http://localhost:3001/api/vonage/send-message';
       const response = await fetch(backendUrl, {
@@ -172,24 +142,18 @@ class VonageWhatsAppService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Vonage API Error Response:', {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText
-        });
+
         throw new Error(`Vonage API error: ${response.status} - ${errorText}`);
       }
 
       const result: VonageResponse = await response.json();
-      
-      console.log('✅ Mensagem REAL enviada via Vonage:', result);
+
       return result;
 
     } catch (error) {
-      console.error('❌ Erro ao enviar mensagem REAL via Vonage:', error);
-      
+
       // Em caso de erro, ainda simular para não quebrar o fluxo
-      console.log('🔄 Fallback: usando simulação devido ao erro');
+
       return this.simulateMessage(data);
     }
   }
@@ -321,7 +285,7 @@ Parabéns! 🎊`;
 
       return await response.json();
     } catch (error) {
-      console.error('❌ Erro ao verificar status da mensagem:', error);
+
       return {
         message_uuid: messageUuid,
         status: 'delivered',
@@ -334,7 +298,6 @@ Parabéns! 🎊`;
    * Envia notificações em massa
    */
   async sendBulkNotification(users: Array<{whatsapp: string; name: string}>, type: string, data: any) {
-    console.log('🚀 Enviando notificações em massa via Vonage:', { users: users.length, type, data });
 
     const notifications = [];
     for (const user of users) {
@@ -387,7 +350,6 @@ Parabéns! 🎊`;
       notifications
     };
 
-    console.log('✅ Resultado das notificações em massa via Vonage:', result);
     return result;
   }
 }

@@ -107,7 +107,7 @@ export default function AdminRafflesPage() {
       if (error) throw error;
       setRaffles(data || []);
     } catch (error) {
-      console.error('Erro ao carregar sorteios:', error);
+
     } finally {
       setLoading(false);
     }
@@ -182,7 +182,7 @@ export default function AdminRafflesPage() {
         if (error) throw error;
       } else {
         // Resetar todos os números antes de criar o sorteio
-        console.log('Resetting all numbers before creating raffle...');
+
         const { error: resetError } = await supabase
           .from('numbers')
           .update({
@@ -194,14 +194,12 @@ export default function AdminRafflesPage() {
           .neq('number', 0);
         
         if (resetError) {
-          console.error('Error resetting numbers:', resetError);
+
           throw new Error('Erro ao resetar números');
         }
-        
-        console.log('Numbers reset successfully');
 
         // Resetar dados dos usuários
-        console.log('Resetting user data before creating raffle...');
+
         const { error: userResetError } = await supabase
           .from('users')
           .update({
@@ -214,25 +212,23 @@ export default function AdminRafflesPage() {
           .neq('id', '00000000-0000-0000-0000-000000000000'); // Reset all users except dummy ID
         
         if (userResetError) {
-          console.error('Error resetting user data:', userResetError);
+
           throw new Error('Erro ao resetar dados dos usuários');
         }
-        
-        console.log('User data reset successfully');
 
         // Limpar solicitações de números extras pendentes
-        console.log('Clearing pending extra number requests...');
+
         const { error: requestsResetError } = await supabase
           .from('extra_number_requests')
           .delete()
           .eq('status', 'pending');
         
         if (requestsResetError) {
-          console.error('Error clearing extra number requests:', requestsResetError);
+
           // Não falha o processo se não conseguir limpar as solicitações
-          console.warn('Warning: Could not clear extra number requests, continuing...');
+
         } else {
-          console.log('Extra number requests cleared successfully');
+
         }
 
         // Criar novo sorteio
@@ -254,7 +250,7 @@ export default function AdminRafflesPage() {
       
       alert(editingRaffle ? 'Sorteio atualizado com sucesso!' : 'Sorteio criado com sucesso!');
     } catch (error) {
-      console.error('Erro ao salvar sorteio:', error);
+
       alert('Erro ao salvar sorteio');
     }
   };
@@ -273,7 +269,7 @@ export default function AdminRafflesPage() {
       await loadRaffles();
       alert('Sorteio excluído com sucesso!');
     } catch (error) {
-      console.error('Erro ao excluir sorteio:', error);
+
       alert('Erro ao excluir sorteio');
     }
   };
@@ -293,7 +289,7 @@ export default function AdminRafflesPage() {
       await loadRaffles();
       alert(`Sorteio ${!currentStatus ? 'ativado' : 'desativado'} com sucesso!`);
     } catch (error) {
-      console.error('Erro ao alterar status do sorteio:', error);
+
       alert('Erro ao alterar status do sorteio');
     }
   };

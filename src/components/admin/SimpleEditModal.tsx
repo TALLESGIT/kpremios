@@ -48,7 +48,6 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({ isOpen, onClose, game
       onUpdate?.();
       onClose();
     } catch (error) {
-      console.error('Erro ao atualizar sorteio:', error);
       toast.error('Erro ao atualizar sorteio');
     } finally {
       setLoading(false);

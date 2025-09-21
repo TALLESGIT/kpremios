@@ -24,7 +24,6 @@ class WhatsAppServiceEnhanced {
     this.fromNumber = import.meta.env.VITE_TWILIO_WHATSAPP_FROM;
 
     if (!this.accountSid || !this.authToken || !this.fromNumber) {
-      console.error('Missing Twilio configuration');
     }
   }
 
@@ -41,11 +40,9 @@ class WhatsAppServiceEnhanced {
   }
 
   private getMessageTemplate(type: WhatsAppMessage['type'], data: any): string {
-    console.log('getMessageTemplate - type:', type, 'data:', data);
     const baseUrl = import.meta.env.VITE_APP_URL || 'http://localhost:5173';
 
     if (!data) {
-      console.error('getMessageTemplate received null or undefined data for type:', type);
       return `Olá! Mensagem do ZK Premios. Houve um erro ao gerar o conteúdo da mensagem.`;
     }
 
@@ -66,10 +63,8 @@ Olá ${data.name || 'usuário'}!
 Boa sorte nos sorteios! 🍀`;
 
       case 'numbers_assigned':
-        console.log('numbers_assigned template - data.numbers:', data.numbers);
         const assignedNumbers = data.numbers || [];
         if (!Array.isArray(assignedNumbers)) {
-          console.error('assignedNumbers is not an array:', assignedNumbers);
           return `Olá ${data.name || 'usuário'}! Seus números foram confirmados, mas houve um erro ao listar.`;
         }
         return `🎯 *Seus números foram confirmados!*
@@ -86,7 +81,6 @@ Boa sorte no sorteio! 🍀`;
       case 'extra_numbers_approved':
         const extraNumbers = data.extraNumbers || [];
         if (!Array.isArray(extraNumbers)) {
-          console.error('extraNumbers is not an array:', extraNumbers);
           return `Olá ${data.name || 'usuário'}! Seus números extras foram aprovados, mas houve um erro ao listar.`;
         }
         return `🎉 *Números extras aprovados!*
@@ -136,8 +130,6 @@ Olá ${data.name || 'usuário'}!
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`Tentativa ${attempt}/${maxRetries} de envio WhatsApp`);
-        
         const response = await fetch(
           `https://api.twilio.com/2010-04-01/Accounts/${this.accountSid}/Messages.json`,
           {
@@ -157,15 +149,12 @@ Olá ${data.name || 'usuário'}!
         const data = await response.json();
 
         if (response.ok) {
-          console.log(`WhatsApp message sent successfully on attempt ${attempt}:`, data.sid);
           return {
             success: true,
             messageSid: data.sid
           };
         } else {
           lastError = data.message || `HTTP ${response.status}`;
-          console.error(`Attempt ${attempt} failed:`, lastError);
-          
           if (attempt < maxRetries) {
             // Aguarda antes da próxima tentativa (backoff exponencial)
             await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
@@ -173,8 +162,6 @@ Olá ${data.name || 'usuário'}!
         }
       } catch (error) {
         lastError = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`Attempt ${attempt} error:`, lastError);
-        
         if (attempt < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
         }
@@ -220,7 +207,6 @@ Olá ${data.name || 'usuário'}!
       
       return result;
     } catch (error) {
-      console.error('Error sending WhatsApp message:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -245,10 +231,8 @@ Olá ${data.name || 'usuário'}!
         .insert(logData);
 
       if (error) {
-        console.error('Error logging message attempt:', error);
       }
     } catch (error) {
-      console.error('Error in logMessageAttempt:', error);
     }
   }
 

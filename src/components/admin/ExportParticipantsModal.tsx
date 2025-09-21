@@ -71,7 +71,6 @@ const ExportParticipantsModal: React.FC<ExportParticipantsModalProps> = ({
 
       setParticipants(formattedParticipants);
     } catch (error) {
-      console.error('Erro ao carregar participantes:', error);
       toast.error('Erro ao carregar participantes');
     } finally {
       setLoading(false);
@@ -112,7 +111,6 @@ const ExportParticipantsModal: React.FC<ExportParticipantsModalProps> = ({
 
       toast.success('Dados exportados com sucesso!');
     } catch (error) {
-      console.error('Erro ao exportar dados:', error);
       toast.error('Erro ao exportar dados');
     } finally {
       setExportLoading(false);
@@ -292,7 +290,6 @@ const ExportParticipantsModal: React.FC<ExportParticipantsModalProps> = ({
 
       toast.success('Arquivo HTML gerado! Abra no navegador e use Ctrl+P para imprimir em PDF');
     } catch (error) {
-      console.error('Erro ao exportar dados:', error);
       toast.error('Erro ao exportar dados');
     } finally {
       setExportLoading(false);
@@ -327,7 +324,6 @@ const ExportParticipantsModal: React.FC<ExportParticipantsModalProps> = ({
 
       toast.success('Dados exportados em formato JSON!');
     } catch (error) {
-      console.error('Erro ao exportar dados:', error);
       toast.error('Erro ao exportar dados');
     } finally {
       setExportLoading(false);

@@ -35,7 +35,6 @@ class WhatsAppBusinessService {
 
   private validateCredentials(): void {
     if (!this.phoneNumberId || !this.accessToken) {
-      console.warn('⚠️ WhatsApp Business API credentials not configured. Using simulation mode.');
     }
   }
 
@@ -57,12 +56,6 @@ class WhatsAppBusinessService {
           body: data.message
         }
       };
-
-      console.log('📤 Enviando mensagem via WhatsApp Business API:', {
-        to: data.to,
-        message: data.message
-      });
-
       const response = await fetch(
         `${this.baseUrl}/${this.apiVersion}/${this.phoneNumberId}/messages`,
         {
@@ -81,8 +74,6 @@ class WhatsAppBusinessService {
       }
 
       const result = await response.json();
-      
-      console.log('✅ Mensagem enviada via WhatsApp Business API:', result);
       return {
         message_id: result.messages[0].id,
         to: data.to,
@@ -91,8 +82,6 @@ class WhatsAppBusinessService {
       };
 
     } catch (error) {
-      console.error('❌ Erro ao enviar mensagem via WhatsApp Business API:', error);
-      
       // Fallback: simular sucesso
       return this.simulateMessage(data);
     }
@@ -102,11 +91,6 @@ class WhatsAppBusinessService {
    * Simula envio de mensagem (para desenvolvimento)
    */
   private async simulateMessage(data: WhatsAppMessage): Promise<WhatsAppResponse> {
-    console.log('📤 Simulando envio via WhatsApp Business API:', {
-      to: data.to,
-      message: data.message
-    });
-
     // Simular delay de rede
     await new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -253,7 +237,6 @@ Parabéns! 🎊`;
 
       return await response.json();
     } catch (error) {
-      console.error('❌ Erro ao verificar status da mensagem:', error);
       return {
         message_id: messageId,
         status: 'delivered',

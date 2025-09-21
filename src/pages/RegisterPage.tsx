@@ -48,7 +48,6 @@ const RegisterPage: React.FC = () => {
         setError('');
       }
     } catch (error) {
-      console.error('Erro ao verificar email:', error);
     } finally {
       setCheckingEmail(false);
     }
@@ -89,7 +88,6 @@ const RegisterPage: React.FC = () => {
             });
 
           if (insertError) {
-            console.error('Erro ao criar perfil:', insertError);
           }
         }
 
@@ -152,7 +150,6 @@ const RegisterPage: React.FC = () => {
         // Enviar confirmação por WhatsApp se tiver número
         if (formData.phone) {
           // Aqui você pode integrar com o serviço WhatsApp
-          console.log('Enviar confirmação para:', formData.phone);
         }
 
         navigate('/login', { 

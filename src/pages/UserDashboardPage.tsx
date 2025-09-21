@@ -110,7 +110,6 @@ const UserDashboardPage: React.FC = () => {
         currentRaffles: currentRafflesResult.count || 0,
       });
     } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
       // Fallback para dados mock em caso de erro
       setStats({
         totalRaffles: 0,
@@ -159,7 +158,6 @@ const UserDashboardPage: React.FC = () => {
 
       setRecentActivity(activities);
     } catch (error) {
-      console.error('Erro ao carregar atividade recente:', error);
       setRecentActivity([]);
     }
   };

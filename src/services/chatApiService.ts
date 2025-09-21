@@ -30,7 +30,6 @@ class ChatApiWhatsAppService {
 
   private validateCredentials(): void {
     if (!this.instanceId || !this.apiToken) {
-      console.warn('⚠️ ChatAPI credentials not configured. Using mock responses.');
     }
   }
 
@@ -41,7 +40,6 @@ class ChatApiWhatsAppService {
     try {
       if (!this.instanceId || !this.apiToken) {
         // Fallback para desenvolvimento
-        console.log('📤 Mock: Enviando mensagem via ChatAPI:', data);
         return {
           sent: true,
           id: `mock_${Date.now()}_${Math.random().toString(36).substring(7)}`,
@@ -65,13 +63,9 @@ class ChatApiWhatsAppService {
       }
 
       const result = await response.json();
-      
-      console.log('✅ Mensagem enviada via ChatAPI:', result);
       return result;
 
     } catch (error) {
-      console.error('❌ Erro ao enviar mensagem via ChatAPI:', error);
-      
       // Fallback para desenvolvimento
       return {
         sent: true,

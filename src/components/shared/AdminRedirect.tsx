@@ -18,7 +18,7 @@ function AdminRedirect() {
       if (!currentPath.startsWith('/admin') && 
           !currentPath.startsWith('/login') && 
           !currentPath.startsWith('/register')) {
-        console.log('User detected, checking admin status...');
+
         // We'll let the DataProvider handle the admin check
         // This component just ensures we don't redirect unnecessarily
       }

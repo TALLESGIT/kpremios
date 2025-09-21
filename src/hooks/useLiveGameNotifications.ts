@@ -34,8 +34,6 @@ export const useLiveGameNotifications = (gameId: string, userId?: string) => {
           filter: `game_id=eq.${gameId}`,
         },
         (payload) => {
-          console.log('🔔 Eliminação detectada:', payload);
-          
           if (payload.new.status === 'eliminated') {
             const elimination: EliminationNotification = {
               id: payload.new.id,
@@ -139,7 +137,6 @@ Obrigado por participar! 🎉`;
         .eq('id', elimination.id);
 
     } catch (error) {
-      console.error('Erro ao enviar WhatsApp de eliminação:', error);
     }
   };
 
@@ -165,7 +162,6 @@ Obrigado por participar! 🎉`;
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.5);
     } catch (error) {
-      console.error('Erro ao reproduzir som:', error);
     }
   };
 

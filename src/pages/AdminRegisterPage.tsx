@@ -47,20 +47,19 @@ export default function AdminRegisterPage() {
       // Redirect to admin dashboard
       navigate('/admin/dashboard');
     } catch (error: any) {
-      console.error('Admin registration error:', error);
-      
+
       // If user already exists, try to convert to admin
       if (error.message.includes('já está cadastrado') || 
           error.message.includes('already registered') ||
           error.message.includes('email-already-in-use')) {
         try {
-          console.log('User already exists, attempting to convert to admin...');
+
           await convertToAdmin(formData.name, formData.email, formData.whatsapp, formData.password);
           
           // Redirect to admin dashboard
           navigate('/admin/dashboard');
         } catch (convertError: any) {
-          console.error('Convert to admin error:', convertError);
+
           setErrors({ general: convertError.message || 'Erro ao converter usuário para admin' });
         }
       } else {

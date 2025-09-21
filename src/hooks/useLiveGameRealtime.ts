@@ -40,7 +40,6 @@ export const useLiveGameRealtime = (gameId: string, userId?: string) => {
       if (error) throw error;
       setGame(data);
     } catch (error) {
-      console.error('Erro ao carregar jogo:', error);
     }
   }, [gameId]);
 
@@ -74,7 +73,6 @@ export const useLiveGameRealtime = (gameId: string, userId?: string) => {
         setIsEliminated(myParticipation?.status === 'eliminated' || false);
       }
     } catch (error) {
-      console.error('Erro ao carregar participantes:', error);
     }
   }, [gameId, userId]);
 
@@ -106,7 +104,6 @@ export const useLiveGameRealtime = (gameId: string, userId?: string) => {
           filter: `id=eq.${gameId}`
         },
         (payload) => {
-          console.log('🔄 Jogo atualizado:', payload);
           loadGame();
         }
       )
@@ -119,8 +116,6 @@ export const useLiveGameRealtime = (gameId: string, userId?: string) => {
           filter: `game_id=eq.${gameId}`
         },
         (payload) => {
-          console.log('🔄 Participantes atualizados:', payload);
-          
           // Se foi uma eliminação, mostrar notificação
           if (payload.eventType === 'UPDATE' && payload.new.status === 'eliminated') {
             const participant = participants.find(p => p.id === payload.new.id);

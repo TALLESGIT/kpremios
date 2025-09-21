@@ -31,12 +31,7 @@ import AdminRedirect from './components/shared/AdminRedirect';
 
 function AppContent() {
   const { user, loading } = useAuth();
-  
-  console.log('AppContent - user from useAuth:', user);
-  console.log('AppContent - loading:', loading);
-  console.log('AppContent - user type:', typeof user);
-  console.log('AppContent - user keys:', user ? Object.keys(user) : 'null');
-  
+
   // Mostrar loading enquanto verifica a sessão
   if (loading) {
     return (

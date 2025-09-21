@@ -64,7 +64,6 @@ const EditRaffleModal: React.FC<EditRaffleModalProps> = ({
       onUpdate();
       onClose();
     } catch (error) {
-      console.error('Erro ao atualizar sorteio:', error);
       toast.error('Erro ao atualizar sorteio');
     } finally {
       setLoading(false);
@@ -90,7 +89,6 @@ const EditRaffleModal: React.FC<EditRaffleModalProps> = ({
       onUpdate();
       onClose();
     } catch (error) {
-      console.error('Erro ao fechar números:', error);
       toast.error('Erro ao fechar números');
     } finally {
       setLoading(false);

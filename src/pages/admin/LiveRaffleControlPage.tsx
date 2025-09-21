@@ -41,7 +41,6 @@ const LiveRaffleControlPage: React.FC = () => {
       if (error) throw error;
       setRaffles(data || []);
     } catch (error) {
-      console.error('Erro ao carregar sorteios:', error);
     }
   };
 
@@ -78,7 +77,6 @@ const LiveRaffleControlPage: React.FC = () => {
       // Limpar mensagem após 3 segundos
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
-      console.error('Erro ao criar sorteio:', error);
       setMessage('❌ Erro ao criar sorteio');
     } finally {
       setLoading(false);
@@ -110,7 +108,6 @@ const LiveRaffleControlPage: React.FC = () => {
       setMessage('🚀 Eliminação iniciada!');
       loadRaffles();
     } catch (error) {
-      console.error('Erro ao iniciar eliminação:', error);
       setMessage('❌ Erro ao iniciar eliminação');
     }
   };
@@ -170,7 +167,6 @@ const LiveRaffleControlPage: React.FC = () => {
         setMessage(`💀 ${eliminatedParticipant.name} (${eliminatedParticipant.number}) foi eliminado!`);
         loadRaffles();
       } catch (error) {
-        console.error('Erro na eliminação automática:', error);
         clearInterval(interval);
       }
     }, raffle.elimination_interval * 1000); // Converter segundos para ms
@@ -191,7 +187,6 @@ const LiveRaffleControlPage: React.FC = () => {
       setMessage('⏹️ Sorteio finalizado!');
       loadRaffles();
     } catch (error) {
-      console.error('Erro ao finalizar sorteio:', error);
       setMessage('❌ Erro ao finalizar sorteio');
     }
   };
@@ -210,7 +205,6 @@ const LiveRaffleControlPage: React.FC = () => {
       setRaffles(raffles.filter(r => r.id !== raffleId));
       setMessage('🗑️ Sorteio excluído!');
     } catch (error) {
-      console.error('Erro ao excluir sorteio:', error);
       setMessage('❌ Erro ao excluir sorteio');
     }
   };

@@ -112,7 +112,6 @@ Obrigado por participar! 🍀`;
   async sendMessage(messageData: WhatsAppMessage): Promise<{ success: boolean; error?: string; messageSid?: string }> {
     try {
       if (!accountSid || !authToken || !whatsappFrom) {
-        console.error('Twilio credentials not configured');
         return { success: false, error: 'WhatsApp service not configured' };
       }
 
@@ -138,13 +137,11 @@ Obrigado por participar! 🍀`;
       const result = await response.json();
 
       if (response.ok) {
-        console.log('WhatsApp message sent:', result.sid);
         return { 
           success: true, 
           messageSid: result.sid 
         };
       } else {
-        console.error('Twilio API error:', result);
         return { 
           success: false, 
           error: result.message || 'Failed to send message' 
@@ -152,7 +149,6 @@ Obrigado por participar! 🍀`;
       }
 
     } catch (error: any) {
-      console.error('Error sending WhatsApp message:', error);
       return { 
         success: false, 
         error: error.message || 'Failed to send message' 

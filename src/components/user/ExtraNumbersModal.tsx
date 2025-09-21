@@ -53,7 +53,7 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
           });
           
         if (uploadError) {
-          console.warn('Upload error:', uploadError);
+
           setError('Erro ao fazer upload do comprovante. Tente novamente.');
           return;
         }
@@ -67,7 +67,7 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
         setShowWhatsAppRedirect(true);
         
       } catch (uploadErr) {
-        console.error('Upload failed:', uploadErr);
+
         setError('Erro ao fazer upload do comprovante. Tente novamente.');
       } finally {
         setUploading(false);
@@ -97,41 +97,37 @@ Dados:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('ExtraNumbersModal - handleSubmit called');
-    console.log('ExtraNumbersModal - user:', user);
-    console.log('ExtraNumbersModal - currentAppUser:', currentAppUser);
-    
+
     if (!user) {
-      console.log('ExtraNumbersModal - User not authenticated');
+
       setError('Você precisa estar logado para solicitar números extras.');
       return;
     }
 
     if (!currentAppUser) {
-      console.log('ExtraNumbersModal - User data not loaded yet');
+
       setError('Carregando dados do usuário...');
       return;
     }
 
     if (!currentAppUser.free_number) {
-      console.log('ExtraNumbersModal - User has no free number');
+
       setError('Você precisa escolher seu número gratuito primeiro.');
       return;
     }
 
     if (parseFloat(paymentAmount) < 10) {
-      console.log('ExtraNumbersModal - Payment amount too low');
+
       setError('Valor mínimo é R$ 10,00.');
       return;
     }
 
     if (parseFloat(paymentAmount) % 10 !== 0) {
-      console.log('ExtraNumbersModal - Payment amount not multiple of 10');
+
       setError('O valor deve ser múltiplo de R$ 10,00.');
       return;
     }
-    
-    console.log('ExtraNumbersModal - Starting request process');
+
     setLoading(true);
     setError('');
 
@@ -139,27 +135,18 @@ Dados:
       // Use the already uploaded proof URL if available
       const paymentProofUrl = uploadedProofUrl || undefined;
 
-      console.log('ExtraNumbersModal - Calling requestExtraNumbers with:', {
-        paymentAmount: parseFloat(paymentAmount),
-        calculatedNumbers,
-        paymentProofUrl
-      });
-
       const success = await requestExtraNumbers(
         parseFloat(paymentAmount),
         calculatedNumbers,
         paymentProofUrl
       );
 
-      console.log('ExtraNumbersModal - requestExtraNumbers result:', success);
-
       if (success) {
-        console.log('ExtraNumbersModal - Request successful');
-        
+
         // Enviar comprovante para o WhatsApp do admin se houver
         if (paymentProofUrl && currentAppUser) {
           try {
-            console.log('ExtraNumbersModal - Sending payment proof to admin WhatsApp');
+
             const { whatsappPersonalService } = await import('../../services/whatsappPersonalService');
             
             await whatsappPersonalService.sendPaymentProofToAdmin({
@@ -171,10 +158,9 @@ Dados:
               proofUrl: paymentProofUrl,
               requestId: `REQ_${Date.now()}_${Math.random().toString(36).substring(7)}`
             });
-            
-            console.log('ExtraNumbersModal - Payment proof sent to admin successfully');
+
           } catch (whatsappError) {
-            console.warn('ExtraNumbersModal - Failed to send payment proof to admin:', whatsappError);
+
             // Não falha a operação se o WhatsApp falhar
           }
         }
@@ -187,11 +173,11 @@ Dados:
           setPaymentProof(null);
         }, 2000);
       } else {
-        console.log('ExtraNumbersModal - Request failed');
+
         setError('Erro ao enviar solicitação. Tente novamente.');
       }
     } catch (err) {
-      console.error('ExtraNumbersModal - Unexpected error:', err);
+
       setError('Erro inesperado. Tente novamente.');
     } finally {
       setLoading(false);

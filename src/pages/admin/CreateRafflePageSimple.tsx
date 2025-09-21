@@ -136,7 +136,6 @@ const CreateRafflePageSimple: React.FC = () => {
       }
 
       // Resetar todos os números antes de criar o sorteio
-      console.log('Resetting all numbers before creating raffle...');
       const { error: resetError } = await supabase
         .from('numbers')
         .update({
@@ -148,14 +147,9 @@ const CreateRafflePageSimple: React.FC = () => {
         .neq('number', 0);
       
       if (resetError) {
-        console.error('Error resetting numbers:', resetError);
         throw new Error('Erro ao resetar números');
       }
-      
-      console.log('Numbers reset successfully');
-
       // Resetar dados dos usuários
-      console.log('Resetting user data before creating raffle...');
       const { error: userResetError } = await supabase
         .from('users')
         .update({
@@ -168,25 +162,17 @@ const CreateRafflePageSimple: React.FC = () => {
         .neq('id', '00000000-0000-0000-0000-000000000000'); // Reset all users except dummy ID
       
       if (userResetError) {
-        console.error('Error resetting user data:', userResetError);
         throw new Error('Erro ao resetar dados dos usuários');
       }
-      
-      console.log('User data reset successfully');
-
       // Limpar solicitações de números extras pendentes
-      console.log('Clearing pending extra number requests...');
       const { error: requestsResetError } = await supabase
         .from('extra_number_requests')
         .delete()
         .eq('status', 'pending');
       
       if (requestsResetError) {
-        console.error('Error clearing extra number requests:', requestsResetError);
         // Não falha o processo se não conseguir limpar as solicitações
-        console.warn('Warning: Could not clear extra number requests, continuing...');
       } else {
-        console.log('Extra number requests cleared successfully');
       }
 
       // Criar sorteio no banco de dados
@@ -209,16 +195,10 @@ const CreateRafflePageSimple: React.FC = () => {
         .single();
 
       if (raffleError) {
-        console.error('Error creating raffle:', raffleError);
         throw new Error('Erro ao criar sorteio');
       }
-
-      console.log('Raffle created successfully:', raffle);
-
       // Se notificação está habilitada, enviar para todos os usuários
       if (formData.notifyUsers) {
-        console.log('Sending notifications to all users...');
-        
         const notificationResult = await notifyAllUsersAboutNewRaffle({
           title: formData.title,
           prize: formData.prize,
@@ -262,7 +242,6 @@ const CreateRafflePageSimple: React.FC = () => {
       });
 
     } catch (err) {
-      console.error('Error creating raffle:', err);
       setError(err instanceof Error ? err.message : 'Erro ao criar sorteio');
     } finally {
       setIsLoading(false);

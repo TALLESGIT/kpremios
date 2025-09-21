@@ -41,8 +41,6 @@ const LoginPage: React.FC = () => {
     }
 
     try {
-      console.log('Tentando fazer login com:', { email, passwordLength: password.length });
-      
       // Testar conexão com Supabase primeiro
       const { data: testData, error: testError } = await supabase
         .from('users')
@@ -50,21 +48,15 @@ const LoginPage: React.FC = () => {
         .limit(1);
       
       if (testError) {
-        console.error('Erro de conexão com Supabase:', testError);
         setError('Erro de conexão com o servidor. Tente novamente.');
         return;
       }
-      
-      console.log('Conexão com Supabase OK, tentando login...');
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password,
       });
 
       if (error) {
-        console.error('Erro de login:', error);
-        
         // Tratar erros específicos
         if (error.message.includes('Invalid login credentials')) {
           setError('Email ou senha incorretos');
@@ -83,8 +75,6 @@ const LoginPage: React.FC = () => {
       }
 
       if (data.user) {
-        console.log('Login bem-sucedido para usuário:', data.user.id);
-        
         // Verificar se é admin
         const { data: profile, error: profileError } = await supabase
           .from('users')
@@ -94,7 +84,6 @@ const LoginPage: React.FC = () => {
 
         // Se não há perfil, criar um básico
         if (profileError && profileError.code === 'PGRST116') {
-          console.log('Criando perfil básico para usuário:', data.user.id);
           const { error: insertError } = await supabase
             .from('users')
             .insert({
@@ -106,7 +95,6 @@ const LoginPage: React.FC = () => {
             });
 
           if (insertError) {
-            console.error('Erro ao criar perfil:', insertError);
             setError('Erro ao criar perfil do usuário');
             return;
           }
@@ -115,23 +103,18 @@ const LoginPage: React.FC = () => {
         // Recarregar dados do usuário após login
         try {
           await reloadUserData();
-          console.log('Dados do usuário recarregados com sucesso');
         } catch (reloadError) {
-          console.warn('Erro ao recarregar dados do usuário:', reloadError);
           // Não falha o login se o reload falhar
         }
 
         // Redirecionar baseado no perfil ou padrão
         if (profile?.is_admin) {
-          console.log('Redirecionando para admin dashboard');
           navigate('/admin/dashboard');
         } else {
-          console.log('Redirecionando para dashboard do usuário');
           navigate('/dashboard');
         }
       }
     } catch (error: any) {
-      console.error('Erro inesperado no login:', error);
       setError('Erro inesperado. Tente novamente.');
     } finally {
       setLoading(false);
@@ -165,16 +148,6 @@ const LoginPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Debug Info - apenas em desenvolvimento */}
-              {process.env.NODE_ENV === 'development' && (
-                <div className="bg-gray-50 border border-gray-200 text-gray-700 px-4 py-3 rounded-lg text-xs">
-                  <div className="font-semibold mb-2">Debug Info:</div>
-                  <div>Email: {email || 'vazio'}</div>
-                  <div>Senha: {password ? '***' + password.slice(-2) : 'vazia'}</div>
-                  <div>Supabase URL: {import.meta.env.VITE_SUPABASE_URL ? 'Configurado' : 'Não configurado'}</div>
-                  <div>Supabase Key: {import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Configurado' : 'Não configurado'}</div>
-                </div>
-              )}
 
               <div>
                 <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">

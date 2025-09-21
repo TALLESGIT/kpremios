@@ -15,27 +15,25 @@ function Header() {
   const { currentUser: currentAppUser, clearUserData } = useData();
   const { getPendingRequestsCount } = useData();
 
-
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => setIsMenuOpen(false);
 
   const handleLogout = async () => {
     try {
-      console.log('Header - Iniciando logout...');
-      
+
       // Limpar dados do usuário imediatamente
       clearUserData();
       
       // Fazer logout do Supabase
       await signOut();
-      console.log('Header - Logout concluído');
+
       closeMenu();
       
       // Forçar navegação para a página inicial
       navigate('/', { replace: true });
       
     } catch (error) {
-      console.error('Erro durante logout:', error);
+
       // Mesmo com erro, limpar dados e redirecionar
       clearUserData();
       navigate('/', { replace: true });
@@ -60,7 +58,7 @@ function Header() {
         schema: 'public', 
         table: 'extra_number_requests' 
       }, () => {
-        console.log('Extra number requests updated, reloading pending count...');
+
         loadPendingCount();
       })
       .subscribe();
@@ -75,7 +73,7 @@ function Header() {
       const count = await getPendingRequestsCount();
       setPendingCount(count);
     } catch (error) {
-      console.error('Error loading pending count:', error);
+
     }
   };
 
@@ -95,9 +93,9 @@ function Header() {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
             <Link
-              to="/"
+              to={currentAppUser?.is_admin ? "/admin/dashboard" : "/"}
               className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
-                location.pathname === '/' 
+                (currentAppUser?.is_admin ? location.pathname === '/admin/dashboard' : location.pathname === '/')
                   ? 'text-amber-100 bg-amber-500/20 backdrop-blur-sm shadow-lg' 
                   : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 backdrop-blur-sm'
               }`}
@@ -190,7 +188,7 @@ function Header() {
             )}
 
             {/* Login/Register buttons - apenas quando usuário não estiver logado */}
-            {!currentAppUser && (
+            {!user && !currentAppUser && (
               <>
                 <Link
                   to="/login"
@@ -205,6 +203,17 @@ function Header() {
                   Cadastrar
                 </Link>
               </>
+            )}
+
+            {/* Botão Sair - desktop - sempre visível se usuário estiver logado */}
+            {currentAppUser && (
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 text-red-300 hover:text-red-100 hover:bg-red-500/20 backdrop-blur-sm border border-red-500/30 flex items-center gap-2"
+              >
+                <LogOut className="h-4 w-4" />
+                Sair
+              </button>
             )}
           </nav>
 
@@ -258,9 +267,9 @@ function Header() {
             {/* Menu Items */}
             <nav className="p-6 space-y-4">
               <Link
-                to="/"
+                to={currentAppUser?.is_admin ? "/admin/dashboard" : "/"}
                 className={`flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 ${
-                  location.pathname === '/'
+                  (currentAppUser?.is_admin ? location.pathname === '/admin/dashboard' : location.pathname === '/')
                     ? 'text-amber-100 bg-amber-500/20 backdrop-blur-sm shadow-lg'
                     : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 backdrop-blur-sm'
                 }`}
@@ -376,13 +385,12 @@ function Header() {
                     </span>
                     Lives Admin
                   </Link>
-                  
 
                 </>
               )}
 
               {/* Botões de Login/Registro - apenas quando usuário não estiver logado */}
-              {!currentAppUser && (
+              {!user && !currentAppUser && (
                 <>
                   <Link
                     to="/login"

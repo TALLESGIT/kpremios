@@ -60,13 +60,12 @@ const LiveRafflePage: React.FC = () => {
   // Função para carregar sorteio ativo
   const loadActiveRaffle = async () => {
     if (!user) {
-      console.log('Usuário não autenticado, pulando carregamento do sorteio');
+
       return;
     }
 
     try {
-      console.log('Loading active live raffle for user:', user.id);
-      
+
       const { data, error } = await supabase
         .from('live_games')
         .select('*')
@@ -74,15 +73,14 @@ const LiveRafflePage: React.FC = () => {
         .limit(1);
 
       if (error) {
-        console.log('Error loading live raffle:', error);
-        console.error('Erro ao carregar sorteio:', error);
+
         showMessage('Erro ao carregar sorteio ativo', 'error');
         return;
       }
 
       if (data && data.length > 0) {
         const game = data[0];
-        console.log('Live raffle loaded successfully:', game);
+
         setActiveGameId(game.id);
         
         // Se o jogo está ativo, configurar timer
@@ -91,11 +89,11 @@ const LiveRafflePage: React.FC = () => {
           setTimeLeft(game.elimination_interval || 60);
         }
       } else {
-        console.log('No active live raffle found');
+
         setActiveGameId(null);
       }
     } catch (error) {
-      console.error('Erro ao carregar sorteio:', error);
+
       showMessage('Erro ao carregar sorteio', 'error');
     }
   };
@@ -125,7 +123,7 @@ const LiveRafflePage: React.FC = () => {
       // Aqui você pode integrar com WhatsApp para notificar o vencedor
       // await notifyWinner(winner);
     } catch (error) {
-      console.error('Erro ao finalizar sorteio:', error);
+
       showMessage('❌ Erro ao finalizar sorteio', 'error');
     }
   };
@@ -165,7 +163,7 @@ const LiveRafflePage: React.FC = () => {
       // Atualizar dados em tempo real
       refreshData();
     } catch (error) {
-      console.error('Erro ao atualizar eliminação:', error);
+
     }
 
     // Resetar timer para próxima eliminação
@@ -224,7 +222,7 @@ const LiveRafflePage: React.FC = () => {
       setActiveGameId(data.id);
       showMessage('🎉 Sorteio criado com sucesso! Compartilhe o link para participantes se inscreverem.', 'success');
     } catch (error) {
-      console.error('Erro ao criar sorteio:', error);
+
       showMessage('❌ Erro ao criar sorteio', 'error');
     } finally {
       setIsStarting(false);
@@ -251,7 +249,7 @@ const LiveRafflePage: React.FC = () => {
         .maybeSingle();
 
       if (participantError) {
-        console.error('Erro ao verificar participação:', participantError);
+
         showMessage('❌ Erro ao verificar participação. Tente novamente.', 'error');
         return;
       }
@@ -270,7 +268,7 @@ const LiveRafflePage: React.FC = () => {
         .maybeSingle();
 
       if (numberError) {
-        console.error('Erro ao verificar número:', numberError);
+
         showMessage('❌ Erro ao verificar número. Tente novamente.', 'error');
         return;
       }
@@ -309,7 +307,7 @@ const LiveRafflePage: React.FC = () => {
       
       showMessage(`✅ Você escolheu o número ${number}! Boa sorte!`, 'success');
     } catch (error) {
-      console.error('Erro ao entrar no sorteio:', error);
+
       showMessage('❌ Erro ao entrar no sorteio', 'error');
     } finally {
       setIsJoining(false);
@@ -345,7 +343,7 @@ const LiveRafflePage: React.FC = () => {
         showMessage('🔥 Eliminação em andamento!', 'info');
       }, 2000);
     } catch (error) {
-      console.error('Erro ao iniciar eliminação:', error);
+
       showMessage('❌ Erro ao iniciar eliminação', 'error');
       setIsStarting(false);
     }

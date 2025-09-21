@@ -64,7 +64,7 @@ const WhatsAppMonitoringPanelSimple: React.FC = () => {
       setLogs(data || []);
       calculateStats(data || []);
     } catch (err) {
-      console.error('Error loading notification logs:', err);
+
       setError('Erro ao carregar logs de notificação');
     } finally {
       setIsLoading(false);
