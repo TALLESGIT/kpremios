@@ -232,10 +232,10 @@ export default function AdminDashboardPage() {
         .from('draw_results')
         .insert({
           winner_id: winner.id,
-          winner_name: winner.name,
-          winner_number: winnerNumber.number,
-          total_participants: selectedNumbers.length,
-          draw_date: new Date().toISOString()
+          winning_number: winnerNumber.number,
+          prize_amount: 0, // Valor do prêmio (pode ser configurado)
+          draw_date: new Date().toISOString(),
+          created_by: currentAppUser?.id || 'system'
         });
 
       if (drawError) {
