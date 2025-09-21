@@ -208,8 +208,7 @@ export default function AdminRafflesPage() {
             is_winner: false,
             won_at: null,
             won_prize: null
-          })
-          .not('id', 'eq', '00000000-0000-0000-0000-000000000000'); // Reset all users except dummy ID
+          }); // Reset all users
         
         if (userResetError) {
 
@@ -303,8 +302,7 @@ export default function AdminRafflesPage() {
           is_winner: false,
           won_at: null,
           won_prize: null
-        })
-        .not('id', 'eq', '00000000-0000-0000-0000-000000000000');
+        }); // Reset all users
 
       if (usersError) {
         console.warn('Erro ao resetar dados dos usuários:', usersError);

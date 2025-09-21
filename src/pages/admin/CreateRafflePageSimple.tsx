@@ -158,8 +158,7 @@ const CreateRafflePageSimple: React.FC = () => {
           is_winner: false,
           won_at: null,
           won_prize: null
-        })
-        .not('id', 'eq', '00000000-0000-0000-0000-000000000000'); // Reset all users except dummy ID
+        }); // Reset all users
       
       if (userResetError) {
         throw new Error('Erro ao resetar dados dos usuários');

@@ -1085,8 +1085,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         .update({
           free_number: null,
           extra_numbers: null
-        })
-        .or('free_number.not.is.null,extra_numbers.not.is.null'); // Only update users who have numbers
+        }); // Update all users
       
       if (usersError) {
         throw new Error('Erro ao limpar números dos usuários');
