@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useData } from '../context/DataContext';
 import { Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
@@ -11,6 +12,7 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { reloadUserData } = useData();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,6 +110,15 @@ const LoginPage: React.FC = () => {
             setError('Erro ao criar perfil do usuário');
             return;
           }
+        }
+
+        // Recarregar dados do usuário após login
+        try {
+          await reloadUserData();
+          console.log('Dados do usuário recarregados com sucesso');
+        } catch (reloadError) {
+          console.warn('Erro ao recarregar dados do usuário:', reloadError);
+          // Não falha o login se o reload falhar
         }
 
         // Redirecionar baseado no perfil ou padrão

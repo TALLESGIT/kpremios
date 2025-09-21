@@ -47,6 +47,9 @@ interface DataContextType {
   loading: boolean;
   numbersLoading: boolean;
   
+  // Force reload user data
+  reloadUserData: () => Promise<void>;
+  
   // Auth management - removed setAuthUser as it's now passed as prop
 }
 
@@ -78,6 +81,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     
     try {
       console.log('🔍 Loading current user data for:', authUser.id);
+      setLoading(true);
       
       // First try to load from users table (main system)
       let { data, error } = await supabase
@@ -144,10 +148,13 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       }
 
       setCurrentUser(null);
+    } catch (error) {
+      console.error('Unexpected error in loadCurrentUser:', error);
+      setCurrentUser(null);
     } finally {
       setLoading(false);
     }
-  }, [authUser]);
+  }, [authUser?.id]); // Only depend on authUser.id
 
   // Função para enviar notificação WhatsApp via Vonage
   const sendWhatsAppNotification = async (type: string, userData: any, _additionalData?: any) => {
@@ -240,20 +247,21 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   // Load user data when auth user changes
   useEffect(() => {
     console.log('🔄 DataContext - authUser changed:', authUser);
-    console.log('🔄 DataContext - loadCurrentUser function:', loadCurrentUser);
     if (authUser && authUser.id) {
       console.log('🔄 DataContext - loading current user for ID:', authUser.id);
       loadCurrentUser();
-      // Only load user request after a longer delay to ensure user is fully authenticated
-      setTimeout(() => {
+      // Load user request after a delay to ensure user is fully loaded
+      const timeoutId = setTimeout(() => {
         loadCurrentUserRequest();
-      }, 3000);
+      }, 1000);
+      
+      return () => clearTimeout(timeoutId);
     } else {
       console.log('🔄 DataContext - no auth user, clearing current user');
       setCurrentUser(null);
       setCurrentUserRequest(null);
     }
-  }, [authUser, loadCurrentUser]);
+  }, [authUser?.id]); // Only depend on authUser.id to avoid infinite loops
 
   // Load numbers and draw results
   useEffect(() => {
@@ -381,6 +389,15 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       setCurrentUserRequest(null);
     }
   };
+
+  // Force reload user data
+  const reloadUserData = useCallback(async () => {
+    console.log('🔄 Force reloading user data...');
+    if (authUser?.id) {
+      await loadCurrentUser();
+      await loadCurrentUserRequest();
+    }
+  }, [authUser?.id, loadCurrentUser]);
 
   const registerUser = async (name: string, email: string, whatsapp: string, password: string, selectedNumber: number): Promise<void> => {
     try {
@@ -1408,6 +1425,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       }>,
       notifyExtraNumbersApproved,
       sendBulkNotification,
+      reloadUserData,
       loading,
       numbersLoading
     }}>

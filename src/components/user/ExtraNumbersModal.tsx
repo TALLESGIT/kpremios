@@ -18,11 +18,14 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [showWhatsAppRedirect, setShowWhatsAppRedirect] = useState(false);
+  const [whatsappConfirmed, setWhatsappConfirmed] = useState(false);
+  const [uploadedProofUrl, setUploadedProofUrl] = useState<string | null>(null);
 
   const currentRequest = getCurrentUserRequest();
   const calculatedNumbers = Math.floor(parseFloat(paymentAmount || '0') / 10) * 100;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
@@ -35,7 +38,61 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
       }
       setPaymentProof(file);
       setError('');
+      
+      // Upload do arquivo imediatamente
+      try {
+        setUploading(true);
+        const fileExt = file.name.split('.').pop();
+        const fileName = `payment_proof_${user?.id}_${Date.now()}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('payment-proofs')
+          .upload(fileName, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+          
+        if (uploadError) {
+          console.warn('Upload error:', uploadError);
+          setError('Erro ao fazer upload do comprovante. Tente novamente.');
+          return;
+        }
+        
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('payment-proofs')
+          .getPublicUrl(fileName);
+          
+        setUploadedProofUrl(publicUrl);
+        setShowWhatsAppRedirect(true);
+        
+      } catch (uploadErr) {
+        console.error('Upload failed:', uploadErr);
+        setError('Erro ao fazer upload do comprovante. Tente novamente.');
+      } finally {
+        setUploading(false);
+      }
     }
+  };
+
+  const handleWhatsAppRedirect = () => {
+    const adminNumber = '5531972393341'; // Número do admin sem +55
+    const message = `Olá! Gostaria de solicitar ${calculatedNumbers} números extras no valor de R$ ${paymentAmount}. 
+    
+Comprovante de pagamento: ${uploadedProofUrl}
+
+Dados:
+- Nome: ${currentAppUser?.name}
+- Email: ${currentAppUser?.email}
+- WhatsApp: ${currentAppUser?.whatsapp}`;
+
+    const whatsappUrl = `https://wa.me/${adminNumber}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const handleConfirmWhatsApp = () => {
+    setWhatsappConfirmed(true);
+    setShowWhatsAppRedirect(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -79,46 +136,8 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
     setError('');
 
     try {
-      let paymentProofUrl: string | undefined;
-      
-      // Upload file if provided (optional - won't block request if fails)
-      if (paymentProof) {
-        console.log('ExtraNumbersModal - Attempting to upload file');
-        setUploading(true);
-        try {
-          // Create a unique filename
-          const fileExt = paymentProof.name.split('.').pop();
-          const fileName = `payment_proof_${user.id}_${Date.now()}.${fileExt}`;
-          
-          // Try to upload to Supabase Storage
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('payment-proofs')
-            .upload(fileName, paymentProof, {
-              cacheControl: '3600',
-              upsert: false
-            });
-            
-          if (uploadError) {
-            console.warn('Upload error (continuing without file):', uploadError);
-            // Don't block the request if upload fails
-            paymentProofUrl = undefined;
-          } else {
-            // Get public URL
-            const { data: { publicUrl } } = supabase.storage
-              .from('payment-proofs')
-              .getPublicUrl(fileName);
-              
-            paymentProofUrl = publicUrl;
-            console.log('ExtraNumbersModal - File uploaded successfully:', paymentProofUrl);
-          }
-        } catch (uploadErr) {
-          console.warn('Upload failed (continuing without file):', uploadErr);
-          // Don't block the request if upload fails
-          paymentProofUrl = undefined;
-        } finally {
-          setUploading(false);
-        }
-      }
+      // Use the already uploaded proof URL if available
+      const paymentProofUrl = uploadedProofUrl || undefined;
 
       console.log('ExtraNumbersModal - Calling requestExtraNumbers with:', {
         paymentAmount: parseFloat(paymentAmount),
@@ -180,6 +199,57 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
   };
 
   if (!isOpen) return null;
+
+  // Show WhatsApp redirect modal
+  if (showWhatsAppRedirect) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-2xl max-w-md w-full p-6">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+            
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+              Comprovante Enviado!
+            </h3>
+            
+            <p className="text-slate-600 mb-4">
+              Seu comprovante foi enviado com sucesso. Agora você precisa confirmar o envio via WhatsApp.
+            </p>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <p className="text-blue-800 text-sm mb-3">
+                📱 <strong>Próximo passo:</strong> Clique no botão abaixo para abrir o WhatsApp e enviar uma mensagem confirmando o pagamento.
+              </p>
+              <p className="text-blue-700 text-xs">
+                Isso garante que o administrador receba sua solicitação rapidamente.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleWhatsAppRedirect}
+                className="flex-1 bg-green-500 text-white font-semibold py-3 px-4 rounded-lg hover:bg-green-600 transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                📱 Abrir WhatsApp
+              </button>
+              <button
+                onClick={handleConfirmWhatsApp}
+                className="flex-1 bg-blue-500 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-600 transition-all duration-200"
+              >
+                ✅ Já Enviei
+              </button>
+            </div>
+
+            <p className="text-slate-500 text-xs mt-4">
+              Após confirmar o envio, você poderá finalizar sua solicitação.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Show pending request status
   if (currentRequest) {
@@ -323,6 +393,29 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
                 <p className="mt-2 text-xs text-slate-500">
                   Você pode enviar depois. Máximo 5MB, apenas imagens.
                 </p>
+                
+                {/* WhatsApp Confirmation Status */}
+                {paymentProof && whatsappConfirmed && (
+                  <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span className="text-sm text-green-800 font-medium">
+                        ✅ WhatsApp confirmado! Você pode finalizar sua solicitação.
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                {paymentProof && !whatsappConfirmed && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-amber-600" />
+                      <span className="text-sm text-amber-800 font-medium">
+                        📱 Confirme o envio no WhatsApp para continuar.
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Payment Instructions */}
@@ -382,9 +475,9 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
               {/* Submit */}
               <button
                 type="submit"
-                disabled={loading || uploading || calculatedNumbers === 0}
+                disabled={loading || uploading || calculatedNumbers === 0 || (paymentProof && !whatsappConfirmed)}
                 className={`w-full py-4 px-6 rounded-xl flex items-center justify-center gap-3 font-semibold text-white transition-all duration-200 ${
-                  !loading && !uploading && calculatedNumbers > 0
+                  !loading && !uploading && calculatedNumbers > 0 && (!paymentProof || whatsappConfirmed)
                     ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
                     : 'bg-slate-400 cursor-not-allowed'
                 }`}
@@ -398,6 +491,10 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
                   <>
                     <Loader2 className="animate-spin" size={20} />
                     Enviando...
+                  </>
+                ) : paymentProof && !whatsappConfirmed ? (
+                  <>
+                    📱 Confirme o envio no WhatsApp primeiro
                   </>
                 ) : (
                   <>
