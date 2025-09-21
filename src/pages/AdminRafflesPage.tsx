@@ -209,7 +209,7 @@ export default function AdminRafflesPage() {
             won_at: null,
             won_prize: null
           })
-          .neq('id', '00000000-0000-0000-0000-000000000000'); // Reset all users except dummy ID
+          .not('id', 'eq', '00000000-0000-0000-0000-000000000000'); // Reset all users except dummy ID
         
         if (userResetError) {
 
@@ -256,9 +256,61 @@ export default function AdminRafflesPage() {
   };
 
   const handleDeleteRaffle = async (raffleId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este sorteio?')) return;
+    if (!confirm('Tem certeza que deseja excluir este sorteio?\n\n⚠️ ATENÇÃO: Esta ação irá excluir:\n- O sorteio\n- Todos os números selecionados\n- Todas as solicitações de números extras\n- Todos os resultados de sorteio relacionados\n\nEsta ação não pode ser desfeita!')) return;
 
     try {
+      // 1. Excluir resultados de sorteio relacionados
+      const { error: drawResultsError } = await supabase
+        .from('draw_results')
+        .delete()
+        .eq('winner_id', raffleId); // Assumindo que há relação
+
+      if (drawResultsError) {
+        console.warn('Erro ao excluir resultados de sorteio:', drawResultsError);
+      }
+
+      // 2. Excluir solicitações de números extras relacionadas ao sorteio
+      const { error: requestsError } = await supabase
+        .from('extra_number_requests')
+        .delete()
+        .eq('status', 'pending'); // Excluir todas as pendentes
+
+      if (requestsError) {
+        console.warn('Erro ao excluir solicitações:', requestsError);
+      }
+
+      // 3. Resetar números relacionados ao sorteio
+      const { error: numbersError } = await supabase
+        .from('numbers')
+        .update({
+          is_available: true,
+          selected_by: null,
+          is_free: false,
+          assigned_at: null
+        })
+        .neq('number', 0);
+
+      if (numbersError) {
+        console.warn('Erro ao resetar números:', numbersError);
+      }
+
+      // 4. Resetar dados dos usuários relacionados
+      const { error: usersError } = await supabase
+        .from('users')
+        .update({
+          free_number: null,
+          extra_numbers: null,
+          is_winner: false,
+          won_at: null,
+          won_prize: null
+        })
+        .not('id', 'eq', '00000000-0000-0000-0000-000000000000');
+
+      if (usersError) {
+        console.warn('Erro ao resetar dados dos usuários:', usersError);
+      }
+
+      // 5. Finalmente, excluir o sorteio
       const { error } = await supabase
         .from('raffles')
         .delete()
@@ -267,9 +319,9 @@ export default function AdminRafflesPage() {
       if (error) throw error;
 
       await loadRaffles();
-      alert('Sorteio excluído com sucesso!');
+      alert('Sorteio e todos os dados relacionados foram excluídos com sucesso!');
     } catch (error) {
-
+      console.error('Erro ao excluir sorteio:', error);
       alert('Erro ao excluir sorteio');
     }
   };

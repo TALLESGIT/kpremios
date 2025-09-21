@@ -257,6 +257,20 @@ export default function AdminDashboardPage() {
         console.error('Error updating winner status:', updateError);
       }
 
+      // Marcar sorteio atual como finalizado
+      const { error: raffleUpdateError } = await supabase
+        .from('raffles')
+        .update({
+          status: 'finished',
+          winner_id: winner.id,
+          finished_at: new Date().toISOString()
+        })
+        .eq('is_active', true);
+
+      if (raffleUpdateError) {
+        console.error('Error updating raffle status:', raffleUpdateError);
+      }
+
       // Enviar notificação WhatsApp para o ganhador
       try {
         const { whatsappPersonalService } = await import('../services/whatsappPersonalService');
