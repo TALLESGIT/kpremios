@@ -4,7 +4,7 @@ import Footer from '../components/shared/Footer';
 import { useData } from '../context/DataContext';
 
 function WinnersPage() {
-  const { getDrawResults, getUserById } = useData();
+  const { getDrawResults } = useData();
   const drawResults = getDrawResults();
 
   return (
@@ -40,7 +40,7 @@ function WinnersPage() {
           ) : (
             <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
               {drawResults.map((result, index) => {
-                const winner = getUserById(result.winnerId);
+                const winner = result.users;
                 return (
                   <div
                     key={result.id}
@@ -72,7 +72,7 @@ function WinnersPage() {
                           <div>
                             <p className="text-xs sm:text-sm text-gray-500">Número Sorteado</p>
                             <p className="font-bold text-xl sm:text-2xl text-primary">
-                              {result.winningNumber}
+                              {result.winning_number}
                             </p>
                           </div>
                         </div>
