@@ -18,7 +18,8 @@ import {
   Calendar,
   Hash,
   Download,
-  RefreshCw
+  RefreshCw,
+  MessageCircle
 } from 'lucide-react';
 
 interface User {
@@ -122,6 +123,26 @@ const AdminUsersPage: React.FC = () => {
     } else if (action === 'toggle_status') {
       // Implementar toggle de status do usuário
       toast.success('Funcionalidade em desenvolvimento');
+    }
+  };
+
+  const openWhatsApp = (phoneNumber: string, userName: string) => {
+    try {
+      // Remove caracteres não numéricos e adiciona código do país se necessário
+      const cleanNumber = phoneNumber.replace(/\D/g, '');
+      const whatsappNumber = cleanNumber.startsWith('55') ? cleanNumber : `55${cleanNumber}`;
+      
+      // Mensagem padrão
+      const message = `Olá ${userName}! 👋\n\nSou administrador do ZK Premios e gostaria de entrar em contato com você.`;
+      
+      // URL do WhatsApp Web/App
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+      
+      // Abrir em nova aba
+      window.open(whatsappUrl, '_blank');
+    } catch (error) {
+      console.error('Erro ao abrir WhatsApp:', error);
+      toast.error('Erro ao abrir WhatsApp. Tente novamente.');
     }
   };
 
@@ -321,8 +342,14 @@ const AdminUsersPage: React.FC = () => {
                           {user.email}
                         </div>
                         <div className="flex items-center gap-2">
-                          <Phone className="w-3 h-3" />
-                          {user.whatsapp}
+                          <button
+                            onClick={() => openWhatsApp(user.whatsapp, user.name)}
+                            className="flex items-center gap-2 text-green-400 hover:text-green-300 hover:underline transition-colors duration-200 cursor-pointer"
+                            title="Clique para entrar em contato via WhatsApp"
+                          >
+                            <MessageCircle className="w-3 h-3" />
+                            {user.whatsapp}
+                          </button>
                         </div>
                       </div>
                     </td>
@@ -431,7 +458,17 @@ const AdminUsersPage: React.FC = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">WhatsApp</label>
-                      <p className="mt-1 text-sm text-gray-900">{selectedUser.whatsapp}</p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <p className="text-sm text-gray-900">{selectedUser.whatsapp}</p>
+                        <button
+                          onClick={() => openWhatsApp(selectedUser.whatsapp, selectedUser.name)}
+                          className="flex items-center gap-1 px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs font-medium transition-colors duration-200"
+                          title="Entrar em contato via WhatsApp"
+                        >
+                          <MessageCircle className="w-3 h-3" />
+                          WhatsApp
+                        </button>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Status</label>
