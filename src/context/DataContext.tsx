@@ -83,6 +83,22 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       console.log('🔍 Loading current user data for:', authUser.id);
       setLoading(true);
       
+      // Verify authentication before making queries
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error('❌ Session error in loadCurrentUser:', sessionError);
+        setCurrentUser(null);
+        setLoading(false);
+        return;
+      }
+      
+      if (!session || !session.user) {
+        console.log('❌ No valid session in loadCurrentUser');
+        setCurrentUser(null);
+        setLoading(false);
+        return;
+      }
+      
       // First try to load from users table (main system)
       let { data, error } = await supabase
         .from('users')
@@ -254,8 +270,25 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       console.log('🔄 DataContext - loading current user for ID:', authUser.id);
       loadCurrentUser();
       // Load user request after a delay to ensure user is fully loaded
-      const timeoutId = setTimeout(() => {
-        loadCurrentUserRequest();
+      // Only load user requests for non-admin users
+      const timeoutId = setTimeout(async () => {
+        // Wait for currentUser to be loaded, then check if admin
+        if (currentUser && !currentUser.is_admin) {
+          console.log('Loading user request for non-admin user');
+          loadCurrentUserRequest();
+        } else if (currentUser && currentUser.is_admin) {
+          console.log('Skipping user request load for admin user');
+        } else {
+          console.log('Current user not loaded yet, will retry...');
+          // Retry after another delay if currentUser is not loaded yet
+          setTimeout(() => {
+            if (currentUser && !currentUser.is_admin) {
+              loadCurrentUserRequest();
+            } else if (currentUser && currentUser.is_admin) {
+              console.log('Skipping user request load for admin user (retry)');
+            }
+          }, 500);
+        }
       }, 1000);
       
       return () => clearTimeout(timeoutId);
@@ -365,6 +398,13 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       setCurrentUserRequest(null);
       return;
     }
+
+    // Skip loading user requests for admin users
+    if (currentUser?.is_admin) {
+      console.log('Skipping user request load for admin user:', authUser.id);
+      setCurrentUserRequest(null);
+      return;
+    }
     
     try {
       console.log('Loading user request for user:', authUser.id);
@@ -399,9 +439,14 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     console.log('🔄 Force reloading user data...');
     if (authUser?.id) {
       await loadCurrentUser();
-      await loadCurrentUserRequest();
+      // Only load user requests for non-admin users
+      if (!currentUser?.is_admin) {
+        await loadCurrentUserRequest();
+      } else {
+        console.log('Skipping user request reload for admin user');
+      }
     }
-  }, [authUser?.id, loadCurrentUser]);
+  }, [authUser?.id, loadCurrentUser, currentUser?.is_admin]);
 
   const registerUser = async (name: string, email: string, whatsapp: string, password: string, selectedNumber: number): Promise<void> => {
     try {

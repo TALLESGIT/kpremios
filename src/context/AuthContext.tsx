@@ -26,9 +26,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Verificar sessão atual
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      setLoading(false);
+      try {
+        console.log('AuthContext - Getting current session...');
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('AuthContext - Error getting session:', error);
+          setUser(null);
+        } else {
+          console.log('AuthContext - Session retrieved:', session?.user?.id ? 'User logged in' : 'No user');
+          setUser(session?.user ?? null);
+        }
+      } catch (err) {
+        console.error('AuthContext - Unexpected error getting session:', err);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
     };
 
     getSession();
@@ -38,9 +52,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (event, session) => {
         console.log('Auth state change:', event, session?.user?.id);
         console.log('Session data:', session);
-        console.log('Setting user to:', session?.user ?? null);
-        setUser(session?.user ?? null);
-        setLoading(false);
+        
+        try {
+          if (event === 'SIGNED_IN' && session?.user) {
+            console.log('User signed in successfully:', session.user.id);
+            setUser(session.user);
+          } else if (event === 'SIGNED_OUT') {
+            console.log('User signed out');
+            setUser(null);
+          } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+            console.log('Token refreshed for user:', session.user.id);
+            setUser(session.user);
+          } else {
+            console.log('Other auth event:', event);
+            setUser(session?.user ?? null);
+          }
+        } catch (err) {
+          console.error('Error in auth state change handler:', err);
+          setUser(null);
+        } finally {
+          setLoading(false);
+        }
       }
     );
 
