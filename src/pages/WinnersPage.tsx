@@ -40,7 +40,7 @@ function WinnersPage() {
           ) : (
             <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
               {drawResults.map((result, index) => {
-                const winner = result.users;
+                const winner = (result as any).users;
                 return (
                   <div
                     key={result.id}
@@ -82,13 +82,13 @@ function WinnersPage() {
                           <div>
                             <p className="text-xs sm:text-sm text-gray-500">Data do Sorteio</p>
                             <p className="font-medium text-gray-900 text-sm sm:text-base">
-                              {new Date(result.date).toLocaleDateString('pt-BR', {
+                              {result.draw_date ? new Date(result.draw_date).toLocaleDateString('pt-BR', {
                                 day: '2-digit',
                                 month: '2-digit',
                                 year: 'numeric',
                                 hour: '2-digit',
                                 minute: '2-digit'
-                              })}
+                              }) : 'Data não disponível'}
                             </p>
                           </div>
                         </div>

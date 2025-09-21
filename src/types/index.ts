@@ -40,6 +40,10 @@ export interface DrawResult {
   prize_amount: number;
   draw_date: string;
   created_by: string;
+  users?: {
+    name: string;
+    email: string;
+  };
 }
 
 export interface AuditLog {
