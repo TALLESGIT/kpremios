@@ -32,6 +32,10 @@ import AdminRedirect from './components/shared/AdminRedirect';
 function AppContent() {
   const { user } = useAuth();
   
+  console.log('AppContent - user from useAuth:', user);
+  console.log('AppContent - user type:', typeof user);
+  console.log('AppContent - user keys:', user ? Object.keys(user) : 'null');
+  
   return (
     <DataProvider authUser={user}>
       <Router>

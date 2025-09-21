@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -36,6 +37,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state change:', event, session?.user?.id);
+        console.log('Session data:', session);
+        console.log('Setting user to:', session?.user ?? null);
         setUser(session?.user ?? null);
         setLoading(false);
       }
@@ -44,13 +47,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
+  const signIn = async (email: string, password: string) => {
+    console.log('AuthContext - signIn called with email:', email);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      console.log('AuthContext - signIn result:', { data, error });
+      return { error };
+    } catch (err) {
+      console.error('AuthContext - signIn error:', err);
+      return { error: err };
+    }
+  };
+
   const signOut = async () => {
+    console.log('AuthContext - signOut called');
+    console.log('AuthContext - current user before signOut:', user);
     await supabase.auth.signOut();
+    console.log('AuthContext - signOut completed');
   };
 
   const value = {
     user,
     loading,
+    signIn,
     signOut,
   };
 

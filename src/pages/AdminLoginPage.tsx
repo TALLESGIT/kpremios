@@ -20,20 +20,31 @@ export default function AdminLoginPage() {
     setError('');
     setIsLoading(true);
 
+    console.log('AdminLoginPage - Attempting login with:', { email, passwordLength: password.length });
+
     try {
       const { error: signInError } = await signIn(email, password);
+      console.log('AdminLoginPage - signIn result:', { signInError });
+      
       if (!signInError) {
+        console.log('AdminLoginPage - Login successful, redirecting to admin dashboard');
         // Redirect directly to admin dashboard
         navigate('/admin/dashboard');
       } else {
+        console.error('AdminLoginPage - Login error:', signInError);
         if (signInError.message === 'Invalid login credentials') {
           setError('Credenciais inválidas');
+        } else if (signInError.message === 'Email not confirmed') {
+          setError('Email não confirmado. Verifique sua caixa de entrada.');
+        } else if (signInError.message === 'Too many requests') {
+          setError('Muitas tentativas. Aguarde alguns minutos e tente novamente.');
         } else {
           setError(signInError.message || 'Erro ao fazer login');
         }
       }
     } catch (err) {
-      setError('Erro ao fazer login');
+      console.error('AdminLoginPage - Unexpected error:', err);
+      setError('Erro inesperado ao fazer login');
     } finally {
       setIsLoading(false);
     }

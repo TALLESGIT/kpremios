@@ -247,6 +247,9 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   // Load user data when auth user changes
   useEffect(() => {
     console.log('🔄 DataContext - authUser changed:', authUser);
+    console.log('🔄 DataContext - authUser type:', typeof authUser);
+    console.log('🔄 DataContext - authUser keys:', authUser ? Object.keys(authUser) : 'null');
+    
     if (authUser && authUser.id) {
       console.log('🔄 DataContext - loading current user for ID:', authUser.id);
       loadCurrentUser();
@@ -258,6 +261,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       return () => clearTimeout(timeoutId);
     } else {
       console.log('🔄 DataContext - no auth user, clearing current user');
+      console.log('🔄 DataContext - authUser is null or has no id');
       setCurrentUser(null);
       setCurrentUserRequest(null);
     }
