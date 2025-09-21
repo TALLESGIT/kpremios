@@ -14,6 +14,7 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
   // Check if user is admin
   const isAdmin = currentAppUser?.is_admin || false;
 
+
   // Show loading if auth is still loading or data is still loading
   if (loading || dataLoading) {
     return (
@@ -24,16 +25,18 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   // If we have a user but no currentAppUser yet, wait a bit more
-  if (user && !currentAppUser) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="text-white text-xl">Carregando dados do usuário...</div>
-      </div>
-    );
+  if (user && !currentAppUser && !dataLoading) {
+    // If data loading is complete but no currentAppUser, redirect to login
+    return <Navigate to="/admin/login" replace />;
   }
 
-  if (!user || !isAdmin) {
+  // If no user is authenticated, redirect to login
+  if (!user) {
+    return <Navigate to="/admin/login" replace />;
+  }
 
+  // If user is authenticated but not an admin, redirect to login
+  if (user && currentAppUser && !isAdmin) {
     return <Navigate to="/admin/login" replace />;
   }
 

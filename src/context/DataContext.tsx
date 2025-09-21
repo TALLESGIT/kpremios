@@ -127,7 +127,6 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       
       // If we have data, set the current user
       if (data && data.length > 0) {
-
         setCurrentUser(data[0]);
         setLoading(false);
         return;
@@ -260,41 +259,24 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
   // Load user data when auth user changes
   useEffect(() => {
-
     if (authUser && authUser.id) {
-
       loadCurrentUser();
-      // Load user request after a delay to ensure user is fully loaded
-      // Only load user requests for non-admin users
-      const timeoutId = setTimeout(async () => {
-        // Wait for currentUser to be loaded, then check if admin
-        if (currentUser && !currentUser.is_admin) {
-
-          loadCurrentUserRequest();
-        } else if (currentUser && currentUser.is_admin) {
-
-        } else {
-
-          // Retry after another delay if currentUser is not loaded yet
-          setTimeout(() => {
-            if (currentUser && !currentUser.is_admin) {
-              loadCurrentUserRequest();
-            } else if (currentUser && currentUser.is_admin) {
-
-            }
-          }, 500);
-        }
-      }, 1000);
-      
-      return () => clearTimeout(timeoutId);
     } else {
-
       // Limpar todos os dados do usuário imediatamente
       setCurrentUser(null);
       setCurrentUserRequest(null);
       setLoading(false);
     }
-  }, [authUser?.id]); // Only depend on authUser.id to avoid infinite loops
+  }, [authUser?.id, loadCurrentUser]); // Include loadCurrentUser in dependencies
+
+  // Load user requests when currentUser changes
+  useEffect(() => {
+    if (currentUser && !currentUser.is_admin) {
+      loadCurrentUserRequest();
+    } else {
+      setCurrentUserRequest(null);
+    }
+  }, [currentUser?.is_admin]);
 
   // Load numbers and draw results
   useEffect(() => {
@@ -501,7 +483,6 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         email,
         password,
         options: {
-          emailRedirectTo: undefined, // Disable email confirmation
           data: {
             name: name,
             whatsapp: whatsapp
@@ -691,7 +672,6 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         email,
         password,
         options: {
-          emailRedirectTo: undefined, // Disable email confirmation
           data: {
             name: name,
             whatsapp: whatsapp
@@ -1084,8 +1064,8 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
   const resetAllNumbers = async (): Promise<void> => {
     try {
-
-      const { error } = await supabase
+      // 1. Reset all numbers in the numbers table
+      const { error: numbersError } = await supabase
         .from('numbers')
         .update({
           is_available: true,
@@ -1095,15 +1075,38 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         })
         .neq('number', 0); // Update all numbers
       
-      if (error) {
-
+      if (numbersError) {
         throw new Error('Erro ao resetar números');
+      }
+
+      // 2. Clear all user numbers (free_number and números_extras)
+      const { error: usersError } = await supabase
+        .from('users')
+        .update({
+          free_number: null,
+          números_extras: null
+        })
+        .not('free_number', 'is', null); // Only update users who have numbers
+      
+      if (usersError) {
+        throw new Error('Erro ao limpar números dos usuários');
+      }
+
+      // 3. Clear all extra number requests
+      const { error: requestsError } = await supabase
+        .from('extra_number_requests')
+        .update({
+          status: 'cancelled'
+        })
+        .eq('status', 'pending');
+      
+      if (requestsError) {
+        // Don't throw error here, as this is not critical
       }
 
       // Reload numbers to update the UI
       await loadNumbers();
     } catch (error) {
-
       throw error;
     }
   };

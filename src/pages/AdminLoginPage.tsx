@@ -24,7 +24,6 @@ export default function AdminLoginPage() {
       const { error: signInError } = await signIn(email, password);
 
       if (!signInError) {
-
         // Redirect directly to admin dashboard
         navigate('/admin/dashboard');
       } else {
@@ -83,8 +82,8 @@ export default function AdminLoginPage() {
                 <div className="text-sm">
                   <p className="font-semibold mb-2 text-blue-800">💡 Credenciais do Admin:</p>
                   <div className="text-blue-700 space-y-1">
-                    <p>Email: <code className="bg-blue-100 px-2 py-1 rounded font-mono">talescoelho959@gmail.com</code></p>
-                    <p>Senha: <code className="bg-blue-100 px-2 py-1 rounded font-mono">[sua senha]</code></p>
+                    <p>Email: <code className="bg-blue-100 px-2 py-1 rounded font-mono">admin@zkpremios.com</code></p>
+                    <p>Senha: <code className="bg-blue-100 px-2 py-1 rounded font-mono">admin123</code></p>
                   </div>
                 </div>
               </div>

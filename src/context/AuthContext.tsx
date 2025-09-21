@@ -24,17 +24,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Limpar sessões inválidas no localStorage
+    const clearInvalidSessions = () => {
+      try {
+        const authToken = localStorage.getItem('sb-bukigyhhgrtgryklabjg-auth-token');
+        if (authToken) {
+          try {
+            const parsed = JSON.parse(authToken);
+            // Verificar se o token está expirado
+            if (parsed.expires_at && parsed.expires_at * 1000 < Date.now()) {
+              localStorage.removeItem('sb-bukigyhhgrtgryklabjg-auth-token');
+              localStorage.removeItem('supabase.auth.token');
+            }
+          } catch (parseError) {
+            // Se não conseguir fazer parse, remove o token
+            localStorage.removeItem('sb-bukigyhhgrtgryklabjg-auth-token');
+            localStorage.removeItem('supabase.auth.token');
+          }
+        }
+      } catch (error) {
+        console.warn('Error clearing invalid sessions:', error);
+      }
+    };
+
     // Verificar sessão atual
     const getSession = async () => {
       try {
+        // Limpar sessões inválidas primeiro
+        clearInvalidSessions();
+        
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
+          console.warn('Session error:', error.message);
+          // Clear any invalid session data
+          await supabase.auth.signOut();
           setUser(null);
         } else {
           setUser(session?.user ?? null);
         }
       } catch (err) {
+        console.warn('Session fetch error:', err);
         setUser(null);
       } finally {
         setLoading(false);
@@ -59,6 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(session?.user ?? null);
           }
         } catch (err) {
+          console.warn('Auth state change error:', err);
           setUser(null);
         } finally {
           setLoading(false);
@@ -71,12 +102,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      return { error };
+      
+      if (error) {
+        console.warn('Sign in error:', error.message);
+        return { error };
+      }
+      
+      if (data?.user) {
+        console.log('Sign in successful:', data.user.email);
+      }
+      
+      return { error: null };
     } catch (err) {
+      console.warn('Sign in exception:', err);
       return { error: err };
     }
   };
@@ -91,11 +133,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.signOut();
       
       if (error) {
-        // Mesmo com erro, garantir que o estado seja limpo
-        setUser(null);
-        setLoading(false);
+        console.warn('Sign out error:', error.message);
+      }
+      
+      // Limpar dados do localStorage relacionados ao Supabase
+      try {
+        localStorage.removeItem('sb-bukigyhhgrtgryklabjg-auth-token');
+        localStorage.removeItem('supabase.auth.token');
+        // Limpar qualquer cache relacionado
+        if (typeof window !== 'undefined' && window.location) {
+          // Força uma limpeza completa do estado
+          window.location.reload();
+        }
+      } catch (storageError) {
+        console.warn('Storage clear error:', storageError);
       }
     } catch (err) {
+      console.warn('Sign out exception:', err);
       // Mesmo com erro, garantir que o estado seja limpo
       setUser(null);
       setLoading(false);
