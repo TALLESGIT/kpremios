@@ -11,7 +11,8 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  MessageCircle
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -116,6 +117,21 @@ const UserManagementPanel: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const openWhatsApp = (phoneNumber: string, userName: string) => {
+    // Remove caracteres não numéricos e adiciona código do país se necessário
+    const cleanNumber = phoneNumber.replace(/\D/g, '');
+    const whatsappNumber = cleanNumber.startsWith('55') ? cleanNumber : `55${cleanNumber}`;
+    
+    // Mensagem padrão
+    const message = `Olá ${userName}! 👋\n\nSou administrador do ZK Premios e gostaria de entrar em contato com você.`;
+    
+    // URL do WhatsApp Web/App
+    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+    
+    // Abrir em nova aba
+    window.open(whatsappUrl, '_blank');
   };
 
   return (
@@ -272,7 +288,14 @@ const UserManagementPanel: React.FC = () => {
                       {user.whatsapp && (
                         <div className="flex items-center gap-1">
                           <Phone className="h-4 w-4" />
-                          <span>{user.whatsapp}</span>
+                          <button
+                            onClick={() => openWhatsApp(user.whatsapp, user.name)}
+                            className="flex items-center gap-1 text-green-600 hover:text-green-700 hover:underline transition-colors duration-200 font-medium"
+                            title="Clique para entrar em contato via WhatsApp"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                            <span>{user.whatsapp}</span>
+                          </button>
                         </div>
                       )}
                       
