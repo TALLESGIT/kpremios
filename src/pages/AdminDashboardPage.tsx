@@ -235,7 +235,7 @@ export default function AdminDashboardPage() {
           winning_number: winnerNumber.number,
           prize_amount: 0, // Valor do prêmio (pode ser configurado)
           draw_date: new Date().toISOString(),
-          created_by: currentAppUser?.id || 'system'
+          created_by: currentUser?.id || 'system'
         });
 
       if (drawError) {
