@@ -497,6 +497,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       
       if (signInError) {
         console.log('Sign in failed:', signInError.message);
+        console.log('Sign in error details:', signInError);
         console.log('User data will be processed on next login');
       } else {
         console.log('User signed in successfully:', signInData.user?.id);

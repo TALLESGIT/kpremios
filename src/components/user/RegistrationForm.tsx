@@ -98,6 +98,8 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
     setErrors({});
 
     try {
+      console.log('Tentando fazer login com:', { email: formData.email, passwordLength: formData.password.length });
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
@@ -105,10 +107,15 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
 
       if (error) {
         console.error('Login error details:', error);
+        console.error('Login error status:', error.status);
+        console.error('Login error message:', error.message);
+        
         if (error.message.includes('Invalid login credentials')) {
           setErrors({ general: 'Email ou senha incorretos' });
         } else if (error.message.includes('Email not confirmed')) {
           setErrors({ general: 'Email não confirmado. Verifique sua caixa de entrada.' });
+        } else if (error.message.includes('Too many requests')) {
+          setErrors({ general: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.' });
         } else {
           setErrors({ general: `Erro no login: ${error.message}` });
         }
@@ -116,7 +123,11 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
       }
 
       if (data.user) {
+        console.log('Login bem-sucedido:', data.user.id);
         onSuccess();
+      } else {
+        console.error('Login retornou sem usuário');
+        setErrors({ general: 'Erro ao fazer login' });
       }
     } catch (error: any) {
       console.error('Login error:', error);
@@ -279,14 +290,49 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
           return;
         }
       } else {
-        // Fazer cadastro
-        await registerUser(
-          formData.name,
-          formData.email,
-          formData.whatsapp,
-          formData.password,
-          selectedNumber
-        );
+        // Tentar fazer cadastro, mas se falhar por usuário já existir, tentar login
+        try {
+          await registerUser(
+            formData.name,
+            formData.email,
+            formData.whatsapp,
+            formData.password,
+            selectedNumber
+          );
+        } catch (error: any) {
+          // Se o erro for de usuário já existente, tentar fazer login
+          if (error.message.includes('já está cadastrado') || 
+              error.message.includes('already registered') ||
+              error.message.includes('email-already-in-use')) {
+            
+            console.log('Usuário já existe, tentando fazer login...');
+            const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+              email: formData.email,
+              password: formData.password,
+            });
+            
+            if (loginError) {
+              console.error('Login error with existing user:', loginError);
+              if (loginError.message.includes('Invalid login credentials')) {
+                setErrors({ general: 'Email ou senha incorretos. Verifique suas credenciais.' });
+              } else if (loginError.message.includes('Email not confirmed')) {
+                setErrors({ general: 'Email não confirmado. Verifique sua caixa de entrada.' });
+              } else {
+                setErrors({ general: `Erro no login: ${loginError.message}` });
+              }
+              setIsLoginMode(true);
+              return;
+            }
+            
+            if (loginData.user) {
+              // Login bem-sucedido, continuar normalmente
+              console.log('Login bem-sucedido com usuário existente');
+            }
+          } else {
+            // Outros erros, mostrar normalmente
+            throw error;
+          }
+        }
       }
       
       onSuccess();

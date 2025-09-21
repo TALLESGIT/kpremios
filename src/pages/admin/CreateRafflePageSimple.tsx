@@ -135,12 +135,50 @@ const CreateRafflePageSimple: React.FC = () => {
         imageUrl = publicUrl;
       }
 
-      // TODO: Salvar sorteio no banco de dados
-      // Por enquanto, apenas simular a criação
-      console.log('Creating raffle:', { ...formData, prizeImage: imageUrl });
+      // Resetar todos os números antes de criar o sorteio
+      console.log('Resetting all numbers before creating raffle...');
+      const { error: resetError } = await supabase
+        .from('numbers')
+        .update({
+          is_available: true,
+          selected_by: null,
+          is_free: false,
+          assigned_at: null
+        })
+        .neq('number', 0);
       
-      // Simular delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      if (resetError) {
+        console.error('Error resetting numbers:', resetError);
+        throw new Error('Erro ao resetar números');
+      }
+      
+      console.log('Numbers reset successfully');
+
+      // Criar sorteio no banco de dados
+      const raffleData = {
+        title: formData.title,
+        description: formData.description,
+        prize: formData.prize,
+        total_numbers: formData.maxParticipants,
+        start_date: new Date(formData.startDate).toISOString(),
+        end_date: new Date(formData.endDate).toISOString(),
+        is_active: true,
+        prize_image: imageUrl,
+        created_at: new Date().toISOString()
+      };
+
+      const { data: raffle, error: raffleError } = await supabase
+        .from('raffles')
+        .insert([raffleData])
+        .select()
+        .single();
+
+      if (raffleError) {
+        console.error('Error creating raffle:', raffleError);
+        throw new Error('Erro ao criar sorteio');
+      }
+
+      console.log('Raffle created successfully:', raffle);
 
       // Se notificação está habilitada, enviar para todos os usuários
       if (formData.notifyUsers) {

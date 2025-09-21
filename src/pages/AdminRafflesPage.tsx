@@ -181,6 +181,25 @@ export default function AdminRafflesPage() {
 
         if (error) throw error;
       } else {
+        // Resetar todos os números antes de criar o sorteio
+        console.log('Resetting all numbers before creating raffle...');
+        const { error: resetError } = await supabase
+          .from('numbers')
+          .update({
+            is_available: true,
+            selected_by: null,
+            is_free: false,
+            assigned_at: null
+          })
+          .neq('number', 0);
+        
+        if (resetError) {
+          console.error('Error resetting numbers:', resetError);
+          throw new Error('Erro ao resetar números');
+        }
+        
+        console.log('Numbers reset successfully');
+
         // Criar novo sorteio
         const { error } = await supabase
           .from('raffles')

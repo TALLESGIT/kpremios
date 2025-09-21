@@ -1,4 +1,4 @@
-import { CheckCircle, X, Trophy, Sparkles } from 'lucide-react';
+import { CheckCircle, X, Trophy, Sparkles, Gift } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface SuccessModalProps {
@@ -62,93 +62,72 @@ function SuccessModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl transform animate-scale overflow-hidden">
-        {/* Header with close button */}
-        <div className="relative">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors z-10"
-          >
-            <X className="h-6 w-6" />
-          </button>
-          
-          {/* Animated background */}
-          <div className="bg-gradient-to-br from-green-50 to-emerald-100 px-8 pt-8 pb-6">
-            <div className="text-center">
-              {/* Success icon with animation */}
-              <div className="relative inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full mb-4 shadow-lg">
-                <CheckCircle className="h-10 w-10 text-white animate-bounce" />
-                {/* Sparkle effects */}
-                <Sparkles className="absolute -top-2 -right-2 h-6 w-6 text-yellow-400 animate-spin" />
-                <div className="absolute -bottom-1 -left-1 w-4 h-4 bg-yellow-400 rounded-full animate-pulse" />
-              </div>
-              
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                {title}
-              </h2>
+      <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl transform animate-scale overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white p-4 rounded-t-2xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5" />
+              <h2 className="text-lg font-bold">{title}</h2>
             </div>
+            <button
+              onClick={onClose}
+              className="text-white/80 hover:text-white transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         </div>
 
         {/* Content */}
-        <div className="px-8 py-6">
+        <div className="px-4 py-4">
           {selectedNumber && (
-            <div className="bg-gradient-to-r from-amber-50 to-amber-100 rounded-2xl p-6 mb-6 border border-amber-200">
+            <div className="bg-gradient-to-r from-amber-50 to-amber-100 rounded-xl p-4 mb-4 border border-amber-200">
               <div className="text-center">
-                <Trophy className="h-8 w-8 text-amber-600 mx-auto mb-2" />
-                <p className="text-amber-800 font-semibold mb-1">Seu Número da Sorte</p>
-                <span className="text-4xl font-bold text-amber-600">#{selectedNumber}</span>
+                <Trophy className="h-6 w-6 text-amber-600 mx-auto mb-2" />
+                <p className="text-amber-800 font-semibold text-sm mb-1">Seu Número da Sorte</p>
+                <span className="text-3xl font-bold text-amber-600">#{selectedNumber}</span>
               </div>
             </div>
           )}
           
-          <p className="text-gray-600 text-center leading-relaxed mb-6">
+          <p className="text-gray-600 text-center text-sm leading-relaxed mb-4">
             {message}
           </p>
 
           {/* Upsell Section */}
           {showUpsell && (
-            <div className="mb-6 p-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl">
+            <div className="mb-4 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl">
               <div className="text-center">
-                <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Sparkles className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="text-lg font-bold text-amber-800 mb-2">
+                <Gift className="h-5 w-5 text-amber-600 mx-auto mb-2" />
+                <h3 className="text-base font-bold text-amber-800 mb-2">
                   Quer mais chances de ganhar?
                 </h3>
-                <p className="text-amber-700 text-sm mb-4 leading-relaxed">
-                  Solicite seus números extras aqui e multiplique suas chances de ganhar!
+                <p className="text-amber-700 text-xs mb-3">
+                  Solicite seus números extras e multiplique suas chances!
                 </p>
-                <div className="bg-white/60 rounded-xl p-4 mb-4">
-                  <div className="text-center">
-                    <p className="text-amber-800 font-semibold text-sm mb-2">Aumente suas Chances!</p>
-                    <p className="text-amber-700 text-xs mb-2">
-                      Solicite números extras e multiplique suas chances de ganhar. A partir de R$ 10,00 você ganha 100 números aleatórios!
-                    </p>
-                    <div className="text-xs text-amber-600 space-y-1">
-                      <p>• Cada R$ 10,00 = 100 números extras</p>
-                      <p>• Números atribuídos automaticamente</p>
-                      <p>• Aprovação rápida pelo admin</p>
-                    </div>
-                  </div>
+                <div className="text-xs text-amber-600 space-y-1">
+                  <p>• Cada R$ 10,00 = 100 números extras</p>
+                  <p>• Números atribuídos automaticamente</p>
+                  <p>• Aprovação rápida pelo admin</p>
                 </div>
               </div>
             </div>
           )}
 
           {/* Action buttons */}
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             {showUpsell && onUpsellClick ? (
               <>
                 <button
                   onClick={onClose}
-                  className="flex-1 bg-gray-500 text-white font-semibold py-3 px-6 rounded-xl hover:bg-gray-600 transition-all duration-200"
+                  className="flex-1 bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition-all duration-200 text-sm"
                 >
                   Depois
                 </button>
                 <button
                   onClick={onUpsellClick}
-                  className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold py-3 px-6 rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                  className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold py-2 px-4 rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm"
                 >
                   Solicitar Números Extras
                 </button>
@@ -156,7 +135,7 @@ function SuccessModal({
             ) : (
               <button
                 onClick={onClose}
-                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold py-3 px-6 rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold py-2 px-4 rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm"
               >
                 Continuar
               </button>
@@ -166,12 +145,12 @@ function SuccessModal({
 
         {/* Progress bar */}
         {autoClose && (
-          <div className="px-8 pb-6">
+          <div className="px-4 pb-4">
             <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
               <span>Fechando automaticamente</span>
               <span>{Math.ceil(timeLeft)}s</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+            <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
               <div
                 className="bg-gradient-to-r from-green-500 to-emerald-600 h-full transition-all duration-100 ease-linear rounded-full"
                 style={{ width: `${progress}%` }}
