@@ -420,7 +420,7 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={isLoginMode ? handleLogin : handleSubmit} className="space-y-6">
               {/* Name */}
               {/* Nome - apenas no modo cadastro */}
               {!isLoginMode && (
