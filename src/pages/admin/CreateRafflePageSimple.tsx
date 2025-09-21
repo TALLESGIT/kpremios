@@ -154,6 +154,41 @@ const CreateRafflePageSimple: React.FC = () => {
       
       console.log('Numbers reset successfully');
 
+      // Resetar dados dos usuários
+      console.log('Resetting user data before creating raffle...');
+      const { error: userResetError } = await supabase
+        .from('users')
+        .update({
+          free_number: null,
+          extra_numbers_count: 0,
+          is_winner: false,
+          won_at: null,
+          won_prize: null
+        })
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Reset all users except dummy ID
+      
+      if (userResetError) {
+        console.error('Error resetting user data:', userResetError);
+        throw new Error('Erro ao resetar dados dos usuários');
+      }
+      
+      console.log('User data reset successfully');
+
+      // Limpar solicitações de números extras pendentes
+      console.log('Clearing pending extra number requests...');
+      const { error: requestsResetError } = await supabase
+        .from('extra_number_requests')
+        .delete()
+        .eq('status', 'pending');
+      
+      if (requestsResetError) {
+        console.error('Error clearing extra number requests:', requestsResetError);
+        // Não falha o processo se não conseguir limpar as solicitações
+        console.warn('Warning: Could not clear extra number requests, continuing...');
+      } else {
+        console.log('Extra number requests cleared successfully');
+      }
+
       // Criar sorteio no banco de dados
       const raffleData = {
         title: formData.title,
