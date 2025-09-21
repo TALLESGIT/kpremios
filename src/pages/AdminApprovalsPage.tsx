@@ -91,7 +91,12 @@ export default function AdminApprovalsPage() {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao carregar solicitações:', error);
+        throw error;
+      }
+
+      console.log('Dados brutos recebidos:', data);
 
       const formattedRequests: ExtraNumberRequest[] = data.map((req: any) => ({
         id: req.id,
@@ -108,9 +113,10 @@ export default function AdminApprovalsPage() {
         payment_proof_url: req.payment_proof_url
       }));
 
+      console.log('Solicitações formatadas:', formattedRequests);
       setRequests(formattedRequests);
     } catch (error) {
-
+      console.error('Erro ao carregar solicitações:', error);
     } finally {
       setLoading(false);
     }
@@ -273,6 +279,11 @@ export default function AdminApprovalsPage() {
       request.user_email.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
   });
+
+  console.log('Status filter:', statusFilter);
+  console.log('Search term:', searchTerm);
+  console.log('Total requests:', requests.length);
+  console.log('Filtered requests:', filteredRequests.length);
 
   const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
