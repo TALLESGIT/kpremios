@@ -1079,12 +1079,12 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         throw new Error('Erro ao resetar números');
       }
 
-      // 2. Clear all user numbers (free_number and números_extras)
+      // 2. Clear all user numbers (free_number and extra_numbers)
       const { error: usersError } = await supabase
         .from('users')
         .update({
           free_number: null,
-          números_extras: null
+          extra_numbers: null
         })
         .not('free_number', 'is', null); // Only update users who have numbers
       

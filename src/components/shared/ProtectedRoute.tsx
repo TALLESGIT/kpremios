@@ -15,6 +15,7 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
   const isAdmin = currentAppUser?.is_admin || false;
 
 
+
   // Show loading if auth is still loading or data is still loading
   if (loading || dataLoading) {
     return (

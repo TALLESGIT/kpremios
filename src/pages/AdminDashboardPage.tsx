@@ -187,7 +187,7 @@ export default function AdminDashboardPage() {
         .select(`
           number,
           selected_by,
-          users!inner (
+          users (
             id,
             name,
             email,
@@ -196,9 +196,13 @@ export default function AdminDashboardPage() {
             extra_numbers
           )
         `)
-        .eq('is_available', false);
+        .eq('is_available', false)
+        .not('selected_by', 'is', null);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching selected numbers:', error);
+        throw error;
+      }
 
       if (!selectedNumbers || selectedNumbers.length === 0) {
         throw new Error('Nenhum número selecionado encontrado');
@@ -225,18 +229,17 @@ export default function AdminDashboardPage() {
 
       // Registrar resultado no banco de dados
       const { error: drawError } = await supabase
-        .from('raffle_results')
+        .from('draw_results')
         .insert({
-          winner_number: winnerNumber.number,
-          winner_user_id: winner.id,
+          winner_id: winner.id,
           winner_name: winner.name,
+          winner_number: winnerNumber.number,
           total_participants: selectedNumbers.length,
-          drawn_at: new Date().toISOString(),
-          drawn_by: currentAppUser?.id
+          draw_date: new Date().toISOString()
         });
 
       if (drawError) {
-
+        console.error('Error saving draw result:', drawError);
         // Continuar mesmo com erro de registro
       }
 
@@ -251,7 +254,7 @@ export default function AdminDashboardPage() {
         .eq('id', winner.id);
 
       if (updateError) {
-
+        console.error('Error updating winner status:', updateError);
       }
 
       // Enviar notificação WhatsApp para o ganhador
@@ -264,7 +267,7 @@ export default function AdminDashboardPage() {
           prize: 'Sorteio Principal'
         });
       } catch (whatsappError) {
-
+        console.error('WhatsApp notification error:', whatsappError);
         // Não falha a operação se o WhatsApp falhar
       }
 
@@ -273,9 +276,9 @@ export default function AdminDashboardPage() {
       setShowDrawResult(true);
 
     } catch (error) {
-
+      console.error('Draw error:', error);
       setShowDrawAnimation(false);
-      alert('Erro ao realizar sorteio. Tente novamente.');
+      alert(`Erro ao realizar sorteio: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     }
   };
 
