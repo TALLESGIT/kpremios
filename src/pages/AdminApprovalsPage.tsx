@@ -191,13 +191,12 @@ export default function AdminApprovalsPage() {
 
       if (numbersError) throw numbersError;
 
-      // Atualizar campo extra_numbers do usuário
+      // Atualizar campo extra_numbers do usuário usando função RPC
       const { error: userError } = await supabase
-        .from('users')
-        .update({
+        .rpc('update_user_extra_numbers', {
+          user_id: request.user_id,
           extra_numbers: extraNumbers
-        })
-        .eq('id', request.user_id);
+        });
 
       if (userError) throw userError;
 

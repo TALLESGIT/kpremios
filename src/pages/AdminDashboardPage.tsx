@@ -243,15 +243,13 @@ export default function AdminDashboardPage() {
         // Continuar mesmo com erro de registro
       }
 
-      // Atualizar status do usuário como ganhador
+      // Atualizar status do usuário como ganhador usando função RPC
       const { error: updateError } = await supabase
-        .from('users')
-        .update({ 
+        .rpc('update_user_winner_status', {
+          user_id: winner.id,
           is_winner: true,
-          won_at: new Date().toISOString(),
           won_prize: 'Sorteio Principal'
-        })
-        .eq('id', winner.id);
+        });
 
       if (updateError) {
         console.error('Error updating winner status:', updateError);
