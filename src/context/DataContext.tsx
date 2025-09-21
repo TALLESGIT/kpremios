@@ -1053,7 +1053,9 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   };
 
   const getTakenNumbersCount = (): number => {
-    return numbers.filter(n => !n.is_available).length;
+    const takenCount = numbers.filter(n => !n.is_available).length;
+    console.log('getTakenNumbersCount - Total numbers:', numbers.length, 'Taken:', takenCount);
+    return takenCount;
   };
 
   const getDrawResults = (): DrawResult[] => {
@@ -1162,8 +1164,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         throw new Error('Erro ao limpar números órfãos');
       }
 
-      // Reload numbers to update the UI
-      await loadNumbers();
+      // Numbers will be reloaded by the calling function
     } catch (error) {
 
       throw error;
