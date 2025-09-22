@@ -16,6 +16,7 @@ interface DataContextType {
   convertToAdmin: (name: string, email: string, whatsapp: string, password: string) => Promise<void>;
   registerRestaUmUser: (name: string, email: string, phone: string, password: string) => Promise<void>;
   selectFreeNumber: (selectedNumber: number) => Promise<boolean>;
+  joinFreeRaffle: (raffleId: string) => Promise<{ success: boolean; message: string }>;
   
   // Extra numbers
   requestExtraNumbers: (paymentAmount: number, quantity: number, paymentProofUrl?: string) => Promise<boolean>;
@@ -1020,6 +1021,19 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     }
     
     try {
+      // Buscar o sorteio ativo atual
+      const { data: activeRaffle, error: raffleError } = await supabase
+        .from('raffles')
+        .select('id')
+        .eq('is_active', true)
+        .limit(1);
+
+      if (raffleError) {
+        console.error('Error fetching active raffle:', raffleError);
+        return false;
+      }
+
+      const raffleId = activeRaffle && activeRaffle.length > 0 ? activeRaffle[0].id : null;
 
       const { data, error } = await supabase
         .from('extra_number_requests')
@@ -1028,7 +1042,8 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           payment_amount: paymentAmount,
           requested_quantity: quantity,
           payment_proof_url: paymentProofUrl,
-          status: 'pending'
+          status: 'pending',
+          raffle_id: raffleId
         })
         .select();
         
@@ -1190,7 +1205,10 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   };
 
   const selectFreeNumber = async (selectedNumber: number): Promise<boolean> => {
-    if (!authUser || !authUser.id) {
+    // Get current authenticated user directly from Supabase
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user || !user.id) {
       console.error('No authenticated user for number selection');
       return false;
     }
@@ -1218,7 +1236,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         .from('numbers')
         .update({
           is_available: false,
-          selected_by: authUser.id,
+          selected_by: user.id,
           is_free: true,
           assigned_at: new Date().toISOString()
         })
@@ -1234,7 +1252,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       const { error: userUpdateError } = await supabase
         .from('users')
         .update({ free_number: selectedNumber })
-        .eq('id', authUser.id);
+        .eq('id', user.id);
         
       if (userUpdateError) {
         console.error('Error updating user free_number:', userUpdateError);
@@ -1249,6 +1267,109 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     } catch (error) {
       console.error('Error in selectFreeNumber:', error);
       return false;
+    }
+  };
+
+  const joinFreeRaffle = async (raffleId: string): Promise<{ success: boolean; message: string }> => {
+    // Obter o usuário autenticado diretamente do Supabase
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      return { success: false, message: 'Usuário não autenticado' };
+    }
+
+    // Buscar dados do usuário no banco
+    const { data: userData, error: userDataError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (userDataError || !userData) {
+      return { success: false, message: 'Dados do usuário não encontrados' };
+    }
+
+    try {
+      // Verificar se o sorteio existe e está ativo
+      const { data: raffle, error: raffleError } = await supabase
+        .from('raffles')
+        .select('*')
+        .eq('id', raffleId)
+        .eq('is_active', true)
+        .single();
+
+      if (raffleError || !raffle) {
+        return { success: false, message: 'Sorteio não encontrado ou inativo' };
+      }
+
+      // Verificar se o sorteio está dentro do período válido
+      const now = new Date();
+      const startDate = new Date(raffle.start_date);
+      const endDate = new Date(raffle.end_date);
+
+      if (now < startDate) {
+        return { success: false, message: 'Este sorteio ainda não começou' };
+      }
+
+      if (now > endDate) {
+        return { success: false, message: 'Este sorteio já terminou' };
+      }
+
+      // Verificar se o usuário já está participando deste sorteio
+      const { data: existingParticipation, error: participationError } = await supabase
+        .from('free_raffle_participants')
+        .select('id')
+        .eq('raffle_id', raffleId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (participationError) {
+        console.error('Error checking participation:', participationError);
+        return { success: false, message: 'Erro ao verificar participação' };
+      }
+
+      if (existingParticipation) {
+        return { success: false, message: 'Você já está participando deste sorteio!' };
+      }
+
+      // Verificar se ainda há vagas disponíveis
+      const { data: participantsCount, error: countError } = await supabase
+        .from('free_raffle_participants')
+        .select('id', { count: 'exact' })
+        .eq('raffle_id', raffleId);
+
+      if (countError) {
+        console.error('Error counting participants:', countError);
+        return { success: false, message: 'Erro ao verificar vagas disponíveis' };
+      }
+
+      const currentParticipants = participantsCount?.length || 0;
+      if (currentParticipants >= raffle.max_participants) {
+        return { success: false, message: 'Este sorteio já atingiu o número máximo de participantes' };
+      }
+
+      // Adicionar o usuário como participante
+      const { error: insertError } = await supabase
+        .from('free_raffle_participants')
+        .insert({
+          raffle_id: raffleId,
+          user_id: user.id,
+          user_name: userData.name,
+          user_email: userData.email,
+          user_whatsapp: userData.whatsapp,
+          joined_at: new Date().toISOString()
+        });
+
+      if (insertError) {
+        console.error('Error joining raffle:', insertError);
+        return { success: false, message: 'Erro ao participar do sorteio. Tente novamente.' };
+      }
+
+      return { success: true, message: 'Participação confirmada com sucesso!' };
+
+    } catch (error) {
+      console.error('Error in joinFreeRaffle:', error);
+      return { success: false, message: 'Erro inesperado. Tente novamente.' };
     }
   };
 
@@ -1422,7 +1543,16 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     try {
       const { data, error } = await supabase
         .from('extra_number_requests')
-        .select('*')
+        .select(`
+          *,
+          raffle:raffle_id (
+            id,
+            title,
+            description,
+            prize,
+            status
+          )
+        `)
         .eq('user_id', authUser.id)
         .order('created_at', { ascending: false });
         
@@ -1431,7 +1561,18 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         return [];
       }
       
-      return data || [];
+      // Filtrar solicitações cujos sorteios foram finalizados ou excluídos
+      const filteredData = data?.filter(request => {
+        // Se não há sorteio associado, manter a solicitação
+        if (!request.raffle_id || !request.raffle) {
+          return true;
+        }
+        
+        // Se o sorteio existe e está ativo, manter a solicitação
+        return request.raffle.status === 'active';
+      }) || [];
+      
+      return filteredData;
     } catch (error) {
 
       return [];
@@ -1447,6 +1588,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       convertToAdmin,
       registerRestaUmUser,
       selectFreeNumber,
+      joinFreeRaffle,
       requestExtraNumbers,
       getCurrentUserRequest,
       getUserRequestsHistory,

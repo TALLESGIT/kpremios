@@ -31,6 +31,14 @@ export interface ExtraNumberRequest {
   updated_at: string;
   processed_by?: string;
   processed_at?: string;
+  raffle_id?: string;
+  raffle?: {
+    id: string;
+    title: string;
+    description: string;
+    prize: string;
+    status?: 'active' | 'finished' | 'cancelled';
+  };
 }
 
 export interface DrawResult {

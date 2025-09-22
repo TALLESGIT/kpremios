@@ -12,7 +12,7 @@ import { useData } from '../context/DataContext';
 function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { currentUser } = useData();
+  const { currentUser, selectFreeNumber } = useData();
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successNumber, setSuccessNumber] = useState<number | null>(null);
@@ -23,6 +23,21 @@ function HomePage() {
   const handleRegistrationSuccess = () => {
     setSuccessNumber(selectedNumber);
     setShowSuccess(true);
+  };
+
+  const handleNumberSelection = async (number: number) => {
+    if (isLoggedIn) {
+      // Para usuários logados, selecionar número gratuito diretamente
+      const success = await selectFreeNumber(number);
+      if (success) {
+        setSelectedNumber(number);
+        setSuccessNumber(number);
+        setShowSuccess(true);
+      }
+    } else {
+      // Para usuários não logados, apenas definir o número selecionado
+      setSelectedNumber(number);
+    }
   };
 
   const handleUpsellClick = () => {
@@ -95,7 +110,7 @@ function HomePage() {
         {/* Mostrar formulário de cadastro apenas se o usuário não estiver logado */}
         {!isLoggedIn && (
           <>
-            <NumberSelection onSelectNumber={setSelectedNumber} selectedNumber={selectedNumber} />
+            <NumberSelection onSelectNumber={handleNumberSelection} selectedNumber={selectedNumber} />
             <RegistrationForm selectedNumber={selectedNumber} onSuccess={handleRegistrationSuccess} />
           </>
         )}
@@ -132,12 +147,12 @@ function HomePage() {
             {/* Visualização dos números para usuários logados */}
             <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-8">
               <div className="text-center mb-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">📊 Status dos Números</h3>
-                <p className="text-gray-600">Visualize quais números estão disponíveis e ocupados</p>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">🎯 Selecionar Número Gratuito</h3>
+                <p className="text-gray-600">Escolha seu número gratuito para participar dos sorteios</p>
               </div>
               <NumberSelection 
-                onSelectNumber={() => {}} 
-                selectedNumber={null} 
+                onSelectNumber={handleNumberSelection} 
+                selectedNumber={selectedNumber} 
               />
             </div>
           </>

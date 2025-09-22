@@ -20,7 +20,7 @@ function MyNumbersPage() {
   const userExtraNumbers = currentAppUser?.extra_numbers || [];
   const totalNumbers = userExtraNumbers.length + (currentAppUser?.free_number ? 1 : 0);
   const totalParticipants = numbers.filter(n => !n.is_available).length;
-  const isWinner = currentAppUser?.is_winner || false;
+const isWinner = (currentAppUser as any)?.is_winner || false;
 
   // Create ranges for pagination (igual à HomePage)
   const numberRanges: Array<{ start: number; end: number; label: string }> = [];
@@ -169,7 +169,7 @@ function MyNumbersPage() {
                     🏆 Prêmio: Sorteio Principal
                   </p>
                   <p className="text-emerald-100 text-sm">
-                    Ganho em: {currentAppUser?.won_at ? new Date(currentAppUser.won_at).toLocaleDateString('pt-BR') : 'Data não disponível'}
+                    Ganho em: {(currentAppUser as any)?.won_at ? new Date((currentAppUser as any).won_at).toLocaleDateString('pt-BR') : 'Data não disponível'}
                   </p>
                 </div>
                 
@@ -424,6 +424,24 @@ function MyNumbersPage() {
                     }
                   };
 
+                  // Função para organizar números em faixas de 100
+                  const organizeNumbersInRanges = (numbers: number[]): { [key: string]: number[] } => {
+                    const ranges: { [key: string]: number[] } = {};
+                    
+                    numbers.forEach(num => {
+                      const rangeStart = Math.floor((num - 1) / 100) * 100 + 1;
+                      const rangeEnd = rangeStart + 99;
+                      const rangeKey = `${rangeStart}-${rangeEnd}`;
+                      
+                      if (!ranges[rangeKey]) {
+                        ranges[rangeKey] = [];
+                      }
+                      ranges[rangeKey].push(num);
+                    });
+                    
+                    return ranges;
+                  };
+
                   return (
                     <div
                       key={request.id}
@@ -445,6 +463,17 @@ function MyNumbersPage() {
                                 minute: '2-digit'
                               })}
                             </p>
+                            {/* Informações do sorteio */}
+                            {request.raffle && (
+                              <div className="mt-2 p-2 bg-slate-700/30 rounded-lg">
+                                <p className="text-amber-300 text-sm font-medium">
+                                  Sorteio: {request.raffle.title}
+                                </p>
+                                <p className="text-slate-400 text-xs">
+                                  Prêmio: {request.raffle.prize}
+                                </p>
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="text-right">
@@ -463,14 +492,14 @@ function MyNumbersPage() {
                             Números atribuídos:
                           </p>
                           <div className="space-y-3">
-                            {Object.entries(organizeNumbersInRanges(request.assigned_numbers)).map(([range, numbers]) => (
+                            {Object.entries(organizeNumbersInRanges(request.assigned_numbers)).map(([range, numbers]: [string, number[]]) => (
                               <div key={range} className="bg-slate-700/30 rounded-lg p-3">
                                 <div className="flex items-center justify-between mb-2">
                                   <span className="text-emerald-400 font-bold text-sm">{range}</span>
-                                  <span className="text-slate-400 text-xs">{numbers.length} números</span>
+                                  <span className="text-slate-400 text-xs">{numbers?.length || 0} números</span>
                                 </div>
                                 <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-1">
-                                  {numbers.slice(0, 20).map((num, index) => (
+                                  {(numbers as number[]).slice(0, 20).map((num, index) => (
                                     <div
                                       key={index}
                                       className="h-6 w-full bg-emerald-500 rounded text-xs font-bold text-slate-900 flex items-center justify-center"

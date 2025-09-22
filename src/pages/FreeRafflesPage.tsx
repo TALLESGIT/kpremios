@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { Link, useNavigate } from 'react-router-dom';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import FreeRaffleParticipationModal from '../components/modals/FreeRaffleParticipationModal';
 import { ArrowLeft, Gift, Calendar, Users, Trophy, Clock, Target, Star } from 'lucide-react';
 
 interface FreeRaffle {
@@ -22,11 +23,13 @@ interface FreeRaffle {
 
 const FreeRafflesPage: React.FC = () => {
   const { user } = useAuth();
-  const { currentUser: currentAppUser } = useData();
+  const { currentUser: currentAppUser, joinFreeRaffle } = useData();
   const navigate = useNavigate();
   const [raffles, setRaffles] = useState<FreeRaffle[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'active' | 'upcoming' | 'finished'>('all');
+  const [selectedRaffle, setSelectedRaffle] = useState<FreeRaffle | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     loadRaffles();
@@ -100,7 +103,30 @@ const FreeRafflesPage: React.FC = () => {
   };
 
   const getProgressPercentage = (raffle: FreeRaffle) => {
-    return Math.min((raffle.current_participants / raffle.max_participants) * 100, 100);
+    return Math.round((raffle.current_participants / raffle.max_participants) * 100);
+  };
+
+  const handleParticipateClick = (raffle: FreeRaffle) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    setSelectedRaffle(raffle);
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setSelectedRaffle(null);
+  };
+
+  const handleParticipate = async (raffleId: string) => {
+    const result = await joinFreeRaffle(raffleId);
+    if (result.success) {
+      // Recarregar os sorteios para atualizar o número de participantes
+      await loadRaffles();
+    }
+    return result;
   };
 
   if (loading) {
@@ -310,7 +336,10 @@ const FreeRafflesPage: React.FC = () => {
                       {/* Botão de Ação */}
                       <div className="mt-6">
                         {status.status === 'active' ? (
-                          <button className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-2">
+                          <button 
+                            onClick={() => handleParticipateClick(raffle)}
+                            className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-2"
+                          >
                             <Star className="h-4 w-4" />
                             Participar Agora
                           </button>
@@ -335,6 +364,16 @@ const FreeRafflesPage: React.FC = () => {
         </div>
       </main>
       <Footer />
+      
+      {/* Modal de Participação */}
+      {showModal && selectedRaffle && (
+        <FreeRaffleParticipationModal
+          isOpen={showModal}
+          onClose={handleCloseModal}
+          raffle={selectedRaffle}
+          onParticipate={handleParticipate}
+        />
+      )}
     </div>
   );
 };
