@@ -10,7 +10,7 @@ interface RegistrationFormProps {
 }
 
 function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) {
-  const { registerUser } = useData();
+  const { registerUser, selectFreeNumber } = useData();
   const { signUp, user } = useAuth();
   const { currentUser: currentAppUser } = useData();
   const [loading, setLoading] = useState(false);
@@ -125,6 +125,14 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
       }
 
       if (data.user) {
+        // Associate the selected number with the user
+        if (selectedNumber) {
+          const success = await selectFreeNumber(selectedNumber);
+          if (!success) {
+            setErrors({ general: 'Erro ao associar número ao usuário. Tente novamente.' });
+            return;
+          }
+        }
 
         onSuccess();
       } else {
@@ -326,8 +334,14 @@ function RegistrationForm({ selectedNumber, onSuccess }: RegistrationFormProps) 
             }
             
             if (loginData.user) {
-              // Login bem-sucedido, continuar normalmente
-
+              // Login bem-sucedido, associar número se necessário
+              if (selectedNumber) {
+                const success = await selectFreeNumber(selectedNumber);
+                if (!success) {
+                  setErrors({ general: 'Erro ao associar número ao usuário. Tente novamente.' });
+                  return;
+                }
+              }
             }
           } else {
             // Outros erros, mostrar normalmente

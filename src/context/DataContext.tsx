@@ -15,6 +15,7 @@ interface DataContextType {
   registerAdmin: (name: string, email: string, whatsapp: string, password: string) => Promise<void>;
   convertToAdmin: (name: string, email: string, whatsapp: string, password: string) => Promise<void>;
   registerRestaUmUser: (name: string, email: string, phone: string, password: string) => Promise<void>;
+  selectFreeNumber: (selectedNumber: number) => Promise<boolean>;
   
   // Extra numbers
   requestExtraNumbers: (paymentAmount: number, quantity: number, paymentProofUrl?: string) => Promise<boolean>;
@@ -1053,9 +1054,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   };
 
   const getTakenNumbersCount = (): number => {
-    const takenCount = numbers.filter(n => !n.is_available).length;
-    console.log('getTakenNumbersCount - Total numbers:', numbers.length, 'Taken:', takenCount);
-    return takenCount;
+    return numbers.filter(n => !n.is_available).length;
   };
 
   const getDrawResults = (): DrawResult[] => {
@@ -1187,6 +1186,69 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     } catch (error) {
 
       return 0;
+    }
+  };
+
+  const selectFreeNumber = async (selectedNumber: number): Promise<boolean> => {
+    if (!authUser || !authUser.id) {
+      console.error('No authenticated user for number selection');
+      return false;
+    }
+
+    try {
+      // Check if number is still available
+      const { data: numberData, error: numberCheckError } = await supabase
+        .from('numbers')
+        .select('*')
+        .eq('number', selectedNumber)
+        .single();
+        
+      if (numberCheckError) {
+        console.error('Error checking number availability:', numberCheckError);
+        return false;
+      }
+
+      if (!numberData.is_available) {
+        console.error('Number is not available');
+        return false;
+      }
+
+      // Reserve the number
+      const { data: numberUpdateData, error: numberError } = await supabase
+        .from('numbers')
+        .update({
+          is_available: false,
+          selected_by: authUser.id,
+          is_free: true,
+          assigned_at: new Date().toISOString()
+        })
+        .eq('number', selectedNumber)
+        .select();
+        
+      if (numberError) {
+        console.error('Error reserving number:', numberError);
+        return false;
+      }
+
+      // Update user's free_number in the database
+      const { error: userUpdateError } = await supabase
+        .from('users')
+        .update({ free_number: selectedNumber })
+        .eq('id', authUser.id);
+        
+      if (userUpdateError) {
+        console.error('Error updating user free_number:', userUpdateError);
+        // Don't return false here, as the number is already reserved
+      }
+
+      // Reload user data to update the UI
+      await loadCurrentUser();
+      await loadNumbers();
+
+      return true;
+    } catch (error) {
+      console.error('Error in selectFreeNumber:', error);
+      return false;
     }
   };
 
@@ -1384,6 +1446,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       registerAdmin,
       convertToAdmin,
       registerRestaUmUser,
+      selectFreeNumber,
       requestExtraNumbers,
       getCurrentUserRequest,
       getUserRequestsHistory,
