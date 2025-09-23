@@ -128,8 +128,8 @@ function HomePage() {
                 <p className="text-gray-600 mb-6">Você já está logado e pode participar dos nossos sorteios ao vivo.</p>
                 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link
-                    to="/live-games"
+              <Link
+                to="/live-raffle"
                     className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
                   >
                     🎮 Participar de Sorteios ao Vivo
