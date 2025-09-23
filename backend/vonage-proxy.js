@@ -33,6 +33,115 @@ function getBasicAuthHeader() {
 }
 
 /**
+ * Proxy para enviar imagens via Vonage
+ */
+app.post('/api/vonage/send-image', async (req, res) => {
+  try {
+    const { to, imageUrl, caption = '', type = 'image' } = req.body;
+    const fromNumber = process.env.VITE_VONAGE_WHATSAPP_FROM || '553182612947';
+
+    if (!to || !imageUrl) {
+      return res.status(400).json({ error: 'to e imageUrl são obrigatórios' });
+    }
+
+    console.log('📤 Tentativa de envio de imagem:');
+    console.log('   Para:', to);
+    console.log('   De:', fromNumber);
+    console.log('   Imagem:', imageUrl);
+    console.log('   Legenda:', caption);
+    
+    // Verificar se o número remetente está configurado
+    if (!fromNumber) {
+      console.error('❌ ERRO: Número remetente não configurado (VITE_VONAGE_WHATSAPP_FROM)');
+      return res.status(500).json({ 
+        error: 'Número remetente WhatsApp não configurado',
+        details: 'VITE_VONAGE_WHATSAPP_FROM não está definido no .env'
+      });
+    }
+    
+    // Verificar formato do número remetente
+    if (!fromNumber.match(/^\d{10,15}$/)) {
+      console.error('❌ ERRO: Formato inválido do número remetente:', fromNumber);
+      return res.status(500).json({ 
+        error: 'Formato inválido do número remetente',
+        details: `Número ${fromNumber} deve conter apenas dígitos (10-15 caracteres)`
+      });
+    }
+
+    const messagePayload = {
+      to: {
+        type: 'whatsapp',
+        number: to.replace('whatsapp:', '').replace('+', '')
+      },
+      from: {
+        type: 'whatsapp',
+        number: fromNumber
+      },
+      message: {
+        content: {
+          type: 'image',
+          image: {
+            url: imageUrl,
+            caption: caption
+          }
+        }
+      }
+    };
+
+    console.log('🔄 Enviando imagem via API Vonage...');
+    console.log('📤 Payload completo:', JSON.stringify(messagePayload, null, 2));
+
+    // Usar Basic Auth
+    const authHeader = getBasicAuthHeader();
+
+    // Fazer requisição para Vonage
+    const response = await fetch('https://api.nexmo.com/v0.1/messages', {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(messagePayload)
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      console.error('❌ ERRO DETALHADO da API Vonage:');
+      console.error('   Status HTTP:', response.status);
+      console.error('   Resposta:', JSON.stringify(result, null, 2));
+      
+      return res.status(response.status).json({
+        ...result,
+        suggestion: 'Verifique se o número está registrado para WhatsApp Business na Vonage'
+      });
+    }
+
+    console.log('✅ Imagem enviada via API Vonage:', JSON.stringify(result, null, 2));
+    console.log('📋 ID da mensagem:', result.message_uuid);
+    
+    res.json({
+      ...result,
+      from: fromNumber,
+      to: to,
+      warning: 'Se a imagem não chegar, verifique se o número está registrado para WhatsApp Business'
+    });
+
+  } catch (error) {
+    console.error('❌ ERRO DETALHADO no proxy de imagem:');
+    console.error('   Tipo do erro:', error.constructor.name);
+    console.error('   Mensagem:', error.message);
+    console.error('   Stack trace:', error.stack);
+    
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      details: error.message,
+      suggestion: 'Verifique se o número está registrado para WhatsApp Business na Vonage'
+    });
+  }
+});
+
+/**
  * Proxy para enviar mensagens via Vonage
  */
 app.post('/api/vonage/send-message', async (req, res) => {

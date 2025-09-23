@@ -7,9 +7,11 @@
 interface VonageMessage {
   to: string;
   message: string;
-  type?: 'text' | 'template';
+  type?: 'text' | 'template' | 'image';
   templateName?: string;
   templateParams?: string[];
+  imageUrl?: string;
+  imageCaption?: string;
 }
 
 interface VonageResponse {
@@ -98,6 +100,26 @@ class VonageWhatsAppService {
   }
 
   /**
+   * Envia imagem via Vonage WhatsApp
+   */
+  async sendImage(data: { to: string; imageUrl: string; caption?: string }): Promise<VonageResponse> {
+    const realMode = import.meta.env.VITE_VONAGE_REAL_MODE === 'true';
+    
+    if (!realMode) {
+      // MODO SIMULAÇÃO - Para desenvolvimento e testes
+      return this.simulateMessage({
+        to: data.to,
+        message: data.caption || 'Imagem enviada',
+        type: 'image',
+        imageUrl: data.imageUrl
+      });
+    }
+
+    // MODO REAL - Para produção
+    return this.sendRealImage(data);
+  }
+
+  /**
    * Simula envio de mensagem
    */
   private async simulateMessage(data: VonageMessage): Promise<VonageResponse> {
@@ -155,6 +177,53 @@ class VonageWhatsAppService {
       // Em caso de erro, ainda simular para não quebrar o fluxo
 
       return this.simulateMessage(data);
+    }
+  }
+
+  /**
+   * Envia imagem real via Vonage
+   */
+  private async sendRealImage(data: { to: string; imageUrl: string; caption?: string }): Promise<VonageResponse> {
+    try {
+      // Formatar número corretamente (remover whatsapp: se existir)
+      const toNumber = data.to.replace('whatsapp:', '').replace('+', '');
+      
+      const payload = {
+        to: toNumber,
+        imageUrl: data.imageUrl,
+        caption: data.caption || '',
+        type: 'image'
+      };
+
+      // Usar o backend proxy em vez da API direta
+      const backendUrl = 'http://localhost:3001/api/vonage/send-image';
+      const response = await fetch(backendUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+
+        throw new Error(`Vonage API error: ${response.status} - ${errorText}`);
+      }
+
+      const result: VonageResponse = await response.json();
+
+      return result;
+
+    } catch (error) {
+
+      // Em caso de erro, ainda simular para não quebrar o fluxo
+      return this.simulateMessage({
+        to: data.to,
+        message: data.caption || 'Imagem enviada',
+        type: 'image',
+        imageUrl: data.imageUrl
+      });
     }
   }
 
@@ -261,6 +330,43 @@ Parabéns! 🎊`;
       to: userData.whatsapp,
       message: message,
       type: 'text'
+    });
+  }
+
+  /**
+   * Envia comprovante de pagamento para o admin com imagem
+   */
+  async sendPaymentProofToAdmin(data: {
+    userName: string;
+    userWhatsapp: string;
+    userEmail: string;
+    amount: number;
+    quantity: number;
+    proofUrl: string;
+    requestId: string;
+  }): Promise<VonageResponse> {
+    const adminNumber = '+5531972393341'; // Número do admin
+    const caption = `📋 *NOVA SOLICITAÇÃO DE NÚMEROS EXTRAS*
+
+👤 *Cliente:*
+• Nome: ${data.userName}
+• WhatsApp: ${data.userWhatsapp}
+• Email: ${data.userEmail}
+
+💰 *Pagamento:*
+• Valor: R$ ${data.amount.toFixed(2)}
+• Quantidade: ${data.quantity} números extras
+• ID da Solicitação: ${data.requestId}
+
+🔗 *Acesse o painel admin para aprovar/rejeitar*
+
+⏰ *Data:* ${new Date().toLocaleString('pt-BR')}`;
+
+    // Enviar imagem com legenda
+    return this.sendImage({
+      to: adminNumber,
+      imageUrl: data.proofUrl,
+      caption: caption
     });
   }
 

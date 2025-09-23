@@ -7,7 +7,9 @@
 interface WhatsAppMessage {
   to: string;
   message: string;
-  type?: 'text';
+  type?: 'text' | 'image';
+  imageUrl?: string;
+  imageCaption?: string;
 }
 
 interface WhatsAppResponse {
@@ -39,6 +41,27 @@ class WhatsAppPersonalService {
 
     const mockResponse: WhatsAppResponse = {
       message_id: `whatsapp_personal_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      to: data.to,
+      from: this.fromNumber,
+      status: 'delivered'
+    };
+    return mockResponse;
+  }
+
+  /**
+   * Envia imagem via WhatsApp pessoal
+   */
+  async sendImage(data: { to: string; imageUrl: string; caption?: string }): Promise<WhatsAppResponse> {
+    // Simular delay de rede
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Em produção real, aqui seria:
+    // 1. Conectar com WhatsApp Web
+    // 2. Enviar imagem via puppeteer/playwright
+    // 3. Retornar resultado real
+
+    const mockResponse: WhatsAppResponse = {
+      message_id: `whatsapp_image_${Date.now()}_${Math.random().toString(36).substring(7)}`,
       to: data.to,
       from: this.fromNumber,
       status: 'delivered'
@@ -218,7 +241,7 @@ Entre em contato conosco imediatamente para receber seu prêmio!
     requestId: string;
   }): Promise<WhatsAppResponse> {
     const adminNumber = '+5531972393341'; // Número do admin
-    const message = `📋 *NOVA SOLICITAÇÃO DE NÚMEROS EXTRAS*
+    const caption = `📋 *NOVA SOLICITAÇÃO DE NÚMEROS EXTRAS*
 
 👤 *Cliente:*
 • Nome: ${data.userName}
@@ -230,17 +253,15 @@ Entre em contato conosco imediatamente para receber seu prêmio!
 • Quantidade: ${data.quantity} números extras
 • ID da Solicitação: ${data.requestId}
 
-📎 *Comprovante:*
-${data.proofUrl}
-
 🔗 *Acesse o painel admin para aprovar/rejeitar*
 
 ⏰ *Data:* ${new Date().toLocaleString('pt-BR')}`;
 
-    return this.sendMessage({
+    // Enviar imagem com legenda
+    return this.sendImage({
       to: adminNumber,
-      message: message,
-      type: 'text'
+      imageUrl: data.proofUrl,
+      caption: caption
     });
   }
 }

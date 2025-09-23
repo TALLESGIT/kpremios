@@ -1,5 +1,6 @@
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
+import WhatsAppImageTestPanel from '../components/admin/WhatsAppImageTestPanel';
 
 function TestAdminPage() {
   const { user, loading } = useAuth();
@@ -33,6 +34,12 @@ function TestAdminPage() {
           <strong>App User is_admin:</strong> {currentAppUser?.is_admin ? 'true' : 'false'}
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="mt-8">
+          <WhatsAppImageTestPanel />
+        </div>
+      )}
     </div>
   );
 }
