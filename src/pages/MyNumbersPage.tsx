@@ -68,12 +68,12 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
         table: 'extra_number_requests',
         filter: `user_id=eq.${currentAppUser.id}`
       }, async () => {
-
+        console.log('Mudança detectada nas solicitações, recarregando...');
         try {
           const history = await getUserRequestsHistory();
           setRequestsHistory(history);
         } catch (error) {
-
+          console.error('Erro ao recarregar histórico:', error);
         }
       })
       .subscribe();
@@ -82,6 +82,44 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
       subscription.unsubscribe();
     };
   }, [currentAppUser, getUserRequestsHistory]);
+
+  // Real-time subscription for user data updates (extra_numbers)
+  useEffect(() => {
+    if (!currentAppUser) return;
+
+    const userSubscription = supabase
+      .channel('user-data-updates')
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'users',
+        filter: `id=eq.${currentAppUser.id}`
+      }, async (payload) => {
+        console.log('Mudança detectada nos dados do usuário:', payload);
+        // Recarregar dados do usuário sem recarregar a página
+        try {
+          const { data: updatedUser, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', currentAppUser.id)
+            .single();
+          
+          if (!error && updatedUser) {
+            // Atualizar o contexto de dados
+            window.dispatchEvent(new CustomEvent('userDataUpdated', { 
+              detail: { user: updatedUser } 
+            }));
+          }
+        } catch (error) {
+          console.error('Erro ao recarregar dados do usuário:', error);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      userSubscription.unsubscribe();
+    };
+  }, [currentAppUser]);
 
   // Redirect if user hasn't registered
   if (!user) {

@@ -269,6 +269,22 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     }
   }, [authUser?.id]); // Remove loadCurrentUser from dependencies to avoid infinite loop
 
+  // Listen for user data updates from real-time subscriptions
+  useEffect(() => {
+    const handleUserDataUpdate = (event: CustomEvent) => {
+      console.log('Atualizando dados do usuário via evento customizado:', event.detail);
+      if (event.detail?.user) {
+        setCurrentUser(event.detail.user);
+      }
+    };
+
+    window.addEventListener('userDataUpdated', handleUserDataUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('userDataUpdated', handleUserDataUpdate as EventListener);
+    };
+  }, []);
+
   // Load user requests when currentUser changes
   useEffect(() => {
     if (currentUser && !currentUser.is_admin) {
