@@ -263,44 +263,15 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
           {/* Extra Numbers Section */}
           {userExtraNumbers.length > 0 && (
             <div className="bg-slate-800/50 rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 backdrop-blur-sm border border-slate-600/30">
-              <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-amber-100 mb-4 sm:mb-6">Números Extras</h3>
+              <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-amber-100 mb-4 sm:mb-6">
+                Números Extras ({userExtraNumbers.length} números)
+              </h3>
               
-              {/* Range tabs - Estilo igual à HomePage */}
-              <div className="mb-6 sm:mb-8">
-                <div className="border-b border-amber-400/20">
-                  <div className="flex overflow-x-auto no-scrollbar space-x-1 sm:space-x-2">
-                    {numberRanges.map((range, index) => {
-                      const numbersInRange = userExtraNumbers.filter(num => 
-                        num >= range.start && num <= range.end
-                      );
-                      const hasNumbers = numbersInRange.length > 0;
-                      
-                      return (
-                        <button
-                          key={index}
-                          onClick={() => handleRangeChange(index)}
-                          className={`py-2 sm:py-3 px-3 sm:px-6 text-xs sm:text-sm font-bold rounded-t-xl transition-all duration-300 whitespace-nowrap ${
-                            currentRange === index
-                              ? 'border-b-2 border-amber-500 text-amber-100 bg-amber-500/20 backdrop-blur-sm'
-                              : hasNumbers
-                              ? 'text-amber-300 hover:text-amber-100 hover:bg-slate-800/50 backdrop-blur-sm'
-                              : 'text-slate-400 hover:text-amber-300 hover:bg-slate-800/50 backdrop-blur-sm'
-                          }`}
-                        >
-                          {range.label}
-                          {hasNumbers && (
-                            <span className="ml-1 text-amber-400">({numbersInRange.length})</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Grid de Números - Mostra apenas da faixa selecionada */}
+              {/* Grid de Números - Todos juntos em ordem crescente */}
               <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 sm:gap-3">
-                {filteredExtraNumbers.map((num, index) => (
+                {userExtraNumbers
+                  .sort((a, b) => a - b)
+                  .map((num, index) => (
                   <div
                     key={index}
                     className="h-10 sm:h-12 lg:h-14 w-full bg-gradient-to-br from-amber-500 to-amber-600 border-2 border-amber-400 rounded-xl flex items-center justify-center text-xs sm:text-sm font-black text-slate-900 shadow-lg"
@@ -309,16 +280,6 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                   </div>
                 ))}
               </div>
-              
-              {filteredExtraNumbers.length === 0 && (
-                <div className="text-center py-8 sm:py-12">
-                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                    <Hash className="h-6 w-6 sm:h-8 sm:w-8 text-slate-400" />
-                  </div>
-                  <p className="text-slate-600 text-base sm:text-lg font-medium">Nenhum número nesta faixa</p>
-                  <p className="text-slate-500 text-sm sm:text-base">Seus números extras não estão nesta faixa de {numberRanges[currentRange]?.label}</p>
-                </div>
-              )}
               
               <p className="text-slate-400 text-xs sm:text-sm font-medium mt-4 text-center">
                 Total de {userExtraNumbers.length} números extras adicionais
@@ -424,19 +385,25 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                     }
                   };
 
-                  // Função para organizar números em faixas de 100
+                  // Função para organizar números em faixas de 100 (1-100, 101-200, etc.)
                   const organizeNumbersInRanges = (numbers: number[]): { [key: string]: number[] } => {
                     const ranges: { [key: string]: number[] } = {};
                     
                     numbers.forEach(num => {
+                      // Garantir que seja de 100 em 100: 1-100, 101-200, 201-300, etc.
                       const rangeStart = Math.floor((num - 1) / 100) * 100 + 1;
-                      const rangeEnd = rangeStart + 99;
+                      const rangeEnd = Math.min(rangeStart + 99, 1000); // Máximo 1000
                       const rangeKey = `${rangeStart}-${rangeEnd}`;
                       
                       if (!ranges[rangeKey]) {
                         ranges[rangeKey] = [];
                       }
                       ranges[rangeKey].push(num);
+                    });
+                    
+                    // Ordenar os números dentro de cada faixa
+                    Object.keys(ranges).forEach(key => {
+                      ranges[key].sort((a, b) => a - b);
                     });
                     
                     return ranges;
@@ -489,32 +456,21 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                       {request.status === 'approved' && request.assigned_numbers && request.assigned_numbers.length > 0 && (
                         <div className="mt-4">
                           <p className="text-emerald-300 text-sm font-medium mb-3">
-                            Números atribuídos:
+                            Números atribuídos ({request.assigned_numbers.length} números):
                           </p>
-                          <div className="space-y-3">
-                            {Object.entries(organizeNumbersInRanges(request.assigned_numbers)).map(([range, numbers]: [string, number[]]) => (
-                              <div key={range} className="bg-slate-700/30 rounded-lg p-3">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="text-emerald-400 font-bold text-sm">{range}</span>
-                                  <span className="text-slate-400 text-xs">{numbers?.length || 0} números</span>
+                          <div className="bg-slate-700/30 rounded-lg p-3">
+                            <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-1">
+                              {request.assigned_numbers
+                                .sort((a, b) => a - b)
+                                .map((num, index) => (
+                                <div
+                                  key={index}
+                                  className="h-6 w-full bg-emerald-500 rounded text-xs font-bold text-slate-900 flex items-center justify-center"
+                                >
+                                  {num}
                                 </div>
-                                <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-1">
-                                  {(numbers as number[]).slice(0, 20).map((num, index) => (
-                                    <div
-                                      key={index}
-                                      className="h-6 w-full bg-emerald-500 rounded text-xs font-bold text-slate-900 flex items-center justify-center"
-                                    >
-                                      {num}
-                                    </div>
-                                  ))}
-                                  {numbers.length > 20 && (
-                                    <div className="h-6 w-full bg-emerald-400 rounded text-xs font-bold text-slate-900 flex items-center justify-center">
-                                      +{numbers.length - 20}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
                         </div>
                       )}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { User, Mail, Phone, Lock, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
@@ -18,6 +18,7 @@ const RegisterPage: React.FC = () => {
   const [isLoginMode, setIsLoginMode] = useState(false);
   const [checkingEmail, setCheckingEmail] = useState(false);
   const navigate = useNavigate();
+  const emailCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -26,9 +27,12 @@ const RegisterPage: React.FC = () => {
     });
   };
 
-  // Verificar se email já existe quando usuário digita
-  const checkEmailExists = async (email: string) => {
-    if (!email || !email.includes('@')) return;
+  // Verificar se email já existe com debounce otimizado
+  const checkEmailExists = useCallback(async (email: string) => {
+    if (!email || !email.includes('@')) {
+      setIsLoginMode(false);
+      return;
+    }
     
     setCheckingEmail(true);
     try {
@@ -39,19 +43,39 @@ const RegisterPage: React.FC = () => {
         .maybeSingle();
 
       if (!error && data) {
-        // Email já existe, trocar para modo login
         setIsLoginMode(true);
         setError('');
       } else {
-        // Email não existe, manter modo cadastro
         setIsLoginMode(false);
         setError('');
       }
     } catch (error) {
+      // Silenciar erros de rede para não atrapalhar UX
     } finally {
       setCheckingEmail(false);
     }
-  };
+  }, []);
+
+  // Função otimizada para debounce do email
+  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    handleChange(e);
+    const email = e.target.value;
+    
+    // Cancelar verificação anterior
+    if (emailCheckTimeoutRef.current) {
+      clearTimeout(emailCheckTimeoutRef.current);
+    }
+    
+    // Só verificar se email tem formato válido
+    if (email && email.includes('@') && email.includes('.')) {
+      emailCheckTimeoutRef.current = setTimeout(() => {
+        checkEmailExists(email);
+      }, 800); // Reduzido de 1000ms para 800ms
+    } else {
+      setIsLoginMode(false);
+      setCheckingEmail(false);
+    }
+  }, [checkEmailExists]);
 
   // Função para fazer login
   const handleLogin = async (e: React.FormEvent) => {
@@ -110,7 +134,7 @@ const RegisterPage: React.FC = () => {
     setLoading(true);
     setError('');
 
-    // Validações
+    // Validações rápidas no frontend
     if (formData.password !== formData.confirmPassword) {
       setError('As senhas não coincidem');
       setLoading(false);
@@ -123,37 +147,50 @@ const RegisterPage: React.FC = () => {
       return;
     }
 
+    if (!formData.name.trim()) {
+      setError('Nome é obrigatório');
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Criar usuário
+      // Criar usuário e perfil em uma única transação otimizada
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
+        email: formData.email.trim(),
         password: formData.password,
+        options: {
+          data: {
+            name: formData.name.trim(),
+            whatsapp: formData.phone.trim(),
+          }
+        }
       });
 
       if (authError) throw authError;
 
       if (authData.user) {
-        // Criar perfil
+        // Criar perfil de forma otimizada
         const { error: profileError } = await supabase
           .from('users')
           .insert({
             id: authData.user.id,
-            name: formData.name,
-            email: formData.email,
-            whatsapp: formData.phone,
+            name: formData.name.trim(),
+            email: formData.email.trim(),
+            whatsapp: formData.phone.trim(),
             is_admin: false,
             created_at: new Date().toISOString(),
           });
 
-        if (profileError) throw profileError;
-
-        // Enviar confirmação por WhatsApp se tiver número
-        if (formData.phone) {
-          // Aqui você pode integrar com o serviço WhatsApp
+        if (profileError) {
+          // Se erro for de duplicação, ignorar (usuário já existe)
+          if (!profileError.message.includes('duplicate') && !profileError.message.includes('already exists')) {
+            throw profileError;
+          }
         }
 
+        // Redirecionar imediatamente sem aguardar WhatsApp
         navigate('/login', { 
-          state: { message: 'Conta criada com sucesso! Verifique seu email.' }
+          state: { message: 'Conta criada com sucesso! Verifique seu email para confirmar.' }
         });
       }
     } catch (error: any) {
@@ -161,8 +198,12 @@ const RegisterPage: React.FC = () => {
           error.message.includes('email-already-in-use') ||
           error.message.includes('User already registered')) {
         setError('Este email já está cadastrado! Faça login em vez de se cadastrar novamente.');
+      } else if (error.message.includes('Invalid email')) {
+        setError('Email inválido. Verifique o formato.');
+      } else if (error.message.includes('Password')) {
+        setError('Senha muito fraca. Use pelo menos 6 caracteres.');
       } else {
-        setError(error.message);
+        setError('Erro ao criar conta. Tente novamente.');
       }
     } finally {
       setLoading(false);
@@ -252,11 +293,7 @@ const RegisterPage: React.FC = () => {
                     name="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => {
-                      handleChange(e);
-                      // Verificar email após 1 segundo de pausa na digitação
-                      setTimeout(() => checkEmailExists(e.target.value), 1000);
-                    }}
+                    onChange={handleEmailChange}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
                     placeholder="seu@email.com"
                     required
@@ -337,13 +374,18 @@ const RegisterPage: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || checkingEmail}
                 className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 mt-6"
               >
                 {loading ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                     <span>{isLoginMode ? 'Entrando...' : 'Criando conta...'}</span>
+                  </>
+                ) : checkingEmail ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>Verificando email...</span>
                   </>
                 ) : (
                   <>

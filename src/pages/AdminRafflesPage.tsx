@@ -18,6 +18,7 @@ interface Raffle {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  prize_image?: string;
 }
 
 export default function AdminRafflesPage() {
@@ -117,6 +118,7 @@ export default function AdminRafflesPage() {
     setEditingRaffle(null);
     setFormData({
       title: '',
+      prize_image: '',
       description: '',
       prize: '',
       total_numbers: 1000,
@@ -131,9 +133,10 @@ export default function AdminRafflesPage() {
     setEditingRaffle(raffle);
     setFormData({
       title: raffle.title,
-      description: raffle.description,
+      description: raffle.description || '',
       prize: raffle.prize,
       total_numbers: raffle.total_numbers,
+      prize_image: '',
       start_date: raffle.start_date.split('T')[0],
       end_date: raffle.end_date.split('T')[0],
       is_active: raffle.is_active
@@ -208,19 +211,17 @@ export default function AdminRafflesPage() {
           throw new Error('Erro ao resetar dados dos usuários');
         }
 
-        // Limpar solicitações de números extras pendentes
-
+        // Limpar solicitações de números extras pendentes e aprovadas
         const { error: requestsResetError } = await supabase
           .from('extra_number_requests')
           .delete()
-          .eq('status', 'pending');
+          .in('status', ['pending', 'approved']);
         
         if (requestsResetError) {
-
           // Não falha o processo se não conseguir limpar as solicitações
-
+          console.warn('Erro ao limpar solicitações:', requestsResetError);
         } else {
-
+          console.log('Solicitações de números extras resetadas com sucesso');
         }
 
         // Criar novo sorteio
@@ -261,11 +262,11 @@ export default function AdminRafflesPage() {
         console.warn('Erro ao excluir resultados de sorteio:', drawResultsError);
       }
 
-      // 2. Excluir solicitações de números extras relacionadas ao sorteio
+      // 2. Excluir solicitações de números extras relacionadas ao sorteio (pendentes e aprovadas)
       const { error: requestsError } = await supabase
         .from('extra_number_requests')
         .delete()
-        .eq('status', 'pending'); // Excluir todas as pendentes
+        .in('status', ['pending', 'approved']); // Excluir todas as pendentes e aprovadas
 
       if (requestsError) {
         console.warn('Erro ao excluir solicitações:', requestsError);

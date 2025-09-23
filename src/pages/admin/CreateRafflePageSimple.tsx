@@ -156,15 +156,17 @@ const CreateRafflePageSimple: React.FC = () => {
       if (userResetError) {
         throw new Error('Erro ao resetar dados dos usuários');
       }
-      // Limpar solicitações de números extras pendentes
+      // Limpar solicitações de números extras pendentes e aprovadas
       const { error: requestsResetError } = await supabase
         .from('extra_number_requests')
         .delete()
-        .eq('status', 'pending');
+        .in('status', ['pending', 'approved']);
       
       if (requestsResetError) {
         // Não falha o processo se não conseguir limpar as solicitações
+        console.warn('Erro ao limpar solicitações:', requestsResetError);
       } else {
+        console.log('Solicitações de números extras resetadas com sucesso');
       }
 
       // Criar sorteio no banco de dados
@@ -230,7 +232,8 @@ const CreateRafflePageSimple: React.FC = () => {
         endDate: '',
         description: '',
         maxParticipants: 1000,
-        notifyUsers: true
+        notifyUsers: true,
+        prizeImage: ''
       });
 
     } catch (err) {

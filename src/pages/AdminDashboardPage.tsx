@@ -149,9 +149,38 @@ export default function AdminDashboardPage() {
     try {
       await resetAllNumbers();
 
+      // Reset approved extra number requests to pending status
+      // This ensures that when numbers are reset, approved requests are also reset
+      const { error: resetApprovedRequestsError } = await supabase
+        .from('extra_number_requests')
+        .update({
+          status: 'pending',
+          processed_at: null,
+          processed_by: null,
+          extra_numbers: null
+        })
+        .eq('status', 'approved');
+
+      if (resetApprovedRequestsError) {
+        console.warn('Erro ao resetar solicitações aprovadas:', resetApprovedRequestsError);
+        // Don't throw error, as this is not critical for the main reset operation
+      }
+
+      // Reset user extra_numbers field for all users
+      const { error: resetUserExtraNumbersError } = await supabase
+        .from('users')
+        .update({ extra_numbers: null })
+        .not('extra_numbers', 'is', null);
+
+      if (resetUserExtraNumbersError) {
+        console.warn('Erro ao resetar números extras dos usuários:', resetUserExtraNumbersError);
+        // Don't throw error, as this is not critical for the main reset operation
+      }
+
       setShowResetNumbersConfirm(false);
     } catch (error) {
-
+      console.error('Erro ao resetar números:', error);
+      alert('Erro ao resetar números. Verifique o console para mais detalhes.');
     }
   };
 
@@ -211,20 +240,20 @@ export default function AdminDashboardPage() {
       // Seleção aleatória justa
       const randomIndex = Math.floor(Math.random() * selectedNumbers.length);
       const winnerNumber = selectedNumbers[randomIndex];
-      const winner = winnerNumber.users;
+      const winner = Array.isArray(winnerNumber.users) ? winnerNumber.users[0] : winnerNumber.users;
 
       // Preparar dados do ganhador (camuflados)
-      const maskedEmail = winner.email.replace(/(.{2}).*(@.*)/, '$1***$2');
-      const maskedWhatsapp = winner.whatsapp.replace(/(.{2}).*(.{2})/, '$1***$2');
+      const maskedEmail = typeof winner.email === 'string' ? winner.email.replace(/(.{2}).*(@.*)/, '$1***$2') : '';
+      const maskedWhatsapp = typeof winner.whatsapp === 'string' ? winner.whatsapp.replace(/(.{2}).*(.{2})/, '$1***$2') : '';
 
       const winnerInfo = {
         number: winnerNumber.number,
         name: winner.name, // Nome não camuflado
         email: maskedEmail,
         whatsapp: maskedWhatsapp,
-        userId: winner.id,
-        freeNumber: winner.free_number,
-        extraNumbers: winner.extra_numbers || []
+        userId: winner?.id || null,
+        freeNumber: winner.free_number ?? null,
+        extraNumbers: winner?.extra_numbers ?? []
       };
 
       // Registrar resultado no banco de dados
