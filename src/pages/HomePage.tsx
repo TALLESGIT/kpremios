@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
@@ -8,6 +8,7 @@ import RegistrationForm from '../components/user/RegistrationForm';
 import SuccessModal from '../components/shared/SuccessModal';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
+import { supabase } from '../lib/supabase';
 
 function HomePage() {
   const navigate = useNavigate();
@@ -16,9 +17,33 @@ function HomePage() {
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successNumber, setSuccessNumber] = useState<number | null>(null);
+  const [hasActiveRaffle, setHasActiveRaffle] = useState(false);
   
   // Verificar se o usuário está logado
   const isLoggedIn = user && currentUser;
+
+  // Verificar se há sorteios ativos
+  useEffect(() => {
+    checkActiveRaffles();
+  }, []);
+
+  const checkActiveRaffles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('raffles')
+        .select('id')
+        .eq('is_active', true)
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        setHasActiveRaffle(true);
+      } else {
+        setHasActiveRaffle(false);
+      }
+    } catch (error) {
+      setHasActiveRaffle(false);
+    }
+  };
 
   const handleRegistrationSuccess = () => {
     setSuccessNumber(selectedNumber);
@@ -107,12 +132,48 @@ function HomePage() {
 
         <RaffleBanner />
         
-        {/* Mostrar formulário de cadastro apenas se o usuário não estiver logado */}
-        {!isLoggedIn && (
+        {/* Mostrar formulário de cadastro apenas se o usuário não estiver logado E houver sorteios ativos */}
+        {!isLoggedIn && hasActiveRaffle && (
           <>
             <NumberSelection onSelectNumber={handleNumberSelection} selectedNumber={selectedNumber} />
             <RegistrationForm selectedNumber={selectedNumber} onSuccess={handleRegistrationSuccess} />
           </>
+        )}
+
+        {/* Mostrar mensagem quando não há sorteios ativos para usuários não logados */}
+        {!isLoggedIn && !hasActiveRaffle && (
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8 mb-8 text-center">
+            <div className="w-16 h-16 bg-gradient-to-r from-slate-500 to-slate-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <span className="text-white text-2xl">🎯</span>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Nenhum sorteio ativo no momento</h2>
+            <p className="text-gray-600 mb-6">
+              Não há sorteios gratuitos disponíveis para participação no momento. Fique atento para novos sorteios em breve!
+            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className="text-amber-600">💡</span>
+                <span className="text-amber-800 font-medium">Dica:</span>
+              </div>
+              <p className="text-amber-700 text-sm">
+                Acesse o dashboard para ver suas estatísticas e atividades recentes!
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                to="/live-raffle"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
+              >
+                🎮 Participar de Sorteios ao Vivo
+              </Link>
+              <Link
+                to="/register"
+                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
+              >
+                📝 Criar Conta Gratuita
+              </Link>
+            </div>
+          </div>
         )}
         
         {/* Conteúdo para usuários logados */}
