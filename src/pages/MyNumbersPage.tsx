@@ -98,6 +98,13 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
         console.log('Mudança detectada nos dados do usuário:', payload);
         // Recarregar dados do usuário sem recarregar a página
         try {
+          // Verificar sessão antes de fazer a query
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError || !session) {
+            console.warn('Sessão inválida, tentando refresh...');
+            await supabase.auth.refreshSession();
+          }
+
           const { data: updatedUser, error } = await supabase
             .from('users')
             .select('*')
@@ -105,10 +112,18 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
             .single();
           
           if (!error && updatedUser) {
+            console.log('Dados atualizados do usuário:', updatedUser);
             // Atualizar o contexto de dados
             window.dispatchEvent(new CustomEvent('userDataUpdated', { 
               detail: { user: updatedUser } 
             }));
+          } else {
+            console.error('Erro ao buscar dados atualizados:', error);
+            // Fallback: recarregar a página se houver erro de autenticação
+            if (error?.message?.includes('403') || error?.message?.includes('Forbidden')) {
+              console.log('Erro 403 detectado, recarregando página...');
+              window.location.reload();
+            }
           }
         } catch (error) {
           console.error('Erro ao recarregar dados do usuário:', error);
@@ -219,6 +234,43 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
               </div>
             </div>
           )}
+
+          {/* Botão de Atualização Manual */}
+          <div className="text-center mb-6">
+            <button
+              onClick={async () => {
+                try {
+                  console.log('Atualizando dados manualmente...');
+                  // Forçar refresh da sessão
+                  await supabase.auth.refreshSession();
+                  
+                  // Buscar dados atualizados do usuário
+                  const { data: updatedUser, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', currentAppUser?.id)
+                    .single();
+                  
+                  if (!error && updatedUser) {
+                    console.log('Dados atualizados manualmente:', updatedUser);
+                    window.dispatchEvent(new CustomEvent('userDataUpdated', { 
+                      detail: { user: updatedUser } 
+                    }));
+                    alert('Dados atualizados com sucesso!');
+                  } else {
+                    console.error('Erro ao atualizar dados:', error);
+                    alert('Erro ao atualizar dados. Tente fazer login novamente.');
+                  }
+                } catch (error) {
+                  console.error('Erro na atualização manual:', error);
+                  alert('Erro ao atualizar dados.');
+                }
+              }}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+            >
+              🔄 Atualizar Dados
+            </button>
+          </div>
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
@@ -430,8 +482,13 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                           R$ {request.payment_amount.toFixed(2)}
                         </p>
                         <p className="text-slate-300 text-sm">
-                          {request.requested_quantity} números
+                          {request.assigned_numbers?.length || request.requested_quantity} números
                         </p>
+                        {request.assigned_numbers && request.assigned_numbers.length !== request.requested_quantity && (
+                          <p className="text-amber-400 text-xs">
+                            (solicitados: {request.requested_quantity})
+                          </p>
+                        )}
                       </div>
                     </div>
                     

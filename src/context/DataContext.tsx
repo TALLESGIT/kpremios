@@ -272,15 +272,21 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   // Listen for user data updates from real-time subscriptions
   useEffect(() => {
     const handleUserDataUpdate = (event: CustomEvent) => {
-      console.log('Atualizando dados do usuário via evento customizado:', event.detail);
+      console.log('DataContext: Evento userDataUpdated recebido:', event.detail);
       if (event.detail?.user) {
+        console.log('DataContext: Atualizando currentUser com:', event.detail.user);
         setCurrentUser(event.detail.user);
+        console.log('DataContext: currentUser atualizado com sucesso');
+      } else {
+        console.log('DataContext: Evento sem dados de usuário válidos');
       }
     };
 
+    console.log('DataContext: Registrando listener para userDataUpdated');
     window.addEventListener('userDataUpdated', handleUserDataUpdate as EventListener);
     
     return () => {
+      console.log('DataContext: Removendo listener userDataUpdated');
       window.removeEventListener('userDataUpdated', handleUserDataUpdate as EventListener);
     };
   }, []);
