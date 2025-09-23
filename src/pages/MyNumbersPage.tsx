@@ -353,13 +353,11 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                 Histórico de Solicitações
               </h3>
               
-              {/* Mostrar apenas a primeira entrada aprovada */}
-              {(() => {
-                const approvedRequest = requestsHistory.find(req => req.status === 'approved');
-                if (!approvedRequest) return null;
-
-                return (
-                  <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/10 border border-emerald-400/30 rounded-xl p-6 backdrop-blur-sm">
+              {/* Mostrar todas as solicitações aprovadas */}
+              {requestsHistory
+                .filter(req => req.status === 'approved')
+                .map((request, index) => (
+                  <div key={request.id} className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/10 border border-emerald-400/30 rounded-xl p-6 backdrop-blur-sm mb-4">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center space-x-3">
                         <CheckCircle className="h-6 w-6 text-emerald-400" />
@@ -368,7 +366,7 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                             Aprovada
                           </p>
                           <p className="text-slate-300 text-sm">
-                            {new Date(approvedRequest.created_at).toLocaleDateString('pt-BR', {
+                            {new Date(request.created_at).toLocaleDateString('pt-BR', {
                               day: '2-digit',
                               month: '2-digit',
                               year: 'numeric',
@@ -377,13 +375,13 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                             })}
                           </p>
                           {/* Informações do sorteio */}
-                          {approvedRequest.raffle && (
+                          {request.raffle && (
                             <div className="mt-2 p-2 bg-slate-700/30 rounded-lg">
                               <p className="text-amber-300 text-sm font-medium">
-                                Sorteio: {approvedRequest.raffle.title}
+                                Sorteio: {request.raffle.title}
                               </p>
                               <p className="text-slate-400 text-xs">
-                                Prêmio: {approvedRequest.raffle.prize}
+                                Prêmio: {request.raffle.prize}
                               </p>
                             </div>
                           )}
@@ -391,29 +389,29 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                       </div>
                       <div className="text-right">
                         <p className="text-white font-bold text-xl">
-                          R$ {approvedRequest.payment_amount.toFixed(2)}
+                          R$ {request.payment_amount.toFixed(2)}
                         </p>
                         <p className="text-slate-300 text-sm">
-                          {approvedRequest.requested_quantity} números
+                          {request.requested_quantity} números
                         </p>
                       </div>
                     </div>
                     
                     {/* Números atribuídos com scroll */}
-                    {approvedRequest.assigned_numbers && approvedRequest.assigned_numbers.length > 0 && (
+                    {request.assigned_numbers && request.assigned_numbers.length > 0 && (
                       <div className="mt-4">
                         <p className="text-emerald-300 text-sm font-medium mb-3">
-                          Números atribuídos ({approvedRequest.assigned_numbers.length} números):
+                          Números atribuídos ({request.assigned_numbers.length} números):
                         </p>
                         <div className="bg-slate-700/30 rounded-lg p-4">
-                          {/* Container com scroll */}
+                          {/* Container com scroll - apenas no desktop */}
                           <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-emerald-500 scrollbar-track-slate-600">
                             <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2">
-                              {approvedRequest.assigned_numbers
+                              {request.assigned_numbers
                                 .sort((a, b) => a - b)
-                                .map((num, index) => (
+                                .map((num, numIndex) => (
                                 <div
-                                  key={index}
+                                  key={numIndex}
                                   className="h-8 w-full bg-emerald-500 rounded-lg text-xs font-bold text-slate-900 flex items-center justify-center shadow-sm hover:bg-emerald-400 transition-colors duration-200"
                                 >
                                   {num}
@@ -422,11 +420,11 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                             </div>
                           </div>
                           
-                          {/* Indicador de scroll */}
-                          {approvedRequest.assigned_numbers.length > 50 && (
-                            <div className="mt-3 text-center">
+                          {/* Indicador de scroll - apenas no desktop */}
+                          {request.assigned_numbers.length > 50 && (
+                            <div className="mt-3 text-center hidden md:block">
                               <p className="text-slate-400 text-xs">
-                                📜 Role para ver todos os {approvedRequest.assigned_numbers.length} números
+                                📜 Role para ver todos os {request.assigned_numbers.length} números
                               </p>
                             </div>
                           )}
@@ -434,17 +432,7 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                       </div>
                     )}
                   </div>
-                );
-              })()}
-              
-              {/* Mostrar outras entradas se houver */}
-              {requestsHistory.length > 1 && (
-                <div className="mt-4 text-center">
-                  <p className="text-slate-400 text-sm">
-                    + {requestsHistory.length - 1} outras solicitações no histórico
-                  </p>
-                </div>
-              )}
+                ))}
             </div>
           )}
 
