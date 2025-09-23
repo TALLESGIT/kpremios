@@ -231,12 +231,86 @@ const FreeRafflesPage: React.FC = () => {
                  filter === 'upcoming' ? 'Nenhum sorteio em breve' :
                  'Nenhum sorteio finalizado'}
               </h3>
-              <p className="text-slate-400 text-base sm:text-lg px-4">
+              <p className="text-slate-400 text-base sm:text-lg px-4 mb-6">
                 {filter === 'all' ? 'Não há sorteios gratuitos no momento.' :
                  filter === 'active' ? 'Não há sorteios ativos no momento.' :
                  filter === 'upcoming' ? 'Não há sorteios programados.' :
                  'Não há sorteios finalizados.'}
               </p>
+              
+              {/* Seção de cadastro para notificações quando não há sorteios */}
+              {filter === 'all' && (
+                <div className="max-w-2xl mx-auto space-y-6">
+                  {/* Card de Cadastro */}
+                  <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 rounded-2xl p-6 border border-slate-600/30">
+                    <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+                      <Star className="h-6 w-6 text-white" />
+                    </div>
+                    <h4 className="text-lg font-bold text-white mb-2 text-center">Seja o primeiro a saber!</h4>
+                    <p className="text-slate-300 text-sm mb-4 text-center">
+                      Cadastre-se para receber notificações quando novos sorteios gratuitos estiverem disponíveis.
+                    </p>
+                    
+                    {!user ? (
+                      <div className="space-y-3">
+                        <Link
+                          to="/register"
+                          className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+                        >
+                          <Star className="h-4 w-4" />
+                          Criar Conta Gratuita
+                        </Link>
+                        <p className="text-xs text-slate-400 text-center">
+                          Já tem conta? <Link to="/login" className="text-amber-400 hover:text-amber-300 underline">Faça login</Link>
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="bg-emerald-500/10 border border-emerald-400/20 rounded-xl p-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
+                            <span className="text-emerald-300 text-sm font-medium">Você está logado!</span>
+                          </div>
+                          <p className="text-emerald-200 text-xs">
+                            Você receberá notificações automáticas quando novos sorteios estiverem disponíveis.
+                          </p>
+                        </div>
+                        <Link
+                          to="/dashboard"
+                          className="w-full bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white font-bold py-2 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+                        >
+                          <Users className="h-4 w-4" />
+                          Ver Dashboard
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card de Sorteios ao Vivo */}
+                  <div className="bg-gradient-to-br from-blue-800/20 to-purple-800/20 rounded-2xl p-6 border border-blue-600/30">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                        <Target className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold text-white">Sorteios ao Vivo</h4>
+                        <p className="text-blue-300 text-sm">Participe agora mesmo!</p>
+                      </div>
+                    </div>
+                    <p className="text-slate-300 text-sm mb-4">
+                      Enquanto não há sorteios gratuitos, você pode participar dos nossos sorteios ao vivo "Resta Um" e concorrer a prêmios incríveis!
+                    </p>
+                    <Link
+                      to="/live-raffle"
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+                    >
+                      <Target className="h-4 w-4" />
+                      Participar de Sorteios ao Vivo
+                    </Link>
+                  </div>
+                </div>
+              )}
+              
               {filter !== 'all' && (
                 <button
                   onClick={() => setFilter('all')}
