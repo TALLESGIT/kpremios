@@ -45,6 +45,38 @@
     }
   }
 
+  /* Estilos de scroll personalizados para desktop */
+  @media (min-width: 769px) {
+    .scrollbar-thin {
+      scrollbar-width: thin;
+    }
+
+    .scrollbar-thumb-emerald-500::-webkit-scrollbar-thumb {
+      background-color: rgb(16 185 129);
+      border-radius: 0.5rem;
+    }
+
+    .scrollbar-track-slate-600::-webkit-scrollbar-track {
+      background-color: rgb(71 85 105);
+      border-radius: 0.5rem;
+    }
+
+    .scrollbar-thin::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+      background-color: rgb(16 185 129);
+      border-radius: 0.5rem;
+    }
+
+    .scrollbar-thin::-webkit-scrollbar-track {
+      background-color: rgb(71 85 105);
+      border-radius: 0.5rem;
+    }
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold tracking-tight;
   }

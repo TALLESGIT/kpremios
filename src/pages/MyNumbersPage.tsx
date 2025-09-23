@@ -1,4 +1,4 @@
-import { Hash, Calendar, User, ArrowLeft, Zap, Trophy, TrendingUp, Plus, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Hash, Calendar, User, Zap, Trophy, TrendingUp, Plus, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Header from '../components/shared/Header';
@@ -105,13 +105,6 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500"></div>
           <div className="absolute bottom-0 right-0 w-1 h-full bg-gradient-to-b from-amber-500 via-amber-400 to-amber-500"></div>
           <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-            <Link
-              to="/"
-              className="inline-flex items-center text-amber-400 hover:text-amber-300 mb-6 sm:mb-8 transition-all duration-300 group text-sm sm:text-base"
-            >
-              <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2 group-hover:-translate-x-1 transition-transform duration-300" />
-              <span className="font-bold">Voltar ao início</span>
-            </Link>
             <div className="text-center">
               <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-2xl shadow-amber-500/25">
                 <Hash className="h-8 w-8 sm:h-10 sm:w-10 text-slate-900" />
@@ -260,66 +253,75 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
             </div>
           </div>
 
-          {/* Extra Numbers Section */}
-          {userExtraNumbers.length > 0 && (
-            <div className="bg-slate-800/50 rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 backdrop-blur-sm border border-slate-600/30">
-              <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-amber-100 mb-4 sm:mb-6">
-                Números Extras ({userExtraNumbers.length} números)
-              </h3>
-              
-              {/* Grid de Números - Todos juntos em ordem crescente */}
-              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 sm:gap-3">
-                {userExtraNumbers
-                  .sort((a, b) => a - b)
-                  .map((num, index) => (
-                  <div
-                    key={index}
-                    className="h-10 sm:h-12 lg:h-14 w-full bg-gradient-to-br from-amber-500 to-amber-600 border-2 border-amber-400 rounded-xl flex items-center justify-center text-xs sm:text-sm font-black text-slate-900 shadow-lg"
-                  >
-                    {num}
-                  </div>
-                ))}
-              </div>
-              
-              <p className="text-slate-400 text-xs sm:text-sm font-medium mt-4 text-center">
-                Total de {userExtraNumbers.length} números extras adicionais
-              </p>
-            </div>
-          )}
 
-          {/* Request Extra Numbers */}
+          {/* Request Extra Numbers - Card Melhorado */}
           {!currentRequest ? (
-            <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-3xl shadow-2xl p-8 text-white mb-8 relative overflow-hidden">
-              {/* Geometric accent */}
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-300 to-amber-400"></div>
-              <div className="absolute bottom-0 right-0 w-1 h-full bg-gradient-to-b from-amber-300 to-amber-400"></div>
-              
-              <div className="flex items-center justify-between relative z-10">
-                <div className="flex-1">
-                  <h3 className="text-3xl font-black mb-4 flex items-center">
-                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mr-4">
-                      <Zap className="h-6 w-6" />
-                    </div>
+            <div className="relative overflow-hidden bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 rounded-3xl shadow-2xl mb-8">
+              {/* Background Pattern */}
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute inset-0" style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23F59E0B' fill-opacity='0.3'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                }} />
+              </div>
+
+              {/* Content */}
+              <div className="relative z-10 p-6 sm:p-8 lg:p-10">
+                <div className="text-center mb-8">
+                  {/* Icon */}
+                  <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <Zap className="h-10 w-10 text-white" />
+                  </div>
+
+                  {/* Title */}
+                  <h3 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-4 leading-tight">
                     Aumente suas Chances!
                   </h3>
-                  <p className="text-amber-100 text-xl mb-6 leading-relaxed font-medium">
-                    Solicite números extras e multiplique suas chances de ganhar. 
-                    A partir de <span className="text-white font-black">R$ 10,00</span> você ganha <span className="text-white font-black">100 números aleatórios</span>!
+
+                  {/* Subtitle */}
+                  <p className="text-xl text-amber-100 font-semibold mb-6">
+                    Multiplique suas chances de ganhar prêmios incríveis!
                   </p>
-                  <ul className="text-amber-100 text-base space-y-2 mb-8 font-medium">
-                    <li>• Cada R$ 10,00 = 100 números extras</li>
-                    <li>• Números atribuídos automaticamente</li>
-                    <li>• Aprovação rápida pelo admin</li>
-                  </ul>
+
+                  {/* Description */}
+                  <p className="text-lg text-amber-50 mb-8 max-w-2xl mx-auto leading-relaxed">
+                    Solicite números extras e multiplique suas chances de ganhar. 
+                    A partir de <span className="text-white font-black text-xl">R$ 10,00</span> você ganha <span className="text-white font-black text-xl">100 números aleatórios</span>!
+                  </p>
+
+                  {/* Features */}
+                  <div className="grid md:grid-cols-3 gap-4 mb-8 max-w-4xl mx-auto">
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
+                      <div className="text-2xl mb-2">💰</div>
+                      <p className="text-white font-bold text-sm">Cada R$ 10,00 = 100 números extras</p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
+                      <div className="text-2xl mb-2">🎯</div>
+                      <p className="text-white font-bold text-sm">Números atribuídos automaticamente</p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
+                      <div className="text-2xl mb-2">⚡</div>
+                      <p className="text-white font-bold text-sm">Aprovação rápida pelo admin</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CTA Button */}
+                <div className="text-center">
+                  <button
+                    onClick={() => setShowExtraModal(true)}
+                    className="group inline-flex items-center px-8 py-4 bg-white text-amber-600 font-black text-lg rounded-2xl hover:bg-amber-50 transition-all duration-300 shadow-2xl hover:shadow-white/25 transform hover:-translate-y-1 hover:scale-105"
+                  >
+                    <Plus className="h-6 w-6 mr-3 group-hover:rotate-90 transition-transform duration-300" />
+                    Solicitar Números Extras
+                    <svg className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </button>
                 </div>
               </div>
-              <button
-                onClick={() => setShowExtraModal(true)}
-                className="w-full bg-white text-amber-600 font-black py-5 px-8 rounded-2xl hover:bg-amber-50 transition-all duration-300 shadow-2xl hover:shadow-amber-500/25 transform hover:-translate-y-1 hover:scale-105 flex items-center justify-center gap-3 relative z-10"
-              >
-                <Plus className="h-6 w-6" />
-                Solicitar Números Extras
-              </button>
+
+              {/* Bottom Accent */}
+              <div className="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-r from-amber-300 via-amber-400 to-amber-300"></div>
             </div>
           ) : (
             <div className="bg-slate-800/50 rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 border-l-4 border-amber-500 backdrop-blur-sm">
@@ -344,151 +346,105 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
             </div>
           )}
 
-          {/* Requests History */}
+          {/* Requests History - Simplificado */}
           {requestsHistory.length > 0 && (
             <div className="bg-slate-800/50 rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 backdrop-blur-sm border border-slate-600/30">
               <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-amber-100 mb-6 sm:mb-8">
                 Histórico de Solicitações
               </h3>
-              <div className="space-y-4">
-                {requestsHistory.map((request) => {
-                  const getStatusIcon = (status: string) => {
-                    switch (status) {
-                      case 'approved':
-                        return <CheckCircle className="h-5 w-5 text-emerald-400" />;
-                      case 'rejected':
-                        return <XCircle className="h-5 w-5 text-red-400" />;
-                      default:
-                        return <Clock className="h-5 w-5 text-amber-400" />;
-                    }
-                  };
+              
+              {/* Mostrar apenas a primeira entrada aprovada */}
+              {(() => {
+                const approvedRequest = requestsHistory.find(req => req.status === 'approved');
+                if (!approvedRequest) return null;
 
-                  const getStatusColor = (status: string) => {
-                    switch (status) {
-                      case 'approved':
-                        return 'from-emerald-500/10 to-emerald-600/10 border-emerald-400/30';
-                      case 'rejected':
-                        return 'from-red-500/10 to-red-600/10 border-red-400/30';
-                      default:
-                        return 'from-amber-500/10 to-amber-600/10 border-amber-400/30';
-                    }
-                  };
-
-                  const getStatusText = (status: string) => {
-                    switch (status) {
-                      case 'approved':
-                        return 'Aprovada';
-                      case 'rejected':
-                        return 'Rejeitada';
-                      default:
-                        return 'Pendente';
-                    }
-                  };
-
-                  // Função para organizar números em faixas de 100 (1-100, 101-200, etc.)
-                  const organizeNumbersInRanges = (numbers: number[]): { [key: string]: number[] } => {
-                    const ranges: { [key: string]: number[] } = {};
-                    
-                    numbers.forEach(num => {
-                      // Garantir que seja de 100 em 100: 1-100, 101-200, 201-300, etc.
-                      const rangeStart = Math.floor((num - 1) / 100) * 100 + 1;
-                      const rangeEnd = Math.min(rangeStart + 99, 1000); // Máximo 1000
-                      const rangeKey = `${rangeStart}-${rangeEnd}`;
-                      
-                      if (!ranges[rangeKey]) {
-                        ranges[rangeKey] = [];
-                      }
-                      ranges[rangeKey].push(num);
-                    });
-                    
-                    // Ordenar os números dentro de cada faixa
-                    Object.keys(ranges).forEach(key => {
-                      ranges[key].sort((a, b) => a - b);
-                    });
-                    
-                    return ranges;
-                  };
-
-                  return (
-                    <div
-                      key={request.id}
-                      className={`bg-gradient-to-br ${getStatusColor(request.status)} rounded-xl p-4 border backdrop-blur-sm`}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center space-x-3">
-                          {getStatusIcon(request.status)}
-                          <div>
-                            <p className="font-bold text-white text-lg">
-                              {getStatusText(request.status)}
-                            </p>
-                            <p className="text-slate-300 text-sm">
-                              {new Date(request.created_at).toLocaleDateString('pt-BR', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </p>
-                            {/* Informações do sorteio */}
-                            {request.raffle && (
-                              <div className="mt-2 p-2 bg-slate-700/30 rounded-lg">
-                                <p className="text-amber-300 text-sm font-medium">
-                                  Sorteio: {request.raffle.title}
-                                </p>
-                                <p className="text-slate-400 text-xs">
-                                  Prêmio: {request.raffle.prize}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-white font-bold text-lg">
-                            R$ {request.payment_amount.toFixed(2)}
+                return (
+                  <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/10 border border-emerald-400/30 rounded-xl p-6 backdrop-blur-sm">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <CheckCircle className="h-6 w-6 text-emerald-400" />
+                        <div>
+                          <p className="font-bold text-white text-xl">
+                            Aprovada
                           </p>
                           <p className="text-slate-300 text-sm">
-                            {request.requested_quantity} números
+                            {new Date(approvedRequest.created_at).toLocaleDateString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
                           </p>
+                          {/* Informações do sorteio */}
+                          {approvedRequest.raffle && (
+                            <div className="mt-2 p-2 bg-slate-700/30 rounded-lg">
+                              <p className="text-amber-300 text-sm font-medium">
+                                Sorteio: {approvedRequest.raffle.title}
+                              </p>
+                              <p className="text-slate-400 text-xs">
+                                Prêmio: {approvedRequest.raffle.prize}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      
-                      {request.status === 'approved' && request.assigned_numbers && request.assigned_numbers.length > 0 && (
-                        <div className="mt-4">
-                          <p className="text-emerald-300 text-sm font-medium mb-3">
-                            Números atribuídos ({request.assigned_numbers.length} números):
-                          </p>
-                          <div className="bg-slate-700/30 rounded-lg p-3">
-                            <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-1">
-                              {request.assigned_numbers
+                      <div className="text-right">
+                        <p className="text-white font-bold text-xl">
+                          R$ {approvedRequest.payment_amount.toFixed(2)}
+                        </p>
+                        <p className="text-slate-300 text-sm">
+                          {approvedRequest.requested_quantity} números
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* Números atribuídos com scroll */}
+                    {approvedRequest.assigned_numbers && approvedRequest.assigned_numbers.length > 0 && (
+                      <div className="mt-4">
+                        <p className="text-emerald-300 text-sm font-medium mb-3">
+                          Números atribuídos ({approvedRequest.assigned_numbers.length} números):
+                        </p>
+                        <div className="bg-slate-700/30 rounded-lg p-4">
+                          {/* Container com scroll */}
+                          <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-emerald-500 scrollbar-track-slate-600">
+                            <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2">
+                              {approvedRequest.assigned_numbers
                                 .sort((a, b) => a - b)
                                 .map((num, index) => (
                                 <div
                                   key={index}
-                                  className="h-6 w-full bg-emerald-500 rounded text-xs font-bold text-slate-900 flex items-center justify-center"
+                                  className="h-8 w-full bg-emerald-500 rounded-lg text-xs font-bold text-slate-900 flex items-center justify-center shadow-sm hover:bg-emerald-400 transition-colors duration-200"
                                 >
                                   {num}
                                 </div>
                               ))}
                             </div>
                           </div>
+                          
+                          {/* Indicador de scroll */}
+                          {approvedRequest.assigned_numbers.length > 50 && (
+                            <div className="mt-3 text-center">
+                              <p className="text-slate-400 text-xs">
+                                📜 Role para ver todos os {approvedRequest.assigned_numbers.length} números
+                              </p>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      
-                      {request.status === 'rejected' && (request as any).rejection_reason && (
-                        <div className="mt-4 p-3 bg-red-500/10 rounded-lg border border-red-400/20">
-                          <p className="text-red-300 text-sm font-medium mb-1">
-                            Motivo da rejeição:
-                          </p>
-                          <p className="text-red-200 text-sm">
-                            {(request as any).rejection_reason || 'Nenhum motivo fornecido'}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+              
+              {/* Mostrar outras entradas se houver */}
+              {requestsHistory.length > 1 && (
+                <div className="mt-4 text-center">
+                  <p className="text-slate-400 text-sm">
+                    + {requestsHistory.length - 1} outras solicitações no histórico
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
