@@ -1464,7 +1464,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       await sendWhatsAppNotification('extra_numbers_approved', {
         id: user.id,
         name: user.name,
-        whatsapp: user.phone // Using 'phone' field from database
+        whatsapp: user.whatsapp // Using correct 'whatsapp' field from database
       }, {
         numbers: requestData.assigned_numbers || [],
         amount: requestData.payment_amount

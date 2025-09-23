@@ -24,7 +24,7 @@ interface ExtraNumberRequest {
 }
 
 export default function AdminApprovalsPage() {
-  const { currentUser: currentAppUser } = useData();
+  const { currentUser: currentAppUser, notifyExtraNumbersApproved } = useData();
   const navigate = useNavigate();
   const [requests, setRequests] = useState<ExtraNumberRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -163,47 +163,40 @@ export default function AdminApprovalsPage() {
       // Calcular quantidade correta: 100 números por cada R$ 10,00
       const quantity = Math.floor(request.payment_amount / 10) * 100;
       
-      // Gerar números extras aleatórios (não sequenciais)
-      const extraNumbers = generateRandomNumbers(quantity);
+      // Usar a função assign_random_extra_numbers para atribuir números automaticamente
+      const { data: assignedNumbers, error: assignError } = await supabase
+        .rpc('assign_random_extra_numbers', {
+          request_id: request.id,
+          quantity: quantity
+        });
+
+      if (assignError) throw assignError;
       
-      // Atualizar status da solicitação
+      // Atualizar status da solicitação com os números atribuídos
       const { error: updateError } = await supabase
         .from('extra_number_requests')
         .update({
           status: 'approved',
           processed_at: new Date().toISOString(),
           processed_by: currentAppUser?.id,
-          extra_numbers: extraNumbers
+          assigned_numbers: assignedNumbers
         })
         .eq('id', requestId);
 
       if (updateError) throw updateError;
 
-      // Atualizar números no banco (marcar como indisponíveis)
-      const { error: numbersError } = await supabase
-        .from('numbers')
-        .update({
-          is_available: false,
-          selected_by: request.user_id,
-          assigned_at: new Date().toISOString()
-        })
-        .in('number', extraNumbers);
-
-      if (numbersError) throw numbersError;
-
-      // Atualizar campo extra_numbers do usuário usando função RPC
-      const { error: userError } = await supabase
-        .rpc('update_user_extra_numbers', {
-          user_id: request.user_id,
-          extra_numbers: extraNumbers
-        });
-
-      if (userError) throw userError;
-
       // Recarregar lista
       await loadRequests();
       setShowModal(false);
       setSelectedRequest(null);
+      
+      // Notificar o usuário sobre a aprovação
+      try {
+        await notifyExtraNumbersApproved(requestId);
+      } catch (notifyError) {
+
+        // Não falha a operação se a notificação falhar
+      }
       
       alert('Solicitação aprovada com sucesso!');
     } catch (error) {
