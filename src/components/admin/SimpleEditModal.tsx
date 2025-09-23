@@ -17,6 +17,7 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({ isOpen, onClose, game
     max_participants: 50
   });
   const [loading, setLoading] = useState(false);
+  const [maxInput, setMaxInput] = useState<string>('50');
 
   useEffect(() => {
     if (game) {
@@ -25,6 +26,7 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({ isOpen, onClose, game
         description: game.description || '',
         max_participants: game.max_participants || 50
       });
+      setMaxInput(String(game.max_participants || 50));
     }
   }, [game]);
 
@@ -107,21 +109,16 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({ isOpen, onClose, game
                 pattern="[0-9]*"
                 min="10"
                 max="1000"
-                value={formData.max_participants}
+                value={maxInput}
                 onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, ''); // Remove non-numeric characters
-                  const numValue = parseInt(value) || 50;
-                  if (numValue >= 10 && numValue <= 1000) {
-                    setFormData({...formData, max_participants: numValue});
-                  }
+                  const digits = e.target.value.replace(/\D/g, '');
+                  setMaxInput(digits);
                 }}
-                onBlur={(e) => {
-                  const value = parseInt(e.target.value) || 50;
-                  if (value < 10) {
-                    setFormData({...formData, max_participants: 10});
-                  } else if (value > 1000) {
-                    setFormData({...formData, max_participants: 1000});
-                  }
+                onBlur={() => {
+                  const parsed = parseInt(maxInput || '0');
+                  const clamped = isNaN(parsed) ? 50 : Math.max(10, Math.min(1000, parsed));
+                  setFormData({ ...formData, max_participants: clamped });
+                  setMaxInput(String(clamped));
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center text-lg font-semibold"
                 placeholder="50"
