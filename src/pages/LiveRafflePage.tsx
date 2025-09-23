@@ -545,7 +545,7 @@ const LiveRafflePage: React.FC = () => {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">
-                    {game.started_at ? 'Sorteio em andamento' : 'Escolha seu número da sorte (1-50)'}
+                    {game.started_at ? 'Sorteio em andamento' : `Escolha seu número da sorte (1-${game.max_participants || 50})`}
                   </h3>
                   {game.started_at && (
                     <p className="text-sm text-gray-600 mt-1">
@@ -574,7 +574,7 @@ const LiveRafflePage: React.FC = () => {
               </div>
               
               <div className="grid grid-cols-5 sm:grid-cols-10 gap-3 sm:gap-2 mb-6">
-                {Array.from({ length: 50 }, (_, i) => {
+                {Array.from({ length: game.max_participants || 50 }, (_, i) => {
                   const number = i + 1;
                   const participant = participants.find(p => p.lucky_number === number);
                   const isTaken = !!participant;
