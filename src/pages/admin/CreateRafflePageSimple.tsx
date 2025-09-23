@@ -228,12 +228,12 @@ const CreateRafflePageSimple: React.FC = () => {
       setFormData({
         title: '',
         prize: '',
+        prizeImage: '',
         startDate: '',
         endDate: '',
         description: '',
         maxParticipants: 1000,
-        notifyUsers: true,
-        prizeImage: ''
+        notifyUsers: true
       });
 
     } catch (err) {
