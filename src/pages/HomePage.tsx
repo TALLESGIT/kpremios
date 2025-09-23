@@ -140,39 +140,84 @@ function HomePage() {
           </>
         )}
 
-        {/* Mostrar mensagem quando não há sorteios ativos para usuários não logados */}
+        {/* Card de Sorteios Gratuitos quando não há sorteios ativos */}
         {!isLoggedIn && !hasActiveRaffle && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8 mb-8 text-center">
-            <div className="w-16 h-16 bg-gradient-to-r from-slate-500 to-slate-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-              <span className="text-white text-2xl">🎯</span>
+          <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl mx-2 sm:mx-4 lg:mx-8 mb-4 sm:mb-6 lg:mb-8 shadow-2xl">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 opacity-5">
+              <div className="absolute inset-0" style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23F59E0B' fill-opacity='0.3'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+              }} />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Nenhum sorteio ativo no momento</h2>
-            <p className="text-gray-600 mb-6">
-              Não há sorteios gratuitos disponíveis para participação no momento. Fique atento para novos sorteios em breve!
-            </p>
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <span className="text-amber-600">💡</span>
-                <span className="text-amber-800 font-medium">Dica:</span>
+
+            {/* Content */}
+            <div className="relative z-10 p-6 sm:p-8 lg:p-12">
+              <div className="max-w-4xl mx-auto text-center">
+                {/* Icon */}
+                <div className="w-20 h-20 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <span className="text-white text-3xl">🎁</span>
+                </div>
+
+                {/* Title */}
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-4 leading-tight">
+                  Sorteios Gratuitos
+                </h2>
+
+                {/* Subtitle */}
+                <p className="text-xl text-amber-200 font-semibold mb-6">
+                  Em breve, prêmios incríveis esperando por você!
+                </p>
+
+                {/* Description */}
+                <p className="text-lg text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed">
+                  Nossos sorteios gratuitos estão temporariamente pausados para manutenção. 
+                  Fique atento às nossas redes sociais para ser o primeiro a saber quando voltarem!
+                </p>
+
+                {/* Status Card */}
+                <div className="bg-slate-800/60 backdrop-blur-sm rounded-2xl p-6 border border-slate-600/30 mb-8 max-w-md mx-auto">
+                  <div className="flex items-center justify-center gap-3 mb-3">
+                    <div className="w-3 h-3 bg-amber-500 rounded-full animate-pulse"></div>
+                    <span className="text-amber-200 font-bold text-lg">Status dos Sorteios</span>
+                  </div>
+                  <p className="text-slate-300 text-sm">
+                    Temporariamente indisponíveis para melhorias no sistema
+                  </p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Link
+                    to="/live-raffle"
+                    className="group inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all duration-300 shadow-2xl hover:shadow-blue-500/25 transform hover:-translate-y-1 hover:scale-105"
+                  >
+                    <span className="text-lg">🎮 Participar de Sorteios ao Vivo</span>
+                    <svg className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="group inline-flex items-center px-8 py-4 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold rounded-xl hover:from-amber-600 hover:to-amber-700 transition-all duration-300 shadow-2xl hover:shadow-amber-500/25 transform hover:-translate-y-1 hover:scale-105"
+                  >
+                    <span className="text-lg">📝 Criar Conta Gratuita</span>
+                    <svg className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </Link>
+                </div>
+
+                {/* Bottom Info */}
+                <div className="mt-8 pt-6 border-t border-slate-700/50">
+                  <p className="text-slate-400 text-sm">
+                    💡 <strong className="text-amber-300">Dica:</strong> Cadastre-se agora e seja notificado automaticamente quando os sorteios voltarem!
+                  </p>
+                </div>
               </div>
-              <p className="text-amber-700 text-sm">
-                Acesse o dashboard para ver suas estatísticas e atividades recentes!
-              </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                to="/live-raffle"
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
-              >
-                🎮 Participar de Sorteios ao Vivo
-              </Link>
-              <Link
-                to="/register"
-                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
-              >
-                📝 Criar Conta Gratuita
-              </Link>
-            </div>
+
+            {/* Bottom Accent */}
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500"></div>
           </div>
         )}
         
