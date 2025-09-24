@@ -57,6 +57,8 @@ export default function AdminApprovalsPage() {
   useEffect(() => {
     if (!currentAppUser?.is_admin) return;
 
+    console.log('AdminApprovalsPage - Configurando subscription em tempo real para solicitações...');
+
     const subscription = supabase
       .channel('admin-requests-changes')
       .on('postgres_changes', { 
@@ -64,12 +66,19 @@ export default function AdminApprovalsPage() {
         schema: 'public', 
         table: 'extra_number_requests' 
       }, (payload) => {
-
+        console.log('AdminApprovalsPage - Mudança detectada na tabela extra_number_requests:', payload);
+        console.log('AdminApprovalsPage - Evento:', payload.eventType);
+        console.log('AdminApprovalsPage - Dados:', payload.new || payload.old);
+        
+        // Recarregar solicitações para todos os admins
         loadRequests();
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('AdminApprovalsPage - Status da subscription:', status);
+      });
 
     return () => {
+      console.log('AdminApprovalsPage - Desconectando subscription...');
       subscription.unsubscribe();
     };
   }, [currentAppUser?.is_admin]);

@@ -31,6 +31,7 @@ export default function AdminDashboardPage() {
   const [showResetNumbersConfirm, setShowResetNumbersConfirm] = useState(false);
   const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
   const [showFinishedRafflesCleanup, setShowFinishedRafflesCleanup] = useState(false);
+  const [realtimeNotification, setRealtimeNotification] = useState<{message: string, type: 'success' | 'info' | 'warning'} | null>(null);
   const [showWhatsAppTest, setShowWhatsAppTest] = useState(false);
   const [showWhatsAppBusinessTest, setShowWhatsAppBusinessTest] = useState(false);
   const [showQuickTest, setShowQuickTest] = useState(false);
@@ -170,26 +171,58 @@ export default function AdminDashboardPage() {
 
   // Real-time subscription for dashboard updates
   useEffect(() => {
+    console.log('AdminDashboardPage - Configurando subscriptions em tempo real...');
+
     const subscription = supabase
       .channel('dashboard-pending-updates')
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
         table: 'extra_number_requests' 
-      }, async () => {
-
+      }, async (payload) => {
+        console.log('AdminDashboardPage - Mudança detectada em extra_number_requests:', payload);
+        console.log('AdminDashboardPage - Evento:', payload.eventType);
+        
         try {
           const count = await getPendingRequestsCount();
           setPendingCount(count);
+          console.log('AdminDashboardPage - Contador de solicitações atualizado:', count);
+          
+          // Mostrar notificação de mudança em tempo real
+          if (payload.eventType === 'UPDATE') {
+            const newData = payload.new as any;
+            if (newData?.status === 'approved') {
+              setRealtimeNotification({
+                message: `✅ Solicitação aprovada por outro admin!`,
+                type: 'success'
+              });
+            } else if (newData?.status === 'rejected') {
+              setRealtimeNotification({
+                message: `❌ Solicitação rejeitada por outro admin!`,
+                type: 'warning'
+              });
+            }
+          } else if (payload.eventType === 'INSERT') {
+            setRealtimeNotification({
+              message: `📝 Nova solicitação de números extras!`,
+              type: 'info'
+            });
+          }
+          
+          // Remover notificação após 5 segundos
+          setTimeout(() => setRealtimeNotification(null), 5000);
         } catch (error) {
-
+          console.error('AdminDashboardPage - Erro ao atualizar contador de solicitações:', error);
         }
       })
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
         table: 'numbers' 
-      }, async () => {
+      }, async (payload) => {
+        console.log('AdminDashboardPage - Mudança detectada em numbers:', payload);
+        console.log('AdminDashboardPage - Evento:', payload.eventType);
+        
         try {
           const [availableCount, takenCount] = await Promise.all([
             getAvailableNumbersCount(),
@@ -197,29 +230,43 @@ export default function AdminDashboardPage() {
           ]);
           setAvailableNumbersCount(availableCount);
           setTakenNumbersCount(takenCount);
+          console.log('AdminDashboardPage - Contadores de números atualizados:', { availableCount, takenCount });
         } catch (error) {
-          console.error('Erro ao atualizar números:', error);
+          console.error('AdminDashboardPage - Erro ao atualizar contadores de números:', error);
         }
       })
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
         table: 'raffles' 
-      }, async () => {
+      }, async (payload) => {
+        console.log('AdminDashboardPage - Mudança detectada em raffles:', payload);
+        console.log('AdminDashboardPage - Evento:', payload.eventType);
+        
         try {
-          const [availableCount, takenCount] = await Promise.all([
-            getAvailableNumbersCount(),
-            getTakenNumbersCount()
-          ]);
-          setAvailableNumbersCount(availableCount);
-          setTakenNumbersCount(takenCount);
+          // Recarregar total de números do sorteio ativo
+          const { data: activeRaffle } = await supabase
+            .from('raffles')
+            .select('total_numbers')
+            .eq('is_active', true)
+            .eq('status', 'active')
+            .limit(1)
+            .single();
+          
+          if (activeRaffle) {
+            setTotalRaffleNumbers(activeRaffle.total_numbers);
+            console.log('AdminDashboardPage - Total de números do sorteio atualizado:', activeRaffle.total_numbers);
+          }
         } catch (error) {
-          console.error('Erro ao atualizar números:', error);
+          console.error('AdminDashboardPage - Erro ao atualizar total de números do sorteio:', error);
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('AdminDashboardPage - Status das subscriptions:', status);
+      });
 
     return () => {
+      console.log('AdminDashboardPage - Desconectando subscriptions...');
       subscription.unsubscribe();
     };
   }, [getPendingRequestsCount, getAvailableNumbersCount, getTakenNumbersCount]);
@@ -560,6 +607,36 @@ export default function AdminDashboardPage() {
   return (
     <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-8">
       <Header />
+      
+      {/* Notificação em tempo real */}
+      {realtimeNotification && (
+        <div className="fixed top-20 right-4 z-50 animate-slide-in-right">
+          <div className={`px-6 py-4 rounded-lg shadow-lg border-l-4 ${
+            realtimeNotification.type === 'success' 
+              ? 'bg-green-900/90 border-green-400 text-green-100' 
+              : realtimeNotification.type === 'warning'
+              ? 'bg-yellow-900/90 border-yellow-400 text-yellow-100'
+              : 'bg-blue-900/90 border-blue-400 text-blue-100'
+          }`}>
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
+                {realtimeNotification.type === 'success' ? (
+                  <CheckCircle className="h-5 w-5 text-green-400" />
+                ) : realtimeNotification.type === 'warning' ? (
+                  <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                ) : (
+                  <MessageSquare className="h-5 w-5 text-blue-400" />
+                )}
+              </div>
+              <div>
+                <p className="font-medium">{realtimeNotification.message}</p>
+                <p className="text-sm opacity-75">Atualização em tempo real</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <main className="flex-grow bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         {/* Modern Header */}
         <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 py-6 sm:py-8 lg:py-12 relative overflow-hidden">
