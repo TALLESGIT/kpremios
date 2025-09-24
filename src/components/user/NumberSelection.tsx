@@ -19,12 +19,14 @@ function NumberSelection({ onSelectNumber, selectedNumber }: NumberSelectionProp
   const [hoveredNumber, setHoveredNumber] = useState<number | null>(null);
   const [hasActiveRaffle, setHasActiveRaffle] = useState<boolean>(false);
   const [loadingActiveRaffle, setLoadingActiveRaffle] = useState(true);
+  const [activeRaffle, setActiveRaffle] = useState<any>(null);
   const numbersPerPage = 100;
 
-  // Create ranges for pagination
+  // Create ranges for pagination based on active raffle
   const numberRanges: Array<{ start: number; end: number; label: string }> = [];
-  for (let i = 1; i <= 1000; i += numbersPerPage) {
-    const end = Math.min(i + numbersPerPage - 1, 1000);
+  const maxNumbers = activeRaffle?.total_numbers || 1000;
+  for (let i = 1; i <= maxNumbers; i += numbersPerPage) {
+    const end = Math.min(i + numbersPerPage - 1, maxNumbers);
     numberRanges.push({ start: i, end, label: `${i}-${end}` });
   }
 
@@ -59,20 +61,23 @@ function NumberSelection({ onSelectNumber, selectedNumber }: NumberSelectionProp
 
       const { data, error } = await supabase
         .from('raffles')
-        .select('id')
+        .select('id, total_numbers, title, prize')
         .eq('is_active', true)
         .limit(1);
 
       if (error) {
 
         setHasActiveRaffle(false);
+        setActiveRaffle(null);
       } else {
 
         setHasActiveRaffle(data && data.length > 0);
+        setActiveRaffle(data && data.length > 0 ? data[0] : null);
       }
     } catch (error) {
 
       setHasActiveRaffle(false);
+      setActiveRaffle(null);
     } finally {
       setLoadingActiveRaffle(false);
     }
@@ -85,9 +90,18 @@ function NumberSelection({ onSelectNumber, selectedNumber }: NumberSelectionProp
     const rangeStart = numberRanges[currentRange]?.start || 1;
     const rangeEnd = numberRanges[currentRange]?.end || 100;
     
+    console.log('NumberSelection - Filtrando números:', {
+      totalNumbers: numbers.length,
+      rangeStart,
+      rangeEnd,
+      maxNumberInDB: Math.max(...numbers.map(n => n.number))
+    });
+    
     const filtered = numbers.filter(num => 
       num.number >= rangeStart && num.number <= rangeEnd
     );
+    
+    console.log('NumberSelection - Números filtrados:', filtered.length);
     
     setFilteredNumbers(filtered);
   }, [numbers, currentRange]);
@@ -236,7 +250,7 @@ function NumberSelection({ onSelectNumber, selectedNumber }: NumberSelectionProp
             Escolha seu número da sorte
           </h2>
           <p className="max-w-2xl mx-auto text-base sm:text-lg lg:text-xl text-slate-300 font-medium leading-relaxed px-2 sm:px-0">
-            Selecione um número disponível entre <span className="text-amber-400 font-bold">1 e 1000</span>. 
+            Selecione um número disponível entre <span className="text-amber-400 font-bold">1 e {maxNumbers}</span>. 
             Você tem direito a <span className="text-amber-400 font-bold">1 número gratuito</span>!
           </p>
         </div>

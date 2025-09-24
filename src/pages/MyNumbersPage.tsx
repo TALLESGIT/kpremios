@@ -24,8 +24,9 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
 
   // Create ranges for pagination (igual à HomePage)
   const numberRanges: Array<{ start: number; end: number; label: string }> = [];
-  for (let i = 1; i <= 1000; i += 100) {
-    const end = Math.min(i + 99, 1000);
+  const maxNumbers = 1000; // Default fallback
+  for (let i = 1; i <= maxNumbers; i += 100) {
+    const end = Math.min(i + 99, maxNumbers);
     numberRanges.push({ start: i, end, label: `${i}-${end}` });
   }
 

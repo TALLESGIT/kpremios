@@ -22,7 +22,7 @@ interface Raffle {
 }
 
 export default function AdminRafflesPage() {
-  const { currentUser: currentAppUser } = useData();
+  const { currentUser: currentAppUser, loadNumbers } = useData();
   const navigate = useNavigate();
   const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,32 +183,48 @@ export default function AdminRafflesPage() {
           .eq('id', editingRaffle.id);
 
         if (error) throw error;
-      } else {
-        // Resetar todos os números antes de criar o sorteio
 
+        // Se o sorteio está ativo e o total_numbers foi alterado, recarregar números
+        if (editingRaffle.is_active && editingRaffle.total_numbers !== formData.total_numbers) {
+          console.log(`AdminRafflesPage - Total de números alterado de ${editingRaffle.total_numbers} para ${formData.total_numbers}, recarregando números...`);
+          
+          // Se o total_numbers foi reduzido, limpar números órfãos
+          if (formData.total_numbers < editingRaffle.total_numbers) {
+            console.log(`AdminRafflesPage - Aviso: Total de números reduzido de ${editingRaffle.total_numbers} para ${formData.total_numbers}`);
+            console.log(`AdminRafflesPage - Limpando números órfãos de ${formData.total_numbers + 1} a ${editingRaffle.total_numbers}...`);
+            
+            try {
+              const { error: cleanupError } = await supabase
+                .rpc('cleanup_orphaned_numbers_by_range', { max_number: formData.total_numbers });
+              
+              if (cleanupError) {
+                console.warn('Erro ao limpar números órfãos:', cleanupError);
+              } else {
+                console.log('AdminRafflesPage - Números órfãos limpos com sucesso');
+              }
+            } catch (cleanupError) {
+              console.warn('Erro ao limpar números órfãos:', cleanupError);
+            }
+          }
+          
+          // Recarregar números no DataContext
+          try {
+            // Aguardar um pouco para garantir que as mudanças sejam propagadas
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await loadNumbers();
+            console.log('AdminRafflesPage - Números recarregados com sucesso');
+          } catch (reloadError) {
+            console.warn('Erro ao recarregar números:', reloadError);
+            // Continuar mesmo com erro
+          }
+        }
+      } else {
+        // Resetar sistema usando função RPC otimizada
         const { error: resetError } = await supabase
-          .from('numbers')
-          .update({
-            is_available: true,
-            selected_by: null,
-            is_free: false,
-            assigned_at: null
-          })
-          .neq('number', 0);
+          .rpc('reset_system_safe');
         
         if (resetError) {
-
-          throw new Error('Erro ao resetar números');
-        }
-
-        // Resetar dados dos usuários usando função SQL
-
-        const { error: userResetError } = await supabase
-          .rpc('reset_users_data');
-        
-        if (userResetError) {
-
-          throw new Error('Erro ao resetar dados dos usuários');
+          throw new Error('Erro ao resetar sistema');
         }
 
         // Limpar solicitações de números extras pendentes e aprovadas
@@ -252,58 +268,40 @@ export default function AdminRafflesPage() {
     if (!confirm('Tem certeza que deseja excluir este sorteio?\n\n⚠️ ATENÇÃO: Esta ação irá excluir:\n- O sorteio\n- Todos os números selecionados\n- Todas as solicitações de números extras\n- Todos os resultados de sorteio relacionados\n\nEsta ação não pode ser desfeita!')) return;
 
     try {
-      // 1. Excluir resultados de sorteio relacionados
-      const { error: drawResultsError } = await supabase
-        .from('draw_results')
-        .delete()
-        .eq('winner_id', raffleId); // Assumindo que há relação
+      console.log('AdminRafflesPage - Iniciando exclusão do sorteio:', raffleId);
+      
+      // Usar função RPC específica para excluir dados do sorteio
+      const { data: result, error } = await supabase
+        .rpc('delete_specific_raffle_data', {
+          raffle_id_to_delete: raffleId
+        });
 
-      if (drawResultsError) {
-        console.warn('Erro ao excluir resultados de sorteio:', drawResultsError);
+      console.log('AdminRafflesPage - Resultado da exclusão:', { result, error });
+
+      if (error) {
+        console.error('Erro ao excluir sorteio:', error);
+        throw new Error(`Erro na chamada RPC: ${error.message}`);
       }
 
-      // 2. Excluir solicitações de números extras relacionadas ao sorteio (pendentes e aprovadas)
-      const { error: requestsError } = await supabase
-        .from('extra_number_requests')
-        .delete()
-        .in('status', ['pending', 'approved']); // Excluir todas as pendentes e aprovadas
-
-      if (requestsError) {
-        console.warn('Erro ao excluir solicitações:', requestsError);
+      if (!result) {
+        console.error('Nenhum resultado retornado pela função');
+        throw new Error('Nenhum resultado retornado pela função de exclusão');
       }
 
-      // 3. Resetar números relacionados ao sorteio
-      const { error: numbersError } = await supabase
-        .from('numbers')
-        .update({
-          is_available: true,
-          selected_by: null,
-          is_free: false,
-          assigned_at: null
-        })
-        .neq('number', 0);
-
-      if (numbersError) {
-        console.warn('Erro ao resetar números:', numbersError);
+      if (!result.success) {
+        console.error('Erro na função de exclusão:', result.message);
+        throw new Error(result.message);
       }
 
-      // 4. Resetar dados dos usuários relacionados usando função SQL
-      const { error: usersError } = await supabase
-        .rpc('reset_users_data');
+      console.log('AdminRafflesPage - Exclusão realizada com sucesso:', result);
 
-      if (usersError) {
-        console.warn('Erro ao resetar dados dos usuários:', usersError);
-      }
-
-      // 5. Finalmente, excluir o sorteio
-      const { error } = await supabase
-        .from('raffles')
-        .delete()
-        .eq('id', raffleId);
-
-      if (error) throw error;
-
+      // Recarregar números para refletir as mudanças
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await loadNumbers();
+      
+      // Recarregar lista de sorteios
       await loadRaffles();
+      
       alert('Sorteio e todos os dados relacionados foram excluídos com sucesso!');
     } catch (error) {
       console.error('Erro ao excluir sorteio:', error);

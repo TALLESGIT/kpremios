@@ -38,7 +38,7 @@ class VonageWhatsAppService {
     
     // Usar proxy local se estiver em desenvolvimento
     if (import.meta.env.DEV) {
-      this.baseUrl = 'http://localhost:3001/api/vonage/messages';
+      this.baseUrl = ''; // Vonage service desabilitado
     }
     
     this.validateCredentials();
@@ -142,89 +142,24 @@ class VonageWhatsAppService {
    * Envia mensagem real via Vonage
    */
   private async sendRealMessage(data: VonageMessage): Promise<VonageResponse> {
-    try {
-      // Formatar número corretamente (remover whatsapp: se existir)
-      const toNumber = data.to.replace('whatsapp:', '').replace('+', '');
-      
-      const payload = {
-        to: toNumber,
-        message: data.message,
-        type: 'text'
-      };
-
-      // Usar o backend proxy em vez da API direta
-      const backendUrl = 'http://localhost:3001/api/vonage/send-message';
-      const response = await fetch(backendUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-
-        throw new Error(`Vonage API error: ${response.status} - ${errorText}`);
-      }
-
-      const result: VonageResponse = await response.json();
-
-      return result;
-
-    } catch (error) {
-
-      // Em caso de erro, ainda simular para não quebrar o fluxo
-
-      return this.simulateMessage(data);
-    }
+    // Vonage service desabilitado
+    console.log('Vonage service desabilitado - mensagem não enviada:', data);
+    return {
+      success: false,
+      error: 'Vonage service desabilitado'
+    };
   }
 
   /**
    * Envia imagem real via Vonage
    */
   private async sendRealImage(data: { to: string; imageUrl: string; caption?: string }): Promise<VonageResponse> {
-    try {
-      // Formatar número corretamente (remover whatsapp: se existir)
-      const toNumber = data.to.replace('whatsapp:', '').replace('+', '');
-      
-      const payload = {
-        to: toNumber,
-        imageUrl: data.imageUrl,
-        caption: data.caption || '',
-        type: 'image'
-      };
-
-      // Usar o backend proxy em vez da API direta
-      const backendUrl = 'http://localhost:3001/api/vonage/send-image';
-      const response = await fetch(backendUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-
-        throw new Error(`Vonage API error: ${response.status} - ${errorText}`);
-      }
-
-      const result: VonageResponse = await response.json();
-
-      return result;
-
-    } catch (error) {
-
-      // Em caso de erro, ainda simular para não quebrar o fluxo
-      return this.simulateMessage({
-        to: data.to,
-        message: data.caption || 'Imagem enviada',
-        type: 'image',
-        imageUrl: data.imageUrl
-      });
-    }
+    // Vonage service desabilitado
+    console.log('Vonage service desabilitado - imagem não enviada:', data);
+    return {
+      success: false,
+      error: 'Vonage service desabilitado'
+    };
   }
 
   /**

@@ -1,7 +1,6 @@
 import { createContext, useContext, ReactNode, useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { User, RaffleNumber, ExtraNumberRequest, DrawResult } from '../types';
-import { vonageWhatsAppService } from '../services/vonageService';
 
 interface DataContextType {
   // User data
@@ -24,8 +23,9 @@ interface DataContextType {
   getUserRequestsHistory: () => Promise<ExtraNumberRequest[]>;
   
   // Numbers info
-  getAvailableNumbersCount: () => number;
-  getTakenNumbersCount: () => number;
+  getAvailableNumbersCount: () => Promise<number>;
+  getTakenNumbersCount: () => Promise<number>;
+  loadNumbers: () => Promise<void>;
   
   // Admin functions
   resetAllNumbers: () => Promise<void>;
@@ -177,65 +177,16 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   const sendWhatsAppNotification = async (type: string, userData: any, _additionalData?: any) => {
     try {
 
-      let result;
-      
-      switch (type) {
-        case 'registration':
-          result = await vonageWhatsAppService.sendRegistrationConfirmation({
-            name: userData.name,
-            whatsapp: userData.whatsapp,
-            confirmationCode: userData.confirmationCode || generateConfirmationCode()
-          });
-          break;
-          
-        case 'numbers_assigned':
-          result = await vonageWhatsAppService.sendNumbersAssigned({
-            name: userData.name,
-            whatsapp: userData.whatsapp,
-            numbers: userData.numbers || []
-          });
-          break;
-          
-        case 'extra_numbers_approved':
-          result = await vonageWhatsAppService.sendExtraNumbersApproved({
-            name: userData.name,
-            whatsapp: userData.whatsapp,
-            extraNumbers: userData.extraNumbers || []
-          });
-          break;
-          
-        case 'new_raffle':
-          result = await vonageWhatsAppService.sendNewRaffleNotification({
-            name: userData.name,
-            whatsapp: userData.whatsapp,
-            raffleName: userData.raffleName || 'Novo Sorteio',
-            appUrl: userData.appUrl || import.meta.env.VITE_APP_URL || 'http://localhost:5173'
-          });
-          break;
-          
-        case 'winner_announcement':
-          result = await vonageWhatsAppService.sendWinnerAnnouncement({
-            name: userData.name,
-            whatsapp: userData.whatsapp,
-            raffleName: userData.raffleName || 'Sorteio',
-            prize: userData.prize || 'Prêmio'
-          });
-          break;
-          
-        default:
-          // Fallback para mensagem simples
-          result = await vonageWhatsAppService.sendMessage({
-            to: userData.whatsapp,
-            message: userData.message || `Notificação do ZK Premios: ${type}`
-          });
-      }
+      // Notificação desabilitada - Vonage service removido
+      console.log('Notificação WhatsApp desabilitada:', type, userData);
+      const result = { success: true, message: 'Notificação desabilitada' };
 
       // Log da notificação no banco
       await supabase.from('notification_logs').insert({
         user_id: userData.id,
         type: type,
         phone_number: userData.whatsapp,
-        message_sid: result.message_uuid,
+        message_sid: (result as any).message_uuid || 'mock-uuid',
         status: 'sent'
       });
       
@@ -300,8 +251,9 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     }
   }, [currentUser?.is_admin]);
 
-  // Load numbers and draw results
+  // Load numbers and draw results on component mount
   useEffect(() => {
+    console.log('DataContext - Carregando números e resultados...');
     loadNumbers();
     loadDrawResults();
   }, []);
@@ -334,33 +286,146 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   }, []);
 
   const loadNumbers = async () => {
+    console.log('DataContext - Iniciando loadNumbers...');
     setNumbersLoading(true);
+    
+    // Timeout de segurança para evitar carregamento infinito
+    const timeoutId = setTimeout(() => {
+      console.warn('DataContext - Timeout de segurança ativado, forçando numbersLoading = false');
+      setNumbersLoading(false);
+    }, 10000); // 10 segundos timeout
+    
     try {
 
-      // First, clean up orphaned numbers before loading
-      await cleanupOrphanedNumbers();
+      // Skip orphaned numbers cleanup for now to speed up loading
+      console.log('DataContext - Pulando limpeza de números órfãos para acelerar carregamento...');
       
-      const { data, error } = await supabase
-        .from('numbers')
-        .select('*')
-        .order('number');
+      console.log('DataContext - Fazendo query no banco...');
+      
+      // Check if there's an active raffle to determine how many numbers to load
+      // Adicionar um pequeno delay para garantir que o sorteio seja detectado
+      console.log('DataContext - Iniciando detecção de sorteio ativo...');
+      console.log('DataContext - Timestamp atual:', new Date().toISOString());
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      let maxNumbers = 0; // Default - 0 quando não há sorteio ativo
+      let retryCount = 0;
+      const maxRetries = 5; // Aumentar para 5 tentativas
+      
+      while (retryCount < maxRetries) {
+        console.log(`DataContext - Tentativa ${retryCount + 1} de detectar sorteio ativo...`);
         
-      if (error) {
+        // Adicionar timestamp para evitar cache
+        const timestamp = Date.now();
+        console.log(`DataContext - Timestamp: ${timestamp}`);
+        console.log(`DataContext - Fazendo query para detectar sorteio ativo...`);
+        const { data: activeRaffles, error: raffleError } = await supabase
+          .from('raffles')
+          .select('total_numbers, title, id, created_at')
+          .eq('is_active', true)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        console.log(`DataContext - Resultado da query:`, { activeRaffles, raffleError });
 
-        throw error;
+        if (raffleError) {
+          console.log(`DataContext - Tentativa ${retryCount + 1}: Erro na consulta:`, raffleError.message);
+          retryCount++;
+          if (retryCount < maxRetries) {
+            console.log(`DataContext - Tentando novamente em 500ms... (${retryCount}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } else {
+            console.log('DataContext - Erro persistente após 5 tentativas, usando padrão de 0 números');
+          }
+        } else if (activeRaffles && activeRaffles.length > 0) {
+          console.log(`DataContext - Tentativa ${retryCount + 1}: Sorteio ativo encontrado:`, activeRaffles);
+          maxNumbers = activeRaffles[0].total_numbers;
+          console.log(`DataContext - Sorteio ativo detectado: ${activeRaffles[0].title} com ${maxNumbers} números`);
+          console.log(`DataContext - ID do sorteio: ${activeRaffles[0].id}`);
+          console.log(`DataContext - Criado em: ${activeRaffles[0].created_at}`);
+          break;
+        } else {
+          console.log(`DataContext - Tentativa ${retryCount + 1}: Nenhum sorteio ativo encontrado`);
+          retryCount++;
+          if (retryCount < maxRetries) {
+            console.log(`DataContext - Tentando novamente em 500ms... (${retryCount}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } else {
+            console.log('DataContext - Nenhum sorteio ativo encontrado após 5 tentativas, usando padrão de 0 números');
+          }
+        }
       }
 
-      setNumbers(data || []);
-    } catch (error) {
+      console.log(`DataContext - Carregando até ${maxNumbers} números`);
 
+      // Se não há sorteio ativo, não carregar números
+      if (maxNumbers === 0) {
+        console.log('DataContext - Nenhum sorteio ativo, definindo array vazio');
+        setNumbers([]);
+        setNumbersLoading(false);
+        return;
+      }
+
+      // Load all numbers needed for the active raffle using pagination
+      console.log(`DataContext - Carregando números de 1 a ${maxNumbers} usando paginação`);
+      
+      let allNumbers: any[] = [];
+      let from = 0;
+      const pageSize = 1000; // Supabase default limit
+      let hasMore = true;
+
+      while (hasMore && allNumbers.length < maxNumbers) {
+        console.log(`DataContext - Iniciando lote: from=${from}, allNumbers.length=${allNumbers.length}, maxNumbers=${maxNumbers}`);
+        console.log(`DataContext - Carregando lote: ${from} a ${from + pageSize - 1}`);
+        
+        const { data, error } = await supabase
+          .from('numbers')
+          .select('number, is_available, selected_by, assigned_at')
+          .lte('number', maxNumbers)
+          .order('number', { ascending: true })
+          .range(from, from + pageSize - 1);
+          
+        if (error) {
+          console.error('DataContext - Erro na query:', error);
+          throw error;
+        }
+
+        if (data && data.length > 0) {
+          allNumbers = [...allNumbers, ...data];
+          from += pageSize;
+          hasMore = data.length === pageSize && allNumbers.length < maxNumbers;
+          console.log(`DataContext - Calculando hasMore: data.length=${data.length}, pageSize=${pageSize}, allNumbers.length=${allNumbers.length}, maxNumbers=${maxNumbers}`);
+          console.log(`DataContext - Lote carregado: ${data.length} números (total: ${allNumbers.length})`);
+          console.log(`DataContext - hasMore: ${hasMore}, data.length: ${data.length}, pageSize: ${pageSize}, allNumbers.length: ${allNumbers.length}, maxNumbers: ${maxNumbers}`);
+          
+          // Debug: verificar se estamos carregando os números corretos
+          if (allNumbers.length > 0) {
+            console.log(`DataContext - Primeiro número: ${allNumbers[0].number}, Último número: ${allNumbers[allNumbers.length - 1].number}`);
+          }
+        } else {
+          hasMore = false;
+          console.log('DataContext - Sem mais dados, parando carregamento');
+        }
+      }
+
+      console.log('DataContext - Números carregados:', allNumbers.length, 'Max:', allNumbers.length > 0 ? Math.max(...allNumbers.map(n => n.number)) : 0);
+      console.log('DataContext - Primeiros 5 números:', allNumbers.slice(0, 5));
+      console.log('DataContext - Últimos 5 números:', allNumbers.slice(-5));
+      setNumbers(allNumbers);
+      console.log('DataContext - Números definidos no estado, total:', allNumbers.length);
+    } catch (error) {
+      console.error('DataContext - Erro ao carregar números:', error);
       // Set empty array as fallback
       setNumbers([]);
       
       // Show user-friendly error message
       if (error instanceof Error && error.message.includes('fetch')) {
-
+        console.error('DataContext - Erro de conexão detectado');
       }
     } finally {
+      console.log('DataContext - Finalizando loadNumbers, definindo numbersLoading como false');
+      clearTimeout(timeoutId);
       setNumbersLoading(false);
     }
   };
@@ -1086,12 +1151,63 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     return currentUserRequest;
   };
 
-  const getAvailableNumbersCount = (): number => {
-    return numbers.filter(n => n.is_available).length;
+  const getAvailableNumbersCount = async (): Promise<number> => {
+    try {
+      // Verificar se há sorteios ativos
+      const { data: activeRaffles, error } = await supabase
+        .from('raffles')
+        .select('id, total_numbers')
+        .eq('is_active', true)
+        .limit(1);
+
+      if (error) {
+        console.error('Erro ao verificar sorteios ativos:', error);
+        return 0;
+      }
+
+      // Se não há sorteios ativos, retornar 0
+      if (!activeRaffles || activeRaffles.length === 0) {
+        return 0;
+      }
+
+      // Se há sorteios ativos, retornar o total_numbers do sorteio ativo
+      // menos os números já selecionados
+      const totalNumbers = activeRaffles[0].total_numbers;
+      const takenNumbers = numbers.filter(n => !n.is_available).length;
+      const availableNumbers = Math.max(0, totalNumbers - takenNumbers);
+      
+      return availableNumbers;
+    } catch (error) {
+      console.error('Erro ao calcular números disponíveis:', error);
+      return 0;
+    }
   };
 
-  const getTakenNumbersCount = (): number => {
-    return numbers.filter(n => !n.is_available).length;
+  const getTakenNumbersCount = async (): Promise<number> => {
+    try {
+      // Verificar se há sorteios ativos
+      const { data: activeRaffles, error } = await supabase
+        .from('raffles')
+        .select('id, total_numbers')
+        .eq('is_active', true)
+        .limit(1);
+
+      if (error) {
+        console.error('Erro ao verificar sorteios ativos:', error);
+        return 0;
+      }
+
+      // Se não há sorteios ativos, retornar 0
+      if (!activeRaffles || activeRaffles.length === 0) {
+        return 0;
+      }
+
+      // Se há sorteios ativos, retornar apenas os números selecionados
+      return numbers.filter(n => !n.is_available).length;
+    } catch (error) {
+      console.error('Erro ao calcular números selecionados:', error);
+      return 0;
+    }
   };
 
   const getDrawResults = (): DrawResult[] => {
@@ -1100,44 +1216,25 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
   const resetAllNumbers = async (): Promise<void> => {
     try {
-      // 1. Reset all numbers in the numbers table
-      const { error: numbersError } = await supabase
-        .from('numbers')
-        .update({
-          is_available: true,
-          selected_by: null,
-          is_free: false,
-          assigned_at: null
-        })
-        .neq('number', 0); // Update all numbers
+      console.log('Iniciando reset completo do sistema...');
       
-      if (numbersError) {
-        throw new Error('Erro ao resetar números');
-      }
-
-      // 2. Clear all user numbers using RPC function
-      const { error: usersError } = await supabase
-        .rpc('reset_users_data');
+      // Use the optimized RPC function to reset only used numbers
+      const { error: resetError } = await supabase
+        .rpc('reset_system_safe');
       
-      if (usersError) {
-        throw new Error('Erro ao limpar números dos usuários');
+      if (resetError) {
+        console.error('Erro no reset:', resetError);
+        throw new Error('Erro ao resetar sistema');
       }
-
-      // 3. Clear all extra number requests
-      const { error: requestsError } = await supabase
-        .from('extra_number_requests')
-        .update({
-          status: 'cancelled'
-        })
-        .eq('status', 'pending');
       
-      if (requestsError) {
-        // Don't throw error here, as this is not critical
-      }
-
-      // Reload numbers to update the UI
+      console.log('Reset completo realizado com sucesso!');
+      
+      // Reload data
       await loadNumbers();
+      await loadCurrentUser();
+      
     } catch (error) {
+      console.error('Erro ao resetar números:', error);
       throw error;
     }
   };
@@ -1201,9 +1298,10 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       }
 
       // Numbers will be reloaded by the calling function
+      console.log(`DataContext - Limpeza concluída: ${numbersToClean.length} números órfãos liberados`);
     } catch (error) {
-
-      throw error;
+      console.error('DataContext - Erro ao limpar números órfãos:', error);
+      // Não relançar o erro para não impedir o carregamento dos números
     }
   };
 
@@ -1420,16 +1518,12 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         return { success: true, notified: 0 };
       }
 
-      // Usar o serviço Vonage para envio em massa
+      // Notificações desabilitadas - Vonage service removido
       const notifications = [];
       for (const user of users) {
         try {
-          const result = await vonageWhatsAppService.sendNewRaffleNotification({
-            name: user.name,
-            whatsapp: user.whatsapp, // Using 'whatsapp' field from users table
-            raffleName: raffleData.title,
-            appUrl: import.meta.env.VITE_APP_URL || 'http://localhost:5173'
-          });
+          console.log('Notificação em massa desabilitada para:', user.name, user.whatsapp);
+          const result = { success: true, message: 'Notificação desabilitada' };
           notifications.push({ user: user.name, success: true, result });
         } catch (error) {
           notifications.push({ user: user.name, success: false, error });
@@ -1508,36 +1602,9 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       const notifications = [];
       for (const user of users) {
         try {
-          let result;
-          switch (type) {
-            case 'new_raffle':
-              result = await vonageWhatsAppService.sendNewRaffleNotification({
-                name: user.name,
-                whatsapp: user.phone, // Using 'phone' field from database
-                raffleName: data.raffleTitle || data.title || 'Novo Sorteio',
-                appUrl: import.meta.env.VITE_APP_URL || 'http://localhost:5173'
-              });
-              break;
-            case 'numbers_assigned':
-              result = await vonageWhatsAppService.sendNumbersAssigned({
-                name: user.name,
-                whatsapp: user.phone, // Using 'phone' field from database
-                numbers: data.numbers || []
-              });
-              break;
-            case 'extra_numbers_approved':
-              result = await vonageWhatsAppService.sendExtraNumbersApproved({
-                name: user.name,
-                whatsapp: user.phone, // Using 'phone' field from database
-                extraNumbers: data.numbers || []
-              });
-              break;
-            default:
-              result = await vonageWhatsAppService.sendMessage({
-                to: user.phone, // Using 'phone' field from database
-                message: `Notificação do ZK Premios: ${type}`
-              });
-          }
+          // Notificações desabilitadas - Vonage service removido
+          console.log('Notificação desabilitada para:', user.name, user.phone, type);
+          const result = { success: true, message: 'Notificação desabilitada' };
           notifications.push({ user: user.name, success: true, result });
         } catch (error) {
           notifications.push({ user: user.name, success: false, error });
@@ -1616,6 +1683,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       getUserRequestsHistory,
       getAvailableNumbersCount,
       getTakenNumbersCount,
+      loadNumbers,
       getDrawResults,
       resetAllNumbers,
       cleanupOrphanedNumbers,

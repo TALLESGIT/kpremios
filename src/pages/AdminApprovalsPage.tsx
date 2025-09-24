@@ -163,9 +163,10 @@ export default function AdminApprovalsPage() {
       // Calcular quantidade correta: 100 números por cada R$ 10,00
       const quantity = Math.floor(request.payment_amount / 10) * 100;
       
-      // Usar a função assign_random_extra_numbers para atribuir números automaticamente
+      // Usar a função assign_random_extra_numbers_with_raffle_limit para atribuir números automaticamente
+      // Esta função considera o total_numbers do sorteio ativo
       const { data: assignedNumbers, error: assignError } = await supabase
-        .rpc('assign_random_extra_numbers', {
+        .rpc('assign_random_extra_numbers_with_raffle_limit', {
           request_id: request.id,
           quantity: quantity
         });

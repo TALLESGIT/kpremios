@@ -8,11 +8,8 @@ import Footer from '../components/shared/Footer';
 import { LogOut, Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, TrendingUp, Award, Settings, CheckCircle, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { WhatsAppTestPanel } from '../components/admin/WhatsAppTestPanel';
-import SandboxTest from '../components/admin/SandboxTest';
 import QuickTest from '../components/admin/QuickTest';
 import WhatsAppMonitoringPanelSimple from '../components/admin/WhatsAppMonitoringPanelSimple';
-import WhatsAppBulkNotificationPanelSimple from '../components/admin/WhatsAppBulkNotificationPanelSimple';
-import VonageTestPanel from '../components/admin/VonageTestPanel';
 import WhatsAppBusinessTestPanel from '../components/admin/WhatsAppBusinessTestPanel';
 import LiveRaffleControlPage from './admin/LiveRaffleControlPage';
 import UserManagementPanel from '../components/admin/UserManagementPanel';
@@ -34,15 +31,14 @@ export default function AdminDashboardPage() {
   const [showResetNumbersConfirm, setShowResetNumbersConfirm] = useState(false);
   const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
   const [showWhatsAppTest, setShowWhatsAppTest] = useState(false);
-  const [showVonageTest, setShowVonageTest] = useState(false);
   const [showWhatsAppBusinessTest, setShowWhatsAppBusinessTest] = useState(false);
-  const [showSandboxTest, setShowSandboxTest] = useState(false);
   const [showQuickTest, setShowQuickTest] = useState(false);
   const [showWhatsAppMonitoring, setShowWhatsAppMonitoring] = useState(false);
-  const [showWhatsAppBulk, setShowWhatsAppBulk] = useState(false);
   const [showLiveRaffleControl, setShowLiveRaffleControl] = useState(false);
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [availableNumbersCount, setAvailableNumbersCount] = useState(0);
+  const [takenNumbersCount, setTakenNumbersCount] = useState(0);
   const [showDrawAnimation, setShowDrawAnimation] = useState(false);
   const [showDrawResult, setShowDrawResult] = useState(false);
   const [winnerData, setWinnerData] = useState<any>(null);
@@ -63,6 +59,36 @@ export default function AdminDashboardPage() {
     loadPendingCount();
   }, [getPendingRequestsCount]);
 
+  // Load available numbers count
+  useEffect(() => {
+    const loadAvailableNumbersCount = async () => {
+      try {
+        const count = await getAvailableNumbersCount();
+        setAvailableNumbersCount(count);
+      } catch (error) {
+        console.error('Erro ao carregar números disponíveis:', error);
+        setAvailableNumbersCount(0);
+      }
+    };
+
+    loadAvailableNumbersCount();
+  }, [getAvailableNumbersCount]);
+
+  // Load taken numbers count
+  useEffect(() => {
+    const loadTakenNumbersCount = async () => {
+      try {
+        const count = await takenNumbersCount;
+        setTakenNumbersCount(count);
+      } catch (error) {
+        console.error('Erro ao carregar números selecionados:', error);
+        setTakenNumbersCount(0);
+      }
+    };
+
+    loadTakenNumbersCount();
+  }, [getTakenNumbersCount]);
+
   // Real-time subscription for dashboard updates
   useEffect(() => {
     const subscription = supabase
@@ -80,12 +106,44 @@ export default function AdminDashboardPage() {
 
         }
       })
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'numbers' 
+      }, async () => {
+        try {
+          const [availableCount, takenCount] = await Promise.all([
+            getAvailableNumbersCount(),
+            takenNumbersCount
+          ]);
+          setAvailableNumbersCount(availableCount);
+          setTakenNumbersCount(takenCount);
+        } catch (error) {
+          console.error('Erro ao atualizar números:', error);
+        }
+      })
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'raffles' 
+      }, async () => {
+        try {
+          const [availableCount, takenCount] = await Promise.all([
+            getAvailableNumbersCount(),
+            takenNumbersCount
+          ]);
+          setAvailableNumbersCount(availableCount);
+          setTakenNumbersCount(takenCount);
+        } catch (error) {
+          console.error('Erro ao atualizar números:', error);
+        }
+      })
       .subscribe();
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [getPendingRequestsCount]);
+  }, [getPendingRequestsCount, getAvailableNumbersCount, getTakenNumbersCount]);
 
   const handleLogout = async () => {
     await signOut();
@@ -376,7 +434,7 @@ export default function AdminDashboardPage() {
                         Total de Participantes
                       </dt>
                       <dd className="text-xl sm:text-2xl lg:text-3xl font-black text-white">
-                        {getTakenNumbersCount()}
+                        {takenNumbersCount}
                       </dd>
                     </dl>
                   </div>
@@ -404,7 +462,7 @@ export default function AdminDashboardPage() {
                         Números Disponíveis
                       </dt>
                       <dd className="text-xl sm:text-2xl lg:text-3xl font-black text-white">
-                        {getAvailableNumbersCount()}
+                        {availableNumbersCount}
                       </dd>
                     </dl>
                   </div>
@@ -413,7 +471,7 @@ export default function AdminDashboardPage() {
                   <div className="w-full bg-slate-700 rounded-full h-3">
                     <div 
                       className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-3 rounded-full shadow-lg" 
-                      style={{ width: `${(getAvailableNumbersCount() / 1000) * 100}%` }}
+                      style={{ width: `${availableNumbersCount > 0 ? (availableNumbersCount / 1000) * 100 : 0}%` }}
                     ></div>
                   </div>
                 </div>
@@ -434,7 +492,7 @@ export default function AdminDashboardPage() {
                         Números Selecionados
                       </dt>
                       <dd className="text-xl sm:text-2xl lg:text-3xl font-black text-white">
-                        {getTakenNumbersCount()}
+                        {takenNumbersCount}
                       </dd>
                     </dl>
                   </div>
@@ -443,7 +501,7 @@ export default function AdminDashboardPage() {
                   <div className="w-full bg-slate-700 rounded-full h-3">
                     <div 
                       className="bg-gradient-to-r from-amber-500 to-amber-600 h-3 rounded-full shadow-lg" 
-                      style={{ width: `${(getTakenNumbersCount() / 1000) * 100}%` }}
+                      style={{ width: `${(takenNumbersCount / 1000) * 100}%` }}
                     ></div>
                   </div>
                 </div>
@@ -464,7 +522,7 @@ export default function AdminDashboardPage() {
                         Taxa de Conversão
                       </dt>
                       <dd className="text-xl sm:text-2xl lg:text-3xl font-black text-white">
-                        {getTakenNumbersCount() > 0 ? ((getTakenNumbersCount() / 1000) * 100).toFixed(1) : '0'}%
+                        {takenNumbersCount > 0 ? ((takenNumbersCount / 1000) * 100).toFixed(1) : '0'}%
                       </dd>
                     </dl>
                   </div>
@@ -605,7 +663,7 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xl sm:text-2xl font-black text-amber-400">{getTakenNumbersCount()}</div>
+                    <div className="text-xl sm:text-2xl font-black text-amber-400">{takenNumbersCount}</div>
                     <div className="text-xs text-amber-300 font-medium">participantes</div>
                   </div>
                 </div>
@@ -621,9 +679,9 @@ export default function AdminDashboardPage() {
                 {/* Status Badge */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center">
-                    <div className={`w-3 h-3 rounded-full mr-3 ${getTakenNumbersCount() > 0 ? 'bg-emerald-500' : 'bg-slate-500'}`}></div>
+                    <div className={`w-3 h-3 rounded-full mr-3 ${takenNumbersCount > 0 ? 'bg-emerald-500' : 'bg-slate-500'}`}></div>
                     <span className="text-sm font-bold text-slate-300">
-                      {getTakenNumbersCount() > 0 ? 'Pronto para sorteio' : 'Aguardando participantes'}
+                      {takenNumbersCount > 0 ? 'Pronto para sorteio' : 'Aguardando participantes'}
                     </span>
                   </div>
                   <div className="bg-gradient-to-r from-amber-500/20 to-amber-600/20 border border-amber-400/30 rounded-lg px-3 py-1">
@@ -633,9 +691,9 @@ export default function AdminDashboardPage() {
 
                 <button
                   onClick={() => setShowDrawConfirm(true)}
-                  disabled={getTakenNumbersCount() === 0}
+                  disabled={takenNumbersCount === 0}
                   className={`w-full py-4 px-6 rounded-2xl font-black transition-all duration-300 flex items-center justify-center gap-3 group ${
-                    getTakenNumbersCount() > 0
+                    takenNumbersCount > 0
                       ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700 shadow-2xl hover:shadow-amber-500/25 transform hover:-translate-y-1 hover:scale-105'
                       : 'bg-slate-700 text-slate-500 cursor-not-allowed'
                   }`}
@@ -709,7 +767,7 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xl sm:text-2xl font-black text-blue-400">{getTakenNumbersCount()}</div>
+                    <div className="text-xl sm:text-2xl font-black text-blue-400">{takenNumbersCount}</div>
                     <div className="text-xs text-blue-300 font-medium">serão liberados</div>
                   </div>
                 </div>
@@ -858,7 +916,7 @@ export default function AdminDashboardPage() {
                         Confirmar Sorteio
                       </h3>
                       <p className="text-slate-600 leading-relaxed">
-                        O sistema selecionará aleatoriamente um número entre os {getTakenNumbersCount()} números 
+                        O sistema selecionará aleatoriamente um número entre os {takenNumbersCount} números 
                         participantes e definirá o ganhador automaticamente.
                       </p>
                       <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
@@ -1044,7 +1102,7 @@ export default function AdminDashboardPage() {
                       <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
                         <div className="flex items-center text-blue-800 text-sm">
                           <Hash className="h-4 w-4 mr-2" />
-                          <span>Esta ação liberará {getTakenNumbersCount()} números selecionados</span>
+                          <span>Esta ação liberará {takenNumbersCount} números selecionados</span>
                         </div>
                       </div>
                     </div>
@@ -1124,27 +1182,6 @@ export default function AdminDashboardPage() {
             <WhatsAppTestPanel onClose={() => setShowWhatsAppTest(false)} />
           )}
 
-          {showVonageTest && (
-            <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">
-              <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div className="fixed inset-0 transition-opacity">
-                  <div className="absolute inset-0 bg-black/60"></div>
-                </div>
-                <div className="inline-block align-bottom bg-white rounded-2xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-gray-900">🚀 Teste Vonage WhatsApp</h3>
-                    <button
-                      onClick={() => setShowVonageTest(false)}
-                      className="text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <VonageTestPanel />
-                </div>
-              </div>
-            </div>
-          )}
 
           {showQuickTest && (
             <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">
@@ -1168,27 +1205,6 @@ export default function AdminDashboardPage() {
             </div>
           )}
 
-          {showSandboxTest && (
-            <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">
-              <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div className="fixed inset-0 transition-opacity">
-                  <div className="absolute inset-0 bg-black/60"></div>
-                </div>
-                <div className="inline-block align-bottom bg-slate-800 rounded-2xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-slate-600/30">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-white">🧪 Teste do Sandbox</h3>
-                    <button
-                      onClick={() => setShowSandboxTest(false)}
-                      className="text-slate-400 hover:text-white transition-colors"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <SandboxTest />
-                </div>
-              </div>
-            </div>
-          )}
 
           {showWhatsAppMonitoring && (
             <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">
@@ -1212,27 +1228,6 @@ export default function AdminDashboardPage() {
             </div>
           )}
 
-          {showWhatsAppBulk && (
-            <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">
-              <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div className="fixed inset-0 transition-opacity">
-                  <div className="absolute inset-0 bg-black/60"></div>
-                </div>
-                <div className="inline-block align-bottom bg-white rounded-2xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-gray-900">📢 Notificações em Massa</h3>
-                    <button
-                      onClick={() => setShowWhatsAppBulk(false)}
-                      className="text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <WhatsAppBulkNotificationPanelSimple />
-                </div>
-              </div>
-            </div>
-          )}
 
           {showLiveRaffleControl && (
             <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">

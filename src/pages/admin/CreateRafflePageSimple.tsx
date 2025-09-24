@@ -16,7 +16,7 @@ import {
 
 const CreateRafflePageSimple: React.FC = () => {
   const navigate = useNavigate();
-  const { notifyAllUsersAboutNewRaffle } = useData();
+  const { notifyAllUsersAboutNewRaffle, loadNumbers } = useData();
   
   const [formData, setFormData] = useState({
     title: '',
@@ -135,26 +135,12 @@ const CreateRafflePageSimple: React.FC = () => {
         imageUrl = publicUrl;
       }
 
-      // Resetar todos os números antes de criar o sorteio
+      // Resetar sistema usando função RPC otimizada
       const { error: resetError } = await supabase
-        .from('numbers')
-        .update({
-          is_available: true,
-          selected_by: null,
-          is_free: false,
-          assigned_at: null
-        })
-        .neq('number', 0);
+        .rpc('reset_system_safe');
       
       if (resetError) {
-        throw new Error('Erro ao resetar números');
-      }
-      // Resetar dados dos usuários usando função SQL
-      const { error: userResetError } = await supabase
-        .rpc('reset_users_data');
-      
-      if (userResetError) {
-        throw new Error('Erro ao resetar dados dos usuários');
+        throw new Error('Erro ao resetar sistema');
       }
       // Limpar solicitações de números extras pendentes e aprovadas
       const { error: requestsResetError } = await supabase
@@ -178,10 +164,13 @@ const CreateRafflePageSimple: React.FC = () => {
         start_date: new Date(formData.startDate).toISOString(),
         end_date: new Date(formData.endDate).toISOString(),
         is_active: true,
+        status: 'active', // Adicionar status ativo
         prize_image: imageUrl,
         created_at: new Date().toISOString()
       };
 
+      console.log('CreateRafflePageSimple - Criando sorteio com dados:', raffleData);
+      
       const { data: raffle, error: raffleError } = await supabase
         .from('raffles')
         .insert([raffleData])
@@ -189,8 +178,11 @@ const CreateRafflePageSimple: React.FC = () => {
         .single();
 
       if (raffleError) {
+        console.error('CreateRafflePageSimple - Erro ao criar sorteio:', raffleError);
         throw new Error('Erro ao criar sorteio');
       }
+
+      console.log('CreateRafflePageSimple - Sorteio criado com sucesso:', raffle);
       // Se notificação está habilitada, enviar para todos os usuários
       if (formData.notifyUsers) {
         const notificationResult = await notifyAllUsersAboutNewRaffle({
@@ -222,6 +214,26 @@ const CreateRafflePageSimple: React.FC = () => {
           notified: 0,
           total: 0
         });
+      }
+
+      // Recarregar números para refletir o novo sorteio
+      try {
+        console.log('CreateRafflePageSimple - Aguardando propagação do sorteio...');
+        // Aguardar mais tempo para garantir que o sorteio seja propagado
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log('CreateRafflePageSimple - Iniciando recarregamento dos números...');
+        await loadNumbers();
+        console.log('CreateRafflePageSimple - Números recarregados após criação do sorteio');
+        
+        // Segunda tentativa após mais tempo para garantir detecção
+        console.log('CreateRafflePageSimple - Aguardando mais tempo para segunda tentativa...');
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        console.log('CreateRafflePageSimple - Segunda tentativa de recarregamento...');
+        await loadNumbers();
+        console.log('CreateRafflePageSimple - Segunda tentativa concluída');
+      } catch (reloadError) {
+        console.warn('Erro ao recarregar números:', reloadError);
+        // Continuar mesmo com erro
       }
 
       // Limpar formulário após sucesso

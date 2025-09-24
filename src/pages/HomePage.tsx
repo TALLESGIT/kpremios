@@ -13,7 +13,7 @@ import { supabase } from '../lib/supabase';
 function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { currentUser, selectFreeNumber } = useData();
+  const { currentUser, selectFreeNumber, numbers, loadNumbers } = useData();
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successNumber, setSuccessNumber] = useState<number | null>(null);
@@ -135,6 +135,56 @@ function HomePage() {
         {/* Mostrar formulário de cadastro apenas se o usuário não estiver logado E houver sorteios ativos */}
         {!isLoggedIn && hasActiveRaffle && (
           <>
+            {/* Debug button - temporary */}
+            <div className="text-center mb-4 space-x-2">
+              <button
+                onClick={() => {
+                  console.log('Debug - Números atuais:', numbers.length, 'Max:', Math.max(...numbers.map(n => n.number)));
+                  loadNumbers();
+                }}
+                className="bg-red-500 text-white px-4 py-2 rounded text-sm"
+              >
+                Debug: Reload Números ({numbers.length} números, max: {Math.max(...numbers.map(n => n.number))})
+              </button>
+              <button
+                onClick={async () => {
+                  console.log('Debug - Testando query direta...');
+                  const { data, error } = await supabase
+                    .from('numbers')
+                    .select('number')
+                    .gte('number', 2700)
+                    .lte('number', 2800)
+                    .limit(10);
+                  console.log('Debug - Query direta resultado:', data, error);
+                }}
+                className="bg-blue-500 text-white px-4 py-2 rounded text-sm"
+              >
+                Test Query 2700-2800
+              </button>
+              <button
+                onClick={async () => {
+                  console.log('Debug - Testando query completa...');
+                  const { data, error } = await supabase
+                    .from('numbers')
+                    .select('number')
+                    .order('number')
+                    .limit(10000);
+                  console.log('Debug - Query completa resultado:', data?.length, 'Max:', Math.max(...(data || []).map(n => n.number)));
+                }}
+                className="bg-purple-500 text-white px-4 py-2 rounded text-sm"
+              >
+                Test Full Query
+              </button>
+              <button
+                onClick={() => {
+                  console.log('Debug - Forçando reload da página...');
+                  window.location.reload();
+                }}
+                className="bg-green-500 text-white px-4 py-2 rounded text-sm"
+              >
+                Force Page Reload
+              </button>
+            </div>
             <NumberSelection onSelectNumber={handleNumberSelection} selectedNumber={selectedNumber} />
             <RegistrationForm selectedNumber={selectedNumber} onSuccess={handleRegistrationSuccess} />
           </>
