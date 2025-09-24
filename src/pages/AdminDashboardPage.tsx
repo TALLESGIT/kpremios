@@ -5,7 +5,7 @@ import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import { LogOut, Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, TrendingUp, Award, Settings, CheckCircle, MessageSquare } from 'lucide-react';
+import { LogOut, Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, TrendingUp, Award, Settings, CheckCircle, MessageSquare, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { WhatsAppTestPanel } from '../components/admin/WhatsAppTestPanel';
 import QuickTest from '../components/admin/QuickTest';
