@@ -1153,59 +1153,94 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
   const getAvailableNumbersCount = async (): Promise<number> => {
     try {
+      console.log('DataContext - Calculando números disponíveis...');
+      
       // Verificar se há sorteios ativos
-      const { data: activeRaffles, error } = await supabase
+      const { data: activeRaffles, error: raffleError } = await supabase
         .from('raffles')
-        .select('id, total_numbers')
+        .select('total_numbers, status')
         .eq('is_active', true)
+        .eq('status', 'active')
         .limit(1);
 
-      if (error) {
-        console.error('Erro ao verificar sorteios ativos:', error);
+      if (raffleError) {
+        console.error('DataContext - Erro ao verificar sorteios ativos:', raffleError);
         return 0;
       }
 
       // Se não há sorteios ativos, retornar 0
       if (!activeRaffles || activeRaffles.length === 0) {
+        console.log('DataContext - Nenhum sorteio ativo encontrado, retornando 0');
         return 0;
       }
 
-      // Se há sorteios ativos, retornar o total_numbers do sorteio ativo
-      // menos os números já selecionados
-      const totalNumbers = activeRaffles[0].total_numbers;
-      const takenNumbers = numbers.filter(n => !n.is_available).length;
-      const availableNumbers = Math.max(0, totalNumbers - takenNumbers);
+      const activeRaffle = activeRaffles[0];
+      console.log('DataContext - Sorteio ativo encontrado:', activeRaffle);
+
+      // Consultar diretamente no banco quantos números estão selecionados usando COUNT
+      const { count: takenCount, error: numbersError } = await supabase
+        .from('numbers')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_available', false)
+        .not('selected_by', 'is', null)
+        .lte('number', activeRaffle.total_numbers);
+
+      if (numbersError) {
+        console.error('DataContext - Erro ao consultar números selecionados:', numbersError);
+        return 0;
+      }
+      const availableCount = Math.max(0, activeRaffle.total_numbers - takenCount);
       
-      return availableNumbers;
+      console.log(`DataContext - Números disponíveis: ${availableCount} (Total: ${activeRaffle.total_numbers}, Selecionados: ${takenCount})`);
+      return availableCount;
     } catch (error) {
-      console.error('Erro ao calcular números disponíveis:', error);
+      console.error('DataContext - Erro ao calcular números disponíveis:', error);
       return 0;
     }
   };
 
   const getTakenNumbersCount = async (): Promise<number> => {
     try {
+      console.log('DataContext - Calculando números selecionados...');
+      
       // Verificar se há sorteios ativos
-      const { data: activeRaffles, error } = await supabase
+      const { data: activeRaffles, error: raffleError } = await supabase
         .from('raffles')
-        .select('id, total_numbers')
+        .select('id, total_numbers, status')
         .eq('is_active', true)
+        .eq('status', 'active')
         .limit(1);
 
-      if (error) {
-        console.error('Erro ao verificar sorteios ativos:', error);
+      if (raffleError) {
+        console.error('DataContext - Erro ao verificar sorteios ativos:', raffleError);
         return 0;
       }
 
       // Se não há sorteios ativos, retornar 0
       if (!activeRaffles || activeRaffles.length === 0) {
+        console.log('DataContext - Nenhum sorteio ativo encontrado, retornando 0');
         return 0;
       }
 
-      // Se há sorteios ativos, retornar apenas os números selecionados
-      return numbers.filter(n => !n.is_available).length;
+      const activeRaffle = activeRaffles[0];
+      console.log('DataContext - Sorteio ativo encontrado:', activeRaffle);
+
+      // Consultar diretamente no banco quantos números estão selecionados usando COUNT
+      const { count, error: numbersError } = await supabase
+        .from('numbers')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_available', false)
+        .not('selected_by', 'is', null)
+        .lte('number', activeRaffle.total_numbers);
+
+      if (numbersError) {
+        console.error('DataContext - Erro ao consultar números selecionados:', numbersError);
+        return 0;
+      }
+      console.log(`DataContext - Números selecionados encontrados: ${count}`);
+      return count;
     } catch (error) {
-      console.error('Erro ao calcular números selecionados:', error);
+      console.error('DataContext - Erro ao calcular números selecionados:', error);
       return 0;
     }
   };

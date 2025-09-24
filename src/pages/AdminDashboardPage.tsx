@@ -30,6 +30,7 @@ export default function AdminDashboardPage() {
   const [showDrawConfirm, setShowDrawConfirm] = useState(false);
   const [showResetNumbersConfirm, setShowResetNumbersConfirm] = useState(false);
   const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
+  const [showFinishedRafflesCleanup, setShowFinishedRafflesCleanup] = useState(false);
   const [showWhatsAppTest, setShowWhatsAppTest] = useState(false);
   const [showWhatsAppBusinessTest, setShowWhatsAppBusinessTest] = useState(false);
   const [showQuickTest, setShowQuickTest] = useState(false);
@@ -39,6 +40,7 @@ export default function AdminDashboardPage() {
   const [pendingCount, setPendingCount] = useState(0);
   const [availableNumbersCount, setAvailableNumbersCount] = useState(0);
   const [takenNumbersCount, setTakenNumbersCount] = useState(0);
+  const [totalRaffleNumbers, setTotalRaffleNumbers] = useState(5000);
   const [showDrawAnimation, setShowDrawAnimation] = useState(false);
   const [showDrawResult, setShowDrawResult] = useState(false);
   const [winnerData, setWinnerData] = useState<any>(null);
@@ -78,7 +80,7 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     const loadTakenNumbersCount = async () => {
       try {
-        const count = await takenNumbersCount;
+        const count = await getTakenNumbersCount();
         setTakenNumbersCount(count);
       } catch (error) {
         console.error('Erro ao carregar números selecionados:', error);
@@ -88,6 +90,83 @@ export default function AdminDashboardPage() {
 
     loadTakenNumbersCount();
   }, [getTakenNumbersCount]);
+
+  // Load all dashboard data on component mount
+  useEffect(() => {
+    const loadAllData = async () => {
+      try {
+        console.log('AdminDashboardPage - Carregando todos os dados do dashboard...');
+        
+        // Carregar total de números do sorteio ativo
+        const { data: activeRaffle } = await supabase
+          .from('raffles')
+          .select('total_numbers')
+          .eq('is_active', true)
+          .eq('status', 'active')
+          .limit(1)
+          .single();
+        
+        if (activeRaffle) {
+          setTotalRaffleNumbers(activeRaffle.total_numbers);
+        }
+        
+        const [availableCount, takenCount, pendingCount] = await Promise.all([
+          getAvailableNumbersCount(),
+          getTakenNumbersCount(),
+          getPendingRequestsCount()
+        ]);
+        
+        setAvailableNumbersCount(availableCount);
+        setTakenNumbersCount(takenCount);
+        setPendingCount(pendingCount);
+        
+        console.log('AdminDashboardPage - Dados carregados:', {
+          availableCount,
+          takenCount,
+          pendingCount,
+          totalRaffleNumbers: activeRaffle?.total_numbers || 5000
+        });
+      } catch (error) {
+        console.error('AdminDashboardPage - Erro ao carregar dados:', error);
+      }
+    };
+
+    loadAllData();
+  }, [getAvailableNumbersCount, getTakenNumbersCount, getPendingRequestsCount]);
+
+  // Real-time updates for counters every 5 seconds
+  useEffect(() => {
+    const updateCounters = async () => {
+      try {
+        console.log('AdminDashboardPage - Atualizando contadores em tempo real...');
+        const [availableCount, takenCount, pendingCount] = await Promise.all([
+          getAvailableNumbersCount(),
+          getTakenNumbersCount(),
+          getPendingRequestsCount()
+        ]);
+        
+        setAvailableNumbersCount(availableCount);
+        setTakenNumbersCount(takenCount);
+        setPendingCount(pendingCount);
+        
+        console.log('AdminDashboardPage - Contadores atualizados:', {
+          availableCount,
+          takenCount,
+          pendingCount
+        });
+      } catch (error) {
+        console.error('AdminDashboardPage - Erro ao atualizar contadores:', error);
+      }
+    };
+
+    // Atualizar imediatamente
+    updateCounters();
+
+    // Configurar intervalo de atualização a cada 5 segundos
+    const interval = setInterval(updateCounters, 5000);
+
+    return () => clearInterval(interval);
+  }, [getAvailableNumbersCount, getTakenNumbersCount, getPendingRequestsCount]);
 
   // Real-time subscription for dashboard updates
   useEffect(() => {
@@ -114,7 +193,7 @@ export default function AdminDashboardPage() {
         try {
           const [availableCount, takenCount] = await Promise.all([
             getAvailableNumbersCount(),
-            takenNumbersCount
+            getTakenNumbersCount()
           ]);
           setAvailableNumbersCount(availableCount);
           setTakenNumbersCount(takenCount);
@@ -130,7 +209,7 @@ export default function AdminDashboardPage() {
         try {
           const [availableCount, takenCount] = await Promise.all([
             getAvailableNumbersCount(),
-            takenNumbersCount
+            getTakenNumbersCount()
           ]);
           setAvailableNumbersCount(availableCount);
           setTakenNumbersCount(takenCount);
@@ -347,13 +426,35 @@ export default function AdminDashboardPage() {
         .from('raffles')
         .update({
           status: 'finished',
+          is_active: false,
           winner_id: winner.id,
           finished_at: new Date().toISOString()
         })
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .eq('status', 'active');
 
       if (raffleUpdateError) {
         console.error('Error updating raffle status:', raffleUpdateError);
+        throw new Error(`Erro ao finalizar sorteio: ${raffleUpdateError.message}`);
+      }
+
+      console.log('Sorteio finalizado com sucesso! Status alterado para finished e is_active para false');
+
+      // Limpar automaticamente todas as solicitações de números extras do sorteio finalizado
+      try {
+        console.log('Limpando solicitações de números extras do sorteio finalizado...');
+        const { error: cleanupError } = await supabase
+          .from('extra_number_requests')
+          .delete()
+          .in('status', ['pending', 'approved']);
+
+        if (cleanupError) {
+          console.error('Erro ao limpar solicitações:', cleanupError);
+        } else {
+          console.log('Solicitações de números extras limpas com sucesso');
+        }
+      } catch (cleanupError) {
+        console.error('Erro na limpeza automática:', cleanupError);
       }
 
       // Enviar notificação WhatsApp para o ganhador
@@ -374,6 +475,25 @@ export default function AdminDashboardPage() {
       setShowDrawAnimation(false);
       setShowDrawResult(true);
 
+      // Recarregar dados para refletir mudanças
+      console.log('Recarregando dados após sorteio...');
+      try {
+        await loadNumbers();
+        await loadRaffles();
+        
+        // Atualizar contadores
+        const [availableCount, takenCount] = await Promise.all([
+          getAvailableNumbersCount(),
+          getTakenNumbersCount()
+        ]);
+        setAvailableNumbersCount(availableCount);
+        setTakenNumbersCount(takenCount);
+        
+        console.log('Dados recarregados com sucesso após sorteio');
+      } catch (reloadError) {
+        console.error('Erro ao recarregar dados após sorteio:', reloadError);
+      }
+
     } catch (error) {
       console.error('Draw error:', error);
       setShowDrawAnimation(false);
@@ -388,6 +508,52 @@ export default function AdminDashboardPage() {
       setShowCleanupConfirm(false);
     } catch (error) {
 
+    }
+  };
+
+  const handleFinishedRafflesCleanup = async () => {
+    try {
+      console.log('Limpando solicitações de sorteios finalizados...');
+      
+      // Buscar sorteios finalizados
+      const { data: finishedRaffles, error: rafflesError } = await supabase
+        .from('raffles')
+        .select('id')
+        .eq('status', 'finished')
+        .eq('is_active', false);
+
+      if (rafflesError) {
+        throw new Error(`Erro ao buscar sorteios finalizados: ${rafflesError.message}`);
+      }
+
+      if (!finishedRaffles || finishedRaffles.length === 0) {
+        alert('Nenhum sorteio finalizado encontrado para limpeza.');
+        setShowFinishedRafflesCleanup(false);
+        return;
+      }
+
+      // Limpar solicitações de números extras de sorteios finalizados
+      const { error: cleanupError } = await supabase
+        .from('extra_number_requests')
+        .delete()
+        .in('raffle_id', finishedRaffles.map(r => r.id));
+
+      if (cleanupError) {
+        throw new Error(`Erro ao limpar solicitações: ${cleanupError.message}`);
+      }
+
+      console.log(`Solicitações de ${finishedRaffles.length} sorteio(s) finalizado(s) limpas com sucesso`);
+      alert(`✅ Limpeza concluída!\n\nSolicitações de ${finishedRaffles.length} sorteio(s) finalizado(s) foram removidas.`);
+      
+      // Recarregar dados
+      await loadRaffles();
+      const count = await getPendingRequestsCount();
+      setPendingCount(count);
+      
+      setShowFinishedRafflesCleanup(false);
+    } catch (error) {
+      console.error('Erro ao limpar sorteios finalizados:', error);
+      alert(`Erro ao limpar sorteios finalizados: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     }
   };
 
@@ -501,7 +667,7 @@ export default function AdminDashboardPage() {
                   <div className="w-full bg-slate-700 rounded-full h-3">
                     <div 
                       className="bg-gradient-to-r from-amber-500 to-amber-600 h-3 rounded-full shadow-lg" 
-                      style={{ width: `${(takenNumbersCount / 1000) * 100}%` }}
+                      style={{ width: `${(takenNumbersCount / totalRaffleNumbers) * 100}%` }}
                     ></div>
                   </div>
                 </div>
@@ -522,7 +688,7 @@ export default function AdminDashboardPage() {
                         Taxa de Conversão
                       </dt>
                       <dd className="text-xl sm:text-2xl lg:text-3xl font-black text-white">
-                        {takenNumbersCount > 0 ? ((takenNumbersCount / 1000) * 100).toFixed(1) : '0'}%
+                        {takenNumbersCount > 0 ? ((takenNumbersCount / totalRaffleNumbers) * 100).toFixed(1) : '0'}%
                       </dd>
                     </dl>
                   </div>
@@ -797,6 +963,54 @@ export default function AdminDashboardPage() {
                 >
                   <Hash className="h-5 w-5 group-hover:scale-110 transition-transform duration-300" />
                   Resetar Números
+                </button>
+              </div>
+            </div>
+
+            <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-purple-400/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-purple-500/10">
+              {/* Header com gradiente */}
+              <div className="bg-gradient-to-r from-purple-500/10 to-purple-600/10 p-4 sm:p-6 lg:p-8 border-b border-purple-400/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mr-3 sm:mr-4 shadow-lg shadow-purple-500/25">
+                      <Trash2 className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg sm:text-xl font-black text-white mb-1">Limpar Sorteios Finalizados</h3>
+                      <p className="text-purple-200 text-sm font-medium">Limpeza inteligente</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xl sm:text-2xl font-black text-purple-400">🧹</div>
+                    <div className="text-xs text-purple-300 font-medium">automático</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Conteúdo */}
+              <div className="p-4 sm:p-6 lg:p-8">
+                <p className="text-slate-300 mb-6 leading-relaxed font-medium text-sm">
+                  Remove automaticamente todas as solicitações de números extras de sorteios finalizados. 
+                  <span className="text-purple-300 font-bold"> Ação executada automaticamente após cada sorteio.</span>
+                </p>
+                
+                {/* Status Badge */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full mr-3 bg-purple-500 animate-pulse"></div>
+                    <span className="text-sm font-bold text-slate-300">Limpeza automática ativa</span>
+                  </div>
+                  <div className="bg-gradient-to-r from-purple-500/20 to-purple-600/20 border border-purple-400/30 rounded-lg px-3 py-1">
+                    <span className="text-xs font-bold text-purple-200">Profissional</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowFinishedRafflesCleanup(true)}
+                  className="w-full py-4 px-6 rounded-2xl font-black transition-all duration-300 flex items-center justify-center gap-3 group bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 shadow-2xl hover:shadow-purple-500/25 transform hover:-translate-y-1 hover:scale-105"
+                >
+                  <Trash2 className="h-5 w-5 group-hover:scale-110 transition-transform duration-300" />
+                  Limpar Solicitações
                 </button>
               </div>
             </div>
@@ -1273,6 +1487,60 @@ export default function AdminDashboardPage() {
             </div>
           )}
         </div>
+
+        {/* Modal de Confirmação para Limpeza de Sorteios Finalizados */}
+        {showFinishedRafflesCleanup && (
+          <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">
+            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity">
+                <div className="absolute inset-0 bg-black/60"></div>
+              </div>
+              <div className="inline-block align-bottom bg-white rounded-2xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-gray-900 flex items-center">
+                    <Trash2 className="h-5 w-5 mr-2 text-purple-600" />
+                    Limpar Sorteios Finalizados
+                  </h3>
+                  <button
+                    onClick={() => setShowFinishedRafflesCleanup(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="mb-6">
+                  <p className="text-gray-600 leading-relaxed">
+                    Esta ação irá remover todas as solicitações de números extras de sorteios que já foram finalizados.
+                    <span className="text-purple-600 font-semibold"> Esta limpeza é executada automaticamente após cada sorteio.</span>
+                  </p>
+                  <div className="mt-4 bg-purple-50 border border-purple-200 rounded-lg p-3">
+                    <div className="flex items-center text-purple-800 text-sm">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      <span>Remove apenas solicitações de sorteios finalizados</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                  <button
+                    type="button"
+                    className="flex-1 sm:flex-none sm:w-auto inline-flex justify-center rounded-xl px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-semibold hover:from-purple-600 hover:to-purple-700 transition-all shadow-lg text-sm sm:text-base"
+                    onClick={handleFinishedRafflesCleanup}
+                  >
+                    <Trash2 className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+                    Confirmar Limpeza
+                  </button>
+                  <button
+                    type="button"
+                    className="flex-1 sm:flex-none sm:w-auto inline-flex justify-center rounded-xl px-4 sm:px-6 py-2 sm:py-3 border border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-50 transition-colors text-sm sm:text-base"
+                    onClick={() => setShowFinishedRafflesCleanup(false)}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
       <Footer />
     </div>
