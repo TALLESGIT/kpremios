@@ -1,4 +1,4 @@
-import { Hash, Calendar, User, Zap, Trophy, TrendingUp, Plus, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Hash, Calendar, User, Zap, Trophy, TrendingUp, Plus, CheckCircle, XCircle, Clock, Lock } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Header from '../components/shared/Header';
@@ -398,16 +398,39 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
 
                 {/* CTA Button */}
                 <div className="text-center">
-                  <button
-                    onClick={() => setShowExtraModal(true)}
-                    className="group inline-flex items-center px-8 py-4 bg-white text-amber-600 font-black text-lg rounded-2xl hover:bg-amber-50 transition-all duration-300 shadow-2xl hover:shadow-white/25 transform hover:-translate-y-1 hover:scale-105"
-                  >
-                    <Plus className="h-6 w-6 mr-3 group-hover:rotate-90 transition-transform duration-300" />
-                    Solicitar Números Extras
-                    <svg className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                  </button>
+                  {currentAppUser?.free_number ? (
+                    <button
+                      onClick={() => setShowExtraModal(true)}
+                      className="group inline-flex items-center px-8 py-4 bg-white text-amber-600 font-black text-lg rounded-2xl hover:bg-amber-50 transition-all duration-300 shadow-2xl hover:shadow-white/25 transform hover:-translate-y-1 hover:scale-105"
+                    >
+                      <Plus className="h-6 w-6 mr-3 group-hover:rotate-90 transition-transform duration-300" />
+                      Solicitar Números Extras
+                      <svg className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </button>
+                  ) : (
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                      <div className="flex items-center justify-center mb-4">
+                        <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                          <Lock className="h-6 w-6 text-white" />
+                        </div>
+                      </div>
+                      <h4 className="text-white font-bold text-lg mb-2">
+                        🔒 Números Extras Bloqueados
+                      </h4>
+                      <p className="text-amber-100 text-sm mb-4">
+                        Você precisa escolher um número grátis primeiro para poder solicitar números extras.
+                      </p>
+                      <Link
+                        to="/"
+                        className="inline-flex items-center px-6 py-3 bg-white/20 text-white font-bold rounded-xl hover:bg-white/30 transition-all duration-200"
+                      >
+                        <Hash className="h-4 w-4 mr-2" />
+                        Escolher Número Grátis
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
 

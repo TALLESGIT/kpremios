@@ -1108,6 +1108,22 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     }
     
     try {
+      // Verificar se o usuário já tem um número grátis
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('free_number')
+        .eq('id', authUser.id)
+        .single();
+
+      if (userError) {
+        console.error('Error fetching user data:', userError);
+        return false;
+      }
+
+      if (!userData?.free_number) {
+        throw new Error('Você precisa escolher um número grátis antes de solicitar números extras!');
+      }
+
       // Buscar o sorteio ativo atual
       const { data: activeRaffle, error: raffleError } = await supabase
         .from('raffles')
