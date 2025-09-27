@@ -19,6 +19,7 @@ function NumberSelection({ onSelectNumber, selectedNumber }: NumberSelectionProp
   const [hoveredNumber, setHoveredNumber] = useState<number | null>(null);
   const [hasActiveRaffle, setHasActiveRaffle] = useState<boolean>(false);
   const [loadingActiveRaffle, setLoadingActiveRaffle] = useState(true);
+  const [gameStatus, setGameStatus] = useState<'open' | 'closed'>('open');
   const [activeRaffle, setActiveRaffle] = useState<any>(null);
   const numbersPerPage = 100;
 
@@ -69,15 +70,22 @@ function NumberSelection({ onSelectNumber, selectedNumber }: NumberSelectionProp
 
         setHasActiveRaffle(false);
         setActiveRaffle(null);
+        setGameStatus('open');
       } else {
 
         setHasActiveRaffle(data && data.length > 0);
         setActiveRaffle(data && data.length > 0 ? data[0] : null);
+        if (data && data.length > 0) {
+          setGameStatus(data[0].game_status || 'open');
+        } else {
+          setGameStatus('open');
+        }
       }
     } catch (error) {
 
       setHasActiveRaffle(false);
       setActiveRaffle(null);
+      setGameStatus('open');
     } finally {
       setLoadingActiveRaffle(false);
     }
@@ -110,6 +118,12 @@ function NumberSelection({ onSelectNumber, selectedNumber }: NumberSelectionProp
     // Don't allow selection if user is admin
     if (currentAppUser?.is_admin) {
       alert('Administradores não podem participar dos sorteios!');
+      return;
+    }
+
+    // Check if game is closed
+    if (gameStatus === 'closed') {
+      alert('🔒 O jogo está fechado para sorteio manual. Não é possível escolher números no momento.');
       return;
     }
     
@@ -312,7 +326,17 @@ function NumberSelection({ onSelectNumber, selectedNumber }: NumberSelectionProp
             ))}
           </div>
 
-          {filteredNumbers.length === 0 && (
+          {gameStatus === 'closed' && (
+            <div className="text-center py-8 sm:py-12">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                <Lock className="h-6 w-6 sm:h-8 sm:w-8 text-red-500" />
+              </div>
+              <p className="text-red-600 text-base sm:text-lg font-medium">🔒 Jogo Fechado</p>
+              <p className="text-red-500 text-sm sm:text-base">O sorteio está em andamento. Não é possível escolher números no momento.</p>
+            </div>
+          )}
+
+          {filteredNumbers.length === 0 && gameStatus === 'open' && (
             <div className="text-center py-8 sm:py-12">
               <div className="w-12 h-12 sm:w-16 sm:h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
                 <Hash className="h-6 w-6 sm:h-8 sm:w-8 text-slate-400" />

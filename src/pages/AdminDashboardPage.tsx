@@ -32,6 +32,10 @@ export default function AdminDashboardPage() {
   const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
   const [showFinishedRafflesCleanup, setShowFinishedRafflesCleanup] = useState(false);
   const [realtimeNotification, setRealtimeNotification] = useState<{message: string, type: 'success' | 'info' | 'warning'} | null>(null);
+  const [showRestaUmControl, setShowRestaUmControl] = useState(false);
+  const [gameStatus, setGameStatus] = useState<'open' | 'closed'>('open');
+  const [eliminatedNumbers, setEliminatedNumbers] = useState<number[]>([]);
+  const [manualDrawNumber, setManualDrawNumber] = useState<string>('');
   const [showWhatsAppTest, setShowWhatsAppTest] = useState(false);
   const [showWhatsAppBusinessTest, setShowWhatsAppBusinessTest] = useState(false);
   const [showQuickTest, setShowQuickTest] = useState(false);
@@ -604,6 +608,105 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Funções para controle do "Resta Um"
+  const toggleGameStatus = async (newStatus: 'open' | 'closed') => {
+    try {
+      // Buscar sorteio ativo
+      const { data: activeRaffle } = await supabase
+        .from('raffles')
+        .select('id')
+        .eq('is_active', true)
+        .eq('status', 'active')
+        .limit(1)
+        .single();
+
+      if (!activeRaffle) {
+        alert('Nenhum sorteio ativo encontrado!');
+        return;
+      }
+
+      const { data: result, error } = await supabase
+        .rpc('toggle_game_status', {
+          raffle_id_param: activeRaffle.id,
+          new_status: newStatus
+        });
+
+      if (error) {
+        throw new Error(`Erro na chamada RPC: ${error.message}`);
+      }
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Erro ao alterar status do jogo');
+      }
+
+      setGameStatus(newStatus);
+      alert(`✅ Jogo ${newStatus === 'closed' ? 'fechado' : 'aberto'} com sucesso!\n\n${newStatus === 'closed' ? 'Usuários não podem mais escolher números. Agora você pode fazer o sorteio manual.' : 'Usuários podem escolher números novamente.'}`);
+      
+    } catch (error) {
+      console.error('Erro ao alterar status do jogo:', error);
+      alert(`Erro ao alterar status do jogo: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    }
+  };
+
+  const eliminateNumber = async () => {
+    if (!manualDrawNumber || isNaN(parseInt(manualDrawNumber))) {
+      alert('Por favor, digite um número válido para eliminar.');
+      return;
+    }
+
+    const numberToEliminate = parseInt(manualDrawNumber);
+    
+    if (numberToEliminate < 1 || numberToEliminate > totalRaffleNumbers) {
+      alert(`Número deve estar entre 1 e ${totalRaffleNumbers}`);
+      return;
+    }
+
+    if (eliminatedNumbers.includes(numberToEliminate)) {
+      alert('Este número já foi eliminado!');
+      return;
+    }
+
+    try {
+      // Buscar sorteio ativo
+      const { data: activeRaffle } = await supabase
+        .from('raffles')
+        .select('id')
+        .eq('is_active', true)
+        .eq('status', 'active')
+        .limit(1)
+        .single();
+
+      if (!activeRaffle) {
+        alert('Nenhum sorteio ativo encontrado!');
+        return;
+      }
+
+      const { data: result, error } = await supabase
+        .rpc('eliminate_number', {
+          raffle_id_param: activeRaffle.id,
+          number_to_eliminate: numberToEliminate
+        });
+
+      if (error) {
+        throw new Error(`Erro na chamada RPC: ${error.message}`);
+      }
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Erro ao eliminar número');
+      }
+
+      // Atualizar estado local
+      setEliminatedNumbers(prev => [...prev, numberToEliminate]);
+      setManualDrawNumber('');
+      
+      alert(`✅ Número ${numberToEliminate} eliminado com sucesso!\n\nTotal de números eliminados: ${result.total_eliminated}`);
+      
+    } catch (error) {
+      console.error('Erro ao eliminar número:', error);
+      alert(`Erro ao eliminar número: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-8">
       <Header />
@@ -1089,6 +1192,127 @@ export default function AdminDashboardPage() {
                   <Trash2 className="h-5 w-5 group-hover:scale-110 transition-transform duration-300" />
                   Limpar Solicitações
                 </button>
+              </div>
+            </div>
+
+            {/* Controle "Resta Um" */}
+            <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-orange-400/20 backdrop-blur-sm hover:border-orange-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-orange-500/10">
+              {/* Header com gradiente */}
+              <div className="bg-gradient-to-r from-orange-500/10 to-orange-600/10 p-4 sm:p-6 lg:p-8 border-b border-orange-400/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mr-3 sm:mr-4 shadow-lg shadow-orange-500/25">
+                      <Trophy className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg sm:text-xl font-black text-white mb-1">Controle "Resta Um"</h3>
+                      <p className="text-orange-200 text-sm font-medium">Sorteio manual com eliminação</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      gameStatus === 'open' 
+                        ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                        : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                    }`}>
+                      {gameStatus === 'open' ? '🟢 Aberto' : '🔴 Fechado'}
+                    </div>
+                    <div className="text-xs text-orange-300 font-medium mt-1">
+                      {eliminatedNumbers.length} eliminados
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Conteúdo */}
+              <div className="p-4 sm:p-6 lg:p-8">
+                <p className="text-slate-300 mb-6 leading-relaxed font-medium text-sm">
+                  Sistema de sorteio manual onde você pode fechar o jogo e eliminar números um por um até restar apenas o vencedor.
+                  <span className="text-orange-300 font-bold"> Controle total do processo de eliminação.</span>
+                </p>
+                
+                {/* Status do Jogo */}
+                <div className="bg-slate-800/50 rounded-lg p-4 mb-4">
+                  <h4 className="text-white font-semibold mb-3">Status do Jogo</h4>
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => toggleGameStatus('open')}
+                      disabled={gameStatus === 'open'}
+                      className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+                        gameStatus === 'open'
+                          ? 'bg-green-600 text-white cursor-not-allowed'
+                          : 'bg-slate-700 text-slate-300 hover:bg-green-600 hover:text-white'
+                      }`}
+                    >
+                      🔓 Abrir Jogo
+                    </button>
+                    <button
+                      onClick={() => toggleGameStatus('closed')}
+                      disabled={gameStatus === 'closed'}
+                      className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+                        gameStatus === 'closed'
+                          ? 'bg-red-600 text-white cursor-not-allowed'
+                          : 'bg-slate-700 text-slate-300 hover:bg-red-600 hover:text-white'
+                      }`}
+                    >
+                      🔒 Fechar Jogo
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-2">
+                    {gameStatus === 'open' 
+                      ? 'Usuários podem escolher números' 
+                      : 'Jogo fechado - apenas sorteio manual'}
+                  </p>
+                </div>
+
+                {/* Sorteio Manual */}
+                {gameStatus === 'closed' && (
+                  <div className="bg-slate-800/50 rounded-lg p-4 mb-4">
+                    <h4 className="text-white font-semibold mb-3">Sorteio Manual</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm text-slate-300 mb-2">
+                          Número para eliminar (1-{totalRaffleNumbers})
+                        </label>
+                        <input
+                          type="number"
+                          value={manualDrawNumber}
+                          onChange={(e) => setManualDrawNumber(e.target.value)}
+                          min="1"
+                          max={totalRaffleNumbers}
+                          className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          placeholder="Digite o número sorteado"
+                        />
+                      </div>
+                      <button
+                        onClick={eliminateNumber}
+                        disabled={!manualDrawNumber}
+                        className="w-full py-3 px-6 rounded-lg font-bold transition-all duration-200 transform hover:scale-105 shadow-lg bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed text-white"
+                      >
+                        🎯 Eliminar Número
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Números Eliminados */}
+                {eliminatedNumbers.length > 0 && (
+                  <div className="bg-slate-800/50 rounded-lg p-4">
+                    <h4 className="text-white font-semibold mb-3">
+                      Números Eliminados ({eliminatedNumbers.length})
+                    </h4>
+                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                      {eliminatedNumbers.sort((a, b) => a - b).map((number) => (
+                        <span
+                          key={number}
+                          className="px-2 py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded text-sm"
+                        >
+                          {number}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
