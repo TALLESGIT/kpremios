@@ -66,17 +66,34 @@ const AdminUsersPage: React.FC = () => {
         .from('users')
         .select(`
           *,
-          extra_number_requests(count),
-          numbers(count)
+          extra_number_requests(count)
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
+      // Buscar estatísticas de números para cada usuário
+      const userIds = data?.map(user => user.id) || [];
+      let numbersStats: { [key: string]: number } = {};
+      
+      if (userIds.length > 0) {
+        const { data: numbersData } = await supabase
+          .from('numbers')
+          .select('selected_by')
+          .in('selected_by', userIds);
+        
+        // Contar números por usuário
+        numbersStats = (numbersData || []).reduce((acc, num) => {
+          const userId = num.selected_by;
+          acc[userId] = (acc[userId] || 0) + 1;
+          return acc;
+        }, {} as { [key: string]: number });
+      }
+
       // Processar dados para incluir estatísticas
       const processedUsers = (data || []).map(user => ({
         ...user,
-        total_extra_numbers: user.numbers?.length || 0,
+        total_extra_numbers: numbersStats[user.id] || 0,
         total_requests: user.extra_number_requests?.[0]?.count || 0,
         is_active: true // Por enquanto, todos são ativos
       }));
