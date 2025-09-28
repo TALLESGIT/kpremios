@@ -142,6 +142,11 @@ const AdminUsersPage: React.FC = () => {
       // Implementar toggle de status do usuário
       toast.success('Funcionalidade em desenvolvimento');
     } else if (action === 'delete') {
+      const user = users.find(u => u.id === userId);
+      if (user?.is_admin) {
+        toast.error('Administradores não podem ser excluídos!');
+        return;
+      }
       await handleDeleteUser(userId);
     }
   };
@@ -294,17 +299,17 @@ const AdminUsersPage: React.FC = () => {
                 Visualize e gerencie todos os usuários cadastrados no sistema
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <button
                 onClick={loadUsers}
-                className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
               >
                 <RefreshCw className="w-4 h-4" />
                 Atualizar
               </button>
               <button
                 onClick={exportUsers}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
               >
                 <Download className="w-4 h-4" />
                 Exportar CSV
@@ -382,9 +387,10 @@ const AdminUsersPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Users Table */}
+        {/* Users Display - Responsive */}
         <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-800/50">
                 <tr>
@@ -484,28 +490,141 @@ const AdminUsersPage: React.FC = () => {
             </table>
           </div>
 
+          {/* Mobile Card View */}
+          <div className="lg:hidden">
+            <div className="p-4 space-y-4">
+              {paginatedUsers.map((user) => (
+                <div key={user.id} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center">
+                      <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="ml-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-white leading-tight">
+                            {user.name.split(' ')[0]}
+                          </span>
+                          {user.is_admin && (
+                            <span className="px-2 py-1 bg-purple-500 text-white text-xs rounded-full font-medium">
+                              ADMIN
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-400">ID: {user.id.slice(0, 8)}...</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleUserAction(user.id, 'view_details')}
+                        className="text-blue-400 hover:text-blue-300 transition-colors p-2 rounded-lg hover:bg-blue-400/10"
+                        title="Ver detalhes"
+                      >
+                        <Eye className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleUserAction(user.id, 'toggle_status')}
+                        className="text-amber-400 hover:text-amber-300 transition-colors p-2 rounded-lg hover:bg-amber-400/10"
+                        title="Editar usuário"
+                      >
+                        <Edit className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleUserAction(user.id, 'delete')}
+                        className={`transition-colors p-2 rounded-lg ${
+                          user.is_admin 
+                            ? 'text-gray-500 cursor-not-allowed opacity-50' 
+                            : 'text-red-400 hover:text-red-300 hover:bg-red-400/10'
+                        }`}
+                        title={user.is_admin ? 'Admins não podem ser excluídos' : 'Excluir usuário'}
+                        disabled={user.is_admin}
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Contact Info */}
+                  <div className="mb-3">
+                    <div className="flex items-center gap-2 text-sm text-slate-300 mb-1">
+                      <Mail className="w-3 h-3" />
+                      <span className="truncate" title={user.email}>
+                        {user.email.length > 25 ? `${user.email.substring(0, 25)}...` : user.email}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => openWhatsApp(user.whatsapp, user.name)}
+                      className="flex items-center gap-2 text-green-400 hover:text-green-300 hover:underline transition-colors duration-200 text-sm"
+                      title={`WhatsApp: ${user.whatsapp}`}
+                    >
+                      <MessageCircle className="w-3 h-3" />
+                      {user.whatsapp.length > 15 ? `${user.whatsapp.substring(0, 15)}...` : user.whatsapp}
+                    </button>
+                  </div>
+
+                  {/* Numbers Info */}
+                  <div className="mb-3">
+                    <div className="text-sm text-slate-300 space-y-1">
+                      <div className="flex justify-between">
+                        <span>Gratuito:</span>
+                        <span className="font-medium">{user.free_number ? `#${user.free_number}` : 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Extras:</span>
+                        <span className="font-medium">{user.total_extra_numbers}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Solicitações:</span>
+                        <span className="font-medium">{user.total_requests}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Status and Date */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      {getStatusBadge(user)}
+                    </div>
+                    <div className="text-xs text-slate-400 text-right">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {new Date(user.created_at).toLocaleDateString('pt-BR')}
+                      </div>
+                      {user.last_login && (
+                        <div className="mt-1">
+                          Login: {new Date(user.last_login).toLocaleDateString('pt-BR')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="px-4 py-3 bg-slate-800/50 border-t border-slate-700">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-slate-300">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-sm text-slate-300 text-center sm:text-left">
                   Mostrando {startIndex + 1} a {Math.min(startIndex + itemsPerPage, filteredUsers.length)} de {filteredUsers.length} usuários
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="px-3 py-1 bg-slate-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition-colors"
+                    className="px-3 py-2 bg-slate-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition-colors text-sm"
                   >
                     Anterior
                   </button>
-                  <span className="px-3 py-1 bg-amber-500 text-white rounded">
+                  <span className="px-4 py-2 bg-amber-500 text-white rounded text-sm font-medium">
                     {currentPage} de {totalPages}
                   </span>
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className="px-3 py-1 bg-slate-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition-colors"
+                    className="px-3 py-2 bg-slate-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition-colors text-sm"
                   >
                     Próximo
                   </button>
