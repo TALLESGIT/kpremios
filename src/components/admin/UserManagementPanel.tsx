@@ -64,7 +64,7 @@ const UserManagementPanel: React.FC = () => {
   };
 
   const handleDeleteUser = async (userId: string, userName: string) => {
-    if (!confirm(`Tem certeza que deseja excluir o usuário "${userName}"?\n\nEsta ação não pode ser desfeita.`)) {
+    if (!confirm(`Tem certeza que deseja excluir o usuário "${userName}"?\n\nEsta ação não pode ser desfeita.\n\nOs números escolhidos por este usuário serão liberados e ficarão disponíveis novamente.`)) {
       return;
     }
 
@@ -73,6 +73,33 @@ const UserManagementPanel: React.FC = () => {
       setError(null);
       setSuccess(null);
 
+      // 1. Primeiro, liberar todos os números do usuário
+      const { error: numbersError } = await supabase
+        .from('numbers')
+        .update({ 
+          is_available: true, 
+          selected_by: null, 
+          assigned_at: null 
+        })
+        .eq('selected_by', userId);
+
+      if (numbersError) {
+        console.error('Erro ao liberar números:', numbersError);
+        // Não falha a operação, apenas registra o erro
+      }
+
+      // 2. Excluir solicitações de números extras do usuário
+      const { error: requestsError } = await supabase
+        .from('extra_number_requests')
+        .delete()
+        .eq('user_id', userId);
+
+      if (requestsError) {
+        console.error('Erro ao excluir solicitações:', requestsError);
+        // Não falha a operação, apenas registra o erro
+      }
+
+      // 3. Excluir o usuário
       const { error } = await supabase
         .from('users')
         .delete()
@@ -82,7 +109,7 @@ const UserManagementPanel: React.FC = () => {
         throw error;
       }
 
-      setSuccess(`Usuário "${userName}" excluído com sucesso!`);
+      setSuccess(`Usuário "${userName}" excluído com sucesso! Os números foram liberados.`);
       
       // Recarregar lista de usuários
       await loadUsers();

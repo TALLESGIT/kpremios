@@ -19,7 +19,8 @@ import {
   Hash,
   Download,
   RefreshCw,
-  MessageCircle
+  MessageCircle,
+  Trash2
 } from 'lucide-react';
 
 interface User {
@@ -130,7 +131,7 @@ const AdminUsersPage: React.FC = () => {
     setCurrentPage(page);
   };
 
-  const handleUserAction = async (userId: string, action: 'toggle_status' | 'view_details') => {
+  const handleUserAction = async (userId: string, action: 'toggle_status' | 'view_details' | 'delete') => {
     if (action === 'view_details') {
       const user = users.find(u => u.id === userId);
       if (user) {
@@ -140,6 +141,63 @@ const AdminUsersPage: React.FC = () => {
     } else if (action === 'toggle_status') {
       // Implementar toggle de status do usuário
       toast.success('Funcionalidade em desenvolvimento');
+    } else if (action === 'delete') {
+      await handleDeleteUser(userId);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+
+    if (!confirm(`Tem certeza que deseja excluir o usuário "${user.name}"?\n\nEsta ação não pode ser desfeita.\n\nOs números escolhidos por este usuário serão liberados e ficarão disponíveis novamente.`)) {
+      return;
+    }
+
+    try {
+      // 1. Primeiro, liberar todos os números do usuário
+      const { error: numbersError } = await supabase
+        .from('numbers')
+        .update({ 
+          is_available: true, 
+          selected_by: null, 
+          assigned_at: null 
+        })
+        .eq('selected_by', userId);
+
+      if (numbersError) {
+        console.error('Erro ao liberar números:', numbersError);
+        // Não falha a operação, apenas registra o erro
+      }
+
+      // 2. Excluir solicitações de números extras do usuário
+      const { error: requestsError } = await supabase
+        .from('extra_number_requests')
+        .delete()
+        .eq('user_id', userId);
+
+      if (requestsError) {
+        console.error('Erro ao excluir solicitações:', requestsError);
+        // Não falha a operação, apenas registra o erro
+      }
+
+      // 3. Excluir o usuário
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success(`Usuário "${user.name}" excluído com sucesso! Os números foram liberados.`);
+      
+      // Recarregar lista de usuários
+      await loadUsers();
+      
+    } catch (err: any) {
+      toast.error(`Erro ao excluir usuário: ${err.message}`);
     }
   };
 
@@ -409,6 +467,15 @@ const AdminUsersPage: React.FC = () => {
                         >
                           <Edit className="w-4 h-4" />
                         </button>
+                        {!user.is_admin && (
+                          <button
+                            onClick={() => handleUserAction(user.id, 'delete')}
+                            className="text-red-400 hover:text-red-300 transition-colors p-1"
+                            title="Excluir usuário"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
