@@ -213,7 +213,13 @@ const AdminUsersPage: React.FC = () => {
       const whatsappNumber = cleanNumber.startsWith('55') ? cleanNumber : `55${cleanNumber}`;
       
       // Mensagem padrão
-      const message = `Olá ${userName}! 👋\n\nSou administrador do ZK Premios e gostaria de entrar em contato com você.`;
+      const message = `Olá ${userName}! 
+
+Voce sabia que a cada 10$ reais voce pode garantir 100 números extras e também concorrer a 10 mil reais ? 
+
+Para mais informações responda " SIM " 
+
+Atenciosamente: EQUIPE ITALLO ZK`;
       
       // URL do WhatsApp Web/App
       const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
@@ -532,13 +538,8 @@ const AdminUsersPage: React.FC = () => {
                       </button>
                       <button
                         onClick={() => handleUserAction(user.id, 'delete')}
-                        className={`transition-colors p-2 rounded-lg ${
-                          user.is_admin 
-                            ? 'text-gray-500 cursor-not-allowed opacity-50' 
-                            : 'text-red-400 hover:text-red-300 hover:bg-red-400/10'
-                        }`}
-                        title={user.is_admin ? 'Admins não podem ser excluídos' : 'Excluir usuário'}
-                        disabled={user.is_admin}
+                        className="text-red-400 hover:text-red-300 transition-colors p-2 rounded-lg hover:bg-red-400/10"
+                        title="Excluir usuário"
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>
