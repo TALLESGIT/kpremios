@@ -208,7 +208,8 @@ const AdminLiveControlPage: React.FC = () => {
   const eliminateRandomParticipant = async () => {
     const activeParticipants = participants.filter(p => p.status === 'active');
     if (activeParticipants.length <= 1) {
-      endGame();
+      // Não finalizar automaticamente - deixar o admin decidir
+      toast.info('🎯 Resta apenas 1 participante! Use o botão "Finalizar Jogo" para declarar o vencedor.');
       return;
     }
 
