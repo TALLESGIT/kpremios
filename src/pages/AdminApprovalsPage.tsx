@@ -40,6 +40,9 @@ export default function AdminApprovalsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [itemsPerPage] = useState(10);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingApprovalId, setPendingApprovalId] = useState<string | null>(null);
+  const [approvalNotes, setApprovalNotes] = useState('');
 
   // Verificar se é admin
   useEffect(() => {
@@ -165,7 +168,9 @@ export default function AdminApprovalsPage() {
       
       // Verificar se há comprovante de pagamento
       if (!request.payment_proof_url) {
-        alert('⚠️ Esta solicitação não possui comprovante de pagamento. É recomendado rejeitar ou solicitar o comprovante antes de aprovar.');
+        // Abrir modal de confirmação em vez de bloquear
+        setPendingApprovalId(requestId);
+        setShowConfirmModal(true);
         return;
       }
       
@@ -211,6 +216,69 @@ export default function AdminApprovalsPage() {
       alert('Solicitação aprovada com sucesso!');
     } catch (error) {
 
+      alert('Erro ao aprovar solicitação');
+    }
+  };
+
+  const confirmApproval = async () => {
+    if (!pendingApprovalId) return;
+    
+    try {
+      // Encontrar a solicitação para obter a quantidade correta
+      const request = requests.find(r => r.id === pendingApprovalId);
+      if (!request) {
+        throw new Error('Solicitação não encontrada');
+      }
+      
+      // Calcular quantidade correta: 100 números por cada R$ 10,00
+      const quantity = Math.floor(request.payment_amount / 10) * 100;
+      
+      // Usar a função assign_random_extra_numbers_with_raffle_limit para atribuir números automaticamente
+      const { data: assignedNumbers, error: assignError } = await supabase
+        .rpc('assign_random_extra_numbers_with_raffle_limit', {
+          request_id: request.id,
+          quantity: quantity
+        });
+
+      if (assignError) throw assignError;
+      
+      // Atualizar status da solicitação com os números atribuídos e notas opcionais
+      const updateData: any = {
+        status: 'approved',
+        processed_at: new Date().toISOString(),
+        processed_by: currentAppUser?.id,
+        assigned_numbers: assignedNumbers
+      };
+      
+      // Adicionar notas se fornecidas
+      if (approvalNotes.trim()) {
+        updateData.admin_notes = approvalNotes.trim();
+      }
+      
+      const { error: updateError } = await supabase
+        .from('extra_number_requests')
+        .update(updateData)
+        .eq('id', pendingApprovalId);
+
+      if (updateError) throw updateError;
+
+      // Recarregar lista
+      await loadRequests();
+      setShowConfirmModal(false);
+      setPendingApprovalId(null);
+      setApprovalNotes('');
+      setShowModal(false);
+      setSelectedRequest(null);
+      
+      // Notificar o usuário sobre a aprovação
+      try {
+        await notifyExtraNumbersApproved(pendingApprovalId);
+      } catch (notifyError) {
+        // Não falha a operação se a notificação falhar
+      }
+      
+      alert('Solicitação aprovada com sucesso!');
+    } catch (error) {
       alert('Erro ao aprovar solicitação');
     }
   };
@@ -739,6 +807,77 @@ export default function AdminApprovalsPage() {
               >
                 <XCircle className="h-4 w-4" />
                 Confirmar Rejeição
+              </button>
+            </div>
+          </div>
+        </div>
+       )}
+       
+       {/* Modal de Confirmação para Aprovação Sem Comprovante */}
+       {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-600/30 w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-amber-500/20 to-amber-600/20 p-4 sm:p-6 border-b border-slate-600/30 rounded-t-2xl sm:rounded-t-3xl">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-amber-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-amber-400" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-xl font-black text-white leading-tight">Aprovar sem Comprovante?</h3>
+                  <p className="text-slate-300 text-xs sm:text-sm">Solicitação precisa de atenção</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Conteúdo */}
+            <div className="p-4 sm:p-6">
+              <div className="mb-4 sm:mb-6 bg-amber-500/10 border border-amber-500/30 rounded-lg sm:rounded-xl p-3 sm:p-4">
+                <p className="text-amber-200 text-xs sm:text-sm leading-relaxed">
+                  ⚠️ <strong>Atenção:</strong> Esta solicitação não possui comprovante anexado no sistema.
+                </p>
+                <p className="text-amber-200/80 text-xs mt-1 sm:mt-2">
+                  Aprove apenas se o comprovante foi enviado por WhatsApp, email, etc.
+                </p>
+              </div>
+              
+              <div className="mb-4 sm:mb-6">
+                <label className="block text-xs sm:text-sm font-bold text-slate-300 mb-2 sm:mb-3">
+                  Notas da aprovação (opcional)
+                </label>
+                <textarea
+                  value={approvalNotes}
+                  onChange={(e) => setApprovalNotes(e.target.value)}
+                  placeholder="Ex: Comprovante via WhatsApp..."
+                  className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all duration-200 resize-none"
+                  rows={2}
+                />
+              </div>
+              
+              <div className="text-xs text-slate-400 bg-slate-700/30 p-2 sm:p-3 rounded-lg sm:rounded-xl">
+                💡 <strong>Dica:</strong> Notas ajudam a manter o histórico da aprovação.
+              </div>
+            </div>
+            
+            {/* Botões */}
+            <div className="p-4 sm:p-6 pt-0 flex gap-2 sm:gap-3">
+              <button
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  setPendingApprovalId(null);
+                  setApprovalNotes('');
+                }}
+                className="flex-1 bg-slate-700/50 hover:bg-slate-700/70 text-slate-300 font-bold py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg sm:rounded-xl transition-all duration-200 border border-slate-600/30 text-sm sm:text-base"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmApproval}
+                className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg sm:rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base"
+              >
+                <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Aprovar Mesmo Assim</span>
+                <span className="sm:hidden">Aprovar</span>
               </button>
             </div>
           </div>
