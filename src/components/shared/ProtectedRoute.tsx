@@ -11,24 +11,20 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
   const { currentUser: currentAppUser, loading: dataLoading } = useData();
   
-  // Check if user is admin
-  const isAdmin = currentAppUser?.is_admin || false;
+  // Check if user is admin (fallback para metadata do auth)
+  const isAdmin = currentAppUser?.is_admin || user?.user_metadata?.is_admin || false;
 
 
 
-  // Show loading if auth is still loading or data is still loading
-  if (loading || dataLoading) {
+  // Mostrar loading enquanto qualquer dado estiver carregando
+  const isLoading = loading || dataLoading || (user && !currentAppUser && !dataLoading);
+  
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
         <div className="animate-spin rounded-full h-16 w-16 border-4 border-amber-500/30 border-t-amber-500"></div>
       </div>
     );
-  }
-
-  // If we have a user but no currentAppUser yet, wait a bit more
-  if (user && !currentAppUser && !dataLoading) {
-    // If data loading is complete but no currentAppUser, redirect to login
-    return <Navigate to="/admin/login" replace />;
   }
 
   // If no user is authenticated, redirect to login

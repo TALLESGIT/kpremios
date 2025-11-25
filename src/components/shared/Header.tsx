@@ -169,6 +169,16 @@ function Header() {
                 >
                   Lives Admin
                 </Link>
+                <Link
+                  to="/admin/live-stream"
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
+                    location.pathname.startsWith('/admin/live-stream') 
+                      ? 'text-cyan-100 bg-cyan-500/20 backdrop-blur-sm shadow-lg' 
+                      : 'text-slate-300 hover:text-cyan-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                  }`}
+                >
+                  Transmitir Live
+                </Link>
 
               </>
             )}
@@ -384,6 +394,20 @@ function Header() {
                       🎮
                     </span>
                     Lives Admin
+                  </Link>
+                  <Link
+                    to="/admin/live-stream"
+                    className={`flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 ${
+                      location.pathname.startsWith('/admin/live-stream')
+                        ? 'text-cyan-100 bg-cyan-500/20 backdrop-blur-sm shadow-lg'
+                        : 'text-slate-300 hover:text-cyan-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                    }`}
+                    onClick={closeMenu}
+                  >
+                    <span className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg flex items-center justify-center mr-3 text-white font-black">
+                      📡
+                    </span>
+                    Transmitir Live
                   </Link>
 
                 </>

@@ -19,5 +19,20 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     headers: {
       'X-Client-Info': 'zk-premios-app'
     }
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    },
+    // Configuração para lidar melhor com erros de conexão WebSocket
+    log_level: import.meta.env.DEV ? 'warn' : 'error', // Reduz logs de erro no console
+    // Timeout para conexão WebSocket (5 segundos)
+    timeout: 5000,
+    // Configuração de reconexão
+    heartbeatIntervalMs: 30000,
+    reconnectAfterMs: (tries: number) => {
+      // Aumentar intervalo entre tentativas (máximo 30 segundos)
+      return Math.min(tries * 1000, 30000);
+    }
   }
 });
