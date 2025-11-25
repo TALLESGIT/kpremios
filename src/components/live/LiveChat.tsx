@@ -47,16 +47,16 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, channelName }) => {
               presence: { key: 'user' }
             }
           })
-          .on(
-            'postgres_changes',
-            {
-              event: 'INSERT',
-              schema: 'public',
-              table: 'live_chat_messages',
-              filter: `stream_id=eq.${streamId}`
-            },
-            (payload) => {
-              const newMessage = payload.new as ChatMessage;
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'live_chat_messages',
+          filter: `stream_id=eq.${streamId}`
+        },
+        (payload) => {
+          const newMessage = payload.new as ChatMessage;
               setMessages(prev => {
                 // Evitar duplicatas
                 if (prev.some(msg => msg.id === newMessage.id)) {
@@ -64,23 +64,23 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, channelName }) => {
                 }
                 return [...prev, newMessage];
               });
-              scrollToBottom();
-            }
-          )
-          .on(
-            'postgres_changes',
-            {
-              event: 'DELETE',
-              schema: 'public',
-              table: 'live_chat_messages',
-              filter: `stream_id=eq.${streamId}`
-            },
-            (payload) => {
-              setMessages(prev => prev.filter(msg => msg.id !== payload.old.id));
-            }
-          )
-          .subscribe((status, err) => {
-            if (err) {
+          scrollToBottom();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'live_chat_messages',
+          filter: `stream_id=eq.${streamId}`
+        },
+        (payload) => {
+          setMessages(prev => prev.filter(msg => msg.id !== payload.old.id));
+        }
+      )
+      .subscribe((status, err) => {
+        if (err) {
               // Erro de conexão WebSocket - não é crítico
               // Suprimir erro no console (já que não é crítico)
               if (!realtimeWorking && !pollInterval) {
@@ -88,11 +88,11 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, channelName }) => {
                 pollInterval = setInterval(() => {
                   loadMessages();
                 }, 3000);
-              }
-              return;
-            }
-            
-            if (status === 'SUBSCRIBED') {
+          }
+          return;
+        }
+        
+        if (status === 'SUBSCRIBED') {
               realtimeWorking = true;
               // Limpar polling se Realtime funcionar
               if (pollInterval) {
@@ -100,15 +100,15 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, channelName }) => {
                 pollInterval = null;
               }
               console.log('✅ Chat conectado em tempo real!');
-            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
               if (!realtimeWorking && !pollInterval) {
                 // Usar polling como fallback
                 pollInterval = setInterval(() => {
                   loadMessages();
                 }, 3000);
-              }
-            }
-          });
+          }
+        }
+      });
 
         // Timeout para detectar se a conexão não foi estabelecida em 5 segundos
         const timeoutId = setTimeout(() => {

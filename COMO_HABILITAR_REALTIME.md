@@ -143,3 +143,4 @@ WHERE pubname = 'supabase_realtime';
 
 **Pronto!** 🎉 Após seguir estes passos, o Realtime deve funcionar corretamente.
 
+

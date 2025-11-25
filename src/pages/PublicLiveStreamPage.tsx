@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Users, Share2, Copy, Check, Eye, ArrowLeft, Home } from 'lucide-react';
+import { Users, Share2, Copy, Check, Eye, ArrowLeft, Home, Maximize2, Minimize2, MessageSquare, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import VideoStream from '../components/live/VideoStream';
 import LiveChat from '../components/live/LiveChat';
@@ -15,6 +15,9 @@ const PublicLiveStreamPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showChatInFullscreen, setShowChatInFullscreen] = useState(false);
+  const [showChatMobile, setShowChatMobile] = useState(false);
 
   useEffect(() => {
     if (channelName) {
@@ -84,6 +87,40 @@ const PublicLiveStreamPage: React.FC = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Função para entrar/sair de tela cheia
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      }).catch((err) => {
+        console.error('Erro ao entrar em tela cheia:', err);
+        toast.error('Não foi possível entrar em tela cheia');
+      });
+    } else {
+      document.exitFullscreen().then(() => {
+        setIsFullscreen(false);
+        setShowChatInFullscreen(false);
+      }).catch((err) => {
+        console.error('Erro ao sair de tela cheia:', err);
+      });
+    }
+  };
+
+  // Detectar mudanças no estado de tela cheia
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+      if (!document.fullscreenElement) {
+        setShowChatInFullscreen(false);
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
@@ -123,8 +160,8 @@ const PublicLiveStreamPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <Header />
+    <div className={`min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 ${isFullscreen ? 'overflow-hidden' : ''}`}>
+      {!isFullscreen && <Header />}
       
       <div className="max-w-7xl mx-auto p-4 py-8">
         {/* Botão Voltar - Fixo no topo para mobile */}
@@ -165,21 +202,134 @@ const PublicLiveStreamPage: React.FC = () => {
 
         {/* Layout: Vídeo + Chat */}
         {stream.is_active ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6">
-            {/* Player de Vídeo (2/3 da largura) */}
-            <div className="lg:col-span-2">
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 md:p-6 border border-white/20">
-                <VideoStream
-                  channelName={stream.channel_name}
-                  isBroadcaster={false}
-                />
+          <div className={`relative ${isFullscreen ? 'fixed inset-0 z-50 bg-black' : ''}`}>
+            {/* Container principal do vídeo */}
+            <div className={`relative ${isFullscreen ? 'w-full h-full' : 'grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6'}`}>
+              {/* Player de Vídeo */}
+              <div className={`${isFullscreen ? 'w-full h-full' : 'lg:col-span-2'} relative`}>
+                <div className={`${isFullscreen ? 'w-full h-full p-0' : 'bg-white/10 backdrop-blur-sm rounded-2xl p-3 md:p-6 border border-white/20'} relative`}>
+                  <VideoStream
+                    channelName={stream.channel_name}
+                    isBroadcaster={false}
+                  />
+                  
+                  {/* Botões de controle em tela cheia */}
+                  {isFullscreen && (
+                    <div className="absolute top-4 right-4 z-10 flex gap-2">
+                      {/* Botão de Chat */}
+                      <button
+                        onClick={() => setShowChatInFullscreen(!showChatInFullscreen)}
+                        className="bg-black/70 hover:bg-black/90 text-white p-3 rounded-full transition-all backdrop-blur-sm border border-white/20"
+                        aria-label="Toggle Chat"
+                      >
+                        {showChatInFullscreen ? <X size={20} /> : <MessageSquare size={20} />}
+                      </button>
+                      
+                      {/* Botão de Sair da tela cheia */}
+                      <button
+                        onClick={toggleFullscreen}
+                        className="bg-black/70 hover:bg-black/90 text-white p-3 rounded-full transition-all backdrop-blur-sm border border-white/20"
+                        aria-label="Sair de tela cheia"
+                      >
+                        <Minimize2 size={20} />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Chat - Normal (não em tela cheia) - Desktop */}
+              {!isFullscreen && (
+                <div className="hidden lg:block lg:col-span-1">
+                  <LiveChat streamId={stream.id} channelName={stream.channel_name} />
+                </div>
+              )}
+
+              {/* Chat - Mobile (não em tela cheia) - Overlay */}
+              {!isFullscreen && showChatMobile && (
+                <div className="lg:hidden fixed inset-0 z-50 bg-black/95 backdrop-blur-md">
+                  <div className="h-full flex flex-col">
+                    {/* Header do chat mobile */}
+                    <div className="flex items-center justify-between p-4 border-b border-white/20">
+                      <h3 className="text-white font-bold text-lg">Chat</h3>
+                      <button
+                        onClick={() => setShowChatMobile(false)}
+                        className="text-white hover:text-gray-300 transition-colors"
+                        aria-label="Fechar Chat"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+                    
+                    {/* Chat content */}
+                    <div className="flex-1 overflow-hidden">
+                      <LiveChat streamId={stream.id} channelName={stream.channel_name} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Botão flutuante de chat para mobile (não em tela cheia) */}
+              {!isFullscreen && (
+                <button
+                  onClick={() => setShowChatMobile(true)}
+                  className="lg:hidden fixed bottom-6 right-6 z-40 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white p-4 rounded-full shadow-lg transition-all flex items-center gap-2 font-medium"
+                  aria-label="Abrir Chat"
+                >
+                  <MessageSquare size={20} />
+                  <span className="text-sm font-bold">Chat</span>
+                </button>
+              )}
+
+              {/* Chat - Overlay em tela cheia */}
+              {isFullscreen && showChatInFullscreen && (
+                <div className="absolute top-0 right-0 h-full w-full sm:w-96 bg-black/95 backdrop-blur-md border-l border-white/20 z-20 animate-slide-in-right">
+                  <div className="h-full flex flex-col">
+                    {/* Header do chat em tela cheia */}
+                    <div className="flex items-center justify-between p-4 border-b border-white/20">
+                      <h3 className="text-white font-bold text-lg">Chat</h3>
+                      <button
+                        onClick={() => setShowChatInFullscreen(false)}
+                        className="text-white hover:text-gray-300 transition-colors"
+                        aria-label="Fechar Chat"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+                    
+                    {/* Chat content */}
+                    <div className="flex-1 overflow-hidden">
+                      <LiveChat streamId={stream.id} channelName={stream.channel_name} />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Chat (1/3 da largura) */}
-            <div className="lg:col-span-1">
-              <LiveChat streamId={stream.id} channelName={stream.channel_name} />
-            </div>
+            {/* Botão de tela cheia (fora do modo tela cheia) - Desktop */}
+            {!isFullscreen && (
+              <div className="hidden lg:flex justify-end mb-4">
+                <button
+                  onClick={toggleFullscreen}
+                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2 font-medium"
+                  aria-label="Tela cheia"
+                >
+                  <Maximize2 size={18} />
+                  <span className="text-sm md:text-base">Tela Cheia</span>
+                </button>
+              </div>
+            )}
+
+            {/* Botão de tela cheia flutuante para mobile (fora do modo tela cheia) */}
+            {!isFullscreen && (
+              <button
+                onClick={toggleFullscreen}
+                className="lg:hidden fixed bottom-24 right-6 z-40 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white p-4 rounded-full shadow-lg transition-all flex items-center gap-2 font-medium"
+                aria-label="Tela cheia"
+              >
+                <Maximize2 size={20} />
+              </button>
+            )}
           </div>
         ) : (
           <div className="mb-6">
@@ -226,7 +376,7 @@ const PublicLiveStreamPage: React.FC = () => {
         </div>
       </div>
 
-      <Footer />
+      {!isFullscreen && <Footer />}
     </div>
   );
 };

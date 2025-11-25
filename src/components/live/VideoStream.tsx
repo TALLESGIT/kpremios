@@ -85,6 +85,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const isJoiningRef = useRef<boolean>(false);
   const ensureVideoDisplayRunningRef = useRef<boolean>(false);
   const checkTracksIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const combinedVideoTrackRef = useRef<any>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Configuração Agora
   const APP_ID = import.meta.env.VITE_AGORA_APP_ID || '';
@@ -261,6 +263,17 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     };
   }, [isDragging, dragOffset]);
 
+  // Atualizar posição do PiP no track combinado quando o admin mover a câmera
+  useEffect(() => {
+    if (combinedVideoTrackRef.current && showScreenShare && showCamera) {
+      const combinedTrack = combinedVideoTrackRef.current as any;
+      if (combinedTrack._updatePipPosition && typeof combinedTrack._updatePipPosition === 'function') {
+        combinedTrack._updatePipPosition(cameraPosition);
+        console.log('📹 Posição do PiP atualizada no track combinado:', cameraPosition);
+      }
+    }
+  }, [cameraPosition, showScreenShare, showCamera]);
+
   // Mover câmera para PiP quando screen sharing e câmera estão ativos
   useEffect(() => {
     const moveCameraToPiP = async () => {
@@ -412,6 +425,239 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     }
   };
 
+  // Função para criar um track combinado (screen sharing + câmera)
+  const createCombinedVideoTrack = async (
+    screenTrack: any,
+    cameraTrack: any,
+    pipPosition: { x: number; y: number } = { x: 20, y: 20 }
+  ): Promise<any> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Criar canvas para combinar os vídeos
+        const canvas = document.createElement('canvas');
+        canvas.width = 1920;
+        canvas.height = 1080;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Não foi possível obter contexto do canvas'));
+          return;
+        }
+
+        canvasRef.current = canvas;
+        
+        // Armazenar posição do PiP no canvas para atualizar quando mudar
+        let currentPipPosition = { ...pipPosition };
+        
+        // Criar elementos de vídeo ocultos para capturar os streams
+        const screenVideo = document.createElement('video');
+        const cameraVideo = document.createElement('video');
+        
+        screenVideo.autoplay = true;
+        screenVideo.playsInline = true;
+        screenVideo.muted = true;
+        screenVideo.style.position = 'fixed';
+        screenVideo.style.top = '-9999px';
+        screenVideo.style.width = '1920px';
+        screenVideo.style.height = '1080px';
+        document.body.appendChild(screenVideo);
+        
+        cameraVideo.autoplay = true;
+        cameraVideo.playsInline = true;
+        cameraVideo.muted = true;
+        cameraVideo.style.position = 'fixed';
+        cameraVideo.style.top = '-9999px';
+        cameraVideo.style.width = '640px';
+        cameraVideo.style.height = '480px';
+        document.body.appendChild(cameraVideo);
+        
+        // Obter MediaStream dos tracks
+        const screenStream = new MediaStream([screenTrack.getMediaStreamTrack()]);
+        const cameraStream = new MediaStream([cameraTrack.getMediaStreamTrack()]);
+        
+        // Atribuir streams aos elementos de vídeo
+        screenVideo.srcObject = screenStream;
+        cameraVideo.srcObject = cameraStream;
+        
+        // Aguardar os vídeos estarem prontos
+        await Promise.all([
+          new Promise((resolve) => {
+            if (screenVideo.readyState >= 2) {
+              resolve(undefined);
+            } else {
+              screenVideo.onloadedmetadata = () => resolve(undefined);
+            }
+          }),
+          new Promise((resolve) => {
+            if (cameraVideo.readyState >= 2) {
+              resolve(undefined);
+            } else {
+              cameraVideo.onloadedmetadata = () => resolve(undefined);
+            }
+          })
+        ]);
+        
+        // Tentar reproduzir
+        try {
+          await screenVideo.play();
+          await cameraVideo.play();
+        } catch (e) {
+          console.warn('Aviso ao reproduzir vídeos:', e);
+        }
+        
+        // Aguardar um pouco mais para garantir que os vídeos estão renderizando
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Verificar se os vídeos têm dimensões válidas
+        console.log('📊 Verificando dimensões dos vídeos:', {
+          screenVideo: {
+            width: screenVideo.videoWidth,
+            height: screenVideo.videoHeight,
+            readyState: screenVideo.readyState,
+            paused: screenVideo.paused
+          },
+          cameraVideo: {
+            width: cameraVideo.videoWidth,
+            height: cameraVideo.videoHeight,
+            readyState: cameraVideo.readyState,
+            paused: cameraVideo.paused
+          }
+        });
+        
+        // Se screen sharing não tem dimensões, aguardar mais
+        if (screenVideo.videoWidth === 0 || screenVideo.videoHeight === 0) {
+          console.log('⏳ Screen sharing ainda não tem dimensões, aguardando...');
+          let waitCount = 0;
+          while ((screenVideo.videoWidth === 0 || screenVideo.videoHeight === 0) && waitCount < 20) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            waitCount++;
+          }
+          console.log('📊 Dimensões após aguardar:', {
+            width: screenVideo.videoWidth,
+            height: screenVideo.videoHeight,
+            waitCount
+          });
+        }
+        
+        // Função para desenhar no canvas
+        const drawFrame = () => {
+          if (!ctx || !screenVideo || !cameraVideo) return;
+          
+          // Limpar canvas
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          // Desenhar screen sharing (full screen) - PRIORIDADE: sempre desenhar primeiro
+          if (screenVideo.videoWidth > 0 && screenVideo.videoHeight > 0) {
+            try {
+              ctx.drawImage(screenVideo, 0, 0, canvas.width, canvas.height);
+            } catch (e) {
+              console.warn('Erro ao desenhar screen sharing:', e);
+            }
+          } else {
+            // Se screen sharing não tem dimensões, desenhar fundo preto
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          }
+          
+          // Desenhar câmera como círculo no canto (PiP) - apenas se tiver dimensões
+          if (cameraVideo.videoWidth > 0 && cameraVideo.videoHeight > 0) {
+            try {
+              const pipSize = 200; // Tamanho do PiP
+              // Usar posição dinâmica do PiP (sincronizada com o movimento do admin)
+              const pipX = currentPipPosition.x;
+              const pipY = currentPipPosition.y;
+              
+              // Criar clipping path circular
+              ctx.save();
+              ctx.beginPath();
+              ctx.arc(
+                pipX + pipSize / 2,
+                pipY + pipSize / 2,
+                pipSize / 2,
+                0,
+                Math.PI * 2
+              );
+              ctx.clip();
+              
+              // Desenhar câmera
+              ctx.drawImage(
+                cameraVideo,
+                pipX,
+                pipY,
+                pipSize,
+                pipSize
+              );
+              
+              ctx.restore();
+              
+              // Desenhar borda branca ao redor do círculo
+              ctx.strokeStyle = '#fff';
+              ctx.lineWidth = 4;
+              ctx.beginPath();
+              ctx.arc(
+                pipX + pipSize / 2,
+                pipY + pipSize / 2,
+                pipSize / 2,
+                0,
+                Math.PI * 2
+              );
+              ctx.stroke();
+            } catch (e) {
+              console.warn('Erro ao desenhar câmera no PiP:', e);
+            }
+          }
+        };
+        
+        // Desenhar primeiro frame imediatamente
+        drawFrame();
+        
+        // Iniciar loop de desenho (30 FPS)
+        const drawInterval = setInterval(() => {
+          try {
+            drawFrame();
+          } catch (e) {
+            console.warn('Erro ao desenhar frame:', e);
+          }
+        }, 1000 / 30);
+        
+        // Criar stream a partir do canvas
+        const stream = canvas.captureStream(30);
+        const videoTrack = stream.getVideoTracks()[0];
+        
+        if (!videoTrack) {
+          clearInterval(drawInterval);
+          document.body.removeChild(screenVideo);
+          document.body.removeChild(cameraVideo);
+          reject(new Error('Nenhum track de vídeo encontrado no stream'));
+          return;
+        }
+        
+        // Criar custom track do Agora
+        const customTrack = AgoraRTC.createCustomVideoTrack({
+          mediaStreamTrack: videoTrack
+        });
+        
+        // Armazenar referências para cleanup e atualização
+        (customTrack as any)._screenVideo = screenVideo;
+        (customTrack as any)._cameraVideo = cameraVideo;
+        (customTrack as any)._drawInterval = drawInterval;
+        (customTrack as any)._canvas = canvas;
+        (customTrack as any)._updatePipPosition = (newPosition: { x: number; y: number }) => {
+          currentPipPosition = { ...newPosition };
+          console.log('📹 Posição do PiP atualizada no canvas:', currentPipPosition);
+        };
+        
+        console.log('✅ Track combinado criado (screen sharing + câmera)');
+        console.log('   Posição inicial do PiP:', currentPipPosition);
+        resolve(customTrack);
+        
+      } catch (error: any) {
+        console.error('❌ Erro ao criar track combinado:', error);
+        reject(error);
+      }
+    });
+  };
+
   // Função para criar um custom video track a partir de uma URL
   const createCustomVideoTrackFromUrl = async (url: string): Promise<any> => {
     return new Promise((resolve, reject) => {
@@ -553,6 +799,34 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     try {
       if (showScreenShare) {
         // Desativar screen sharing
+        // Se há track combinado, despublicar ele primeiro
+        if (combinedVideoTrackRef.current) {
+          try {
+            await clientRef.current.unpublish(combinedVideoTrackRef.current);
+            
+            // Limpar recursos do track combinado
+            const combinedTrack = combinedVideoTrackRef.current as any;
+            if (combinedTrack._drawInterval) {
+              clearInterval(combinedTrack._drawInterval);
+            }
+            if (combinedTrack._screenVideo && document.body.contains(combinedTrack._screenVideo)) {
+              document.body.removeChild(combinedTrack._screenVideo);
+            }
+            if (combinedTrack._cameraVideo && document.body.contains(combinedTrack._cameraVideo)) {
+              document.body.removeChild(combinedTrack._cameraVideo);
+            }
+            if (combinedTrack._canvas && document.body.contains(combinedTrack._canvas)) {
+              document.body.removeChild(combinedTrack._canvas);
+            }
+            
+            combinedTrack.stop();
+            combinedTrack.close();
+            combinedVideoTrackRef.current = null;
+          } catch (e) {
+            console.warn('Aviso ao despublicar track combinado:', e);
+          }
+        }
+        
         if (screenVideoTrackRef.current) {
           const screenTrack = screenVideoTrackRef.current;
           const tracksToUnpublish = Array.isArray(screenTrack) ? screenTrack : [screenTrack];
@@ -582,31 +856,32 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             }
           }
           screenVideoTrackRef.current = null;
-          
-          // Limpar container principal
-          if (localVideoRef.current) {
-            safeClearElement(localVideoRef.current);
-          }
-          
-          // Se a câmera está ativa, republicar e mostrar no container principal
-          if (showCamera && cameraVideoTrackRef.current && localVideoRef.current) {
-            // Limpar PiP
-            if (cameraPiPRef.current) {
-              safeClearElement(cameraPiPRef.current);
-            }
-            
-            // Republicar câmera (já que screen sharing foi despublicado)
-            try {
-              await clientRef.current.publish(cameraVideoTrackRef.current);
-              console.log('✅ Câmera republicada após desativar screen sharing');
-            } catch (e) {
-              console.warn('Aviso ao republicar câmera:', e);
-            }
-            
-            // Mostrar câmera no container principal
-            await cameraVideoTrackRef.current.play(localVideoRef.current);
-          }
         }
+        
+        // Limpar container principal
+        if (localVideoRef.current) {
+          safeClearElement(localVideoRef.current);
+        }
+        
+        // Se a câmera está ativa, republicar e mostrar no container principal
+        if (showCamera && cameraVideoTrackRef.current && localVideoRef.current) {
+          // Limpar PiP
+          if (cameraPiPRef.current) {
+            safeClearElement(cameraPiPRef.current);
+          }
+          
+          // Republicar câmera (já que screen sharing foi despublicado)
+          try {
+            await clientRef.current.publish(cameraVideoTrackRef.current);
+            console.log('✅ Câmera republicada após desativar screen sharing');
+          } catch (e) {
+            console.warn('Aviso ao republicar câmera:', e);
+          }
+          
+          // Mostrar câmera no container principal
+          await cameraVideoTrackRef.current.play(localVideoRef.current);
+        }
+        
         setShowScreenShare(false);
         toast.success('🖥️ Compartilhamento de tela desativado');
       } else {
@@ -624,19 +899,87 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         
         screenVideoTrackRef.current = screenVideoTrack;
         
-        // Se há screen sharing ativo, despublicar a câmera primeiro
+        // Se a câmera está ativa, criar track combinado (screen sharing + câmera)
         if (cameraVideoTrackRef.current && showCamera) {
           try {
-            await clientRef.current.unpublish(cameraVideoTrackRef.current);
-            console.log('✅ Câmera despublicada para permitir screen sharing');
-          } catch (e) {
-            console.warn('Aviso ao despublicar câmera:', e);
+            console.log('📹 Criando track combinado (screen sharing + câmera)...');
+            console.log('   Screen track:', !!screenVideoTrack);
+            console.log('   Camera track:', !!cameraVideoTrackRef.current);
+            
+            // Despublicar câmera se estiver publicada
+            try {
+              await clientRef.current.unpublish(cameraVideoTrackRef.current);
+              console.log('✅ Câmera despublicada antes de criar track combinado');
+            } catch (e) {
+              console.log('ℹ️ Câmera não estava publicada (normal)');
+            }
+            
+            // Criar track combinado com posição atual do PiP
+            console.log('🔄 Iniciando criação do track combinado...');
+            console.log('   Posição do PiP:', cameraPosition);
+            const combinedTrack = await createCombinedVideoTrack(
+              screenVideoTrack,
+              cameraVideoTrackRef.current,
+              cameraPosition // Passar posição atual do PiP
+            );
+            
+            console.log('✅ Track combinado criado com sucesso');
+            combinedVideoTrackRef.current = combinedTrack;
+            
+            // Publicar track combinado (vídeo e áudio se disponível)
+            const tracksToPublish = screenAudioTrack 
+              ? [combinedTrack, screenAudioTrack] 
+              : [combinedTrack];
+            
+            console.log('📤 Publicando track combinado...');
+            await clientRef.current.publish(tracksToPublish);
+            
+            console.log('✅ Track combinado publicado com sucesso (screen sharing + câmera)');
+            console.log('   Tracks publicados:', clientRef.current.localTracks.length);
+          } catch (error) {
+            console.error('❌ Erro ao criar track combinado:', error);
+            console.error('   Stack:', error.stack);
+            console.log('🔄 Fallback: publicando apenas screen sharing...');
+            // Fallback: publicar apenas screen sharing
+            const tracksToPublish = screenAudioTrack ? [screenVideoTrack, screenAudioTrack] : [screenVideoTrack];
+            await clientRef.current.publish(tracksToPublish);
+            console.log('✅ Screen sharing publicado (fallback)');
           }
+        } else {
+          // Se câmera não está ativa, publicar apenas screen sharing
+          console.log('📤 Publicando apenas screen sharing (câmera não está ativa)');
+          console.log('   Screen track:', !!screenVideoTrack);
+          console.log('   Screen audio track:', !!screenAudioTrack);
+          
+          // Garantir que não há track combinado ativo
+          if (combinedVideoTrackRef.current) {
+            try {
+              await clientRef.current.unpublish(combinedVideoTrackRef.current);
+              const oldTrack = combinedVideoTrackRef.current as any;
+              if (oldTrack._drawInterval) clearInterval(oldTrack._drawInterval);
+              if (oldTrack._screenVideo && document.body.contains(oldTrack._screenVideo)) {
+                document.body.removeChild(oldTrack._screenVideo);
+              }
+              if (oldTrack._cameraVideo && document.body.contains(oldTrack._cameraVideo)) {
+                document.body.removeChild(oldTrack._cameraVideo);
+              }
+              if (oldTrack._canvas && document.body.contains(oldTrack._canvas)) {
+                document.body.removeChild(oldTrack._canvas);
+              }
+              oldTrack.stop();
+              oldTrack.close();
+              combinedVideoTrackRef.current = null;
+            } catch (e) {
+              console.warn('Aviso ao limpar track combinado:', e);
+            }
+          }
+          
+          const tracksToPublish = screenAudioTrack ? [screenVideoTrack, screenAudioTrack] : [screenVideoTrack];
+          await clientRef.current.publish(tracksToPublish);
+          console.log('✅ Screen sharing publicado');
+          console.log('   Tracks publicados:', clientRef.current.localTracks.length);
+          console.log('   Tracks:', clientRef.current.localTracks.map((t: any) => t.getTrackLabel()));
         }
-        
-        // Publicar screen sharing (vídeo e áudio se disponível)
-        const tracksToPublish = screenAudioTrack ? [screenVideoTrack, screenAudioTrack] : [screenVideoTrack];
-        await clientRef.current.publish(tracksToPublish);
         
         // Limpar container principal
         if (localVideoRef.current) {
@@ -703,6 +1046,46 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             safeClearElement(localVideoRef.current);
           }
         }
+        // Se screen sharing está ativo, recriar track apenas com screen sharing
+        if (showScreenShare && screenVideoTrackRef.current) {
+          try {
+            // Despublicar track combinado se existir
+            if (combinedVideoTrackRef.current) {
+              try {
+                await clientRef.current.unpublish(combinedVideoTrackRef.current);
+                const oldTrack = combinedVideoTrackRef.current as any;
+                if (oldTrack._drawInterval) clearInterval(oldTrack._drawInterval);
+                if (oldTrack._screenVideo && document.body.contains(oldTrack._screenVideo)) {
+                  document.body.removeChild(oldTrack._screenVideo);
+                }
+                if (oldTrack._cameraVideo && document.body.contains(oldTrack._cameraVideo)) {
+                  document.body.removeChild(oldTrack._cameraVideo);
+                }
+                if (oldTrack._canvas && document.body.contains(oldTrack._canvas)) {
+                  document.body.removeChild(oldTrack._canvas);
+                }
+                oldTrack.stop();
+                oldTrack.close();
+                combinedVideoTrackRef.current = null;
+              } catch (e) {
+                console.warn('Aviso ao despublicar track combinado:', e);
+              }
+            }
+            
+            // Republicar apenas screen sharing
+            const screenTrack = screenVideoTrackRef.current;
+            const screenAudioTrack = Array.isArray(screenTrack) ? screenTrack[1] : null;
+            const screenVideoTrack = Array.isArray(screenTrack) ? screenTrack[0] : screenTrack;
+            const tracksToPublish = screenAudioTrack 
+              ? [screenVideoTrack, screenAudioTrack] 
+              : [screenVideoTrack];
+            await clientRef.current.publish(tracksToPublish);
+            console.log('✅ Screen sharing republicado (câmera desativada)');
+          } catch (error) {
+            console.error('❌ Erro ao republicar screen sharing:', error);
+          }
+        }
+        
         setShowCamera(false);
         toast.success('📹 Câmera desativada');
       } else {
@@ -721,10 +1104,67 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           (track: any) => track.isVideo && track.isPlaying
         );
         
-        if (showScreenShare && publishedVideoTracks.length > 0) {
-          // Screen sharing está ativo, NÃO publicar a câmera (apenas mostrar localmente no PiP)
-          console.log('📹 Screen sharing ativo - câmera será exibida apenas localmente no PiP');
-          // O useEffect vai mover a câmera para o PiP automaticamente
+        if (showScreenShare && publishedVideoTracks.length > 0 && screenVideoTrackRef.current) {
+          // Screen sharing está ativo, recriar track combinado com a câmera
+          console.log('📹 Screen sharing ativo - recriando track combinado com câmera...');
+          
+          try {
+            // Despublicar track atual (pode ser screen sharing sozinho ou track combinado antigo)
+            if (combinedVideoTrackRef.current) {
+              try {
+                await clientRef.current.unpublish(combinedVideoTrackRef.current);
+                const oldTrack = combinedVideoTrackRef.current as any;
+                if (oldTrack._drawInterval) clearInterval(oldTrack._drawInterval);
+                if (oldTrack._screenVideo && document.body.contains(oldTrack._screenVideo)) {
+                  document.body.removeChild(oldTrack._screenVideo);
+                }
+                if (oldTrack._cameraVideo && document.body.contains(oldTrack._cameraVideo)) {
+                  document.body.removeChild(oldTrack._cameraVideo);
+                }
+                if (oldTrack._canvas && document.body.contains(oldTrack._canvas)) {
+                  document.body.removeChild(oldTrack._canvas);
+                }
+                oldTrack.stop();
+                oldTrack.close();
+              } catch (e) {
+                console.warn('Aviso ao despublicar track combinado antigo:', e);
+              }
+            }
+            
+            // Despublicar screen sharing atual
+            const screenTrack = screenVideoTrackRef.current;
+            const tracksToUnpublish = Array.isArray(screenTrack) ? screenTrack : [screenTrack];
+            try {
+              await clientRef.current.unpublish(tracksToUnpublish);
+            } catch (e) {
+              console.warn('Aviso ao despublicar screen sharing:', e);
+            }
+            
+            // Criar novo track combinado com posição atual do PiP
+            const screenVideoTrack = Array.isArray(screenTrack) ? screenTrack[0] : screenTrack;
+            const screenAudioTrack = Array.isArray(screenTrack) ? screenTrack[1] : null;
+            
+            console.log('🔄 Criando track combinado com posição do PiP:', cameraPosition);
+            const combinedTrack = await createCombinedVideoTrack(
+              screenVideoTrack,
+              cameraTrack,
+              cameraPosition // Passar posição atual do PiP
+            );
+            
+            combinedVideoTrackRef.current = combinedTrack;
+            
+            // Publicar track combinado
+            const tracksToPublish = screenAudioTrack 
+              ? [combinedTrack, screenAudioTrack] 
+              : [combinedTrack];
+            await clientRef.current.publish(tracksToPublish);
+            console.log('✅ Track combinado recriado e publicado com câmera');
+          } catch (error) {
+            console.error('❌ Erro ao recriar track combinado:', error);
+            toast.error('Erro ao combinar câmera com screen sharing');
+          }
+          
+          // O useEffect vai mover a câmera para o PiP localmente também
         } else {
           // Screen sharing não está ativo, publicar e mostrar câmera no container principal
           // Se há screen sharing publicado, despublicar primeiro
@@ -2039,10 +2479,32 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         3005, // RECV_VIDEO_DECODE_FAILED_RECOVER - recuperação do erro de decodificação
       ];
       
+      // Filtrar erros de WS_ABORT durante cleanup (normais e esperados)
+      // Esses erros acontecem quando o componente é desmontado ou quando há cleanup simultâneo
+      if (
+        event.code === 'WS_ABORT' || 
+        event.msg?.includes('WS_ABORT') || 
+        event.msg?.includes('LEAVE') ||
+        event.message?.includes('WS_ABORT') ||
+        event.message?.includes('LEAVE') ||
+        (event.msg && typeof event.msg === 'string' && event.msg.includes('LEAVE'))
+      ) {
+        // Apenas logar como debug, não como erro
+        console.debug('Aviso do Agora SDK (não crítico - cleanup):', event.msg || event.message, 'code:', event.code);
+        return; // Não tratar como erro
+      }
+      
       if (nonCriticalCodes.includes(event.code)) {
         // Apenas logar como debug, não como erro
         console.debug('Aviso do Agora SDK (não crítico):', event.msg || event.message, 'code:', event.code);
         return; // Não tratar como erro
+      }
+      
+      // Verificar se estamos em processo de cleanup
+      if (cleanupCalledRef.current) {
+        // Durante cleanup, muitos erros são esperados e não devem ser mostrados
+        console.debug('Erro durante cleanup (ignorado):', event.msg || event.message, 'code:', event.code);
+        return;
       }
       
       // Para outros erros, logar normalmente
@@ -2176,6 +2638,35 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           console.warn('Error stopping video track:', e);
         }
         localVideoTrackRef.current = null;
+      }
+      
+      // Limpar track combinado
+      if (combinedVideoTrackRef.current) {
+        try {
+          const combinedTrack = combinedVideoTrackRef.current as any;
+          if (combinedTrack._drawInterval) {
+            clearInterval(combinedTrack._drawInterval);
+          }
+          if (combinedTrack._screenVideo && document.body.contains(combinedTrack._screenVideo)) {
+            document.body.removeChild(combinedTrack._screenVideo);
+          }
+          if (combinedTrack._cameraVideo && document.body.contains(combinedTrack._cameraVideo)) {
+            document.body.removeChild(combinedTrack._cameraVideo);
+          }
+          if (combinedTrack._canvas && document.body.contains(combinedTrack._canvas)) {
+            document.body.removeChild(combinedTrack._canvas);
+          }
+          if (typeof combinedTrack.stop === 'function') {
+            combinedTrack.stop();
+          }
+          if (typeof combinedTrack.close === 'function') {
+            combinedTrack.close();
+          }
+          console.log('✅ Track combinado limpo');
+        } catch (e) {
+          console.warn('Error stopping combined track:', e);
+        }
+        combinedVideoTrackRef.current = null;
       }
       
       // Limpar screen sharing track
