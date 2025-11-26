@@ -101,6 +101,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const [cameraPosition, setCameraPosition] = useState({ x: 20, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [showAudioControls, setShowAudioControls] = useState(false); // Mostrar/ocultar controles de áudio
   
   // Estados para propagandas e slideshow
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
@@ -130,6 +131,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const cleanupCalledRef = useRef<boolean>(false);
   const currentChannelRef = useRef<string>('');
   const isJoiningRef = useRef<boolean>(false);
+  const isCleaningUpRef = useRef<boolean>(false); // Flag para indicar que cleanup está em andamento
   const ensureVideoDisplayRunningRef = useRef<boolean>(false);
   const checkTracksIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const combinedVideoTrackRef = useRef<any>(null);
@@ -2326,6 +2328,13 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     }
 
     try {
+      // Verificar se cleanup foi chamado antes de iniciar join
+      if (isCleaningUpRef.current) {
+        console.log('⚠️ Cleanup foi chamado, cancelando join...');
+        isJoiningRef.current = false;
+        return;
+      }
+
       isJoiningRef.current = true;
       setIsConnecting(true);
       setHasRemoteVideo(false);
@@ -2342,8 +2351,22 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       });
       clientRef.current = client;
 
+      // Verificar novamente se cleanup foi chamado
+      if (isCleaningUpRef.current) {
+        console.log('⚠️ Cleanup foi chamado durante criação do cliente, cancelando join...');
+        isJoiningRef.current = false;
+        return;
+      }
+
       // Configurar event listeners ANTES de entrar no canal (IMPORTANTE!)
       setupEventListeners(client);
+
+      // Verificar novamente antes de fazer join
+      if (isCleaningUpRef.current) {
+        console.log('⚠️ Cleanup foi chamado antes do join, cancelando...');
+        isJoiningRef.current = false;
+        return;
+      }
 
       // Entrar no canal primeiro
       // Se não há token, passar null explicitamente
@@ -2355,6 +2378,19 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       // Se não há token, usar null (requer projeto configurado para App ID Only)
       const tokenToUse = TOKEN || null;
       const uid = await client.join(APP_ID, channelName, tokenToUse, null);
+      
+      // Verificar se cleanup foi chamado durante o join
+      if (isCleaningUpRef.current) {
+        console.log('⚠️ Cleanup foi chamado durante join, saindo imediatamente...');
+        try {
+          await client.leave();
+        } catch (e) {
+          // Ignorar erros ao sair durante join
+        }
+        isJoiningRef.current = false;
+        return;
+      }
+      
       console.log('✅ Entrou no canal com sucesso! UID:', uid);
       isJoiningRef.current = false;
 
@@ -3345,6 +3381,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   };
 
   const cleanup = async () => {
+    // Marcar que cleanup está em andamento
+    isCleaningUpRef.current = true;
     // Limpar intervalo de verificação de tracks
     if (checkTracksIntervalRef.current) {
       clearInterval(checkTracksIntervalRef.current);
@@ -3519,27 +3557,42 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         try {
           // Verificar se ainda está conectando antes de sair
           if (isJoiningRef.current) {
-            console.log('Ainda está conectando, aguardando...');
-            // Aguardar um pouco para a conexão completar ou falhar
-            await new Promise(resolve => setTimeout(resolve, 500));
+            console.log('⚠️ Ainda está conectando, aguardando join completar ou falhar...');
+            // Aguardar mais tempo para a conexão completar ou falhar
+            let waitCount = 0;
+            while (isJoiningRef.current && waitCount < 10) {
+              await new Promise(resolve => setTimeout(resolve, 200));
+              waitCount++;
+            }
+            console.log(`   Aguardou ${waitCount * 200}ms, isJoining: ${isJoiningRef.current}`);
           }
           
           // Verificar se o cliente ainda está conectado antes de sair
           const connectionState = clientRef.current.connectionState;
           console.log('🔌 Estado da conexão antes de sair:', connectionState);
-          console.log('   Stack trace do cleanup:', new Error().stack);
           
-          if (connectionState !== 'DISCONNECTED' && connectionState !== 'DISCONNECTING') {
+          // Só tentar sair se não estiver DISCONNECTED ou DISCONNECTING
+          // E se não estiver mais em processo de join
+          if (connectionState !== 'DISCONNECTED' && 
+              connectionState !== 'DISCONNECTING' && 
+              !isJoiningRef.current) {
             console.log('🚪 Saindo do canal...');
             await clientRef.current.leave();
             console.log('✅ Left channel successfully');
           } else {
-            console.log('⚠️ Cliente já estava desconectado, pulando leave()');
+            if (isJoiningRef.current) {
+              console.log('⚠️ Join ainda em andamento, pulando leave() (será cancelado automaticamente)');
+            } else {
+              console.log('⚠️ Cliente já estava desconectado, pulando leave()');
+            }
           }
         } catch (e: any) {
-          // Ignorar erros de WS_ABORT (acontece quando já está saindo)
-          if (e.code === 'WS_ABORT' || e.message?.includes('LEAVE') || e.message?.includes('WS_ABORT')) {
-            console.debug('Cleanup: Conexão já estava sendo encerrada (normal)');
+          // Ignorar erros de WS_ABORT (acontece quando já está saindo ou durante join)
+          if (e.code === 'WS_ABORT' || 
+              e.message?.includes('LEAVE') || 
+              e.message?.includes('WS_ABORT') ||
+              e.code === 'OPERATION_ABORTED') {
+            console.debug('Cleanup: Conexão já estava sendo encerrada ou join foi cancelado (normal)');
           } else {
             console.warn('Error leaving channel:', e);
             console.warn('   Stack trace:', e.stack);
@@ -3579,7 +3632,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       isJoiningRef.current = false;
       ensureVideoDisplayRunningRef.current = false;
       currentChannelRef.current = '';
+      isCleaningUpRef.current = false; // Resetar flag de cleanup
       
+      isCleaningUpRef.current = false; // Resetar flag de cleanup
       console.log('✅ Cleanup completed - todos os recursos foram liberados');
     } catch (error) {
       console.error('Erro ao limpar recursos:', error);
@@ -3897,11 +3952,29 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                 </div>
               )}
               
-              {/* Controles de Volume - Sempre disponíveis quando transmitindo */}
+              {/* Botão para mostrar/ocultar controles de áudio */}
               {isStreaming && (
-                <div className="bg-gray-800/90 backdrop-blur-sm p-4 rounded-lg space-y-3 mt-3 min-w-[280px]">
+                <button
+                  onClick={() => setShowAudioControls(!showAudioControls)}
+                  className="mt-3 px-4 py-2 bg-gray-800/90 hover:bg-gray-700 text-white rounded-lg transition-all flex items-center justify-center gap-2 font-medium shadow-lg backdrop-blur-sm"
+                  title={showAudioControls ? 'Ocultar controles de áudio' : 'Mostrar controles de áudio'}
+                >
+                  <Volume2 size={18} />
+                  <span>{showAudioControls ? 'Ocultar' : 'Controles de Áudio'}</span>
+                </button>
+              )}
+
+              {/* Controles de Volume - Fixos na tela quando transmitindo e visíveis */}
+              {isStreaming && showAudioControls && (
+                <div className="mt-3 bg-gray-800/90 backdrop-blur-sm p-4 rounded-lg space-y-3 min-w-[280px] border border-gray-700/50">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-white text-sm font-medium">Controles de Áudio</span>
+                    <button
+                      onClick={() => setShowAudioControls(false)}
+                      className="text-gray-400 hover:text-white transition-colors"
+                    >
+                      <X size={18} />
+                    </button>
                   </div>
                   
                   {/* Volume do Microfone - Sempre disponível */}
@@ -4107,6 +4180,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           <span className="text-sm font-medium">AO VIVO</span>
         </div>
       )}
+
     </div>
     </>
   );

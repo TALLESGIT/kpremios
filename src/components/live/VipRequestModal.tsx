@@ -135,8 +135,8 @@ const VipRequestModal: React.FC<VipRequestModalProps> = ({ isOpen, onClose, onSu
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className="bg-slate-800 rounded-2xl p-6 md:p-8 max-w-md w-full mx-4 border border-amber-500/30 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="bg-slate-800 rounded-2xl p-4 md:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto border border-amber-500/30 shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -229,9 +229,9 @@ const VipRequestModal: React.FC<VipRequestModalProps> = ({ isOpen, onClose, onSu
             </div>
 
             {/* QR Code Placeholder */}
-            <div className="bg-white p-4 rounded-xl flex items-center justify-center">
+            <div className="bg-white p-3 md:p-4 rounded-xl flex items-center justify-center">
               <div className="text-center">
-                <QrCode size={200} className="text-slate-400 mx-auto mb-2" />
+                <QrCode className="w-32 h-32 md:w-40 md:h-40 text-slate-400 mx-auto mb-2" />
                 <p className="text-xs text-slate-500">QR Code PIX</p>
                 <p className="text-xs text-slate-400 mt-2">
                   (Integre com API de geração de QR Code PIX)

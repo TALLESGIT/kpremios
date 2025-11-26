@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { Send, Trash2, User } from 'lucide-react';
+import { Send, Trash2, User, Crown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import VipRequestModal from './VipRequestModal';
 
 interface ChatMessage {
   id: string;

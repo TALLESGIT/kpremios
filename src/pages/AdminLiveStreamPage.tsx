@@ -287,13 +287,29 @@ const AdminLiveStreamPage: React.FC = () => {
 
   // Verificar se o nome do canal já existe
   const checkChannelNameExists = async (channelName: string): Promise<boolean> => {
-    const { data, error } = await supabase
-      .from('live_streams')
-      .select('id')
-      .eq('channel_name', channelName)
-      .single();
-    
-    return !error && data !== null;
+    // Validar antes de fazer a query
+    if (!channelName || channelName.trim().length < 2) {
+      return false; // Não considerar como existente se muito curto
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('live_streams')
+        .select('id')
+        .eq('channel_name', channelName.trim())
+        .maybeSingle(); // Usar maybeSingle ao invés de single para evitar erro 406
+      
+      // Se houver erro e não for "PGRST116" (não encontrado), retornar false
+      if (error && error.code !== 'PGRST116') {
+        console.error('Erro ao verificar nome do canal:', error);
+        return false;
+      }
+      
+      return data !== null;
+    } catch (error) {
+      console.error('Erro ao verificar nome do canal:', error);
+      return false;
+    }
   };
 
   const createStream = async () => {
@@ -310,16 +326,18 @@ const AdminLiveStreamPage: React.FC = () => {
         // Usar nome personalizado
         channelName = sanitizeChannelName(newStream.customChannelName);
         
-        if (!channelName) {
-          toast.error('Nome do canal inválido. Use apenas letras, números e hífens.');
+        if (!channelName || channelName.length < 2) {
+          toast.error('Nome do canal inválido. Use pelo menos 2 caracteres (letras, números e hífens).');
           return;
         }
 
-        // Verificar se já existe
-        const exists = await checkChannelNameExists(channelName);
-        if (exists) {
-          toast.error('Este nome de canal já está em uso. Escolha outro.');
-          return;
+        // Verificar se já existe (apenas se tiver pelo menos 2 caracteres)
+        if (channelName.length >= 2) {
+          const exists = await checkChannelNameExists(channelName);
+          if (exists) {
+            toast.error('Este nome de canal já está em uso. Escolha outro.');
+            return;
+          }
         }
       } else {
         // Gerar nome automático
@@ -713,12 +731,16 @@ const AdminLiveStreamPage: React.FC = () => {
                     type="text"
                     value={newStream.customChannelName}
                     onChange={(e) => {
-                      setNewStream({ ...newStream, customChannelName: e.target.value });
+                      // Sanitizar enquanto digita para evitar caracteres inválidos
+                      const sanitized = sanitizeChannelName(e.target.value);
+                      setNewStream({ ...newStream, customChannelName: sanitized || e.target.value });
                       setAutoGenerateSlug(false); // Desativar auto-geração quando editar manualmente
                     }}
                     onFocus={() => setAutoGenerateSlug(false)} // Desativar ao focar no campo
                     placeholder="Ex: cruzeiro-x-corintians"
                     className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-amber-500 focus:outline-none"
+                    minLength={2}
+                    maxLength={100}
                   />
                   <p className="text-xs text-slate-400 mt-1">
                     {autoGenerateSlug 
