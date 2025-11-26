@@ -10,6 +10,7 @@ interface ChatMessage {
   message: string;
   is_admin: boolean;
   is_system: boolean;
+  is_vip?: boolean;
   created_at: string;
   user_id?: string;
 }
@@ -24,8 +25,31 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, channelName }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [isVip, setIsVip] = useState(false);
+  const [showVipModal, setShowVipModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Verificar se usuário é VIP
+  useEffect(() => {
+    const checkVipStatus = async () => {
+      if (!user?.email) return;
+      
+      try {
+        const { data } = await supabase
+          .from('users')
+          .select('is_vip')
+          .eq('email', user.email)
+          .single();
+        
+        setIsVip(data?.is_vip || false);
+      } catch (error) {
+        console.error('Erro ao verificar status VIP:', error);
+      }
+    };
+
+    checkVipStatus();
+  }, [user]);
 
   // Carregar mensagens iniciais
   useEffect(() => {
@@ -185,13 +209,26 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, channelName }) => {
     setSending(true);
 
     try {
+      // Verificar se usuário é VIP
+      let isVip = false;
+      if (user?.email) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('is_vip')
+          .eq('email', user.email)
+          .single();
+        
+        isVip = userData?.is_vip || false;
+      }
+
       const messageData = {
         stream_id: streamId,
         user_id: user?.id || null,
         user_name: user?.name || user?.email || 'Anônimo',
         message: newMessage.trim(),
         is_admin: user?.is_admin || false,
-        is_system: false
+        is_system: false,
+        is_vip: isVip
       };
 
       const { error } = await supabase
@@ -264,16 +301,20 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, channelName }) => {
               className={`flex gap-3 ${
                 msg.is_system 
                   ? 'justify-center' 
-                  : msg.is_admin 
-                    ? 'bg-amber-500/10 border-l-2 border-amber-500' 
-                    : ''
+                  : msg.is_vip
+                    ? 'bg-gradient-to-r from-amber-500/20 to-amber-600/20 border-l-4 border-amber-400'
+                    : msg.is_admin 
+                      ? 'bg-amber-500/10 border-l-2 border-amber-500' 
+                      : ''
               } p-2 rounded-lg`}
             >
               {!msg.is_system && (
                 <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                  msg.is_admin 
-                    ? 'bg-amber-500 text-white' 
-                    : 'bg-slate-600 text-white'
+                  msg.is_vip
+                    ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-white'
+                    : msg.is_admin 
+                      ? 'bg-amber-500 text-white' 
+                      : 'bg-slate-600 text-white'
                 }`}>
                   <User size={16} />
                 </div>
@@ -281,12 +322,21 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, channelName }) => {
               
               <div className="flex-1 min-w-0">
                 {!msg.is_system && (
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className={`font-bold text-sm ${
-                      msg.is_admin ? 'text-amber-400' : 'text-white'
+                      msg.is_vip 
+                        ? 'text-amber-300' 
+                        : msg.is_admin 
+                          ? 'text-amber-400' 
+                          : 'text-white'
                     }`}>
                       {msg.user_name}
                     </span>
+                    {msg.is_vip && (
+                      <span className="px-2 py-0.5 bg-gradient-to-r from-amber-400 to-amber-600 text-white text-xs rounded-full font-bold flex items-center gap-1">
+                        👑 VIP
+                      </span>
+                    )}
                     {msg.is_admin && (
                       <span className="px-2 py-0.5 bg-amber-500 text-white text-xs rounded-full">
                         ADMIN
@@ -322,6 +372,19 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, channelName }) => {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Botão Tornar-se VIP (se não for VIP) */}
+      {user && !isVip && (
+        <div className="px-4 py-2 border-t border-slate-700 bg-gradient-to-r from-amber-500/10 to-amber-600/10">
+          <button
+            onClick={() => setShowVipModal(true)}
+            className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white py-2 px-4 rounded-lg font-bold transition-all flex items-center justify-center gap-2 text-sm"
+          >
+            <Crown size={16} />
+            Tornar-se VIP
+          </button>
+        </div>
+      )}
+
       {/* Input de Mensagem */}
       <form onSubmit={sendMessage} className="p-4 border-t border-slate-700 bg-slate-900">
         <div className="flex gap-2">
@@ -329,7 +392,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, channelName }) => {
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder={user ? "Digite sua mensagem..." : "Faça login para comentar"}
+            placeholder={user ? (isVip ? "Digite sua mensagem VIP..." : "Digite sua mensagem...") : "Faça login para comentar"}
             disabled={!user || sending}
             maxLength={500}
             className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-amber-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
@@ -349,6 +412,16 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, channelName }) => {
           </p>
         )}
       </form>
+
+      {/* Modal de Solicitação VIP */}
+      <VipRequestModal
+        isOpen={showVipModal}
+        onClose={() => setShowVipModal(false)}
+        onSuccess={() => {
+          setIsVip(true);
+          setShowVipModal(false);
+        }}
+      />
     </div>
   );
 };

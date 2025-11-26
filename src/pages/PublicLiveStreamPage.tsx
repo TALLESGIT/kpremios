@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Users, Share2, Copy, Check, Eye, ArrowLeft, Home, Maximize2, Minimize2, MessageSquare, X } from 'lucide-react';
+import { Share2, Copy, Check, Eye, ArrowLeft, Home, Maximize2, Minimize2, MessageSquare, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import VideoStream from '../components/live/VideoStream';
 import LiveChat from '../components/live/LiveChat';
+import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 
@@ -18,6 +19,10 @@ const PublicLiveStreamPage: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showChatInFullscreen, setShowChatInFullscreen] = useState(false);
   const [showChatMobile, setShowChatMobile] = useState(false);
+  const [showChatIcon, setShowChatIcon] = useState(false); // Ícone de chat transparente
+  const [isMobile, setIsMobile] = useState(false); // Detectar se é mobile
+  const [controlsVisible, setControlsVisible] = useState(true); // Controles visíveis
+  const [vipMessages, setVipMessages] = useState<any[]>([]); // Mensagens VIP para overlay
   
   // Tracking de sessão
   const [sessionId] = useState(() => {
@@ -166,39 +171,192 @@ const PublicLiveStreamPage: React.FC = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Função para entrar/sair de tela cheia
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().then(() => {
+  // Detectar se é mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Função para entrar/sair de tela cheia (com suporte mobile)
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        // Tentar entrar em fullscreen
+        const element = document.documentElement;
+        
+        // Para mobile, tentar orientação landscape
+        if (isMobile && screen.orientation && (screen.orientation as any).lock) {
+          try {
+            await (screen.orientation as any).lock('landscape');
+          } catch (orientationError) {
+            console.log('Não foi possível bloquear orientação:', orientationError);
+          }
+        }
+
+        // Request fullscreen
+        if (element.requestFullscreen) {
+          await element.requestFullscreen();
+        } else if ((element as any).webkitRequestFullscreen) {
+          await (element as any).webkitRequestFullscreen();
+        } else if ((element as any).mozRequestFullScreen) {
+          await (element as any).mozRequestFullScreen();
+        } else if ((element as any).msRequestFullscreen) {
+          await (element as any).msRequestFullscreen();
+        }
+        
         setIsFullscreen(true);
-      }).catch((err) => {
-        console.error('Erro ao entrar em tela cheia:', err);
-        toast.error('Não foi possível entrar em tela cheia');
-      });
-    } else {
-      document.exitFullscreen().then(() => {
+        setShowChatIcon(false);
+        setControlsVisible(true);
+        
+        // Auto-hide controles após 3 segundos em mobile
+        if (isMobile) {
+          setTimeout(() => {
+            if (isFullscreen) {
+              setControlsVisible(false);
+              setShowChatIcon(true);
+            }
+          }, 3000);
+        }
+      } else {
+        // Sair do fullscreen
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        } else if ((document as any).mozCancelFullScreen) {
+          await (document as any).mozCancelFullScreen();
+        } else if ((document as any).msExitFullscreen) {
+          await (document as any).msExitFullscreen();
+        }
+        
+        // Desbloquear orientação
+        if (screen.orientation && screen.orientation.unlock) {
+          screen.orientation.unlock();
+        }
+        
         setIsFullscreen(false);
         setShowChatInFullscreen(false);
-      }).catch((err) => {
-        console.error('Erro ao sair de tela cheia:', err);
-      });
+        setShowChatIcon(false);
+        setControlsVisible(true);
+      }
+    } catch (err: any) {
+      console.error('Erro ao alternar tela cheia:', err);
+      if (!document.fullscreenElement) {
+        toast.error('Não foi possível entrar em tela cheia');
+      }
     }
   };
+
+  // Detectar toque na tela para mostrar/ocultar controles (mobile)
+  useEffect(() => {
+    if (!isFullscreen || !isMobile) return;
+
+    let touchTimer: NodeJS.Timeout;
+    const videoContainer = document.querySelector('.video-container-fullscreen');
+
+    const handleTouch = () => {
+      setControlsVisible(true);
+      setShowChatIcon(true);
+      
+      // Auto-hide após 3 segundos
+      clearTimeout(touchTimer);
+      touchTimer = setTimeout(() => {
+        if (isFullscreen && !showChatInFullscreen) {
+          setControlsVisible(false);
+          setShowChatIcon(true); // Manter ícone visível
+        }
+      }, 3000);
+    };
+
+    if (videoContainer) {
+      videoContainer.addEventListener('touchstart', handleTouch);
+      return () => {
+        videoContainer.removeEventListener('touchstart', handleTouch);
+        clearTimeout(touchTimer);
+      };
+    }
+  }, [isFullscreen, isMobile, showChatInFullscreen]);
+
+  // Escutar mensagens VIP em tempo real para overlay
+  useEffect(() => {
+    if (!stream?.id) return;
+
+    const channel = supabase
+      .channel(`vip-messages-${stream.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'live_chat_messages',
+          filter: `stream_id=eq.${stream.id} AND is_vip=eq.true`
+        },
+        (payload) => {
+          const newMessage = payload.new;
+          if (newMessage.is_vip) {
+            setVipMessages(prev => [...prev, newMessage]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [stream?.id]);
 
   // Detectar mudanças no estado de tela cheia
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-      if (!document.fullscreenElement) {
+      const isCurrentlyFullscreen = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+      
+      setIsFullscreen(isCurrentlyFullscreen);
+      
+      if (!isCurrentlyFullscreen) {
         setShowChatInFullscreen(false);
+        setShowChatIcon(false);
+        setControlsVisible(true);
+        
+        // Desbloquear orientação ao sair
+        if (screen.orientation && screen.orientation.unlock) {
+          screen.orientation.unlock();
+        }
+      } else {
+        // Ao entrar em fullscreen, mostrar controles temporariamente
+        if (isMobile) {
+          setControlsVisible(true);
+          setShowChatIcon(false);
+          setTimeout(() => {
+            if (isCurrentlyFullscreen && !showChatInFullscreen) {
+              setControlsVisible(false);
+              setShowChatIcon(true);
+            }
+          }, 3000);
+        }
       }
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
     };
-  }, []);
+  }, [isMobile, showChatInFullscreen]);
 
   if (loading) {
     return (
@@ -239,7 +397,41 @@ const PublicLiveStreamPage: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 ${isFullscreen ? 'overflow-hidden' : ''}`}>
+    <>
+      {/* Meta tags para mobile fullscreen */}
+      {isFullscreen && isMobile && (
+        <style>{`
+          @media screen and (orientation: portrait) {
+            .video-container-fullscreen {
+              transform: rotate(90deg);
+              transform-origin: center center;
+              width: 100vh;
+              height: 100vw;
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              margin-left: -50vh;
+              margin-top: -50vw;
+            }
+          }
+          .video-container-fullscreen video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain !important;
+          }
+        `}</style>
+      )}
+      
+      <div 
+        className={`min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 ${isFullscreen ? 'overflow-hidden fixed inset-0' : ''}`}
+        style={isFullscreen && isMobile ? { 
+          position: 'fixed',
+          width: '100%',
+          height: '100%',
+          overflow: 'hidden',
+          touchAction: 'none' // Prevenir gestos de rotação
+        } : {}}
+      >
       {!isFullscreen && <Header />}
       
       <div className="max-w-7xl mx-auto p-4 py-8">
@@ -279,13 +471,33 @@ const PublicLiveStreamPage: React.FC = () => {
           )}
         </div>
 
+        {/* Overlay de Mensagens VIP */}
+        {stream.is_active && (
+          <VipMessageOverlay messages={vipMessages} />
+        )}
+
         {/* Layout: Vídeo + Chat */}
         {stream.is_active ? (
-          <div className={`relative ${isFullscreen ? 'fixed inset-0 z-50 bg-black' : ''}`}>
+          <div className={`relative video-container-fullscreen ${isFullscreen ? 'fixed inset-0 z-50 bg-black' : ''}`}>
             {/* Container principal do vídeo */}
-            <div className={`relative ${isFullscreen ? 'w-full h-full' : 'grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6'}`}>
+            <div className={`relative ${isFullscreen ? 'w-full h-full flex' : 'grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6'}`}>
               {/* Player de Vídeo */}
-              <div className={`${isFullscreen ? 'w-full h-full' : 'lg:col-span-2'} relative`}>
+              <div 
+                className={`${isFullscreen && showChatInFullscreen ? 'w-full sm:w-[calc(100%-24rem)]' : isFullscreen ? 'w-full h-full' : 'lg:col-span-2'} relative transition-all duration-300`}
+                onClick={() => {
+                  // Em mobile fullscreen, toque na tela mostra/oculta controles
+                  if (isFullscreen && isMobile && !showChatInFullscreen) {
+                    setControlsVisible(true);
+                    setShowChatIcon(true);
+                    setTimeout(() => {
+                      if (isFullscreen && !showChatInFullscreen) {
+                        setControlsVisible(false);
+                        setShowChatIcon(true);
+                      }
+                    }, 3000);
+                  }
+                }}
+              >
                 <div className={`${isFullscreen ? 'w-full h-full p-0' : 'bg-white/10 backdrop-blur-sm rounded-2xl p-3 md:p-6 border border-white/20'} relative`}>
                   <VideoStream
                     channelName={stream.channel_name}
@@ -294,21 +506,50 @@ const PublicLiveStreamPage: React.FC = () => {
                     sessionId={sessionId}
                   />
                   
+                  {/* Ícone de Chat Transparente (Mobile Fullscreen) */}
+                  {isFullscreen && isMobile && showChatIcon && !showChatInFullscreen && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowChatInFullscreen(true);
+                        setControlsVisible(true);
+                        setShowChatIcon(false);
+                      }}
+                      className="absolute top-4 right-4 z-20 bg-black/40 hover:bg-black/60 text-white p-3 rounded-full transition-all backdrop-blur-md border border-white/30 shadow-lg animate-pulse"
+                      aria-label="Abrir Chat"
+                    >
+                      <MessageSquare size={24} className="opacity-90" />
+                      {/* Badge de notificação */}
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-black animate-ping"></span>
+                    </button>
+                  )}
+                  
                   {/* Botões de controle em tela cheia */}
-                  {isFullscreen && (
-                    <div className="absolute top-4 right-4 z-10 flex gap-2">
-                      {/* Botão de Chat */}
-                      <button
-                        onClick={() => setShowChatInFullscreen(!showChatInFullscreen)}
-                        className="bg-black/70 hover:bg-black/90 text-white p-3 rounded-full transition-all backdrop-blur-sm border border-white/20"
-                        aria-label="Toggle Chat"
-                      >
-                        {showChatInFullscreen ? <X size={20} /> : <MessageSquare size={20} />}
-                      </button>
+                  {isFullscreen && (controlsVisible || !isMobile) && (
+                    <div className={`absolute top-4 right-4 z-10 flex gap-2 transition-opacity duration-300 ${controlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                      {/* Botão de Chat (Desktop ou quando chat está aberto) */}
+                      {(!isMobile || showChatInFullscreen) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowChatInFullscreen(!showChatInFullscreen);
+                            if (!showChatInFullscreen) {
+                              setControlsVisible(true);
+                            }
+                          }}
+                          className="bg-black/70 hover:bg-black/90 text-white p-3 rounded-full transition-all backdrop-blur-sm border border-white/20"
+                          aria-label="Toggle Chat"
+                        >
+                          {showChatInFullscreen ? <X size={20} /> : <MessageSquare size={20} />}
+                        </button>
+                      )}
                       
                       {/* Botão de Sair da tela cheia */}
                       <button
-                        onClick={toggleFullscreen}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFullscreen();
+                        }}
                         className="bg-black/70 hover:bg-black/90 text-white p-3 rounded-full transition-all backdrop-blur-sm border border-white/20"
                         aria-label="Sair de tela cheia"
                       >
@@ -362,28 +603,54 @@ const PublicLiveStreamPage: React.FC = () => {
                 </button>
               )}
 
-              {/* Chat - Overlay em tela cheia */}
+              {/* Chat em Fullscreen - Slide lateral */}
               {isFullscreen && showChatInFullscreen && (
-                <div className="absolute top-0 right-0 h-full w-full sm:w-96 bg-black/95 backdrop-blur-md border-l border-white/20 z-20 animate-slide-in-right">
+                <div 
+                  className="absolute top-0 right-0 h-full w-full sm:w-96 bg-black/95 backdrop-blur-md border-l border-white/20 z-20 animate-slide-in-right"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <div className="h-full flex flex-col">
                     {/* Header do chat em tela cheia */}
                     <div className="flex items-center justify-between p-4 border-b border-white/20">
-                      <h3 className="text-white font-bold text-lg">Chat</h3>
+                      <h3 className="text-white font-bold text-lg">Chat ao Vivo</h3>
                       <button
-                        onClick={() => setShowChatInFullscreen(false)}
-                        className="text-white hover:text-gray-300 transition-colors"
+                        onClick={() => {
+                          setShowChatInFullscreen(false);
+                          // Em mobile, ocultar controles após fechar chat
+                          if (isMobile) {
+                            setTimeout(() => {
+                              setControlsVisible(false);
+                              setShowChatIcon(true);
+                            }, 1000);
+                          }
+                        }}
+                        className="text-white hover:text-slate-300 transition-colors p-2"
                         aria-label="Fechar Chat"
                       >
                         <X size={20} />
                       </button>
                     </div>
                     
-                    {/* Chat content */}
+                    {/* Chat */}
                     <div className="flex-1 overflow-hidden">
                       <LiveChat streamId={stream.id} channelName={stream.channel_name} />
                     </div>
                   </div>
                 </div>
+              )}
+              
+              {/* Overlay para fechar chat ao clicar no vídeo (mobile) */}
+              {isFullscreen && showChatInFullscreen && isMobile && (
+                <div 
+                  className="absolute inset-0 z-10 bg-transparent"
+                  onClick={() => {
+                    setShowChatInFullscreen(false);
+                    setTimeout(() => {
+                      setControlsVisible(false);
+                      setShowChatIcon(true);
+                    }, 1000);
+                  }}
+                />
               )}
             </div>
 
@@ -458,7 +725,8 @@ const PublicLiveStreamPage: React.FC = () => {
       </div>
 
       {!isFullscreen && <Footer />}
-    </div>
+      </div>
+    </>
   );
 };
 
