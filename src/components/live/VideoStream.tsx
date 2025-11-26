@@ -1,12 +1,31 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Video, VideoOff, X, Monitor, MonitorOff, Link as LinkIcon } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, X, Monitor, MonitorOff, Link as LinkIcon, Volume2, VolumeX, Volume1, Circle, Square } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import AgoraRTC from 'agora-rtc-sdk-ng';
+import { supabase } from '../../lib/supabase';
+
+interface AdImage {
+  id: string;
+  url: string;
+  enabled: boolean;
+  duration?: number; // Para slideshow (segundos)
+}
 
 interface VideoStreamProps {
   channelName: string;
   isBroadcaster: boolean;
   onEnd?: () => void;
+  adImages?: AdImage[]; // Imagens para slideshow
+  overlayAd?: { url: string; enabled: boolean }; // Propaganda overlay
+  onStatsUpdate?: (stats: {
+    viewerCount: number;
+    connectionState: string;
+    connectionQuality: 'excellent' | 'good' | 'poor' | 'disconnected';
+  }) => void;
+  streamId?: string; // ID da transmissão para tracking
+  sessionId?: string; // ID da sessão do viewer para tracking
+  onRecordingStateChange?: (isRecording: boolean) => void; // Callback para estado de gravação
+  onRecordingReady?: (blob: Blob, filename: string) => void; // Callback quando gravação está pronta
 }
 
 /**
@@ -20,7 +39,14 @@ interface VideoStreamProps {
 const VideoStream: React.FC<VideoStreamProps> = ({ 
   channelName, 
   isBroadcaster,
-  onEnd 
+  onEnd,
+  adImages = [],
+  overlayAd,
+  onStatsUpdate,
+  streamId,
+  sessionId,
+  onRecordingStateChange,
+  onRecordingReady
 }) => {
   const localVideoRef = useRef<HTMLDivElement>(null);
   const remoteVideoRef = useRef<HTMLDivElement>(null);
@@ -63,6 +89,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const [isConnecting, setIsConnecting] = useState(false);
   const [hasLocalVideo, setHasLocalVideo] = useState(false);
   const [audioBlocked, setAudioBlocked] = useState(false);
+  const [gameVolume, setGameVolume] = useState(100); // Volume do jogo/tela (0-100)
+  const [micVolume, setMicVolume] = useState(100); // Volume do microfone (0-100)
+  const [isGameDucked, setIsGameDucked] = useState(false); // Se o volume do jogo está abaixado
+  const [normalGameVolume, setNormalGameVolume] = useState(100); // Volume normal do jogo (para restaurar)
   const [videoSource, setVideoSource] = useState<'camera' | 'screen' | 'external'>('camera');
   const [externalVideoUrl, setExternalVideoUrl] = useState<string>('');
   const [showExternalUrlInput, setShowExternalUrlInput] = useState(false);
@@ -72,10 +102,27 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   
+  // Estados para propagandas e slideshow
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [showOverlayAd, setShowOverlayAd] = useState(false);
+  const [overlayAdImage, setOverlayAdImage] = useState<string | null>(null);
+  const slideIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Estados e refs para gravação
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  
   const clientRef = useRef<any>(null);
   const localAudioTrackRef = useRef<any>(null);
   const localVideoTrackRef = useRef<any>(null);
   const screenVideoTrackRef = useRef<any>(null);
+  const screenAudioTrackRef = useRef<any>(null); // Referência separada para o audio track
   const cameraVideoTrackRef = useRef<any>(null);
   const externalVideoElementRef = useRef<HTMLVideoElement | null>(null);
   const cameraPiPRef = useRef<HTMLDivElement>(null);
@@ -87,6 +134,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const checkTracksIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const combinedVideoTrackRef = useRef<any>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const transitionCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Configuração Agora
   const APP_ID = import.meta.env.VITE_AGORA_APP_ID || '';
@@ -790,6 +839,448 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   };
 
   // Função para ativar/desativar screen sharing
+  // Função para aplicar volume do jogo/tela
+  const applyGameVolume = (volume: number) => {
+    if (screenAudioTrackRef.current && typeof screenAudioTrackRef.current.setVolume === 'function') {
+      screenAudioTrackRef.current.setVolume(volume);
+      console.log('🔊 Volume do jogo/tela aplicado:', volume);
+    }
+  };
+
+  // Função para aplicar volume do microfone
+  const applyMicVolume = (volume: number) => {
+    if (localAudioTrackRef.current && typeof localAudioTrackRef.current.setVolume === 'function') {
+      localAudioTrackRef.current.setVolume(volume);
+      console.log('🎤 Volume do microfone aplicado:', volume);
+    }
+  };
+
+  // Função para baixar/aumentar volume do jogo (ducking manual)
+  const toggleGameDucking = () => {
+    if (isGameDucked) {
+      // Restaurar volume normal
+      setGameVolume(normalGameVolume);
+      applyGameVolume(normalGameVolume);
+      setIsGameDucked(false);
+      toast.success('Volume do jogo restaurado');
+    } else {
+      // Baixar volume do jogo
+      setNormalGameVolume(gameVolume);
+      const duckedVolume = Math.max(10, gameVolume * 0.2); // Reduzir para 20% do volume atual (mínimo 10)
+      setGameVolume(duckedVolume);
+      applyGameVolume(duckedVolume);
+      setIsGameDucked(true);
+      toast.success('Volume do jogo reduzido - você pode falar');
+    }
+  };
+
+  // Atualizar volumes quando mudarem
+  useEffect(() => {
+    if (isStreaming && showScreenShare && screenAudioTrackRef.current) {
+      applyGameVolume(gameVolume);
+    }
+  }, [gameVolume, isStreaming, showScreenShare]);
+  
+  // Quando o screen sharing é ativado novamente, aplicar o volume salvo
+  useEffect(() => {
+    if (isStreaming && showScreenShare && screenAudioTrackRef.current) {
+      // Aplicar volume quando a tela é ativada
+      applyGameVolume(gameVolume);
+      console.log('🔊 Volume do jogo aplicado ao ativar tela:', gameVolume);
+    }
+  }, [showScreenShare]);
+
+  // ========== SISTEMA DE SLIDESHOW ==========
+  // Estado local para slideshow (pode vir de props ou localStorage)
+  const [localAdImages, setLocalAdImages] = useState<AdImage[]>(adImages);
+  const prevAdImagesRef = useRef<string>('');
+  const prevChannelNameRef = useRef<string>('');
+  
+  // Sincronizar adImages de props (admin) ou localStorage (viewers)
+  useEffect(() => {
+    if (isBroadcaster) {
+      // Admin: usar props diretamente
+      const adImagesStr = JSON.stringify(adImages);
+      // Só atualizar se realmente mudou
+      if (adImagesStr !== prevAdImagesRef.current || channelName !== prevChannelNameRef.current) {
+        setLocalAdImages(adImages);
+        prevAdImagesRef.current = adImagesStr;
+        prevChannelNameRef.current = channelName;
+        
+        // Salvar no localStorage para viewers
+        if (adImages.length > 0) {
+          localStorage.setItem(`adImages_${channelName}`, adImagesStr);
+        } else {
+          localStorage.removeItem(`adImages_${channelName}`);
+        }
+      }
+    }
+  }, [adImages, channelName, isBroadcaster]);
+
+  // Para viewers: carregar do localStorage separadamente
+  useEffect(() => {
+    if (!isBroadcaster) {
+      const loadSlides = () => {
+        const savedSlides = localStorage.getItem(`adImages_${channelName}`);
+        if (savedSlides) {
+          try {
+            const slides = JSON.parse(savedSlides);
+            const slidesStr = JSON.stringify(slides);
+            // Só atualizar se realmente mudou
+            if (slidesStr !== prevAdImagesRef.current) {
+              setLocalAdImages(slides);
+              prevAdImagesRef.current = slidesStr;
+            }
+          } catch (e) {
+            console.error('Erro ao carregar slides:', e);
+          }
+        } else {
+          // Só atualizar se não estiver vazio
+          if (prevAdImagesRef.current !== '[]') {
+            setLocalAdImages([]);
+            prevAdImagesRef.current = '[]';
+          }
+        }
+      };
+      
+      loadSlides();
+      
+      // Polling para verificar mudanças (menos frequente para evitar loops)
+      const interval = setInterval(loadSlides, 2000);
+      
+      // Escutar mudanças no localStorage
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === `adImages_${channelName}`) {
+          loadSlides();
+        }
+      };
+      
+      window.addEventListener('storage', handleStorageChange);
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        clearInterval(interval);
+      };
+    }
+  }, [channelName, isBroadcaster]); // Removido adImages para evitar loops
+
+  // Função para obter imagens habilitadas do slideshow
+  const getEnabledSlides = () => {
+    return localAdImages.filter(img => img.enabled);
+  };
+
+  // Função para avançar para o próximo slide com duração individual
+  const scheduleNextSlide = () => {
+    const enabledSlides = getEnabledSlides();
+    if (enabledSlides.length === 0) return;
+
+    // Obter o slide atual
+    const currentSlide = enabledSlides[currentSlideIndex];
+    if (!currentSlide) return;
+
+    // Obter a duração do slide atual (em milissegundos)
+    const duration = (currentSlide.duration || 5) * 1000; // Converter segundos para ms
+
+    // Limpar timeout anterior se existir
+    if (slideIntervalRef.current) {
+      clearTimeout(slideIntervalRef.current);
+    }
+
+    // Agendar próximo slide com a duração específica desta imagem
+    slideIntervalRef.current = setTimeout(() => {
+      setCurrentSlideIndex((prev) => {
+        const enabledSlides = getEnabledSlides();
+        if (enabledSlides.length === 0) return 0;
+        const next = (prev + 1) % enabledSlides.length;
+        
+        // Admin: salvar índice no localStorage para sincronizar com viewers
+        if (isBroadcaster) {
+          localStorage.setItem(`currentSlideIndex_${channelName}`, next.toString());
+        }
+        
+        return next;
+      });
+    }, duration);
+  };
+
+  // Função para parar slideshow
+  const stopSlideshow = () => {
+    if (slideIntervalRef.current) {
+      clearTimeout(slideIntervalRef.current);
+      slideIntervalRef.current = null;
+    }
+  };
+
+  // Sincronizar índice do slide entre admin e viewers
+  const prevSlideIndexRef = useRef<number>(-1);
+  useEffect(() => {
+    if (isBroadcaster) {
+      // Admin: salvar índice atual no localStorage quando mudar
+      if (currentSlideIndex !== prevSlideIndexRef.current) {
+        localStorage.setItem(`currentSlideIndex_${channelName}`, currentSlideIndex.toString());
+        prevSlideIndexRef.current = currentSlideIndex;
+      }
+    } else {
+      // Viewers: carregar índice do localStorage
+      const loadSlideIndex = () => {
+        const savedIndex = localStorage.getItem(`currentSlideIndex_${channelName}`);
+        if (savedIndex) {
+          const index = parseInt(savedIndex, 10);
+          if (!isNaN(index) && index !== prevSlideIndexRef.current) {
+            setCurrentSlideIndex(index);
+            prevSlideIndexRef.current = index;
+          }
+        }
+      };
+      
+      loadSlideIndex();
+      
+      // Polling para verificar mudanças no índice (sincronização em tempo real)
+      const interval = setInterval(loadSlideIndex, 300);
+      
+      return () => clearInterval(interval);
+    }
+  }, [currentSlideIndex, channelName, isBroadcaster]);
+
+  // Iniciar/parar slideshow quando imagens mudarem
+  useEffect(() => {
+    const enabledSlides = getEnabledSlides();
+    if (enabledSlides.length > 0 && isStreaming) {
+      // Resetar índice se necessário
+      if (currentSlideIndex >= enabledSlides.length) {
+        setCurrentSlideIndex(0);
+        if (isBroadcaster) {
+          localStorage.setItem(`currentSlideIndex_${channelName}`, '0');
+        }
+      } else {
+        // Admin: salvar índice inicial e agendar próximo slide
+        if (isBroadcaster) {
+          localStorage.setItem(`currentSlideIndex_${channelName}`, currentSlideIndex.toString());
+          scheduleNextSlide();
+        }
+      }
+    } else {
+      stopSlideshow();
+    }
+
+    return () => {
+      stopSlideshow();
+    };
+  }, [localAdImages, isStreaming]); // Removido currentSlideIndex e outros para evitar loops
+
+  // Quando o índice do slide muda, agendar o próximo com a nova duração (apenas admin)
+  useEffect(() => {
+    if (isBroadcaster) {
+      const enabledSlides = getEnabledSlides();
+      if (enabledSlides.length > 0 && isStreaming) {
+        scheduleNextSlide();
+      }
+    }
+  }, [currentSlideIndex, isBroadcaster]); // Apenas admin agenda próximo slide
+
+  // Tracking de visualizações de propagandas (slideshow)
+  useEffect(() => {
+    if (!streamId || !sessionId || isBroadcaster || !isStreaming) return;
+    
+    const enabledSlides = getEnabledSlides();
+    if (enabledSlides.length === 0) return;
+    
+    const currentSlide = enabledSlides[currentSlideIndex];
+    if (!currentSlide) return;
+    
+    const trackAdView = async () => {
+      try {
+        await supabase.from('ad_views').insert({
+          stream_id: streamId,
+          session_id: sessionId,
+          ad_id: currentSlide.id,
+          ad_type: 'slideshow',
+          duration_seconds: currentSlide.duration || 5
+        });
+      } catch (error) {
+        console.error('Erro ao rastrear visualização de propaganda:', error);
+      }
+    };
+    
+    trackAdView();
+  }, [currentSlideIndex, streamId, sessionId, isBroadcaster, isStreaming]);
+
+  // Tracking de visualizações de propagandas (overlay)
+  useEffect(() => {
+    if (!streamId || !sessionId || isBroadcaster || !isStreaming) return;
+    if (!showOverlayAd || !overlayAdImage) return;
+    
+    const trackOverlayView = async () => {
+      try {
+        await supabase.from('ad_views').insert({
+          stream_id: streamId,
+          session_id: sessionId,
+          ad_id: 'overlay',
+          ad_type: 'overlay',
+          duration_seconds: 0 // Overlay não tem duração fixa
+        });
+      } catch (error) {
+        console.error('Erro ao rastrear visualização de overlay:', error);
+      }
+    };
+    
+    trackOverlayView();
+  }, [showOverlayAd, overlayAdImage, streamId, sessionId, isBroadcaster, isStreaming]);
+
+  // ========== SISTEMA DE PROPAGANDA OVERLAY ==========
+  // Atualizar overlay quando overlayAd mudar (Admin)
+  useEffect(() => {
+    if (isBroadcaster) {
+      if (overlayAd?.enabled && overlayAd?.url) {
+        setShowOverlayAd(true);
+        setOverlayAdImage(overlayAd.url);
+        // Salvar no localStorage para sincronizar com viewers
+        localStorage.setItem(`overlayAd_${channelName}`, JSON.stringify(overlayAd));
+      } else {
+        setShowOverlayAd(false);
+        setOverlayAdImage(null);
+        localStorage.removeItem(`overlayAd_${channelName}`);
+      }
+    }
+  }, [overlayAd, channelName, isBroadcaster]);
+
+  // Para viewers: carregar overlay do localStorage (sincronizado pelo admin)
+  const prevOverlayRef = useRef<string>('');
+  useEffect(() => {
+    if (!isBroadcaster) {
+      const loadOverlay = () => {
+        const savedOverlay = localStorage.getItem(`overlayAd_${channelName}`);
+        const overlayStr = savedOverlay || '';
+        
+        // Só atualizar se realmente mudou
+        if (overlayStr !== prevOverlayRef.current) {
+          prevOverlayRef.current = overlayStr;
+          
+          if (savedOverlay) {
+            try {
+              const overlay = JSON.parse(savedOverlay);
+              if (overlay.enabled && overlay.url) {
+                setShowOverlayAd(true);
+                setOverlayAdImage(overlay.url);
+              } else {
+                setShowOverlayAd(false);
+                setOverlayAdImage(null);
+              }
+            } catch (e) {
+              console.error('Erro ao carregar overlay:', e);
+            }
+          } else {
+            setShowOverlayAd(false);
+            setOverlayAdImage(null);
+          }
+        }
+      };
+      
+      loadOverlay();
+      
+      // Escutar mudanças no localStorage (quando admin atualiza)
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === `overlayAd_${channelName}`) {
+          loadOverlay();
+        }
+      };
+      
+      // Polling para verificar mudanças (menos frequente para evitar loops)
+      const interval = setInterval(loadOverlay, 1000);
+      
+      window.addEventListener('storage', handleStorageChange);
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        clearInterval(interval);
+      };
+    }
+  }, [channelName, isBroadcaster]);
+
+  // Copiar conteúdo do vídeo para o PiP quando overlay está ativo (Admin)
+  useEffect(() => {
+    if (!showOverlayAd || !isBroadcaster) return;
+    
+    const updatePip = () => {
+      const pipContainer = document.getElementById('overlay-pip-content-admin');
+      const videoContainer = localVideoRef.current;
+      
+      if (pipContainer && videoContainer) {
+        const videoElement = videoContainer.querySelector('video');
+        if (videoElement && videoElement.srcObject) {
+          const existingPip = pipContainer.querySelector('video');
+          if (!existingPip) {
+            const pipVideo = document.createElement('video');
+            pipVideo.srcObject = videoElement.srcObject as MediaStream;
+            pipVideo.autoplay = true;
+            pipVideo.muted = false;
+            pipVideo.style.width = '100%';
+            pipVideo.style.height = '100%';
+            pipVideo.style.objectFit = 'cover';
+            pipContainer.appendChild(pipVideo);
+          }
+        }
+      }
+    };
+    
+    // Aguardar um pouco para o vídeo estar pronto
+    const timeout = setTimeout(updatePip, 100);
+    const interval = setInterval(updatePip, 1000);
+    
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+      const pipContainer = document.getElementById('overlay-pip-content-admin');
+      if (pipContainer) {
+        pipContainer.innerHTML = '';
+      }
+    };
+  }, [showOverlayAd, isBroadcaster]); // Removido hasLocalVideo para evitar loops
+
+  // Copiar conteúdo do vídeo para o PiP quando overlay está ativo (Viewers)
+  useEffect(() => {
+    if (!showOverlayAd || isBroadcaster) return;
+    
+    const updatePip = () => {
+      const pipContainer = document.getElementById('overlay-pip-content-viewer');
+      const videoContainer = remoteVideoRef.current;
+      
+      if (pipContainer && videoContainer) {
+        const videoElement = videoContainer.querySelector('video');
+        if (videoElement && videoElement.srcObject) {
+          const existingPip = pipContainer.querySelector('video');
+          if (!existingPip) {
+            const pipVideo = document.createElement('video');
+            pipVideo.srcObject = videoElement.srcObject as MediaStream;
+            pipVideo.autoplay = true;
+            pipVideo.muted = false;
+            pipVideo.style.width = '100%';
+            pipVideo.style.height = '100%';
+            pipVideo.style.objectFit = 'cover';
+            pipContainer.appendChild(pipVideo);
+          }
+        }
+      }
+    };
+    
+    // Aguardar um pouco para o vídeo estar pronto
+    const timeout = setTimeout(updatePip, 100);
+    const interval = setInterval(updatePip, 1000);
+    
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+      const pipContainer = document.getElementById('overlay-pip-content-viewer');
+      if (pipContainer) {
+        pipContainer.innerHTML = '';
+      }
+    };
+  }, [showOverlayAd, isBroadcaster]); // Removido hasRemoteVideo para evitar loops
+
+  useEffect(() => {
+    if (isStreaming) {
+      applyMicVolume(micVolume);
+    }
+  }, [micVolume, isStreaming]);
+
   const toggleScreenShare = async () => {
     if (!isStreaming || !clientRef.current) {
       toast.error('Você precisa estar transmitindo');
@@ -898,6 +1389,13 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         const screenAudioTrack = Array.isArray(screenTrackResult) ? screenTrackResult[1] : null;
         
         screenVideoTrackRef.current = screenVideoTrack;
+        screenAudioTrackRef.current = screenAudioTrack; // Armazenar referência do audio track
+        
+        // Aplicar volume do jogo/tela quando o track é criado
+        if (screenAudioTrack && typeof screenAudioTrack.setVolume === 'function') {
+          screenAudioTrack.setVolume(gameVolume);
+          console.log('🔊 Volume do jogo/tela aplicado na criação:', gameVolume);
+        }
         
         // Se a câmera está ativa, criar track combinado (screen sharing + câmera)
         if (cameraVideoTrackRef.current && showCamera) {
@@ -1012,11 +1510,33 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       }
     } catch (error: any) {
       console.error('❌ Erro ao alternar screen sharing:', error);
-      if (error.name === 'NotAllowedError') {
-        toast.error('Permissão negada para compartilhar tela');
+      
+      // Verificar diferentes tipos de erro de permissão
+      const isPermissionError = 
+        error.name === 'NotAllowedError' || 
+        error.name === 'PERMISSION_DENIED' ||
+        error.code === 'PERMISSION_DENIED' ||
+        error.message?.includes('Permission denied') ||
+        error.message?.includes('permission denied');
+      
+      if (isPermissionError) {
+        toast.error(
+          '❌ Permissão negada para compartilhar tela. Por favor, permita o compartilhamento de tela nas configurações do navegador e tente novamente.',
+          { duration: 5000 }
+        );
+      } else if (error.name === 'NotFoundError' || error.message?.includes('not found')) {
+        toast.error('Nenhuma tela disponível para compartilhar. Verifique se há telas conectadas.');
+      } else if (error.name === 'AbortError' || error.message?.includes('abort')) {
+        toast.error('Compartilhamento de tela cancelado.');
       } else {
-        toast.error(`Erro: ${error.message || 'Erro desconhecido'}`);
+        toast.error(
+          `Erro ao compartilhar tela: ${error.message || 'Erro desconhecido'}. Tente novamente.`,
+          { duration: 4000 }
+        );
       }
+      
+      // Garantir que o estado seja resetado em caso de erro
+      setShowScreenShare(false);
     }
   };
 
@@ -1609,6 +2129,24 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           });
         } else if (localTracks.length > 0) {
           console.log('✅ Tracks ainda publicados:', localTracks.length);
+        }
+        
+        // Atualizar estatísticas para o admin
+        if (isBroadcaster && onStatsUpdate) {
+          const connectionState = clientRef.current.connectionState;
+          const remoteUsers = clientRef.current.remoteUsers;
+          const getConnectionQuality = (): 'excellent' | 'good' | 'poor' | 'disconnected' => {
+            if (connectionState === 'DISCONNECTED') return 'disconnected';
+            if (connectionState === 'CONNECTED') return 'excellent';
+            if (connectionState === 'CONNECTING') return 'good';
+            return 'poor';
+          };
+          
+          onStatsUpdate({
+            viewerCount: remoteUsers.length,
+            connectionState,
+            connectionQuality: getConnectionQuality()
+          });
         }
       }, 2000);
       
@@ -2562,6 +3100,235 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     }
   };
 
+  // Funções de gravação
+  const startRecording = async () => {
+    if (!isBroadcaster || !isStreaming) {
+      toast.error('Você precisa estar transmitindo para gravar');
+      return;
+    }
+
+    try {
+      // Obter os tracks atuais
+      const videoTrack = screenVideoTrackRef.current || cameraVideoTrackRef.current || localVideoTrackRef.current;
+      const audioTrack = localAudioTrackRef.current;
+
+      if (!videoTrack || !audioTrack) {
+        toast.error('Não foi possível acessar os tracks de vídeo/áudio');
+        return;
+      }
+
+      // Obter MediaStreamTrack dos tracks do Agora
+      // O Agora SDK expõe os tracks através do método getMediaStreamTrack()
+      let videoStreamTrack: MediaStreamTrack | null = null;
+      let audioStreamTrack: MediaStreamTrack | null = null;
+
+      try {
+        // Tentar obter o track de vídeo - o Agora SDK tem o método getMediaStreamTrack()
+        if (videoTrack && typeof videoTrack.getMediaStreamTrack === 'function') {
+          videoStreamTrack = videoTrack.getMediaStreamTrack();
+          console.log('✅ Track de vídeo obtido via getMediaStreamTrack()');
+        } else {
+          // Fallback: capturar do elemento de vídeo renderizado
+          const videoElement = localVideoRef.current?.querySelector('video') as HTMLVideoElement;
+          if (videoElement && videoElement.srcObject) {
+            const stream = videoElement.srcObject as MediaStream;
+            videoStreamTrack = stream.getVideoTracks()[0];
+            console.log('✅ Track de vídeo obtido do elemento de vídeo');
+          } else {
+            console.warn('⚠️ Não foi possível obter track de vídeo');
+          }
+        }
+
+        // Tentar obter o track de áudio
+        if (audioTrack && typeof audioTrack.getMediaStreamTrack === 'function') {
+          audioStreamTrack = audioTrack.getMediaStreamTrack();
+          console.log('✅ Track de áudio obtido via getMediaStreamTrack()');
+        } else {
+          // Fallback: criar um novo track do microfone
+          try {
+            const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioStreamTrack = micStream.getAudioTracks()[0];
+            console.log('✅ Track de áudio obtido via getUserMedia');
+          } catch (micError) {
+            console.error('❌ Erro ao obter áudio:', micError);
+          }
+        }
+      } catch (trackError) {
+        console.error('❌ Erro ao obter tracks:', trackError);
+        // Fallback final: capturar do elemento de vídeo
+        const videoElement = localVideoRef.current?.querySelector('video') as HTMLVideoElement;
+        if (videoElement && videoElement.srcObject) {
+          const stream = videoElement.srcObject as MediaStream;
+          videoStreamTrack = stream.getVideoTracks()[0];
+        }
+        // Para áudio, criar novo track
+        try {
+          const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          audioStreamTrack = micStream.getAudioTracks()[0];
+        } catch (micError) {
+          console.error('❌ Erro ao obter áudio no fallback:', micError);
+        }
+      }
+
+      if (!videoStreamTrack) {
+        toast.error('Não foi possível obter o track de vídeo');
+        return;
+      }
+
+      if (!audioStreamTrack) {
+        toast.error('Não foi possível obter o track de áudio');
+        return;
+      }
+
+      // Criar um MediaStream combinado
+      const combinedStream = new MediaStream([videoStreamTrack, audioStreamTrack]);
+      recordingStreamRef.current = combinedStream;
+
+      // Verificar se MediaRecorder é suportado
+      if (!MediaRecorder.isTypeSupported('video/webm')) {
+        toast.error('Gravação não suportada neste navegador');
+        return;
+      }
+
+      // Criar MediaRecorder
+      const options: MediaRecorderOptions = {
+        mimeType: 'video/webm;codecs=vp9,opus',
+        videoBitsPerSecond: 2500000, // 2.5 Mbps
+      };
+
+      // Fallback para codec mais compatível
+      if (!MediaRecorder.isTypeSupported(options.mimeType!)) {
+        options.mimeType = 'video/webm;codecs=vp8,opus';
+      }
+
+      if (!MediaRecorder.isTypeSupported(options.mimeType!)) {
+        options.mimeType = 'video/webm';
+      }
+
+      const mediaRecorder = new MediaRecorder(combinedStream, options);
+      mediaRecorderRef.current = mediaRecorder;
+      recordedChunksRef.current = [];
+
+      // Event listeners
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `live-recording-${channelName}-${timestamp}.webm`;
+        
+        if (onRecordingReady) {
+          onRecordingReady(blob, filename);
+        } else {
+          // Fallback: download direto
+          downloadRecording(blob, filename);
+        }
+
+        // Limpar
+        recordedChunksRef.current = [];
+        if (recordingStreamRef.current) {
+          recordingStreamRef.current.getTracks().forEach(track => track.stop());
+          recordingStreamRef.current = null;
+        }
+      };
+
+      mediaRecorder.onerror = (event) => {
+        console.error('Erro na gravação:', event);
+        toast.error('Erro ao gravar. Tente novamente.');
+        setIsRecording(false);
+        if (onRecordingStateChange) {
+          onRecordingStateChange(false);
+        }
+      };
+
+      // Iniciar gravação
+      mediaRecorder.start(1000); // Coletar dados a cada 1 segundo
+      setIsRecording(true);
+      setRecordingTime(0);
+      
+      if (onRecordingStateChange) {
+        onRecordingStateChange(true);
+      }
+
+      // Atualizar tempo de gravação
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+
+      toast.success('🔴 Gravação iniciada!');
+    } catch (error: any) {
+      console.error('Erro ao iniciar gravação:', error);
+      toast.error(`Erro ao iniciar gravação: ${error.message || 'Erro desconhecido'}`);
+    }
+  };
+
+  const stopRecording = () => {
+    if (!mediaRecorderRef.current || !isRecording) {
+      return;
+    }
+
+    try {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
+      }
+
+      if (onRecordingStateChange) {
+        onRecordingStateChange(false);
+      }
+
+      toast.success('⏹️ Gravação finalizada! Preparando download...');
+    } catch (error: any) {
+      console.error('Erro ao parar gravação:', error);
+      toast.error(`Erro ao parar gravação: ${error.message || 'Erro desconhecido'}`);
+    }
+  };
+
+  const downloadRecording = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('✅ Download iniciado!');
+  };
+
+  // Expor funções de gravação via useEffect para o componente pai
+  useEffect(() => {
+    if (isBroadcaster && typeof window !== 'undefined' && isStreaming) {
+      // Expor funções globalmente para o admin poder chamar
+      (window as any).__videoStreamRecording = {
+        start: startRecording,
+        stop: stopRecording,
+        isRecording: () => isRecording,
+        recordingTime: () => recordingTime,
+      };
+      console.log('✅ API de gravação disponível');
+    } else {
+      // Remover API se não está transmitindo
+      if (typeof window !== 'undefined' && (window as any).__videoStreamRecording) {
+        delete (window as any).__videoStreamRecording;
+        console.log('⏸️ API de gravação removida (não está transmitindo)');
+      }
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete (window as any).__videoStreamRecording;
+      }
+    };
+  }, [isBroadcaster, isStreaming, isRecording, recordingTime]);
+
   const endStream = async () => {
     if (cleanupCalledRef.current) {
       return; // Já está sendo limpo
@@ -2887,6 +3654,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           height: 400px !important;
           width: 100% !important;
         }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
       `}</style>
       <div className="relative w-full bg-black rounded-lg overflow-hidden">
         {/* Vídeo Local (Broadcaster) */}
@@ -2960,9 +3731,63 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                 }
               `}</style>
             </div>
-          )}
+            )}
+            
+            {/* Overlay de Propaganda (Fullscreen com conteúdo anterior em PiP) */}
+            {showOverlayAd && overlayAdImage && (
+              <div className="absolute inset-0 z-50 bg-black">
+                {/* Propaganda fullscreen */}
+                <img 
+                  src={overlayAdImage} 
+                  alt="Propaganda" 
+                  className="w-full h-full object-cover"
+                />
+                
+                {/* Container PiP para mostrar o conteúdo anterior (jogo/vídeo) */}
+                <div className="absolute top-4 right-4 w-64 h-48 bg-black rounded-lg overflow-hidden shadow-2xl border-2 border-white/20 z-51">
+                  {/* Clonar o conteúdo do vídeo para o PiP */}
+                  <div 
+                    id="overlay-pip-content-admin"
+                    className="w-full h-full"
+                    style={{ 
+                      width: '100%',
+                      height: '100%',
+                      position: 'relative',
+                      backgroundColor: '#000'
+                    }}
+                  />
+                </div>
+                
+                {/* Indicador de áudio ativo para o admin */}
+                {isBroadcaster && (
+                  <div className="absolute bottom-4 left-4 bg-green-500/90 backdrop-blur-sm px-4 py-2 rounded-lg z-52">
+                    <div className="flex items-center gap-2 text-white text-sm font-medium">
+                      <div className="w-2 h-2 bg-green-300 rounded-full animate-pulse"></div>
+                      <span>🎤 Áudio ativo - Você pode falar normalmente</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            
+            {/* Slideshow de Imagens */}
+            {!showOverlayAd && getEnabledSlides().length > 0 && (
+              <div className="absolute inset-0 z-40 pointer-events-none">
+                {getEnabledSlides()[currentSlideIndex] && (
+                  <img 
+                    src={getEnabledSlides()[currentSlideIndex].url} 
+                    alt={`Slide ${currentSlideIndex + 1}`}
+                    className="w-full h-full object-contain"
+                    style={{
+                      animation: 'fadeIn 0.5s ease-in-out'
+                    }}
+                  />
+                )}
+              </div>
+            )}
           
-          {/* Controles do Broadcaster */}
+            {/* Controles do Broadcaster */}
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex flex-col gap-3 z-20">
               {/* Controles principais */}
               <div className="flex gap-3">
@@ -3071,6 +3896,91 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                   </p>
                 </div>
               )}
+              
+              {/* Controles de Volume - Sempre disponíveis quando transmitindo */}
+              {isStreaming && (
+                <div className="bg-gray-800/90 backdrop-blur-sm p-4 rounded-lg space-y-3 mt-3 min-w-[280px]">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-white text-sm font-medium">Controles de Áudio</span>
+                  </div>
+                  
+                  {/* Volume do Microfone - Sempre disponível */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-white text-xs">Microfone</span>
+                      <span className="text-gray-400 text-xs">{micVolume}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={micVolume}
+                      onChange={(e) => setMicVolume(parseInt(e.target.value))}
+                      className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                    />
+                  </div>
+                  
+                  {/* Volume do Jogo/Tela - Só aparece quando tela está ativa */}
+                  {showScreenShare && (
+                    <>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-white text-xs">Jogo/Tela</span>
+                          <span className="text-gray-400 text-xs">{gameVolume}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={gameVolume}
+                          onChange={(e) => {
+                            const newVolume = parseInt(e.target.value);
+                            setGameVolume(newVolume);
+                            if (!isGameDucked) {
+                              setNormalGameVolume(newVolume);
+                            }
+                          }}
+                          className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-green-500"
+                        />
+                      </div>
+                      
+                      {/* Botão de Ducking Manual - Só aparece quando tela está ativa */}
+                      <button
+                        onClick={toggleGameDucking}
+                        className={`w-full px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2 font-medium ${
+                          isGameDucked
+                            ? 'bg-green-500 hover:bg-green-600 text-white'
+                            : 'bg-amber-500 hover:bg-amber-600 text-white'
+                        }`}
+                        title={isGameDucked ? 'Restaurar volume do jogo' : 'Baixar volume do jogo para falar'}
+                      >
+                        {isGameDucked ? (
+                          <>
+                            <Volume2 size={18} />
+                            <span>Restaurar Volume do Jogo</span>
+                          </>
+                        ) : (
+                          <>
+                            <VolumeX size={18} />
+                            <span>Baixar Volume do Jogo</span>
+                          </>
+                        )}
+                      </button>
+                      
+                      <p className="text-gray-400 text-xs text-center">
+                        💡 Clique em "Baixar Volume" quando for falar
+                      </p>
+                    </>
+                  )}
+                  
+                  {/* Mensagem quando tela não está ativa */}
+                  {!showScreenShare && (
+                    <p className="text-gray-400 text-xs text-center">
+                      💡 Ative "Tela ON" para controlar o volume do jogo
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
         </div>
       )}
@@ -3108,6 +4018,49 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                   </>
                 )}
               </div>
+            </div>
+          )}
+          
+          {/* Overlay de Propaganda (Fullscreen com conteúdo anterior em PiP) - Para Viewers */}
+          {showOverlayAd && overlayAdImage && (
+            <div className="absolute inset-0 z-50 bg-black">
+              {/* Propaganda fullscreen */}
+              <img 
+                src={overlayAdImage} 
+                alt="Propaganda" 
+                className="w-full h-full object-cover"
+              />
+              
+              {/* Container PiP para mostrar o conteúdo anterior (jogo/vídeo) */}
+              <div className="absolute top-4 right-4 w-64 h-48 bg-black rounded-lg overflow-hidden shadow-2xl border-2 border-white/20 z-51">
+                {/* Clonar o conteúdo do vídeo para o PiP */}
+                <div 
+                  id="overlay-pip-content-viewer"
+                  className="w-full h-full"
+                  style={{ 
+                    width: '100%',
+                    height: '100%',
+                    position: 'relative',
+                    backgroundColor: '#000'
+                  }}
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* Slideshow de Imagens - Para Viewers */}
+          {!showOverlayAd && getEnabledSlides().length > 0 && (
+            <div className="absolute inset-0 z-40 pointer-events-none">
+              {getEnabledSlides()[currentSlideIndex] && (
+                <img 
+                  src={getEnabledSlides()[currentSlideIndex].url} 
+                  alt={`Slide ${currentSlideIndex + 1}`}
+                  className="w-full h-full object-contain"
+                  style={{
+                    animation: 'fadeIn 0.5s ease-in-out'
+                  }}
+                />
+              )}
             </div>
           )}
           

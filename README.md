@@ -41,12 +41,20 @@ A aplicação está totalmente configurada em **Português Brasileiro**:
 - 🎮 **Sorteios ao Vivo**: Jogo "Resta Um" em tempo real
 - 📱 **Notificações WhatsApp**: Receba atualizações via WhatsApp
 - 👤 **Perfil Completo**: Cadastro e gerenciamento de números
+- 📹 **Transmissões ao Vivo**: Assista transmissões ao vivo com chat em tempo real
 
 ### Para Administradores
 - 🎯 **Dashboard Completo**: Controle total dos sorteios
 - 🎮 **Sorteios ao Vivo**: Criação e controle de jogos "Resta Um"
 - 📱 **WhatsApp Business**: Envio de notificações em massa
 - 👥 **Gerenciamento de Usuários**: Aprovação de números extras
+- 📹 **Transmissões ao Vivo**: Sistema completo de streaming com:
+  - 🎥 Transmissão de vídeo e áudio em tempo real
+  - 📊 Dashboard de estatísticas (viewers, tempo médio, propagandas)
+  - 🔗 Links personalizados para transmissões
+  - 🎬 Sistema de gravação (WebM/MP4)
+  - 📢 Sistema de propagandas (slideshow e overlay fullscreen)
+  - 💬 Chat em tempo real integrado
 
 ## 🛠️ Desenvolvimento Local
 
@@ -104,6 +112,8 @@ VITE_VONAGE_REAL_MODE=true
 - [🐳 Docker Setup](./DOCKER_SETUP.md) - Configuração detalhada do Docker
 - [📱 WhatsApp Setup](./COMO_CONFIGURAR_VERCEL.md) - Configuração do WhatsApp
 - [🔑 Credenciais Vonage](./COMO_OBTER_CREDENCIAIS_VONAGE.md) - Como obter credenciais
+- [📹 Transmissões ao Vivo](./COMO_FUNCIONA_LIVE_COMPLETO.md) - Guia completo de transmissões
+- [📋 Changelog 20/01/2025](./CHANGELOG_2025_01_20.md) - Todas as atualizações de hoje
 
 ## 🎮 Sorteios ao Vivo - "Resta Um"
 

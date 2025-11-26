@@ -18,12 +18,91 @@ const PublicLiveStreamPage: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showChatInFullscreen, setShowChatInFullscreen] = useState(false);
   const [showChatMobile, setShowChatMobile] = useState(false);
+  
+  // Tracking de sessão
+  const [sessionId] = useState(() => {
+    // Gerar ou recuperar session ID único
+    let sid = sessionStorage.getItem('viewer_session_id');
+    if (!sid) {
+      sid = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      sessionStorage.setItem('viewer_session_id', sid);
+    }
+    return sid;
+  });
+  const [sessionStarted, setSessionStarted] = useState(false);
 
   useEffect(() => {
     if (channelName) {
       loadStream();
     }
   }, [channelName]);
+
+  // Iniciar tracking de sessão
+  useEffect(() => {
+    if (!stream?.id || sessionStarted) return;
+
+    const startSession = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const startTime = new Date();
+        
+        const { error } = await supabase
+          .from('viewer_sessions')
+          .insert({
+            stream_id: stream.id,
+            user_id: user?.id || null,
+            session_id: sessionId,
+            started_at: startTime.toISOString(),
+            is_active: true,
+            user_agent: navigator.userAgent
+          });
+
+        if (error) throw error;
+        
+        setSessionStarted(true);
+        
+        // Atualizar duração a cada 5 segundos para tempo real
+        const updateInterval = setInterval(async () => {
+          const duration = Math.floor((Date.now() - startTime.getTime()) / 1000);
+          await supabase
+            .from('viewer_sessions')
+            .update({ duration_seconds: duration })
+            .eq('session_id', sessionId)
+            .eq('is_active', true);
+        }, 5000); // Atualizar a cada 5 segundos para tempo real
+
+        // Finalizar sessão quando sair
+        const handleBeforeUnload = async () => {
+          await supabase
+            .from('viewer_sessions')
+            .update({
+              ended_at: new Date().toISOString(),
+              is_active: false
+            })
+            .eq('session_id', sessionId);
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        
+        return () => {
+          clearInterval(updateInterval);
+          window.removeEventListener('beforeunload', handleBeforeUnload);
+          // Finalizar sessão ao desmontar
+          supabase
+            .from('viewer_sessions')
+            .update({
+              ended_at: new Date().toISOString(),
+              is_active: false
+            })
+            .eq('session_id', sessionId);
+        };
+      } catch (error) {
+        console.error('Erro ao iniciar sessão:', error);
+      }
+    };
+
+    startSession();
+  }, [stream?.id, sessionId, sessionStarted]);
 
   // Atualizar contador de visualizações
   useEffect(() => {
@@ -211,6 +290,8 @@ const PublicLiveStreamPage: React.FC = () => {
                   <VideoStream
                     channelName={stream.channel_name}
                     isBroadcaster={false}
+                    streamId={stream.id}
+                    sessionId={sessionId}
                   />
                   
                   {/* Botões de controle em tela cheia */}

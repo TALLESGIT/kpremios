@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Users, Share2, Copy, Check, ArrowLeft, Trash2 } from 'lucide-react';
+import { Camera, Users, Share2, Copy, Check, ArrowLeft, Trash2, Circle, Square } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import VideoStream from '../components/live/VideoStream';
 
@@ -28,8 +28,218 @@ const AdminLiveStreamPage: React.FC = () => {
   const [newStream, setNewStream] = useState({
     title: '',
     description: '',
+    customChannelName: '',
   });
+  const [autoGenerateSlug, setAutoGenerateSlug] = useState(true); // Controla se deve gerar automaticamente
+  
+  // Estados para gravação
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Funções de gravação
+  const handleStartRecording = async () => {
+    // Aguardar um pouco para garantir que a API está disponível
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const recordingAPI = (window as any).__videoStreamRecording;
+    console.log('🔍 API de gravação:', recordingAPI);
+    
+    if (recordingAPI && typeof recordingAPI.start === 'function') {
+      try {
+        await recordingAPI.start();
+        // Atualizar tempo de gravação
+        if (recordingIntervalRef.current) {
+          clearInterval(recordingIntervalRef.current);
+        }
+        recordingIntervalRef.current = setInterval(() => {
+          setRecordingTime(prev => prev + 1);
+        }, 1000);
+      } catch (error: any) {
+        console.error('Erro ao iniciar gravação:', error);
+        toast.error(`Erro ao iniciar gravação: ${error.message || 'Erro desconhecido'}`);
+      }
+    } else {
+      console.error('API de gravação não disponível:', recordingAPI);
+      toast.error('Aguarde a transmissão iniciar completamente. A gravação estará disponível em alguns segundos.');
+    }
+  };
+
+  const handleStopRecording = () => {
+    const recordingAPI = (window as any).__videoStreamRecording;
+    if (recordingAPI && recordingAPI.stop) {
+      recordingAPI.stop();
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
+      }
+    }
+  };
+
+  const handleRecordingReady = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('✅ Gravação salva com sucesso!');
+    setRecordingTime(0);
+  };
+
+  // Verificar estado de gravação periodicamente
+  useEffect(() => {
+    if (!currentStream?.is_active) return;
+
+    const checkRecordingState = () => {
+      const recordingAPI = (window as any).__videoStreamRecording;
+      if (recordingAPI) {
+        const recording = recordingAPI.isRecording();
+        if (recording !== isRecording) {
+          setIsRecording(recording);
+        }
+        if (recording) {
+          const time = recordingAPI.recordingTime();
+          if (time !== undefined) {
+            setRecordingTime(time);
+          }
+        }
+      }
+    };
+
+    const interval = setInterval(checkRecordingState, 500);
+    return () => clearInterval(interval);
+  }, [currentStream?.is_active, isRecording]);
+
+  // Formatar tempo de gravação
+  const formatRecordingTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
   const [copied, setCopied] = useState(false);
+  
+  // Estados para gerenciar propagandas e slideshow
+  const [adImages, setAdImages] = useState<Array<{id: string; url: string; enabled: boolean; duration?: number}>>([]);
+  const [overlayAd, setOverlayAd] = useState<{url: string; enabled: boolean} | null>(null);
+  const [showAdManager, setShowAdManager] = useState(false);
+  const [newAdImage, setNewAdImage] = useState<{url: string; file: File | null; duration: number}>({url: '', file: null, duration: 5});
+  const [newOverlayAd, setNewOverlayAd] = useState<{url: string; file: File | null}>({url: '', file: null});
+  
+  // Estatísticas da transmissão
+  const [streamStats, setStreamStats] = useState<{
+    viewerCount: number;
+    connectionState: string;
+    connectionQuality: 'excellent' | 'good' | 'poor' | 'disconnected';
+  } | null>(null);
+  
+  // Atualizar viewer count periodicamente
+  const [viewerCount, setViewerCount] = useState(0);
+  
+  // Estatísticas detalhadas
+  const [detailedStats, setDetailedStats] = useState<{
+    avgWatchTime: number;
+    totalWatchTime: number;
+    uniqueSessions: number;
+    adStats: Array<{
+      ad_id: string;
+      ad_type: string;
+      total_views: number;
+      total_duration: number;
+      avg_duration: number;
+    }>;
+  } | null>(null);
+  
+  useEffect(() => {
+    if (!currentStream?.id) return;
+    
+    const updateViewerCount = async () => {
+      try {
+        // Usar o número real de sessões ativas em vez do viewer_count
+        const { count, error: sessionError } = await supabase
+          .from('viewer_sessions')
+          .select('*', { count: 'exact', head: true })
+          .eq('stream_id', currentStream.id)
+          .eq('is_active', true);
+        
+        if (!sessionError && count !== null) {
+          setViewerCount(count || 0);
+        } else {
+          // Fallback para viewer_count da tabela
+          const { data } = await supabase
+            .from('live_streams')
+            .select('viewer_count')
+            .eq('id', currentStream.id)
+            .single();
+          
+          if (data) {
+            setViewerCount(data.viewer_count || 0);
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao atualizar viewer count:', error);
+      }
+    };
+    
+    const loadDetailedStats = async () => {
+      try {
+        // Carregar estatísticas de sessões
+        const { data: sessionStats, error: sessionError } = await supabase
+          .rpc('get_stream_statistics', { p_stream_id: currentStream.id });
+        
+        if (sessionError) {
+          console.error('Erro ao carregar estatísticas de sessões:', sessionError);
+          // Não lançar erro, apenas logar
+        }
+        
+        // Carregar estatísticas de propagandas
+        const { data: adStats, error: adError } = await supabase
+          .rpc('get_ad_statistics', { p_stream_id: currentStream.id });
+        
+        if (adError) {
+          console.error('Erro ao carregar estatísticas de propagandas:', adError);
+          // Não lançar erro, apenas logar
+        }
+        
+        // Sempre atualizar, mesmo se houver erro (para mostrar dados parciais)
+        setDetailedStats({
+          avgWatchTime: Number(sessionStats?.[0]?.avg_watch_time || 0),
+          totalWatchTime: Number(sessionStats?.[0]?.total_watch_time || 0),
+          uniqueSessions: Number(sessionStats?.[0]?.unique_sessions || 0),
+          adStats: adStats || []
+        });
+      } catch (error) {
+        console.error('Erro ao carregar estatísticas detalhadas:', error);
+        // Manter dados anteriores se houver erro
+      }
+    };
+    
+    // Carregar imediatamente
+    updateViewerCount();
+    loadDetailedStats();
+    
+    // Atualizar em tempo real (a cada 2 segundos)
+    const interval = setInterval(() => {
+      updateViewerCount();
+      loadDetailedStats();
+    }, 2000); // Atualizar a cada 2 segundos para tempo real
+    
+    return () => clearInterval(interval);
+  }, [currentStream?.id]);
+  
+  // Inicializar detailedStats como objeto vazio se não existir
+  useEffect(() => {
+    if (currentStream?.is_active && !detailedStats) {
+      setDetailedStats({
+        avgWatchTime: 0,
+        totalWatchTime: 0,
+        uniqueSessions: 0,
+        adStats: []
+      });
+    }
+  }, [currentStream?.is_active]);
 
   useEffect(() => {
     if (dataLoading) return;
@@ -63,6 +273,29 @@ const AdminLiveStreamPage: React.FC = () => {
     }
   };
 
+  // Função para sanitizar nome do canal (URL-friendly)
+  const sanitizeChannelName = (name: string): string => {
+    return name
+      .toLowerCase()
+      .trim()
+      .normalize('NFD') // Normalizar caracteres acentuados
+      .replace(/[\u0300-\u036f]/g, '') // Remover acentos
+      .replace(/[^a-z0-9-]/g, '-') // Substituir caracteres especiais por hífen
+      .replace(/-+/g, '-') // Remover hífens duplicados
+      .replace(/^-|-$/g, ''); // Remover hífens no início/fim
+  };
+
+  // Verificar se o nome do canal já existe
+  const checkChannelNameExists = async (channelName: string): Promise<boolean> => {
+    const { data, error } = await supabase
+      .from('live_streams')
+      .select('id')
+      .eq('channel_name', channelName)
+      .single();
+    
+    return !error && data !== null;
+  };
+
   const createStream = async () => {
     if (!newStream.title.trim()) {
       toast.error('Digite um título para a transmissão');
@@ -70,7 +303,28 @@ const AdminLiveStreamPage: React.FC = () => {
     }
 
     try {
-      const channelName = `stream_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Gerar nome do canal: personalizado ou automático
+      let channelName: string;
+      
+      if (newStream.customChannelName.trim()) {
+        // Usar nome personalizado
+        channelName = sanitizeChannelName(newStream.customChannelName);
+        
+        if (!channelName) {
+          toast.error('Nome do canal inválido. Use apenas letras, números e hífens.');
+          return;
+        }
+
+        // Verificar se já existe
+        const exists = await checkChannelNameExists(channelName);
+        if (exists) {
+          toast.error('Este nome de canal já está em uso. Escolha outro.');
+          return;
+        }
+      } else {
+        // Gerar nome automático
+        channelName = `stream_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      }
       
       const { data, error } = await supabase
         .from('live_streams')
@@ -84,11 +338,17 @@ const AdminLiveStreamPage: React.FC = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') { // Unique constraint violation
+          toast.error('Este nome de canal já está em uso. Escolha outro.');
+          return;
+        }
+        throw error;
+      }
 
       setCurrentStream(data);
       setIsCreating(false);
-      setNewStream({ title: '', description: '' });
+      setNewStream({ title: '', description: '', customChannelName: '' });
       toast.success('Transmissão criada! Clique em "Iniciar Transmissão" para começar.');
       loadStreams();
     } catch (error) {
@@ -99,6 +359,24 @@ const AdminLiveStreamPage: React.FC = () => {
 
   const startStream = async (stream: LiveStream) => {
     try {
+      // Verificar se já existe alguma transmissão ativa
+      const { data: activeStreams, error: checkError } = await supabase
+        .from('live_streams')
+        .select('id, title, created_by')
+        .eq('is_active', true);
+
+      if (checkError) throw checkError;
+
+      // Se há transmissão ativa e não é a mesma que estamos tentando iniciar
+      if (activeStreams && activeStreams.length > 0) {
+        const otherActiveStream = activeStreams.find(s => s.id !== stream.id);
+        if (otherActiveStream) {
+          toast.error('⚠️ Já existe uma transmissão ativa! Apenas uma transmissão pode estar ativa por vez.');
+          return;
+        }
+      }
+
+      // Atualizar para ativo
       const { error } = await supabase
         .from('live_streams')
         .update({ is_active: true })
@@ -176,13 +454,152 @@ const AdminLiveStreamPage: React.FC = () => {
     const link = `${window.location.origin}/live/${currentStream.channel_name}`;
     navigator.clipboard.writeText(link);
     setCopied(true);
-    toast.success('Link copiado!');
+    toast.success('✅ Link copiado para a área de transferência!');
     setTimeout(() => setCopied(false), 2000);
   };
 
   const getStreamLink = () => {
     if (!currentStream) return '';
     return `${window.location.origin}/live/${currentStream.channel_name}`;
+  };
+
+  // Função para editar nome do canal (apenas se não estiver ativo)
+  const [isEditingChannelName, setIsEditingChannelName] = useState(false);
+  const [editedChannelName, setEditedChannelName] = useState('');
+
+  const startEditingChannelName = () => {
+    if (!currentStream) return;
+    setEditedChannelName(currentStream.channel_name);
+    setIsEditingChannelName(true);
+  };
+
+  const saveChannelName = async () => {
+    if (!currentStream || !editedChannelName.trim()) return;
+
+    const sanitized = sanitizeChannelName(editedChannelName);
+    
+    if (!sanitized) {
+      toast.error('Nome do canal inválido. Use apenas letras, números e hífens.');
+      return;
+    }
+
+    // Verificar se já existe (e não é o próprio canal)
+    const { data: existing } = await supabase
+      .from('live_streams')
+      .select('id')
+      .eq('channel_name', sanitized)
+      .neq('id', currentStream.id)
+      .single();
+
+    if (existing) {
+      toast.error('Este nome de canal já está em uso. Escolha outro.');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('live_streams')
+        .update({ channel_name: sanitized })
+        .eq('id', currentStream.id);
+
+      if (error) throw error;
+
+      setCurrentStream({ ...currentStream, channel_name: sanitized });
+      setIsEditingChannelName(false);
+      toast.success('Nome do canal atualizado!');
+      loadStreams();
+    } catch (error) {
+      console.error('Erro ao atualizar nome do canal:', error);
+      toast.error('Erro ao atualizar nome do canal');
+    }
+  };
+
+  // Funções para gerenciar propagandas e slideshow
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isOverlay: boolean = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Por favor, selecione uma imagem válida');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      if (isOverlay) {
+        setNewOverlayAd({ url: base64, file });
+      } else {
+        setNewAdImage({ ...newAdImage, url: base64, file });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const addAdImage = () => {
+    if (!newAdImage.url) {
+      toast.error('Por favor, faça upload de uma imagem ou insira uma URL');
+      return;
+    }
+
+    const newImage = {
+      id: Date.now().toString(),
+      url: newAdImage.url,
+      enabled: true,
+      duration: newAdImage.duration || 5
+    };
+
+    const updatedImages = [...adImages, newImage];
+    setAdImages(updatedImages);
+    // Sincronizar com localStorage para viewers
+    if (currentStream) {
+      localStorage.setItem(`adImages_${currentStream.channel_name}`, JSON.stringify(updatedImages));
+    }
+    setNewAdImage({ url: '', file: null, duration: 5 });
+    toast.success('Imagem adicionada ao slideshow!');
+  };
+
+  const toggleAdImage = (id: string) => {
+    const updatedImages = adImages.map(img => 
+      img.id === id ? { ...img, enabled: !img.enabled } : img
+    );
+    setAdImages(updatedImages);
+    // Sincronizar com localStorage para viewers
+    if (currentStream) {
+      localStorage.setItem(`adImages_${currentStream.channel_name}`, JSON.stringify(updatedImages));
+    }
+  };
+
+  const removeAdImage = (id: string) => {
+    const updatedImages = adImages.filter(img => img.id !== id);
+    setAdImages(updatedImages);
+    // Sincronizar com localStorage para viewers
+    if (currentStream) {
+      localStorage.setItem(`adImages_${currentStream.channel_name}`, JSON.stringify(updatedImages));
+    }
+    toast.success('Imagem removida!');
+  };
+
+  const setOverlayAdImage = () => {
+    if (!newOverlayAd.url) {
+      toast.error('Por favor, faça upload de uma imagem ou insira uma URL');
+      return;
+    }
+
+    setOverlayAd({ url: newOverlayAd.url, enabled: true });
+    setNewOverlayAd({ url: '', file: null });
+    toast.success('Propaganda overlay configurada!');
+  };
+
+  const toggleOverlayAd = () => {
+    if (overlayAd) {
+      setOverlayAd({ ...overlayAd, enabled: !overlayAd.enabled });
+    }
+  };
+
+  const removeOverlayAd = () => {
+    setOverlayAd(null);
+    toast.success('Propaganda overlay removida!');
   };
 
   const isAdmin = !!(currentAppUser?.is_admin || user?.user_metadata?.is_admin);
@@ -233,10 +650,28 @@ const AdminLiveStreamPage: React.FC = () => {
                   <input
                     type="text"
                     value={newStream.title}
-                    onChange={(e) => setNewStream({ ...newStream, title: e.target.value })}
-                    placeholder="Ex: Sorteio ao Vivo - Prêmio R$ 10.000"
+                    onChange={(e) => {
+                      const newTitle = e.target.value;
+                      // Se auto-geração está ativa, gerar slug automaticamente
+                      if (autoGenerateSlug) {
+                        const slug = sanitizeChannelName(newTitle);
+                        setNewStream({ 
+                          title: newTitle, 
+                          description: newStream.description,
+                          customChannelName: slug || ''
+                        });
+                      } else {
+                        setNewStream({ ...newStream, title: newTitle });
+                      }
+                    }}
+                    placeholder="Ex: Cruzeiro x Corintians"
                     className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-amber-500 focus:outline-none"
                   />
+                  {newStream.title && autoGenerateSlug && (
+                    <p className="text-xs text-amber-400 mt-1">
+                      💡 Link será gerado automaticamente: <span className="font-mono">/live/{sanitizeChannelName(newStream.title)}</span>
+                    </p>
+                  )}
                 </div>
                 
                 <div>
@@ -250,6 +685,54 @@ const AdminLiveStreamPage: React.FC = () => {
                   />
                 </div>
                 
+                {/* Campo para nome personalizado do canal */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-slate-300">
+                      🔗 Nome do Link
+                    </label>
+                    <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={autoGenerateSlug}
+                        onChange={(e) => {
+                          setAutoGenerateSlug(e.target.checked);
+                          if (e.target.checked && newStream.title) {
+                            const slug = sanitizeChannelName(newStream.title);
+                            if (slug) {
+                              setNewStream(prev => ({ ...prev, customChannelName: slug }));
+                            }
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-amber-500 focus:ring-amber-500"
+                      />
+                      <span>Gerar automaticamente do título</span>
+                    </label>
+                  </div>
+                  <input
+                    type="text"
+                    value={newStream.customChannelName}
+                    onChange={(e) => {
+                      setNewStream({ ...newStream, customChannelName: e.target.value });
+                      setAutoGenerateSlug(false); // Desativar auto-geração quando editar manualmente
+                    }}
+                    onFocus={() => setAutoGenerateSlug(false)} // Desativar ao focar no campo
+                    placeholder="Ex: cruzeiro-x-corintians"
+                    className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-amber-500 focus:outline-none"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    {autoGenerateSlug 
+                      ? '✅ Gerado automaticamente do título. Desmarque a opção acima para editar manualmente.'
+                      : 'Use apenas letras, números e hífens. Será convertido automaticamente para minúsculas.'
+                    }
+                  </p>
+                  {newStream.customChannelName && (
+                    <p className="text-xs text-amber-400 mt-1 font-medium">
+                      🔗 Link completo: {window.location.origin}/live/{sanitizeChannelName(newStream.customChannelName) || '...'}
+                    </p>
+                  )}
+                </div>
+                
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={createStream}
@@ -260,7 +743,7 @@ const AdminLiveStreamPage: React.FC = () => {
                   <button
                     onClick={() => {
                       setIsCreating(false);
-                      setNewStream({ title: '', description: '' });
+                      setNewStream({ title: '', description: '', customChannelName: '' });
                     }}
                     className="bg-slate-600 hover:bg-slate-700 text-white px-4 md:px-6 py-3 rounded-xl font-bold transition-all duration-300 text-sm md:text-base flex-1 sm:flex-none"
                   >
@@ -282,7 +765,13 @@ const AdminLiveStreamPage: React.FC = () => {
                   <p className="text-slate-300 mt-1 text-sm md:text-base break-words">{currentStream.description}</p>
                 )}
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                <button
+                  onClick={() => setShowAdManager(!showAdManager)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold transition-all text-sm md:text-base whitespace-nowrap flex items-center gap-2"
+                >
+                  📢 Gerenciar Propagandas
+                </button>
                 <button
                   onClick={backToList}
                   className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-bold transition-all text-sm md:text-base whitespace-nowrap flex items-center gap-2"
@@ -309,6 +798,158 @@ const AdminLiveStreamPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Dashboard de Estatísticas */}
+            {currentStream.is_active && (
+              <>
+                <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                  <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users className="text-blue-400" size={20} />
+                      <span className="text-slate-400 text-xs md:text-sm">Viewers</span>
+                    </div>
+                    <div className="text-2xl md:text-3xl font-bold text-white">
+                      {streamStats?.viewerCount ?? viewerCount}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-3 h-3 rounded-full ${
+                        streamStats?.connectionQuality === 'excellent' ? 'bg-green-500' :
+                        streamStats?.connectionQuality === 'good' ? 'bg-yellow-500' :
+                        streamStats?.connectionQuality === 'poor' ? 'bg-orange-500' :
+                        'bg-red-500'
+                      }`}></div>
+                      <span className="text-slate-400 text-xs md:text-sm">Conexão</span>
+                    </div>
+                    <div className="text-sm md:text-base font-semibold text-white capitalize">
+                      {streamStats?.connectionQuality === 'excellent' ? 'Excelente' :
+                       streamStats?.connectionQuality === 'good' ? 'Boa' :
+                       streamStats?.connectionQuality === 'poor' ? 'Ruim' :
+                       'Desconectado'}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-slate-400 text-xs md:text-sm">Status</span>
+                    </div>
+                    <div className="text-sm md:text-base font-semibold text-white">
+                      {streamStats?.connectionState === 'CONNECTED' ? '🟢 Conectado' :
+                       streamStats?.connectionState === 'CONNECTING' ? '🟡 Conectando' :
+                       streamStats?.connectionState === 'DISCONNECTING' ? '🟠 Desconectando' :
+                       '🔴 Desconectado'}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-slate-400 text-xs md:text-sm">Propagandas</span>
+                    </div>
+                    <div className="text-2xl md:text-3xl font-bold text-white">
+                      {adImages.filter(img => img.enabled).length}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">ativas</div>
+                  </div>
+                </div>
+
+                {/* Relatórios Detalhados */}
+                {currentStream.is_active && (
+                  <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Tempo Médio de Visualização */}
+                    <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 md:p-6 border border-slate-700">
+                      <h3 className="text-lg font-bold text-white mb-4">⏱️ Tempo de Visualização</h3>
+                      {detailedStats ? (
+                        <div className="space-y-3">
+                          <div>
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className="text-slate-400">Tempo Médio</span>
+                              <span className="text-white font-semibold">
+                                {detailedStats.avgWatchTime > 0 ? (
+                                  <>
+                                    {Math.floor(detailedStats.avgWatchTime / 60)}min {Math.floor(detailedStats.avgWatchTime % 60)}s
+                                  </>
+                                ) : (
+                                  '0min 0s'
+                                )}
+                              </span>
+                            </div>
+                            <div className="w-full bg-slate-700 rounded-full h-2">
+                              <div 
+                                className="bg-amber-500 h-2 rounded-full transition-all duration-300"
+                                style={{ 
+                                  width: `${Math.min((detailedStats.avgWatchTime / 300) * 100, 100)}%` 
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 mt-4">
+                            <div>
+                              <div className="text-slate-400 text-xs">Total Assistido</div>
+                              <div className="text-white font-bold">
+                                {detailedStats.totalWatchTime > 0 ? (
+                                  <>
+                                    {Math.floor(detailedStats.totalWatchTime / 3600)}h {Math.floor((detailedStats.totalWatchTime % 3600) / 60)}min
+                                  </>
+                                ) : (
+                                  '0h 0min'
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-slate-400 text-xs">Sessões Únicas</div>
+                              <div className="text-white font-bold">{detailedStats.uniqueSessions || 0}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-slate-400 text-sm text-center py-4">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-amber-400 mx-auto mb-2"></div>
+                          Carregando estatísticas...
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Propagandas Mais Vistas */}
+                    <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 md:p-6 border border-slate-700">
+                      <h3 className="text-lg font-bold text-white mb-4">📊 Propagandas Mais Vistas</h3>
+                      {detailedStats && detailedStats.adStats && detailedStats.adStats.length > 0 ? (
+                        <div className="space-y-3 max-h-64 overflow-y-auto">
+                          {detailedStats.adStats.slice(0, 5).map((ad, index) => (
+                            <div key={ad.ad_id} className="flex items-center gap-3">
+                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold text-sm">
+                                {index + 1}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-center mb-1">
+                                  <span className="text-white text-sm font-medium truncate">
+                                    {ad.ad_type === 'slideshow' ? 'Slideshow' : 'Overlay'}
+                                  </span>
+                                  <span className="text-amber-400 font-bold text-sm">{ad.total_views}</span>
+                                </div>
+                                <div className="w-full bg-slate-700 rounded-full h-1.5">
+                                  <div 
+                                    className="bg-blue-500 h-1.5 rounded-full transition-all"
+                                    style={{ 
+                                      width: `${(ad.total_views / (detailedStats.adStats[0]?.total_views || 1)) * 100}%` 
+                                    }}
+                                  ></div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-slate-400 text-sm text-center py-4">
+                          Nenhuma propaganda visualizada ainda
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
             {/* Player de Vídeo */}
             <div className="mb-4">
               {!currentStream.is_active ? (
@@ -319,7 +960,23 @@ const AdminLiveStreamPage: React.FC = () => {
                     Clique no botão abaixo para iniciar a transmissão ao vivo
                   </p>
                   <button
-                    onClick={() => startStream(currentStream)}
+                    onClick={async () => {
+                      // Verificar se já existe transmissão ativa antes de iniciar
+                      const { data: activeStreams } = await supabase
+                        .from('live_streams')
+                        .select('id, title')
+                        .eq('is_active', true);
+                      
+                      if (activeStreams && activeStreams.length > 0) {
+                        const otherStream = activeStreams.find(s => s.id !== currentStream.id);
+                        if (otherStream) {
+                          toast.error(`⚠️ Já existe uma transmissão ativa: "${otherStream.title}". Apenas uma transmissão pode estar ativa por vez.`);
+                          return;
+                        }
+                      }
+                      
+                      startStream(currentStream);
+                    }}
                     className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 flex items-center justify-center gap-2 mx-auto"
                   >
                     <Camera size={20} />
@@ -331,31 +988,275 @@ const AdminLiveStreamPage: React.FC = () => {
                   channelName={currentStream.channel_name}
                   isBroadcaster={true}
                   onEnd={endStream}
+                  adImages={adImages}
+                  overlayAd={overlayAd || undefined}
+                  onStatsUpdate={setStreamStats}
+                  onRecordingStateChange={setIsRecording}
+                  onRecordingReady={handleRecordingReady}
                 />
               )}
             </div>
+            
+            {/* Gerenciador de Propagandas */}
+            {showAdManager && (
+              <div className="mt-6 bg-slate-800/50 rounded-xl p-4 md:p-6 border border-slate-700">
+                <h3 className="text-xl font-bold text-white mb-4">📢 Gerenciar Propagandas</h3>
+                
+                {/* Slideshow de Imagens */}
+                <div className="mb-6">
+                  <h4 className="text-lg font-semibold text-white mb-3">🖼️ Slideshow de Imagens</h4>
+                  
+                  {/* Adicionar nova imagem */}
+                  <div className="bg-slate-700/50 rounded-lg p-4 mb-4">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-white text-sm mb-2">URL da Imagem ou Upload</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newAdImage.url}
+                            onChange={(e) => setNewAdImage({ ...newAdImage, url: e.target.value })}
+                            placeholder="URL da imagem ou faça upload"
+                            className="flex-1 px-3 py-2 bg-slate-600 text-white rounded border border-slate-500 focus:outline-none focus:border-blue-500 text-sm"
+                          />
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleImageUpload(e, false)}
+                            className="hidden"
+                            id="ad-image-upload"
+                          />
+                          <label
+                            htmlFor="ad-image-upload"
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded cursor-pointer text-sm"
+                          >
+                            📁 Upload
+                          </label>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-white text-sm mb-2">Duração (segundos)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="60"
+                          value={newAdImage.duration}
+                          onChange={(e) => setNewAdImage({ ...newAdImage, duration: parseInt(e.target.value) || 5 })}
+                          className="w-32 px-3 py-2 bg-slate-600 text-white rounded border border-slate-500 focus:outline-none focus:border-blue-500 text-sm"
+                        />
+                      </div>
+                      <button
+                        onClick={addAdImage}
+                        className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-medium text-sm"
+                      >
+                        ➕ Adicionar ao Slideshow
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Lista de imagens */}
+                  <div className="space-y-2">
+                    {adImages.map((img) => (
+                      <div key={img.id} className="bg-slate-700/50 rounded-lg p-3 flex items-center gap-3">
+                        <img src={img.url} alt="Ad" className="w-16 h-16 object-cover rounded" />
+                        <div className="flex-1">
+                          <div className="text-white text-sm">Duração: {img.duration}s</div>
+                          <div className="text-slate-400 text-xs">Status: {img.enabled ? '✅ Ativo' : '❌ Desativado'}</div>
+                        </div>
+                        <button
+                          onClick={() => toggleAdImage(img.id)}
+                          className={`px-3 py-1 rounded text-sm ${
+                            img.enabled 
+                              ? 'bg-yellow-600 hover:bg-yellow-700' 
+                              : 'bg-green-600 hover:bg-green-700'
+                          } text-white`}
+                        >
+                          {img.enabled ? 'Desativar' : 'Ativar'}
+                        </button>
+                        <button
+                          onClick={() => removeAdImage(img.id)}
+                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    ))}
+                    {adImages.length === 0 && (
+                      <p className="text-slate-400 text-sm text-center py-4">Nenhuma imagem adicionada ainda</p>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Propaganda Overlay */}
+                <div>
+                  <h4 className="text-lg font-semibold text-white mb-3">📢 Propaganda Overlay (Fullscreen)</h4>
+                  
+                  {!overlayAd ? (
+                    <div className="bg-slate-700/50 rounded-lg p-4">
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-white text-sm mb-2">URL da Imagem ou Upload</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={newOverlayAd.url}
+                              onChange={(e) => setNewOverlayAd({ ...newOverlayAd, url: e.target.value })}
+                              placeholder="URL da imagem ou faça upload"
+                              className="flex-1 px-3 py-2 bg-slate-600 text-white rounded border border-slate-500 focus:outline-none focus:border-blue-500 text-sm"
+                            />
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleImageUpload(e, true)}
+                              className="hidden"
+                              id="overlay-ad-upload"
+                            />
+                            <label
+                              htmlFor="overlay-ad-upload"
+                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded cursor-pointer text-sm"
+                            >
+                              📁 Upload
+                            </label>
+                          </div>
+                        </div>
+                        <button
+                          onClick={setOverlayAdImage}
+                          className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-medium text-sm"
+                        >
+                          ➕ Configurar Propaganda Overlay
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-700/50 rounded-lg p-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <img src={overlayAd.url} alt="Overlay Ad" className="w-32 h-20 object-cover rounded" />
+                        <div className="flex-1">
+                          <div className="text-white text-sm">Status: {overlayAd.enabled ? '✅ Ativo' : '❌ Desativado'}</div>
+                          <p className="text-slate-400 text-xs mt-1">O jogo aparecerá em PiP quando ativo</p>
+                        </div>
+                        <button
+                          onClick={toggleOverlayAd}
+                          className={`px-3 py-1 rounded text-sm ${
+                            overlayAd.enabled 
+                              ? 'bg-yellow-600 hover:bg-yellow-700' 
+                              : 'bg-green-600 hover:bg-green-700'
+                          } text-white`}
+                        >
+                          {overlayAd.enabled ? 'Desativar' : 'Ativar'}
+                        </button>
+                        <button
+                          onClick={removeOverlayAd}
+                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Botão de Gravação */}
+            {currentStream.is_active && (
+              <div className="bg-slate-800/50 rounded-lg p-3 md:p-4 mb-4">
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  {!isRecording ? (
+                    <button
+                      onClick={handleStartRecording}
+                      className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition-all flex items-center justify-center gap-2 font-bold w-full sm:w-auto"
+                    >
+                      <Circle size={20} className="fill-white" />
+                      Iniciar Gravação
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={handleStopRecording}
+                        className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-all flex items-center justify-center gap-2 font-bold w-full sm:w-auto"
+                      >
+                        <Square size={20} />
+                        Parar Gravação
+                      </button>
+                      <div className="flex items-center gap-2 text-red-400">
+                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                        <span className="font-mono font-bold">{formatRecordingTime(recordingTime)}</span>
+                        <span className="text-sm">Gravando...</span>
+                      </div>
+                    </>
+                  )}
+                  <p className="text-xs text-slate-400 text-center sm:text-left">
+                    {isRecording 
+                      ? 'A gravação será salva automaticamente quando você parar'
+                      : 'Grave a transmissão em formato WebM (compatível com MP4)'
+                    }
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Compartilhar Link */}
             <div className="bg-slate-800/50 rounded-lg p-3 md:p-4">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <Share2 className="text-amber-400 flex-shrink-0" size={20} />
                 <div className="flex-1 min-w-0">
-                  <label className="block text-white text-xs md:text-sm mb-1">Link da Transmissão</label>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <input
-                      type="text"
-                      value={getStreamLink()}
-                      readOnly
-                      className="flex-1 px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 text-xs md:text-sm truncate"
-                    />
-                    <button
-                      onClick={copyStreamLink}
-                      className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2 text-sm md:text-base whitespace-nowrap"
-                    >
-                      {copied ? <Check size={16} /> : <Copy size={16} />}
-                      {copied ? 'Copiado!' : 'Copiar'}
-                    </button>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-white text-xs md:text-sm">Link da Transmissão</label>
+                    {!currentStream.is_active && (
+                      <button
+                        onClick={() => {
+                          if (isEditingChannelName) {
+                            setIsEditingChannelName(false);
+                          } else {
+                            startEditingChannelName();
+                          }
+                        }}
+                        className="text-xs text-amber-400 hover:text-amber-300 underline"
+                      >
+                        {isEditingChannelName ? 'Cancelar' : 'Editar nome'}
+                      </button>
+                    )}
                   </div>
+                  {isEditingChannelName ? (
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        value={editedChannelName}
+                        onChange={(e) => setEditedChannelName(e.target.value)}
+                        placeholder="nome-personalizado"
+                        className="flex-1 px-3 py-2 bg-slate-700 text-white rounded-lg border border-amber-500 text-xs md:text-sm"
+                      />
+                      <button
+                        onClick={saveChannelName}
+                        className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-all text-sm md:text-base whitespace-nowrap"
+                      >
+                        Salvar
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        value={getStreamLink()}
+                        readOnly
+                        className="flex-1 px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 text-xs md:text-sm truncate"
+                      />
+                      <button
+                        onClick={copyStreamLink}
+                        className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2 text-sm md:text-base whitespace-nowrap"
+                      >
+                        {copied ? <Check size={16} /> : <Copy size={16} />}
+                        {copied ? 'Copiado!' : 'Copiar'}
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-xs text-slate-400 mt-1">
+                    {currentStream.is_active 
+                      ? '⚠️ Não é possível editar o nome enquanto a transmissão estiver ativa'
+                      : '💡 Você pode personalizar o nome do link antes de iniciar a transmissão'
+                    }
+                  </p>
                 </div>
               </div>
             </div>
@@ -400,7 +1301,23 @@ const AdminLiveStreamPage: React.FC = () => {
                           Encerrada
                         </span>
                         <button
-                          onClick={() => startStream(stream)}
+                          onClick={async () => {
+                            // Verificar se já existe transmissão ativa
+                            const { data: activeStreams } = await supabase
+                              .from('live_streams')
+                              .select('id, title')
+                              .eq('is_active', true);
+                            
+                            if (activeStreams && activeStreams.length > 0) {
+                              const otherStream = activeStreams.find(s => s.id !== stream.id);
+                              if (otherStream) {
+                                toast.error(`⚠️ Já existe uma transmissão ativa: "${otherStream.title}". Apenas uma transmissão pode estar ativa por vez.`);
+                                return;
+                              }
+                            }
+                            
+                            startStream(stream);
+                          }}
                           className="bg-amber-500 hover:bg-amber-600 text-white px-3 md:px-4 py-2 rounded-lg font-bold transition-all text-xs md:text-sm whitespace-nowrap"
                         >
                           Reiniciar
