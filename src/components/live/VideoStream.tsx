@@ -26,6 +26,7 @@ interface VideoStreamProps {
   sessionId?: string; // ID da sessão do viewer para tracking
   onRecordingStateChange?: (isRecording: boolean) => void; // Callback para estado de gravação
   onRecordingReady?: (blob: Blob, filename: string) => void; // Callback quando gravação está pronta
+  cameraPipPosition?: { x: number; y: number }; // Posição da câmera PiP (para viewers)
 }
 
 /**
@@ -46,7 +47,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   streamId,
   sessionId,
   onRecordingStateChange,
-  onRecordingReady
+  onRecordingReady,
+  cameraPipPosition
 }) => {
   const localVideoRef = useRef<HTMLDivElement>(null);
   const remoteVideoRef = useRef<HTMLDivElement>(null);
@@ -98,9 +100,11 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const [showExternalUrlInput, setShowExternalUrlInput] = useState(false);
   const [showScreenShare, setShowScreenShare] = useState(false);
   const [showCamera, setShowCamera] = useState(true);
-  const [cameraPosition, setCameraPosition] = useState({ x: 20, y: 20 });
+  const [cameraPosition, setCameraPosition] = useState({ x: 20, y: 20 }); // Posição em pixels (para cálculo)
+  const [cameraPositionPercent, setCameraPositionPercent] = useState({ x: 0, y: 0 }); // Posição em porcentagem (para sincronização)
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const containerSizeRef = useRef({ width: 0, height: 0 }); // Tamanho do container para cálculos
   const [showAudioControls, setShowAudioControls] = useState(false); // Mostrar/ocultar controles de áudio
   
   // Estados para propagandas e slideshow
@@ -284,17 +288,46 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       if (isDragging && cameraPiPRef.current) {
         const container = localVideoRef.current?.getBoundingClientRect();
         if (container) {
+          const pipSize = 120; // Tamanho fixo do PiP
           const newX = e.clientX - container.left - dragOffset.x;
           const newY = e.clientY - container.top - dragOffset.y;
           
           // Limitar dentro do container
-          const maxX = container.width - 120;
-          const maxY = container.height - 120;
+          const maxX = container.width - pipSize;
+          const maxY = container.height - pipSize;
           
+          const clampedX = Math.max(0, Math.min(maxX, newX));
+          const clampedY = Math.max(0, Math.min(maxY, newY));
+          
+          // Atualizar posição em pixels
           setCameraPosition({
-            x: Math.max(0, Math.min(maxX, newX)),
-            y: Math.max(0, Math.min(maxY, newY))
+            x: clampedX,
+            y: clampedY
           });
+          
+          // Calcular e atualizar posição em porcentagem (0-100)
+          // IMPORTANTE: Usar a área disponível (maxX/maxY) como base para o cálculo
+          const availableWidth = container.width - pipSize;
+          const availableHeight = container.height - pipSize;
+          
+          // Calcular porcentagem baseado na área disponível (não no container total)
+          const percentX = availableWidth > 0 ? (clampedX / availableWidth) * 100 : 0;
+          const percentY = availableHeight > 0 ? (clampedY / availableHeight) * 100 : 0;
+          
+          console.log('📐 Cálculo de porcentagem (Admin):', {
+            containerSize: { width: container.width, height: container.height },
+            availableSize: { width: availableWidth, height: availableHeight },
+            pixelPosition: { x: clampedX, y: clampedY },
+            percentPosition: { x: percentX, y: percentY }
+          });
+          
+          setCameraPositionPercent({
+            x: Math.max(0, Math.min(100, percentX)),
+            y: Math.max(0, Math.min(100, percentY))
+          });
+          
+          // Salvar tamanho do container para referência
+          containerSizeRef.current = { width: container.width, height: container.height };
         }
       }
     };
@@ -314,16 +347,118 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     };
   }, [isDragging, dragOffset]);
 
+  // Salvar posição da câmera no banco quando admin mover (com debounce) - usando porcentagem
+  useEffect(() => {
+    if (!isBroadcaster || !streamId) return;
+    
+    const timeoutId = setTimeout(async () => {
+      try {
+        // Salvar como porcentagem (0-100) para funcionar em qualquer tamanho de tela
+        await supabase
+          .from('live_streams')
+          .update({
+            camera_pip_x: Math.round(cameraPositionPercent.x * 100) / 100, // Salvar como 0-100 (com 2 casas decimais)
+            camera_pip_y: Math.round(cameraPositionPercent.y * 100) / 100
+          })
+          .eq('id', streamId);
+        console.log('💾 Posição da câmera salva no banco (porcentagem):', cameraPositionPercent);
+      } catch (error) {
+        console.error('Erro ao salvar posição da câmera:', error);
+      }
+    }, 300); // Debounce de 300ms para evitar muitas atualizações
+
+    return () => clearTimeout(timeoutId);
+  }, [cameraPositionPercent, isBroadcaster, streamId]);
+
+  // Para viewers: converter porcentagem do banco para pixels baseado no tamanho do container
+  useEffect(() => {
+    if (!isBroadcaster && cameraPipPosition) {
+      // cameraPipPosition agora vem como porcentagem (0-100)
+      // Precisamos converter para pixels baseado no tamanho atual do container
+      const updatePositionFromPercent = () => {
+        // Para viewers, usar remoteVideoRef (onde o vídeo remoto é exibido)
+        // O container pai é o div que contém o remoteVideoRef
+        const videoContainer = remoteVideoRef.current?.parentElement?.getBoundingClientRect();
+        const container = videoContainer || remoteVideoRef.current?.getBoundingClientRect();
+        
+        if (container && container.width > 0 && container.height > 0) {
+          const pipSize = 120;
+          // Área disponível para mover a câmera (descontando o tamanho do PiP)
+          const availableWidth = container.width - pipSize;
+          const availableHeight = container.height - pipSize;
+          
+          // Converter porcentagem (0-100) para pixels
+          // Se porcentagem é 100%, deve ir até o final (availableWidth/Height)
+          // Se porcentagem é 0%, deve ficar no início (0)
+          const pixelX = (cameraPipPosition.x / 100) * availableWidth;
+          const pixelY = (cameraPipPosition.y / 100) * availableHeight;
+          
+          console.log('📐 Conversão de posição (Viewer):', {
+            percent: cameraPipPosition,
+            containerSize: { width: container.width, height: container.height },
+            availableSize: { width: availableWidth, height: availableHeight },
+            pixelPosition: { x: pixelX, y: pixelY },
+            finalPosition: { x: Math.max(0, Math.min(availableWidth, pixelX)), y: Math.max(0, Math.min(availableHeight, pixelY)) }
+          });
+          
+          setCameraPosition({
+            x: Math.max(0, Math.min(availableWidth, pixelX)),
+            y: Math.max(0, Math.min(availableHeight, pixelY))
+          });
+          
+          setCameraPositionPercent({
+            x: cameraPipPosition.x,
+            y: cameraPipPosition.y
+          });
+        } else {
+          console.warn('⚠️ Container não encontrado ou sem tamanho, aguardando...');
+          // Tentar novamente após um delay se o container não estiver pronto
+          setTimeout(updatePositionFromPercent, 500);
+        }
+      };
+      
+      // Aguardar um pouco para garantir que o container está renderizado
+      const initialDelay = setTimeout(() => {
+        updatePositionFromPercent();
+      }, 500);
+      
+      // Atualizar quando o container mudar de tamanho (resize)
+      const handleResize = () => {
+        updatePositionFromPercent();
+      };
+      
+      window.addEventListener('resize', handleResize);
+      
+      // Observar mudanças no container (mais preciso que resize)
+      const resizeObserver = new ResizeObserver(() => {
+        updatePositionFromPercent();
+      });
+      
+      // Observar tanto o container pai quanto o remoteVideoRef
+      const containerElement = remoteVideoRef.current?.parentElement || remoteVideoRef.current;
+      if (containerElement) {
+        resizeObserver.observe(containerElement);
+      }
+      
+      return () => {
+        clearTimeout(initialDelay);
+        window.removeEventListener('resize', handleResize);
+        resizeObserver.disconnect();
+      };
+    }
+  }, [cameraPipPosition, isBroadcaster]);
+
   // Atualizar posição do PiP no track combinado quando o admin mover a câmera
   useEffect(() => {
     if (combinedVideoTrackRef.current && showScreenShare && showCamera) {
       const combinedTrack = combinedVideoTrackRef.current as any;
       if (combinedTrack._updatePipPosition && typeof combinedTrack._updatePipPosition === 'function') {
-        combinedTrack._updatePipPosition(cameraPosition);
-        console.log('📹 Posição do PiP atualizada no track combinado:', cameraPosition);
+        // Passar posição em porcentagem (0-100) para funcionar no canvas
+        combinedTrack._updatePipPosition(cameraPositionPercent);
+        console.log('📹 Posição do PiP atualizada no track combinado (porcentagem):', cameraPositionPercent);
       }
     }
-  }, [cameraPosition, showScreenShare, showCamera]);
+  }, [cameraPositionPercent, showScreenShare, showCamera]);
 
   // Mover câmera para PiP quando screen sharing e câmera estão ativos
   useEffect(() => {
@@ -496,8 +631,27 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
         canvasRef.current = canvas;
         
-        // Armazenar posição do PiP no canvas para atualizar quando mudar
-        let currentPipPosition = { ...pipPosition };
+        // Armazenar posição do PiP no canvas (em porcentagem 0-100 para funcionar em qualquer tamanho)
+        // Converter posição inicial de pixels para porcentagem se necessário
+        let currentPipPositionPercent = { x: 0, y: 0 };
+        
+        // Se pipPosition vem em pixels (valores > 100), assumir que é posição absoluta e converter
+        // Se vem em porcentagem (0-100), usar diretamente
+        if (pipPosition.x > 100 || pipPosition.y > 100) {
+          // Assumir container padrão de 1280x720 para conversão inicial
+          const defaultContainerWidth = 1280;
+          const defaultContainerHeight = 720;
+          const pipSize = 120;
+          const availableWidth = defaultContainerWidth - pipSize;
+          const availableHeight = defaultContainerHeight - pipSize;
+          currentPipPositionPercent = {
+            x: (pipPosition.x / availableWidth) * 100,
+            y: (pipPosition.y / availableHeight) * 100
+          };
+        } else {
+          // Já está em porcentagem
+          currentPipPositionPercent = { x: pipPosition.x, y: pipPosition.y };
+        }
         
         // Criar elementos de vídeo ocultos para capturar os streams
         const screenVideo = document.createElement('video');
@@ -613,10 +767,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           // Desenhar câmera como círculo no canto (PiP) - apenas se tiver dimensões
           if (cameraVideo.videoWidth > 0 && cameraVideo.videoHeight > 0) {
             try {
-              const pipSize = 200; // Tamanho do PiP
-              // Usar posição dinâmica do PiP (sincronizada com o movimento do admin)
-              const pipX = currentPipPosition.x;
-              const pipY = currentPipPosition.y;
+              const pipSize = 200; // Tamanho do PiP no canvas (proporcional ao tamanho real de 120px)
+              // Converter porcentagem (0-100) para pixels no canvas (1920x1080)
+              const availableWidth = canvas.width - pipSize;
+              const availableHeight = canvas.height - pipSize;
+              const pipX = (currentPipPositionPercent.x / 100) * availableWidth;
+              const pipY = (currentPipPositionPercent.y / 100) * availableHeight;
               
               // Criar clipping path circular
               ctx.save();
@@ -694,12 +850,28 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         (customTrack as any)._drawInterval = drawInterval;
         (customTrack as any)._canvas = canvas;
         (customTrack as any)._updatePipPosition = (newPosition: { x: number; y: number }) => {
-          currentPipPosition = { ...newPosition };
-          console.log('📹 Posição do PiP atualizada no canvas:', currentPipPosition);
+          // newPosition pode vir em pixels ou porcentagem
+          // Se valores > 100, assumir pixels e converter para porcentagem
+          if (newPosition.x > 100 || newPosition.y > 100) {
+            // Assumir container padrão para conversão
+            const defaultContainerWidth = 1920; // Usar dimensões do canvas como referência
+            const defaultContainerHeight = 1080;
+            const pipSize = 120;
+            const availableWidth = defaultContainerWidth - pipSize;
+            const availableHeight = defaultContainerHeight - pipSize;
+            currentPipPositionPercent = {
+              x: (newPosition.x / availableWidth) * 100,
+              y: (newPosition.y / availableHeight) * 100
+            };
+          } else {
+            // Já está em porcentagem
+            currentPipPositionPercent = { x: newPosition.x, y: newPosition.y };
+          }
+          console.log('📹 Posição do PiP atualizada no canvas (porcentagem):', currentPipPositionPercent);
         };
         
         console.log('✅ Track combinado criado (screen sharing + câmera)');
-        console.log('   Posição inicial do PiP:', currentPipPosition);
+        console.log('   Posição inicial do PiP (porcentagem):', currentPipPositionPercent);
         resolve(customTrack);
         
       } catch (error: any) {
@@ -1129,73 +1301,16 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   }, [showOverlayAd, overlayAdImage, streamId, sessionId, isBroadcaster, isStreaming]);
 
   // ========== SISTEMA DE PROPAGANDA OVERLAY ==========
-  // Atualizar overlay quando overlayAd mudar (Admin)
+  // Atualizar overlay quando overlayAd mudar (vem do banco de dados via props)
   useEffect(() => {
-    if (isBroadcaster) {
-      if (overlayAd?.enabled && overlayAd?.url) {
-        setShowOverlayAd(true);
-        setOverlayAdImage(overlayAd.url);
-        // Salvar no localStorage para sincronizar com viewers
-        localStorage.setItem(`overlayAd_${channelName}`, JSON.stringify(overlayAd));
-      } else {
-        setShowOverlayAd(false);
-        setOverlayAdImage(null);
-        localStorage.removeItem(`overlayAd_${channelName}`);
-      }
+    if (overlayAd?.enabled && overlayAd?.url) {
+      setShowOverlayAd(true);
+      setOverlayAdImage(overlayAd.url);
+    } else {
+      setShowOverlayAd(false);
+      setOverlayAdImage(null);
     }
-  }, [overlayAd, channelName, isBroadcaster]);
-
-  // Para viewers: carregar overlay do localStorage (sincronizado pelo admin)
-  const prevOverlayRef = useRef<string>('');
-  useEffect(() => {
-    if (!isBroadcaster) {
-      const loadOverlay = () => {
-        const savedOverlay = localStorage.getItem(`overlayAd_${channelName}`);
-        const overlayStr = savedOverlay || '';
-        
-        // Só atualizar se realmente mudou
-        if (overlayStr !== prevOverlayRef.current) {
-          prevOverlayRef.current = overlayStr;
-          
-          if (savedOverlay) {
-            try {
-              const overlay = JSON.parse(savedOverlay);
-              if (overlay.enabled && overlay.url) {
-                setShowOverlayAd(true);
-                setOverlayAdImage(overlay.url);
-              } else {
-                setShowOverlayAd(false);
-                setOverlayAdImage(null);
-              }
-            } catch (e) {
-              console.error('Erro ao carregar overlay:', e);
-            }
-          } else {
-            setShowOverlayAd(false);
-            setOverlayAdImage(null);
-          }
-        }
-      };
-      
-      loadOverlay();
-      
-      // Escutar mudanças no localStorage (quando admin atualiza)
-      const handleStorageChange = (e: StorageEvent) => {
-        if (e.key === `overlayAd_${channelName}`) {
-          loadOverlay();
-        }
-      };
-      
-      // Polling para verificar mudanças (menos frequente para evitar loops)
-      const interval = setInterval(loadOverlay, 1000);
-      
-      window.addEventListener('storage', handleStorageChange);
-      return () => {
-        window.removeEventListener('storage', handleStorageChange);
-        clearInterval(interval);
-      };
-    }
-  }, [channelName, isBroadcaster]);
+  }, [overlayAd]);
 
   // Copiar conteúdo do vídeo para o PiP quando overlay está ativo (Admin)
   useEffect(() => {
@@ -2853,22 +2968,13 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         if (mediaType === 'video' && remoteVideoRef.current) {
           console.log('🎬 Processando vídeo remoto...');
           
-          // Verificar se já há um vídeo sendo reproduzido para este usuário
-          const existingVideo = document.getElementById(`remote-video-${user.uid}`);
-          if (existingVideo && existingVideo.querySelector('video')) {
-            console.log('✅ Vídeo já está sendo reproduzido para este usuário, ignorando...');
-            setHasRemoteVideo(true);
-            setIsConnecting(false);
-            return;
-          }
+          // SEMPRE limpar vídeo anterior quando um novo track é publicado (mudança de tela/câmera)
+          // Isso garante que mudanças de tela sejam refletidas imediatamente
+          console.log('🔄 Limpando vídeo anterior para aplicar novo track...');
+          safeClearElement(remoteVideoRef.current);
           
           // Aguardar um pouco para o track estar disponível
           await new Promise(resolve => setTimeout(resolve, 300));
-          
-          // Limpar conteúdo anterior do elemento APENAS se não houver vídeo já renderizado
-          if (!remoteVideoRef.current.querySelector('video')) {
-            safeClearElement(remoteVideoRef.current);
-          }
           
           // Criar um elemento div para o vídeo
           const videoContainer = document.createElement('div');
@@ -3017,12 +3123,22 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       }
     });
 
-    // Escutar quando um stream remoto é removido
-    client.on('user-unpublished', (user: any) => {
+    // Escutar quando um stream remoto é removido (mudança de tela/câmera do admin)
+    client.on('user-unpublished', async (user: any, mediaType: string) => {
       try {
-        console.log('User unpublished:', user.uid);
+        console.log('📡 User unpublished:', user?.uid, 'MediaType:', mediaType);
         
-        if (user.videoTrack) {
+        // Quando o admin troca de tela/câmera, o track antigo é removido
+        // Limpar o vídeo para que o novo track seja renderizado corretamente
+        if (mediaType === 'video' && remoteVideoRef.current) {
+          console.log('🔄 Admin trocou de tela/câmera, limpando vídeo anterior...');
+          // Limpar vídeo anterior para que o novo track seja renderizado
+          safeClearElement(remoteVideoRef.current);
+          setHasRemoteVideo(false);
+          setIsConnecting(true);
+        }
+        
+        if (user?.videoTrack) {
           user.videoTrack.stop();
           // Remover elemento de vídeo
           const videoElement = document.getElementById(`remote-video-${user.uid}`);
@@ -3030,12 +3146,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             videoElement.remove();
           }
         }
-        if (user.audioTrack) {
+        if (user?.audioTrack) {
           user.audioTrack.stop();
         }
-        
-        setHasRemoteVideo(false);
-        setIsConnecting(true);
       } catch (error) {
         console.error('Erro ao parar stream remoto:', error);
       }
@@ -3751,11 +3864,11 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               </div>
             )}
           
-          {/* Câmera PiP (Picture-in-Picture) - aparece quando screen sharing está ativo */}
-          {showScreenShare && showCamera && cameraVideoTrackRef.current && (
+          {/* Câmera PiP (Picture-in-Picture) - Admin - aparece quando screen sharing está ativo */}
+          {isBroadcaster && showScreenShare && showCamera && cameraVideoTrackRef.current && (
             <div
               ref={cameraPiPRef}
-              id="pip-camera-container"
+              id="pip-camera-container-admin"
               className="absolute rounded-full overflow-hidden border-4 border-white shadow-2xl cursor-move z-30"
               style={{
                 width: '120px',
@@ -3776,7 +3889,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               }}
             >
               <style>{`
-                #pip-camera-container video {
+                #pip-camera-container-admin video {
                   width: 100% !important;
                   height: 100% !important;
                   object-fit: cover !important;
@@ -3786,7 +3899,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                 }
               `}</style>
             </div>
-            )}
+          )}
             
             {/* Overlay de Propaganda (Fullscreen com conteúdo anterior em PiP) */}
             {showOverlayAd && overlayAdImage && (
@@ -4072,6 +4185,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               backgroundColor: '#000'
             }}
           />
+          
+          {/* Nota: Para viewers, a câmera PiP já vem embutida no track combinado do admin
+              Não precisamos renderizar separadamente, mas mantemos o código caso seja necessário no futuro */}
           
           {/* Overlay de carregamento - só mostra se não há vídeo */}
           {!hasRemoteVideo && (

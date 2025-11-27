@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Users, Share2, Copy, Check, ArrowLeft, Trash2, Circle, Square } from 'lucide-react';
+import { Camera, Users, Share2, Copy, Check, ArrowLeft, Trash2, Circle, Square, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import VideoStream from '../components/live/VideoStream';
 
@@ -16,6 +16,10 @@ interface LiveStream {
   created_by: string;
   created_at: string;
   viewer_count?: number;
+  overlay_ad_url?: string | null;
+  overlay_ad_enabled?: boolean;
+  camera_pip_x?: number;
+  camera_pip_y?: number;
 }
 
 const AdminLiveStreamPage: React.FC = () => {
@@ -125,6 +129,7 @@ const AdminLiveStreamPage: React.FC = () => {
   const [adImages, setAdImages] = useState<Array<{id: string; url: string; enabled: boolean; duration?: number}>>([]);
   const [overlayAd, setOverlayAd] = useState<{url: string; enabled: boolean} | null>(null);
   const [showAdManager, setShowAdManager] = useState(false);
+  const [showStats, setShowStats] = useState(false); // Estado para mostrar/ocultar estatísticas
   const [newAdImage, setNewAdImage] = useState<{url: string; file: File | null; duration: number}>({url: '', file: null, duration: 5});
   const [newOverlayAd, setNewOverlayAd] = useState<{url: string; file: File | null}>({url: '', file: null});
   
@@ -240,6 +245,22 @@ const AdminLiveStreamPage: React.FC = () => {
       });
     }
   }, [currentStream?.is_active]);
+
+  // Carregar overlayAd do banco quando currentStream mudar
+  useEffect(() => {
+    if (currentStream) {
+      if (currentStream.overlay_ad_url) {
+        setOverlayAd({
+          url: currentStream.overlay_ad_url,
+          enabled: currentStream.overlay_ad_enabled || false
+        });
+      } else {
+        setOverlayAd(null);
+      }
+    } else {
+      setOverlayAd(null);
+    }
+  }, [currentStream]);
 
   useEffect(() => {
     if (dataLoading) return;
@@ -598,26 +619,103 @@ const AdminLiveStreamPage: React.FC = () => {
     toast.success('Imagem removida!');
   };
 
-  const setOverlayAdImage = () => {
+  const setOverlayAdImage = async () => {
     if (!newOverlayAd.url) {
       toast.error('Por favor, faça upload de uma imagem ou insira uma URL');
       return;
     }
 
-    setOverlayAd({ url: newOverlayAd.url, enabled: true });
-    setNewOverlayAd({ url: '', file: null });
-    toast.success('Propaganda overlay configurada!');
-  };
+    if (!currentStream?.id) {
+      toast.error('Nenhuma transmissão selecionada');
+      return;
+    }
 
-  const toggleOverlayAd = () => {
-    if (overlayAd) {
-      setOverlayAd({ ...overlayAd, enabled: !overlayAd.enabled });
+    try {
+      const { error } = await supabase
+        .from('live_streams')
+        .update({
+          overlay_ad_url: newOverlayAd.url,
+          overlay_ad_enabled: true
+        })
+        .eq('id', currentStream.id);
+
+      if (error) throw error;
+
+      setOverlayAd({ url: newOverlayAd.url, enabled: true });
+      setNewOverlayAd({ url: '', file: null });
+      
+      // Atualizar currentStream localmente
+      setCurrentStream({
+        ...currentStream,
+        overlay_ad_url: newOverlayAd.url,
+        overlay_ad_enabled: true
+      });
+      
+      toast.success('Propaganda overlay configurada!');
+    } catch (error) {
+      console.error('Erro ao salvar overlay:', error);
+      toast.error('Erro ao configurar propaganda overlay');
     }
   };
 
-  const removeOverlayAd = () => {
-    setOverlayAd(null);
-    toast.success('Propaganda overlay removida!');
+  const toggleOverlayAd = async () => {
+    if (!overlayAd || !currentStream?.id) return;
+
+    const newEnabled = !overlayAd.enabled;
+
+    try {
+      const { error } = await supabase
+        .from('live_streams')
+        .update({
+          overlay_ad_enabled: newEnabled
+        })
+        .eq('id', currentStream.id);
+
+      if (error) throw error;
+
+      setOverlayAd({ ...overlayAd, enabled: newEnabled });
+      
+      // Atualizar currentStream localmente
+      setCurrentStream({
+        ...currentStream,
+        overlay_ad_enabled: newEnabled
+      });
+      
+      toast.success(newEnabled ? 'Propaganda overlay ativada!' : 'Propaganda overlay desativada!');
+    } catch (error) {
+      console.error('Erro ao atualizar overlay:', error);
+      toast.error('Erro ao atualizar propaganda overlay');
+    }
+  };
+
+  const removeOverlayAd = async () => {
+    if (!currentStream?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('live_streams')
+        .update({
+          overlay_ad_url: null,
+          overlay_ad_enabled: false
+        })
+        .eq('id', currentStream.id);
+
+      if (error) throw error;
+
+      setOverlayAd(null);
+      
+      // Atualizar currentStream localmente
+      setCurrentStream({
+        ...currentStream,
+        overlay_ad_url: null,
+        overlay_ad_enabled: false
+      });
+      
+      toast.success('Propaganda overlay removida!');
+    } catch (error) {
+      console.error('Erro ao remover overlay:', error);
+      toast.error('Erro ao remover propaganda overlay');
+    }
   };
 
   const isAdmin = !!(currentAppUser?.is_admin || user?.user_metadata?.is_admin);
@@ -820,8 +918,28 @@ const AdminLiveStreamPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Dashboard de Estatísticas */}
+            {/* Botão para mostrar/ocultar estatísticas */}
             {currentStream.is_active && (
+              <button
+                onClick={() => setShowStats(!showStats)}
+                className="mb-4 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm md:text-base"
+              >
+                {showStats ? (
+                  <>
+                    <ChevronUp size={18} />
+                    Ocultar Estatísticas
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown size={18} />
+                    Mostrar Estatísticas
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Dashboard de Estatísticas - Oculto por padrão */}
+            {currentStream.is_active && showStats && (
               <>
                 <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                   <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700">

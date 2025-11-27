@@ -273,10 +273,10 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, channelName }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-800 rounded-lg border border-slate-700">
-      {/* Header do Chat */}
-      <div className="p-4 border-b border-slate-700 bg-slate-900">
-        <h3 className="text-white font-bold flex items-center gap-2">
+    <div className="flex flex-col h-full bg-slate-800/95 backdrop-blur-sm rounded-lg border border-slate-700/50 shadow-xl">
+      {/* Header do Chat - Estilo YouTube */}
+      <div className="p-4 border-b border-slate-700/50 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-10">
+        <h3 className="text-white font-bold text-lg flex items-center gap-2">
           💬 Chat ao Vivo
           <span className="text-xs text-slate-400 font-normal">
             ({messages.length} mensagens)
@@ -284,11 +284,14 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, channelName }) => {
         </h3>
       </div>
 
-      {/* Mensagens */}
+      {/* Mensagens - Scroll independente */}
       <div 
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-3"
-        style={{ maxHeight: '400px' }}
+        className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800"
+        style={{ 
+          maxHeight: 'none',
+          height: '100%'
+        }}
       >
         {messages.length === 0 ? (
           <div className="text-center text-slate-400 py-8">

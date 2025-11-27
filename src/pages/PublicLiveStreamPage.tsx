@@ -109,14 +109,25 @@ const PublicLiveStreamPage: React.FC = () => {
     startSession();
   }, [stream?.id, sessionId, sessionStarted]);
 
-  // Atualizar contador de visualizações
+  // Atualizar contador de visualizações - Só incrementar uma vez por sessão
   useEffect(() => {
-    if (!stream?.id) return;
+    if (!stream?.id || !sessionStarted) return;
 
-    // Incrementar contador quando usuário entra
+    // Verificar se já incrementou para esta sessão
+    const hasIncrementedKey = `viewer_count_incremented_${stream.id}_${sessionId}`;
+    const hasIncremented = sessionStorage.getItem(hasIncrementedKey);
+
+    // Incrementar contador apenas uma vez por sessão
     const incrementViewer = async () => {
+      if (hasIncremented) {
+        console.log('✅ Contador já foi incrementado para esta sessão');
+        return;
+      }
+
       try {
         await supabase.rpc('increment_viewer_count', { stream_id: stream.id });
+        sessionStorage.setItem(hasIncrementedKey, 'true');
+        console.log('✅ Contador de visualizações incrementado');
       } catch (error) {
         console.error('Erro ao incrementar visualizações:', error);
       }
@@ -124,7 +135,7 @@ const PublicLiveStreamPage: React.FC = () => {
 
     incrementViewer();
 
-    // Atualizar contador periodicamente
+    // Atualizar contador periodicamente via Realtime (não incrementar novamente)
     const interval = setInterval(async () => {
       try {
         const { data } = await supabase
@@ -139,10 +150,10 @@ const PublicLiveStreamPage: React.FC = () => {
       } catch (error) {
         console.error('Erro ao atualizar contador:', error);
       }
-    }, 5000);
+    }, 2000); // Atualizar a cada 2 segundos para tempo real
 
     return () => clearInterval(interval);
-  }, [stream?.id]);
+  }, [stream?.id, sessionId, sessionStarted]);
 
   const loadStream = async () => {
     try {
@@ -162,6 +173,40 @@ const PublicLiveStreamPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Sincronização em tempo real do overlayAd, posição da câmera e contador usando Supabase Realtime
+  useEffect(() => {
+    if (!stream?.id) return;
+
+    const channel = supabase
+      .channel(`live_stream_${stream.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'live_streams',
+          filter: `id=eq.${stream.id}`
+        },
+        (payload) => {
+          console.log('📡 Stream atualizado em tempo real:', payload);
+          const updatedStream = payload.new as any;
+          
+          // Atualizar stream completo
+          setStream(updatedStream);
+          
+          // Atualizar contador de visualizações em tempo real
+          if (updatedStream.viewer_count !== undefined) {
+            setViewerCount(updatedStream.viewer_count || 0);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [stream?.id]);
 
   const copyLink = () => {
     const link = window.location.href;
@@ -185,18 +230,29 @@ const PublicLiveStreamPage: React.FC = () => {
   const toggleFullscreen = async () => {
     try {
       if (!document.fullscreenElement) {
-        // Tentar entrar em fullscreen
-        const element = document.documentElement;
-        
-        // Para mobile, tentar orientação landscape
-        if (isMobile && screen.orientation && (screen.orientation as any).lock) {
+        // Para mobile, tentar orientação landscape ANTES de entrar em fullscreen
+        if (isMobile) {
+          // Tentar múltiplas formas de bloquear orientação
           try {
-            await (screen.orientation as any).lock('landscape');
+            if (screen.orientation && (screen.orientation as any).lock) {
+              await (screen.orientation as any).lock('landscape');
+            } else if ((window as any).DeviceOrientationEvent && (window as any).DeviceOrientationEvent.requestPermission) {
+              // iOS 13+
+              const permission = await (window as any).DeviceOrientationEvent.requestPermission();
+              if (permission === 'granted') {
+                // Orientação será controlada pelo CSS
+              }
+            }
           } catch (orientationError) {
             console.log('Não foi possível bloquear orientação:', orientationError);
+            // Continuar mesmo se não conseguir bloquear
           }
         }
 
+        // Tentar entrar em fullscreen no container do vídeo primeiro
+        const videoContainer = document.querySelector('.video-container-fullscreen') as HTMLElement;
+        const element = videoContainer || document.documentElement;
+        
         // Request fullscreen
         if (element.requestFullscreen) {
           await element.requestFullscreen();
@@ -401,18 +457,30 @@ const PublicLiveStreamPage: React.FC = () => {
       {/* Meta tags para mobile fullscreen */}
       {isFullscreen && isMobile && (
         <style>{`
+          html, body {
+            overflow: hidden !important;
+          }
           @media screen and (orientation: portrait) {
             .video-container-fullscreen {
               transform: rotate(90deg);
               transform-origin: center center;
-              width: 100vh;
-              height: 100vw;
-              position: fixed;
-              top: 50%;
-              left: 50%;
-              margin-left: -50vh;
-              margin-top: -50vw;
+              width: 100vh !important;
+              height: 100vw !important;
+              position: fixed !important;
+              top: 50% !important;
+              left: 50% !important;
+              margin-left: -50vh !important;
+              margin-top: -50vw !important;
             }
+          }
+          .video-container-fullscreen {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 9999 !important;
+            background: black !important;
           }
           .video-container-fullscreen video {
             width: 100% !important;
@@ -476,14 +544,14 @@ const PublicLiveStreamPage: React.FC = () => {
           <VipMessageOverlay messages={vipMessages} />
         )}
 
-        {/* Layout: Vídeo + Chat */}
+        {/* Layout: Vídeo + Chat - Estilo YouTube */}
         {stream.is_active ? (
           <div className={`relative video-container-fullscreen ${isFullscreen ? 'fixed inset-0 z-50 bg-black' : ''}`}>
-            {/* Container principal do vídeo */}
-            <div className={`relative ${isFullscreen ? 'w-full h-full flex' : 'grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6'}`}>
-              {/* Player de Vídeo */}
+            {/* Container principal - Grid responsivo estilo YouTube */}
+            <div className={`relative ${isFullscreen ? 'w-full h-full flex' : 'grid grid-cols-1 xl:grid-cols-[1fr_400px] 2xl:grid-cols-[1fr_450px] gap-4 md:gap-6 mb-6'}`}>
+              {/* Player de Vídeo - Ocupa espaço flexível */}
               <div 
-                className={`${isFullscreen && showChatInFullscreen ? 'w-full sm:w-[calc(100%-24rem)]' : isFullscreen ? 'w-full h-full' : 'lg:col-span-2'} relative transition-all duration-300`}
+                className={`${isFullscreen && showChatInFullscreen ? (isMobile ? 'w-1/2' : 'w-full sm:w-[calc(100%-24rem)]') : isFullscreen ? 'w-full h-full' : 'relative min-w-0'} relative transition-all duration-300`}
                 onClick={() => {
                   // Em mobile fullscreen, toque na tela mostra/oculta controles
                   if (isFullscreen && isMobile && !showChatInFullscreen) {
@@ -504,7 +572,32 @@ const PublicLiveStreamPage: React.FC = () => {
                     isBroadcaster={false}
                     streamId={stream.id}
                     sessionId={sessionId}
+                    overlayAd={
+                      stream.overlay_ad_url && stream.overlay_ad_enabled
+                        ? { url: stream.overlay_ad_url, enabled: true }
+                        : undefined
+                    }
+                    cameraPipPosition={
+                      stream.camera_pip_x !== undefined && stream.camera_pip_y !== undefined
+                        ? { x: stream.camera_pip_x, y: stream.camera_pip_y }
+                        : undefined
+                    }
                   />
+                  
+                  {/* Botão de Fullscreen dentro do vídeo (como YouTube) */}
+                  {!isFullscreen && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFullscreen();
+                      }}
+                      className="absolute bottom-4 right-4 z-10 bg-black/70 hover:bg-black/90 text-white p-2.5 rounded-full transition-all backdrop-blur-sm border border-white/20 shadow-lg"
+                      aria-label="Tela cheia"
+                      title="Tela cheia"
+                    >
+                      <Maximize2 size={20} />
+                    </button>
+                  )}
                   
                   {/* Ícone de Chat Transparente (Mobile Fullscreen) */}
                   {isFullscreen && isMobile && showChatIcon && !showChatInFullscreen && (
@@ -560,10 +653,12 @@ const PublicLiveStreamPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Chat - Normal (não em tela cheia) - Desktop */}
+              {/* Chat - Normal (não em tela cheia) - Desktop/TV - Estilo YouTube */}
               {!isFullscreen && (
-                <div className="hidden lg:block lg:col-span-1">
-                  <LiveChat streamId={stream.id} channelName={stream.channel_name} />
+                <div className="hidden xl:block relative">
+                  <div className="sticky top-4 h-[calc(100vh-8rem)] max-h-[800px]">
+                    <LiveChat streamId={stream.id} channelName={stream.channel_name} />
+                  </div>
                 </div>
               )}
 
@@ -603,16 +698,16 @@ const PublicLiveStreamPage: React.FC = () => {
                 </button>
               )}
 
-              {/* Chat em Fullscreen - Slide lateral */}
+              {/* Chat em Fullscreen - Slide lateral estilo YouTube */}
               {isFullscreen && showChatInFullscreen && (
                 <div 
-                  className="absolute top-0 right-0 h-full w-full sm:w-96 bg-black/95 backdrop-blur-md border-l border-white/20 z-20 animate-slide-in-right"
+                  className={`absolute top-0 right-0 h-full ${isMobile ? 'w-1/2' : 'w-96 2xl:w-[450px]'} bg-black/98 backdrop-blur-md border-l border-white/20 z-20 animate-slide-in-right shadow-2xl`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="h-full flex flex-col">
                     {/* Header do chat em tela cheia */}
-                    <div className="flex items-center justify-between p-4 border-b border-white/20">
-                      <h3 className="text-white font-bold text-lg">Chat ao Vivo</h3>
+                    <div className="flex items-center justify-between p-4 border-b border-white/20 bg-slate-900/80 backdrop-blur-sm">
+                      <h3 className="text-white font-bold text-lg">💬 Chat ao Vivo</h3>
                       <button
                         onClick={() => {
                           setShowChatInFullscreen(false);
@@ -624,14 +719,14 @@ const PublicLiveStreamPage: React.FC = () => {
                             }, 1000);
                           }
                         }}
-                        className="text-white hover:text-slate-300 transition-colors p-2"
+                        className="text-white hover:text-slate-300 transition-colors p-2 rounded-full hover:bg-white/10"
                         aria-label="Fechar Chat"
                       >
                         <X size={20} />
                       </button>
                     </div>
                     
-                    {/* Chat */}
+                    {/* Chat - Altura completa */}
                     <div className="flex-1 overflow-hidden">
                       <LiveChat streamId={stream.id} channelName={stream.channel_name} />
                     </div>
@@ -654,30 +749,6 @@ const PublicLiveStreamPage: React.FC = () => {
               )}
             </div>
 
-            {/* Botão de tela cheia (fora do modo tela cheia) - Desktop */}
-            {!isFullscreen && (
-              <div className="hidden lg:flex justify-end mb-4">
-                <button
-                  onClick={toggleFullscreen}
-                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2 font-medium"
-                  aria-label="Tela cheia"
-                >
-                  <Maximize2 size={18} />
-                  <span className="text-sm md:text-base">Tela Cheia</span>
-                </button>
-              </div>
-            )}
-
-            {/* Botão de tela cheia flutuante para mobile (fora do modo tela cheia) */}
-            {!isFullscreen && (
-              <button
-                onClick={toggleFullscreen}
-                className="lg:hidden fixed bottom-24 right-6 z-40 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white p-4 rounded-full shadow-lg transition-all flex items-center gap-2 font-medium"
-                aria-label="Tela cheia"
-              >
-                <Maximize2 size={20} />
-              </button>
-            )}
           </div>
         ) : (
           <div className="mb-6">
