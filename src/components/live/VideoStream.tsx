@@ -3,6 +3,7 @@ import { Mic, MicOff, Video, VideoOff, X, Monitor, MonitorOff, Link as LinkIcon,
 import { toast } from 'react-hot-toast';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import { supabase } from '../../lib/supabase';
+import StreamOverlay from './StreamOverlay';
 
 interface AdImage {
   id: string;
@@ -27,6 +28,9 @@ interface VideoStreamProps {
   onRecordingStateChange?: (isRecording: boolean) => void; // Callback para estado de gravação
   onRecordingReady?: (blob: Blob, filename: string) => void; // Callback quando gravação está pronta
   cameraPipPosition?: { x: number; y: number }; // Posição da câmera PiP (para viewers)
+  screenShareEnabled?: boolean; // Controlar compartilhamento de tela via Stream Studio
+  hideScreenShareButton?: boolean; // Ocultar botão de tela quando usando Stream Studio
+  activeScene?: any; // Cena ativa do Stream Studio para overlays
 }
 
 /**
@@ -48,7 +52,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   sessionId,
   onRecordingStateChange,
   onRecordingReady,
-  cameraPipPosition
+  cameraPipPosition,
+  screenShareEnabled = false,
+  hideScreenShareButton = false,
+  activeScene = null
 }) => {
   const localVideoRef = useRef<HTMLDivElement>(null);
   const remoteVideoRef = useRef<HTMLDivElement>(null);
@@ -1397,6 +1404,206 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       applyMicVolume(micVolume);
     }
   }, [micVolume, isStreaming]);
+
+  // Função para ativar screen share (usada pelo Stream Studio)
+  const startScreenShare = async () => {
+    if (!isStreaming || !clientRef.current || showScreenShare) return;
+    
+    try {
+      // Ativar screen sharing
+      const screenTrackResult = await AgoraRTC.createScreenVideoTrack({
+        encoderConfig: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        }
+      }, 'auto');
+      
+      const screenVideoTrack = Array.isArray(screenTrackResult) ? screenTrackResult[0] : screenTrackResult;
+      const screenAudioTrack = Array.isArray(screenTrackResult) ? screenTrackResult[1] : null;
+      
+      screenVideoTrackRef.current = screenVideoTrack;
+      screenAudioTrackRef.current = screenAudioTrack;
+      
+      if (screenAudioTrack && typeof screenAudioTrack.setVolume === 'function') {
+        screenAudioTrack.setVolume(gameVolume);
+      }
+      
+      // Se a câmera está ativa, criar track combinado
+      if (cameraVideoTrackRef.current && showCamera) {
+        try {
+          await clientRef.current.unpublish(cameraVideoTrackRef.current);
+          const combinedTrack = await createCombinedVideoTrack(
+            screenVideoTrack,
+            cameraVideoTrackRef.current,
+            cameraPosition
+          );
+          combinedVideoTrackRef.current = combinedTrack;
+          const tracksToPublish = screenAudioTrack 
+            ? [combinedTrack, screenAudioTrack] 
+            : [combinedTrack];
+          await clientRef.current.publish(tracksToPublish);
+        } catch (error) {
+          console.error('Erro ao criar track combinado:', error);
+          const tracksToPublish = screenAudioTrack ? [screenVideoTrack, screenAudioTrack] : [screenVideoTrack];
+          await clientRef.current.publish(tracksToPublish);
+        }
+      } else {
+        const tracksToPublish = screenAudioTrack ? [screenVideoTrack, screenAudioTrack] : [screenVideoTrack];
+        await clientRef.current.publish(tracksToPublish);
+      }
+      
+      if (localVideoRef.current) {
+        safeClearElement(localVideoRef.current);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await screenVideoTrack.play(localVideoRef.current);
+        
+        setTimeout(() => {
+          const videoElement = localVideoRef.current?.querySelector('video') as HTMLVideoElement;
+          if (videoElement) {
+            videoElement.style.width = '100%';
+            videoElement.style.height = '100%';
+            videoElement.style.objectFit = 'contain';
+            videoElement.style.position = 'absolute';
+            videoElement.style.top = '0';
+            videoElement.style.left = '0';
+            videoElement.style.zIndex = '1';
+          }
+        }, 300);
+      }
+      
+      setShowScreenShare(true);
+      console.log('✅ Screen share ativado via Stream Studio');
+    } catch (error: any) {
+      console.error('Erro ao ativar screen share:', error);
+      toast.error('Erro ao compartilhar tela: ' + (error.message || 'Erro desconhecido'));
+    }
+  };
+  
+  // Função para desativar screen share (usada pelo Stream Studio)
+  const stopScreenShare = async () => {
+    if (!isStreaming || !clientRef.current || !showScreenShare) return;
+    
+    try {
+      if (combinedVideoTrackRef.current) {
+        try {
+          await clientRef.current.unpublish(combinedVideoTrackRef.current);
+          const combinedTrack = combinedVideoTrackRef.current as any;
+          if (combinedTrack._drawInterval) clearInterval(combinedTrack._drawInterval);
+          if (combinedTrack._screenVideo && document.body.contains(combinedTrack._screenVideo)) {
+            document.body.removeChild(combinedTrack._screenVideo);
+          }
+          if (combinedTrack._cameraVideo && document.body.contains(combinedTrack._cameraVideo)) {
+            document.body.removeChild(combinedTrack._cameraVideo);
+          }
+          if (combinedTrack._canvas && document.body.contains(combinedTrack._canvas)) {
+            document.body.removeChild(combinedTrack._canvas);
+          }
+          combinedTrack.stop();
+          combinedTrack.close();
+          combinedVideoTrackRef.current = null;
+        } catch (e) {
+          console.warn('Aviso ao despublicar track combinado:', e);
+        }
+      }
+      
+      if (screenVideoTrackRef.current) {
+        const screenTrack = screenVideoTrackRef.current;
+        const tracksToUnpublish = Array.isArray(screenTrack) ? screenTrack : [screenTrack];
+        
+        try {
+          await clientRef.current.unpublish(tracksToUnpublish);
+        } catch (e) {
+          console.warn('Aviso ao despublicar screen sharing:', e);
+        }
+        
+        if (Array.isArray(screenTrack)) {
+          for (const track of screenTrack) {
+            if (track && typeof track.stop === 'function') track.stop();
+            if (track && typeof track.close === 'function') track.close();
+          }
+        } else {
+          if (typeof screenTrack.stop === 'function') screenTrack.stop();
+          if (typeof screenTrack.close === 'function') screenTrack.close();
+        }
+        screenVideoTrackRef.current = null;
+      }
+      
+      if (localVideoRef.current) {
+        safeClearElement(localVideoRef.current);
+      }
+      
+      if (showCamera && cameraVideoTrackRef.current && localVideoRef.current) {
+        if (cameraPiPRef.current) {
+          safeClearElement(cameraPiPRef.current);
+        }
+        
+        try {
+          await clientRef.current.publish(cameraVideoTrackRef.current);
+          await cameraVideoTrackRef.current.play(localVideoRef.current);
+        } catch (e) {
+          console.warn('Aviso ao republicar câmera:', e);
+        }
+      }
+      
+      setShowScreenShare(false);
+      console.log('✅ Screen share desativado via Stream Studio');
+    } catch (error) {
+      console.error('Erro ao desativar screen share:', error);
+    }
+  };
+  
+  // Ref para evitar loops ao controlar screen share automaticamente
+  const screenShareControlRef = useRef<boolean>(false);
+  
+  // Controlar screen share automaticamente via Stream Studio
+  useEffect(() => {
+    console.log('🔄 ScreenShare Control Effect:', {
+      isBroadcaster,
+      isStreaming,
+      hasClient: !!clientRef.current,
+      screenShareEnabled,
+      showScreenShare,
+      isControlling: screenShareControlRef.current
+    });
+
+    if (!isBroadcaster || !isStreaming || !clientRef.current) {
+      console.log('⏸️ ScreenShare - Condições não atendidas, ignorando...');
+      return;
+    }
+    
+    if (screenShareControlRef.current) {
+      console.log('⏸️ ScreenShare - Já está controlando, ignorando...');
+      return;
+    }
+    
+    if (screenShareEnabled && !showScreenShare) {
+      console.log('▶️ ScreenShare - Ativando compartilhamento de tela...');
+      screenShareControlRef.current = true;
+      startScreenShare()
+        .then(() => {
+          console.log('✅ ScreenShare - Compartilhamento iniciado com sucesso');
+        })
+        .catch((err) => {
+          console.error('❌ ScreenShare - Erro ao iniciar:', err);
+        })
+        .finally(() => {
+          screenShareControlRef.current = false;
+        });
+    } else if (!screenShareEnabled && showScreenShare) {
+      console.log('⏹️ ScreenShare - Desativando compartilhamento de tela...');
+      screenShareControlRef.current = true;
+      stopScreenShare()
+        .then(() => {
+          console.log('✅ ScreenShare - Compartilhamento desativado com sucesso');
+        })
+        .catch((err) => {
+          console.error('❌ ScreenShare - Erro ao desativar:', err);
+        })
+        .finally(() => {
+          screenShareControlRef.current = false;
+        });
+    }
+  }, [screenShareEnabled, isStreaming, isBroadcaster, showScreenShare]);
 
   const toggleScreenShare = async () => {
     if (!isStreaming || !clientRef.current) {
@@ -3845,6 +4052,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                 display: 'block'
               }}
             />
+            {/* Overlays do Stream Studio - Renderizar sobre o vídeo */}
+            <StreamOverlay activeScene={activeScene} />
             {/* Fallback enquanto o vídeo carrega - renderizado fora do ref para evitar conflitos */}
             {!hasLocalVideo && isStreaming && (
               <div className="absolute inset-0 flex items-center justify-center bg-black z-0 pointer-events-none">
@@ -3994,18 +4203,21 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               
               {/* Controles de fonte de vídeo */}
               <div className="flex gap-2 justify-center">
-                <button
-                  onClick={toggleScreenShare}
-                  className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${
-                    showScreenShare
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-700 hover:bg-gray-600 text-white'
-                  } shadow-lg`}
-                  title={showScreenShare ? 'Desativar tela' : 'Ativar tela (jogo)'}
-                >
-                  <Monitor size={16} className="inline mr-1" />
-                  {showScreenShare ? 'Tela ON' : 'Tela OFF'}
-                </button>
+                {/* Ocultar botão de tela se estiver usando Stream Studio */}
+                {!hideScreenShareButton && (
+                  <button
+                    onClick={toggleScreenShare}
+                    className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${
+                      showScreenShare
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-700 hover:bg-gray-600 text-white'
+                    } shadow-lg`}
+                    title={showScreenShare ? 'Desativar tela' : 'Ativar tela (jogo)'}
+                  >
+                    <Monitor size={16} className="inline mr-1" />
+                    {showScreenShare ? 'Tela ON' : 'Tela OFF'}
+                  </button>
+                )}
                 
                 <button
                   onClick={toggleCamera}
@@ -4185,6 +4397,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               backgroundColor: '#000'
             }}
           />
+          {/* Overlays do Stream Studio - Para Viewers também */}
+          <StreamOverlay activeScene={activeScene} />
           
           {/* Nota: Para viewers, a câmera PiP já vem embutida no track combinado do admin
               Não precisamos renderizar separadamente, mas mantemos o código caso seja necessário no futuro */}

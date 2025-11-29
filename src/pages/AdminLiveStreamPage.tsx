@@ -3,9 +3,12 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Users, Share2, Copy, Check, ArrowLeft, Trash2, Circle, Square, ChevronDown, ChevronUp } from 'lucide-react';
+import { Camera, Users, Share2, Copy, Check, ArrowLeft, Trash2, Circle, Square, ChevronDown, ChevronUp, Settings as SettingsIcon, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import VideoStream from '../components/live/VideoStream';
+import StreamStudio from '../components/live/StreamStudio';
+import LiveControlPanel from '../components/live/LiveControlPanel';
+import { useStreamStudioSync } from '../hooks/useStreamStudioSync';
 
 interface LiveStream {
   id: string;
@@ -130,8 +133,72 @@ const AdminLiveStreamPage: React.FC = () => {
   const [overlayAd, setOverlayAd] = useState<{url: string; enabled: boolean} | null>(null);
   const [showAdManager, setShowAdManager] = useState(false);
   const [showStats, setShowStats] = useState(false); // Estado para mostrar/ocultar estatísticas
+  const [showStreamStudio, setShowStreamStudio] = useState(false); // Estado para o Stream Studio
   const [newAdImage, setNewAdImage] = useState<{url: string; file: File | null; duration: number}>({url: '', file: null, duration: 5});
   const [newOverlayAd, setNewOverlayAd] = useState<{url: string; file: File | null}>({url: '', file: null});
+  
+  // Atalho de teclado para abrir Stream Studio
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ctrl+Shift+S para abrir Stream Studio
+      if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+        e.preventDefault();
+        if (currentStream && !showStreamStudio) {
+          setShowStreamStudio(true);
+          toast.success('🎬 Stream Studio aberto!', {
+            duration: 1500,
+            style: {
+              background: '#7c3aed',
+              color: '#fff',
+              fontWeight: 'bold'
+            }
+          });
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [currentStream, showStreamStudio]);
+  
+  // Sincronizar Stream Studio com transmissão ao vivo
+  const { activeScene, loading: sceneLoading, refresh: refreshActiveScene } = useStreamStudioSync(currentStream?.id || '');
+
+  // Log quando activeScene muda
+  useEffect(() => {
+    if (activeScene) {
+      console.log('📺 AdminLiveStreamPage - Cena ativa atualizada:', {
+        sceneId: activeScene.id,
+        sceneName: activeScene.name,
+        totalSources: activeScene.sources?.length || 0,
+        visibleSources: activeScene.sources?.filter(s => s.is_visible)?.length || 0
+      });
+    } else {
+      console.log('⚠️ AdminLiveStreamPage - Nenhuma cena ativa');
+    }
+  }, [activeScene]);
+  
+  // Verificar se há fonte screenshare ativa
+  const hasActiveScreenShare = React.useMemo(() => {
+    if (!activeScene?.sources) return false;
+    
+    const screenshareSources = activeScene.sources.filter(
+      s => s.type === 'screenshare'
+    );
+    const visibleScreenshare = screenshareSources.filter(s => s.is_visible);
+    
+    const result = visibleScreenshare.length > 0;
+    
+    console.log('🖥️ Screenshare Detection:', {
+      totalSources: activeScene.sources.length,
+      screenshareSources: screenshareSources.length,
+      screenshareNames: screenshareSources.map(s => ({ name: s.name, visible: s.is_visible })),
+      visibleCount: visibleScreenshare.length,
+      hasActiveScreenShare: result
+    });
+    
+    return result;
+  }, [activeScene]);
   
   // Estatísticas da transmissão
   const [streamStats, setStreamStats] = useState<{
@@ -887,10 +954,13 @@ const AdminLiveStreamPage: React.FC = () => {
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                 <button
-                  onClick={() => setShowAdManager(!showAdManager)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold transition-all text-sm md:text-base whitespace-nowrap flex items-center gap-2"
+                  onClick={() => setShowStreamStudio(true)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-bold transition-all text-sm md:text-base whitespace-nowrap flex items-center gap-2 group"
+                  title="Abrir Stream Studio (Ctrl+Shift+S)"
                 >
-                  📢 Gerenciar Propagandas
+                  <SettingsIcon size={16} className="group-hover:rotate-90 transition-transform" />
+                  Stream Studio
+                  <kbd className="hidden md:inline bg-purple-800/50 px-1.5 py-0.5 rounded text-xs ml-1">Ctrl+Shift+S</kbd>
                 </button>
                 <button
                   onClick={backToList}
@@ -1124,179 +1194,26 @@ const AdminLiveStreamPage: React.FC = () => {
                   </button>
                 </div>
               ) : (
-                <VideoStream
-                  channelName={currentStream.channel_name}
-                  isBroadcaster={true}
-                  onEnd={endStream}
-                  adImages={adImages}
-                  overlayAd={overlayAd || undefined}
-                  onStatsUpdate={setStreamStats}
-                  onRecordingStateChange={setIsRecording}
-                  onRecordingReady={handleRecordingReady}
-                />
+                <div className="relative">
+                  <VideoStream
+                    channelName={currentStream.channel_name}
+                    isBroadcaster={true}
+                    onEnd={endStream}
+                    adImages={adImages}
+                    overlayAd={overlayAd || undefined}
+                    onStatsUpdate={setStreamStats}
+                    onRecordingStateChange={setIsRecording}
+                    onRecordingReady={handleRecordingReady}
+                    screenShareEnabled={hasActiveScreenShare}
+                    hideScreenShareButton={!!activeScene}
+                    activeScene={activeScene}
+                    key={`video-${currentStream.id}-${hasActiveScreenShare}`}
+                  />
+                </div>
               )}
             </div>
             
-            {/* Gerenciador de Propagandas */}
-            {showAdManager && (
-              <div className="mt-6 bg-slate-800/50 rounded-xl p-4 md:p-6 border border-slate-700">
-                <h3 className="text-xl font-bold text-white mb-4">📢 Gerenciar Propagandas</h3>
-                
-                {/* Slideshow de Imagens */}
-                <div className="mb-6">
-                  <h4 className="text-lg font-semibold text-white mb-3">🖼️ Slideshow de Imagens</h4>
-                  
-                  {/* Adicionar nova imagem */}
-                  <div className="bg-slate-700/50 rounded-lg p-4 mb-4">
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-white text-sm mb-2">URL da Imagem ou Upload</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={newAdImage.url}
-                            onChange={(e) => setNewAdImage({ ...newAdImage, url: e.target.value })}
-                            placeholder="URL da imagem ou faça upload"
-                            className="flex-1 px-3 py-2 bg-slate-600 text-white rounded border border-slate-500 focus:outline-none focus:border-blue-500 text-sm"
-                          />
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleImageUpload(e, false)}
-                            className="hidden"
-                            id="ad-image-upload"
-                          />
-                          <label
-                            htmlFor="ad-image-upload"
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded cursor-pointer text-sm"
-                          >
-                            📁 Upload
-                          </label>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-white text-sm mb-2">Duração (segundos)</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="60"
-                          value={newAdImage.duration}
-                          onChange={(e) => setNewAdImage({ ...newAdImage, duration: parseInt(e.target.value) || 5 })}
-                          className="w-32 px-3 py-2 bg-slate-600 text-white rounded border border-slate-500 focus:outline-none focus:border-blue-500 text-sm"
-                        />
-                      </div>
-                      <button
-                        onClick={addAdImage}
-                        className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-medium text-sm"
-                      >
-                        ➕ Adicionar ao Slideshow
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* Lista de imagens */}
-                  <div className="space-y-2">
-                    {adImages.map((img) => (
-                      <div key={img.id} className="bg-slate-700/50 rounded-lg p-3 flex items-center gap-3">
-                        <img src={img.url} alt="Ad" className="w-16 h-16 object-cover rounded" />
-                        <div className="flex-1">
-                          <div className="text-white text-sm">Duração: {img.duration}s</div>
-                          <div className="text-slate-400 text-xs">Status: {img.enabled ? '✅ Ativo' : '❌ Desativado'}</div>
-                        </div>
-                        <button
-                          onClick={() => toggleAdImage(img.id)}
-                          className={`px-3 py-1 rounded text-sm ${
-                            img.enabled 
-                              ? 'bg-yellow-600 hover:bg-yellow-700' 
-                              : 'bg-green-600 hover:bg-green-700'
-                          } text-white`}
-                        >
-                          {img.enabled ? 'Desativar' : 'Ativar'}
-                        </button>
-                        <button
-                          onClick={() => removeAdImage(img.id)}
-                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    ))}
-                    {adImages.length === 0 && (
-                      <p className="text-slate-400 text-sm text-center py-4">Nenhuma imagem adicionada ainda</p>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Propaganda Overlay */}
-                <div>
-                  <h4 className="text-lg font-semibold text-white mb-3">📢 Propaganda Overlay (Fullscreen)</h4>
-                  
-                  {!overlayAd ? (
-                    <div className="bg-slate-700/50 rounded-lg p-4">
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-white text-sm mb-2">URL da Imagem ou Upload</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={newOverlayAd.url}
-                              onChange={(e) => setNewOverlayAd({ ...newOverlayAd, url: e.target.value })}
-                              placeholder="URL da imagem ou faça upload"
-                              className="flex-1 px-3 py-2 bg-slate-600 text-white rounded border border-slate-500 focus:outline-none focus:border-blue-500 text-sm"
-                            />
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => handleImageUpload(e, true)}
-                              className="hidden"
-                              id="overlay-ad-upload"
-                            />
-                            <label
-                              htmlFor="overlay-ad-upload"
-                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded cursor-pointer text-sm"
-                            >
-                              📁 Upload
-                            </label>
-                          </div>
-                        </div>
-                        <button
-                          onClick={setOverlayAdImage}
-                          className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-medium text-sm"
-                        >
-                          ➕ Configurar Propaganda Overlay
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-slate-700/50 rounded-lg p-4">
-                      <div className="flex items-center gap-3 mb-3">
-                        <img src={overlayAd.url} alt="Overlay Ad" className="w-32 h-20 object-cover rounded" />
-                        <div className="flex-1">
-                          <div className="text-white text-sm">Status: {overlayAd.enabled ? '✅ Ativo' : '❌ Desativado'}</div>
-                          <p className="text-slate-400 text-xs mt-1">O jogo aparecerá em PiP quando ativo</p>
-                        </div>
-                        <button
-                          onClick={toggleOverlayAd}
-                          className={`px-3 py-1 rounded text-sm ${
-                            overlayAd.enabled 
-                              ? 'bg-yellow-600 hover:bg-yellow-700' 
-                              : 'bg-green-600 hover:bg-green-700'
-                          } text-white`}
-                        >
-                          {overlayAd.enabled ? 'Desativar' : 'Ativar'}
-                        </button>
-                        <button
-                          onClick={removeOverlayAd}
-                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Gerenciador de Propagandas foi integrado no Stream Studio - Aba "Propagandas" */}
 
             {/* Botão de Gravação */}
             {currentStream.is_active && (
@@ -1403,6 +1320,49 @@ const AdminLiveStreamPage: React.FC = () => {
           </div>
         )}
 
+        {/* Modal do Stream Studio - Controle Profissional */}
+        {currentStream && showStreamStudio && (
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-900 rounded-2xl w-full max-w-[95vw] h-[90vh] flex flex-col border border-slate-700 shadow-2xl">
+              {/* Header do Stream Studio */}
+              <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-gradient-to-r from-purple-900/50 to-blue-900/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
+                    <SettingsIcon className="text-white" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-bold text-lg">Stream Studio</h3>
+                    <p className="text-slate-300 text-sm">Controle Profissional de Transmissão</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowStreamStudio(false)}
+                  className="text-slate-400 hover:text-white transition-colors p-2 hover:bg-slate-800 rounded-lg"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              
+              {/* Conteúdo do Stream Studio */}
+              <div className="flex-1 overflow-hidden">
+                <StreamStudio
+                  streamId={currentStream.id}
+                  channelName={currentStream.channel_name}
+                  isLive={currentStream.is_active}
+                  onGoLive={(sceneId) => {
+                    console.log('🎬 AdminLiveStreamPage - onGoLive chamado:', sceneId);
+                    // Forçar refresh da cena ativa após um pequeno delay
+                    setTimeout(() => {
+                      console.log('🔄 AdminLiveStreamPage - Forçando refresh da cena ativa...');
+                      refreshActiveScene();
+                    }, 800);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Lista de Transmissões Anteriores */}
         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 md:p-6 border border-white/20">
           <h2 className="text-lg md:text-xl font-bold text-white mb-4">Transmissões Anteriores</h2>
@@ -1478,6 +1438,14 @@ const AdminLiveStreamPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Painel de Controle AO VIVO (sempre visível durante transmissão) */}
+      {currentStream?.is_active && (
+        <LiveControlPanel
+          streamId={currentStream.id}
+          channelName={currentStream.channel_name}
+        />
+      )}
     </div>
   );
 };

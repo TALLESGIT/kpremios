@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 import VideoStream from '../components/live/VideoStream';
 import LiveChat from '../components/live/LiveChat';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
+import { useStreamStudioSync } from '../hooks/useStreamStudioSync';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 
@@ -23,6 +24,9 @@ const PublicLiveStreamPage: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false); // Detectar se é mobile
   const [controlsVisible, setControlsVisible] = useState(true); // Controles visíveis
   const [vipMessages, setVipMessages] = useState<any[]>([]); // Mensagens VIP para overlay
+  
+  // Sincronizar Stream Studio com transmissão ao vivo
+  const { activeScene } = useStreamStudioSync(stream?.id || '');
   
   // Tracking de sessão
   const [sessionId] = useState(() => {
@@ -582,6 +586,7 @@ const PublicLiveStreamPage: React.FC = () => {
                         ? { x: stream.camera_pip_x, y: stream.camera_pip_y }
                         : undefined
                     }
+                    activeScene={activeScene}
                   />
                   
                   {/* Botão de Fullscreen dentro do vídeo (como YouTube) */}
