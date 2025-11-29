@@ -27,6 +27,10 @@ interface DraggableSourceProps {
   gridSize?: number;
 }
 
+// Canvas padrão para coordenadas (mesmo usado no StreamOverlay)
+const CANVAS_WIDTH = 1280;
+const CANVAS_HEIGHT = 720;
+
 const DraggableSource: React.FC<DraggableSourceProps> = ({
   source,
   isSelected,
@@ -44,6 +48,18 @@ const DraggableSource: React.FC<DraggableSourceProps> = ({
   const [originalPos, setOriginalPos] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const elementRef = useRef<HTMLDivElement>(null);
 
+  // Converter coordenadas do canvas padrão para pixels do container atual
+  const canvasToContainer = (canvasPos: number, isWidth: boolean, containerSize: number) => {
+    const canvasSize = isWidth ? CANVAS_WIDTH : CANVAS_HEIGHT;
+    return (canvasPos / canvasSize) * containerSize;
+  };
+
+  // Converter pixels do container para coordenadas do canvas padrão
+  const containerToCanvas = (containerPos: number, isWidth: boolean, containerSize: number) => {
+    const canvasSize = isWidth ? CANVAS_WIDTH : CANVAS_HEIGHT;
+    return (containerPos / containerSize) * canvasSize;
+  };
+
   const snapValue = (value: number) => {
     if (!snapToGrid) return value;
     return Math.round(value / gridSize) * gridSize;
@@ -60,6 +76,7 @@ const DraggableSource: React.FC<DraggableSourceProps> = ({
       x: e.clientX,
       y: e.clientY
     });
+    // Armazenar posição original em coordenadas do canvas padrão
     setOriginalPos({
       x: source.position.x,
       y: source.position.y,
@@ -98,15 +115,19 @@ const DraggableSource: React.FC<DraggableSourceProps> = ({
       const deltaY = e.clientY - dragStart.y;
 
       if (isDragging) {
-        // Arrastar
-        let newX = originalPos.x + deltaX;
-        let newY = originalPos.y + deltaY;
+        // Converter delta do mouse para coordenadas do canvas padrão
+        const deltaXCanvas = containerToCanvas(deltaX, true, containerRect.width);
+        const deltaYCanvas = containerToCanvas(deltaY, false, containerRect.height);
+        
+        // Arrastar (em coordenadas do canvas padrão)
+        let newX = originalPos.x + deltaXCanvas;
+        let newY = originalPos.y + deltaYCanvas;
 
-        // Limites do container
-        newX = Math.max(0, Math.min(newX, containerRect.width - source.position.width));
-        newY = Math.max(0, Math.min(newY, containerRect.height - source.position.height));
+        // Limites do canvas padrão
+        newX = Math.max(0, Math.min(newX, CANVAS_WIDTH - source.position.width));
+        newY = Math.max(0, Math.min(newY, CANVAS_HEIGHT - source.position.height));
 
-        // Snap to grid
+        // Snap to grid (em coordenadas do canvas)
         newX = snapValue(newX);
         newY = snapValue(newY);
 
@@ -117,42 +138,46 @@ const DraggableSource: React.FC<DraggableSourceProps> = ({
           height: source.position.height
         });
       } else if (isResizing && resizeHandle) {
-        // Redimensionar
+        // Converter delta do mouse para coordenadas do canvas padrão
+        const deltaXCanvas = containerToCanvas(deltaX, true, containerRect.width);
+        const deltaYCanvas = containerToCanvas(deltaY, false, containerRect.height);
+        
+        // Redimensionar (em coordenadas do canvas padrão)
         let newWidth = originalPos.width;
         let newHeight = originalPos.height;
         let newX = originalPos.x;
         let newY = originalPos.y;
 
         if (resizeHandle.includes('e')) {
-          newWidth = Math.max(50, originalPos.width + deltaX);
+          newWidth = Math.max(50, originalPos.width + deltaXCanvas);
         }
         if (resizeHandle.includes('w')) {
-          const widthChange = originalPos.width - deltaX;
+          const widthChange = originalPos.width - deltaXCanvas;
           if (widthChange >= 50) {
             newWidth = widthChange;
-            newX = originalPos.x + deltaX;
+            newX = originalPos.x + deltaXCanvas;
           }
         }
         if (resizeHandle.includes('s')) {
-          newHeight = Math.max(50, originalPos.height + deltaY);
+          newHeight = Math.max(50, originalPos.height + deltaYCanvas);
         }
         if (resizeHandle.includes('n')) {
-          const heightChange = originalPos.height - deltaY;
+          const heightChange = originalPos.height - deltaYCanvas;
           if (heightChange >= 50) {
             newHeight = heightChange;
-            newY = originalPos.y + deltaY;
+            newY = originalPos.y + deltaYCanvas;
           }
         }
 
-        // Limites do container
-        if (newX + newWidth > containerRect.width) {
-          newWidth = containerRect.width - newX;
+        // Limites do canvas padrão
+        if (newX + newWidth > CANVAS_WIDTH) {
+          newWidth = CANVAS_WIDTH - newX;
         }
-        if (newY + newHeight > containerRect.height) {
-          newHeight = containerRect.height - newY;
+        if (newY + newHeight > CANVAS_HEIGHT) {
+          newHeight = CANVAS_HEIGHT - newY;
         }
 
-        // Snap to grid
+        // Snap to grid (em coordenadas do canvas)
         newX = snapValue(newX);
         newY = snapValue(newY);
         newWidth = snapValue(newWidth);
@@ -279,15 +304,26 @@ const DraggableSource: React.FC<DraggableSourceProps> = ({
 
   if (!source.is_visible) return null;
 
+  // Converter coordenadas do canvas padrão para porcentagem baseada no container
+  const container = containerRef.current;
+  const containerWidth = container?.getBoundingClientRect().width || CANVAS_WIDTH;
+  const containerHeight = container?.getBoundingClientRect().height || CANVAS_HEIGHT;
+  
+  // Converter posições do canvas padrão (1280x720) para porcentagem
+  const leftPercent = (source.position.x / CANVAS_WIDTH) * 100;
+  const topPercent = (source.position.y / CANVAS_HEIGHT) * 100;
+  const widthPercent = (source.position.width / CANVAS_WIDTH) * 100;
+  const heightPercent = (source.position.height / CANVAS_HEIGHT) * 100;
+
   return (
     <div
       ref={elementRef}
       className={`absolute cursor-move ${isSelected ? 'z-50' : ''}`}
       style={{
-        left: `${source.position.x}px`,
-        top: `${source.position.y}px`,
-        width: `${source.position.width}px`,
-        height: `${source.position.height}px`,
+        left: `${leftPercent}%`,
+        top: `${topPercent}%`,
+        width: `${widthPercent}%`,
+        height: `${heightPercent}%`,
         opacity: source.opacity,
         zIndex: isSelected ? 9999 : source.position.zIndex,
         transition: isDragging || isResizing ? 'none' : 'all 0.1s ease'

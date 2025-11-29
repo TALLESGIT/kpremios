@@ -31,6 +31,7 @@ interface VideoStreamProps {
   screenShareEnabled?: boolean; // Controlar compartilhamento de tela via Stream Studio
   hideScreenShareButton?: boolean; // Ocultar botão de tela quando usando Stream Studio
   activeScene?: any; // Cena ativa do Stream Studio para overlays
+  cameraDeviceId?: string; // ID do dispositivo de câmera (para OBS Virtual Camera, etc)
 }
 
 /**
@@ -55,7 +56,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   cameraPipPosition,
   screenShareEnabled = false,
   hideScreenShareButton = false,
-  activeScene = null
+  activeScene = null,
+  cameraDeviceId
 }) => {
   const localVideoRef = useRef<HTMLDivElement>(null);
   const remoteVideoRef = useRef<HTMLDivElement>(null);
@@ -147,6 +149,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const checkTracksIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const combinedVideoTrackRef = useRef<any>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const activeSceneRef = useRef<any>(null); // Ref para activeScene atual para uso no canvas
+  
+  // Atualizar ref sempre que activeScene mudar (para o canvas ter acesso ao valor atual)
+  useEffect(() => {
+    activeSceneRef.current = activeScene;
+  }, [activeScene]);
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const transitionCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -618,6 +626,36 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     }
   };
 
+  // Função auxiliar para calcular espaço necessário para overlays na parte inferior
+  const calculateBottomOverlaySpace = (scene: any): number => {
+    if (!scene || !scene.sources) return 0;
+    
+    // Converter posições de pixels para porcentagem (baseado em canvas 1280x720)
+    const canvasHeight = 720;
+    
+    // Encontrar overlays visíveis na parte inferior (últimos 30% da tela)
+    const bottomThreshold = canvasHeight * 0.7; // 70% do topo = começa a parte inferior
+    let maxBottomPosition = 0;
+    
+    scene.sources.forEach((source: any) => {
+      if (source.is_visible && source.type !== 'screenshare') {
+        const sourceBottom = source.position.y + source.position.height;
+        if (source.position.y >= bottomThreshold && sourceBottom > maxBottomPosition) {
+          maxBottomPosition = sourceBottom;
+        }
+      }
+    });
+    
+    // Converter de pixels para porcentagem do canvas e calcular espaço necessário
+    if (maxBottomPosition > bottomThreshold) {
+      const spaceNeeded = maxBottomPosition - bottomThreshold;
+      // Retornar em porcentagem (0-100) para uso no canvas
+      return (spaceNeeded / canvasHeight) * 100;
+    }
+    
+    return 0;
+  };
+
   // Função para criar um track combinado (screen sharing + câmera)
   const createCombinedVideoTrack = async (
     screenTrack: any,
@@ -754,14 +792,39 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         const drawFrame = () => {
           if (!ctx || !screenVideo || !cameraVideo) return;
           
+          // Calcular espaço necessário para overlays na parte inferior
+          // Usar ref para ter acesso ao activeScene mais atual
+          const currentActiveScene = activeSceneRef.current;
+          const bottomOverlaySpace = calculateBottomOverlaySpace(currentActiveScene);
+          const screenShareHeight = bottomOverlaySpace > 0 
+            ? canvas.height * (1 - bottomOverlaySpace / 100) 
+            : canvas.height;
+          const screenShareY = 0;
+          
           // Limpar canvas
           ctx.fillStyle = '#000';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           
-          // Desenhar screen sharing (full screen) - PRIORIDADE: sempre desenhar primeiro
+          // Desenhar screen sharing - redimensionar se houver overlays na parte inferior
           if (screenVideo.videoWidth > 0 && screenVideo.videoHeight > 0) {
             try {
-              ctx.drawImage(screenVideo, 0, 0, canvas.width, canvas.height);
+              if (bottomOverlaySpace > 0) {
+                // Desenhar screen sharing redimensionado para deixar espaço para overlays
+                ctx.drawImage(
+                  screenVideo, 
+                  0, 
+                  screenShareY, 
+                  canvas.width, 
+                  screenShareHeight
+                );
+                
+                // Preencher área dos overlays com fundo preto
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, screenShareHeight, canvas.width, canvas.height - screenShareHeight);
+              } else {
+                // Screen sharing full screen (sem overlays na parte inferior)
+                ctx.drawImage(screenVideo, 0, 0, canvas.width, canvas.height);
+              }
             } catch (e) {
               console.warn('Erro ao desenhar screen sharing:', e);
             }
@@ -1438,9 +1501,24 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             cameraPosition
           );
           combinedVideoTrackRef.current = combinedTrack;
-          const tracksToPublish = screenAudioTrack 
-            ? [combinedTrack, screenAudioTrack] 
-            : [combinedTrack];
+          
+          // IMPORTANTE: Incluir áudio do microfone junto com track combinado
+          const tracksToPublish: any[] = [combinedTrack];
+          
+          // Adicionar áudio do screen share se disponível
+          if (screenAudioTrack) {
+            tracksToPublish.push(screenAudioTrack);
+            console.log('🔊 Áudio do screen share incluído no track combinado');
+          }
+          
+          // IMPORTANTE: Adicionar áudio do microfone para narração
+          if (localAudioTrackRef.current) {
+            tracksToPublish.push(localAudioTrackRef.current);
+            console.log('🎤 Áudio do microfone incluído no track combinado (via startScreenShare)');
+          } else {
+            console.warn('⚠️ Áudio do microfone não disponível - usuários não ouvirão a narração');
+          }
+          
           await clientRef.current.publish(tracksToPublish);
         } catch (error) {
           console.error('Erro ao criar track combinado:', error);
@@ -1700,25 +1778,41 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         setShowScreenShare(false);
         toast.success('🖥️ Compartilhamento de tela desativado');
       } else {
-        // Ativar screen sharing
+        // Ativar screen sharing COM áudio do sistema
+        console.log('🖥️ Criando screen track com áudio...');
         const screenTrackResult = await AgoraRTC.createScreenVideoTrack({
           encoderConfig: {
             width: { ideal: 1920 },
             height: { ideal: 1080 },
           }
-        }, 'auto');
+        }, 'auto'); // 'auto' captura áudio do sistema se disponível
         
         // createScreenVideoTrack pode retornar um array [videoTrack, audioTrack] ou apenas videoTrack
         const screenVideoTrack = Array.isArray(screenTrackResult) ? screenTrackResult[0] : screenTrackResult;
         const screenAudioTrack = Array.isArray(screenTrackResult) ? screenTrackResult[1] : null;
         
+        console.log('✅ Screen tracks criados:', {
+          hasVideo: !!screenVideoTrack,
+          hasAudio: !!screenAudioTrack,
+          audioType: screenAudioTrack?.track?.kind
+        });
+        
         screenVideoTrackRef.current = screenVideoTrack;
         screenAudioTrackRef.current = screenAudioTrack; // Armazenar referência do audio track
         
         // Aplicar volume do jogo/tela quando o track é criado
-        if (screenAudioTrack && typeof screenAudioTrack.setVolume === 'function') {
-          screenAudioTrack.setVolume(gameVolume);
-          console.log('🔊 Volume do jogo/tela aplicado na criação:', gameVolume);
+        if (screenAudioTrack) {
+          if (typeof screenAudioTrack.setVolume === 'function') {
+            screenAudioTrack.setVolume(gameVolume);
+            console.log('🔊 Volume do jogo/tela aplicado na criação:', gameVolume);
+          }
+          // Garantir que o áudio esteja ativado
+          if (screenAudioTrack.setEnabled) {
+            screenAudioTrack.setEnabled(true);
+            console.log('✅ Áudio do screen share ATIVADO');
+          }
+        } else {
+          console.warn('⚠️ Nenhum áudio capturado do screen share - pode ser necessário ativar permissões do navegador');
         }
         
         // Se a câmera está ativa, criar track combinado (screen sharing + câmera)
@@ -1749,14 +1843,31 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             combinedVideoTrackRef.current = combinedTrack;
             
             // Publicar track combinado (vídeo e áudio se disponível)
-            const tracksToPublish = screenAudioTrack 
-              ? [combinedTrack, screenAudioTrack] 
-              : [combinedTrack];
+            // IMPORTANTE: Incluir áudio do microfone (localAudioTrackRef) para que os usuários ouçam o narrador
+            const tracksToPublish: any[] = [combinedTrack];
             
-            console.log('📤 Publicando track combinado...');
+            // Adicionar áudio do screen share se disponível
+            if (screenAudioTrack) {
+              tracksToPublish.push(screenAudioTrack);
+              console.log('🔊 Áudio do screen share incluído');
+            }
+            
+            // IMPORTANTE: Adicionar áudio do microfone para narração
+            if (localAudioTrackRef.current) {
+              tracksToPublish.push(localAudioTrackRef.current);
+              console.log('🎤 Áudio do microfone incluído (para narração)');
+            } else {
+              console.warn('⚠️ Áudio do microfone não disponível - usuários não ouvirão a narração');
+            }
+            
+            console.log('📤 Publicando track combinado com áudios...', {
+              tracksCount: tracksToPublish.length,
+              hasScreenAudio: !!screenAudioTrack,
+              hasMicrophoneAudio: !!localAudioTrackRef.current
+            });
             await clientRef.current.publish(tracksToPublish);
             
-            console.log('✅ Track combinado publicado com sucesso (screen sharing + câmera)');
+            console.log('✅ Track combinado publicado com sucesso (screen sharing + câmera + áudio)');
             console.log('   Tracks publicados:', clientRef.current.localTracks.length);
           } catch (error) {
             console.error('❌ Erro ao criar track combinado:', error);
@@ -1796,9 +1907,22 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             }
           }
           
-          const tracksToPublish = screenAudioTrack ? [screenVideoTrack, screenAudioTrack] : [screenVideoTrack];
+          // Incluir áudio do microfone junto com screen share
+          const tracksToPublish: any[] = [screenVideoTrack];
+          
+          if (screenAudioTrack) {
+            tracksToPublish.push(screenAudioTrack);
+            console.log('🔊 Áudio do screen share incluído');
+          }
+          
+          // IMPORTANTE: Incluir áudio do microfone para narração
+          if (localAudioTrackRef.current) {
+            tracksToPublish.push(localAudioTrackRef.current);
+            console.log('🎤 Áudio do microfone incluído (para narração)');
+          }
+          
           await clientRef.current.publish(tracksToPublish);
-          console.log('✅ Screen sharing publicado');
+          console.log('✅ Screen sharing publicado com áudios');
           console.log('   Tracks publicados:', clientRef.current.localTracks.length);
           console.log('   Tracks:', clientRef.current.localTracks.map((t: any) => t.getTrackLabel()));
         }
@@ -1934,21 +2058,37 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         toast.success('📹 Câmera desativada');
       } else {
         // Ativar câmera
-        const cameraTrack = await AgoraRTC.createCameraVideoTrack({
+        const cameraConfig: any = {
           encoderConfig: {
             width: { ideal: 640 },
             height: { ideal: 480 },
           }
-        });
+        };
+        
+        // Se cameraDeviceId foi especificado (ex: OBS Virtual Camera), usar
+        if (cameraDeviceId) {
+          cameraConfig.cameraId = cameraDeviceId;
+          console.log('📹 Usando câmera específica:', cameraDeviceId);
+        }
+        
+        const cameraTrack = await AgoraRTC.createCameraVideoTrack(cameraConfig);
         
         cameraVideoTrackRef.current = cameraTrack;
         
-        // Verificar se há um vídeo track já publicado (screen sharing)
-        const publishedVideoTracks = clientRef.current.localTracks.filter(
-          (track: any) => track.isVideo && track.isPlaying
-        );
+        // IMPORTANTE: Verificar se screen share está ativo
+        // Verificar tanto o estado showScreenShare quanto se há track de screen share armazenado
+        // Isso garante que mesmo se o estado não estiver sincronizado, ainda detecta o screen share
+        const hasActiveScreenShare = (showScreenShare || screenVideoTrackRef.current) && screenVideoTrackRef.current;
         
-        if (showScreenShare && publishedVideoTracks.length > 0 && screenVideoTrackRef.current) {
+        console.log('🔍 Verificando condições para track combinado:', {
+          showScreenShare,
+          hasScreenShareTrack: !!screenVideoTrackRef.current,
+          hasActiveScreenShare,
+          hasCombinedTrack: !!combinedVideoTrackRef.current,
+          cameraPosition
+        });
+        
+        if (hasActiveScreenShare && screenVideoTrackRef.current) {
           // Screen sharing está ativo, recriar track combinado com a câmera
           console.log('📹 Screen sharing ativo - recriando track combinado com câmera...');
           
@@ -1997,12 +2137,30 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             
             combinedVideoTrackRef.current = combinedTrack;
             
-            // Publicar track combinado
-            const tracksToPublish = screenAudioTrack 
-              ? [combinedTrack, screenAudioTrack] 
-              : [combinedTrack];
+            // Publicar track combinado com TODOS os áudios
+            const tracksToPublish: any[] = [combinedTrack];
+            
+            // Adicionar áudio do screen share se disponível
+            if (screenAudioTrack) {
+              tracksToPublish.push(screenAudioTrack);
+              console.log('🔊 Áudio do screen share incluído no track combinado');
+            }
+            
+            // IMPORTANTE: Adicionar áudio do microfone para narração
+            if (localAudioTrackRef.current) {
+              tracksToPublish.push(localAudioTrackRef.current);
+              console.log('🎤 Áudio do microfone incluído no track combinado (via toggleCamera)');
+            } else {
+              console.warn('⚠️ Áudio do microfone não disponível - usuários não ouvirão a narração');
+            }
+            
             await clientRef.current.publish(tracksToPublish);
-            console.log('✅ Track combinado recriado e publicado com câmera');
+            console.log('✅ Track combinado recriado e publicado com câmera + áudios:', {
+              hasCombinedTrack: !!combinedTrack,
+              hasScreenAudio: !!screenAudioTrack,
+              hasMicAudio: !!localAudioTrackRef.current,
+              totalTracks: tracksToPublish.length
+            });
           } catch (error) {
             console.error('❌ Erro ao recriar track combinado:', error);
             toast.error('Erro ao combinar câmera com screen sharing');
@@ -2010,21 +2168,76 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           
           // O useEffect vai mover a câmera para o PiP localmente também
         } else {
-          // Screen sharing não está ativo, publicar e mostrar câmera no container principal
-          // Se há screen sharing publicado, despublicar primeiro
-          if (screenVideoTrackRef.current) {
+          // Screen sharing não está ativo (ou não detectado), publicar apenas câmera
+          // Verificar novamente se há screen share publicado (pode estar desincronizado)
+          const hasAnyScreenShare = screenVideoTrackRef.current || 
+            clientRef.current.localTracks.some((track: any) => 
+              track.isVideo && track !== cameraTrack && track !== combinedVideoTrackRef.current
+            );
+          
+          if (hasAnyScreenShare && screenVideoTrackRef.current) {
+            // Há screen share, criar track combinado mesmo que estado não esteja sincronizado
+            console.log('⚠️ Screen share detectado mesmo sem estado ativo - criando track combinado...');
+            
             try {
-              await clientRef.current.unpublish(screenVideoTrackRef.current);
-              console.log('✅ Screen sharing despublicado para permitir câmera');
-            } catch (e) {
-              console.warn('Aviso ao despublicar screen sharing:', e);
+              // Despublicar qualquer track de vídeo existente
+              const tracksToUnpublish = clientRef.current.localTracks.filter((track: any) => 
+                track.isVideo && track !== cameraTrack
+              );
+              if (tracksToUnpublish.length > 0) {
+                await clientRef.current.unpublish(tracksToUnpublish);
+              }
+              
+              // Criar track combinado
+              const screenVideoTrack = Array.isArray(screenVideoTrackRef.current) 
+                ? screenVideoTrackRef.current[0] 
+                : screenVideoTrackRef.current;
+              const screenAudioTrack = Array.isArray(screenVideoTrackRef.current) 
+                ? screenVideoTrackRef.current[1] 
+                : null;
+              
+              const combinedTrack = await createCombinedVideoTrack(
+                screenVideoTrack,
+                cameraTrack,
+                cameraPosition
+              );
+              
+              combinedVideoTrackRef.current = combinedTrack;
+              
+              // Publicar com todos os áudios
+              const tracksToPublish: any[] = [combinedTrack];
+              if (screenAudioTrack) tracksToPublish.push(screenAudioTrack);
+              if (localAudioTrackRef.current) tracksToPublish.push(localAudioTrackRef.current);
+              
+              await clientRef.current.publish(tracksToPublish);
+              console.log('✅ Track combinado criado mesmo com estado desincronizado');
+              
+              // Atualizar estado para refletir a realidade
+              setShowScreenShare(true);
+            } catch (error) {
+              console.error('❌ Erro ao criar track combinado (fallback):', error);
+              // Fallback: publicar apenas câmera
+              await clientRef.current.publish(cameraTrack);
+              if (localVideoRef.current) {
+                await cameraTrack.play(localVideoRef.current);
+              }
             }
-          }
-          
-          await clientRef.current.publish(cameraTrack);
-          
-          if (localVideoRef.current) {
-            await cameraTrack.play(localVideoRef.current);
+          } else {
+            // Não há screen share, publicar apenas câmera
+            if (screenVideoTrackRef.current) {
+              try {
+                await clientRef.current.unpublish(screenVideoTrackRef.current);
+                console.log('✅ Screen sharing despublicado para permitir câmera');
+              } catch (e) {
+                console.warn('Aviso ao despublicar screen sharing:', e);
+              }
+            }
+            
+            await clientRef.current.publish(cameraTrack);
+            
+            if (localVideoRef.current) {
+              await cameraTrack.play(localVideoRef.current);
+            }
           }
         }
         
@@ -2073,12 +2286,19 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       } else {
         // Voltar para câmera
         console.log('📹 Alternando para câmera...');
-        newVideoTrack = await AgoraRTC.createCameraVideoTrack({
+        const cameraConfig: any = {
           encoderConfig: {
             width: { ideal: 1280 },
             height: { ideal: 720 },
           }
-        });
+        };
+        
+        // Se cameraDeviceId foi especificado (ex: OBS Virtual Camera), usar
+        if (cameraDeviceId) {
+          cameraConfig.cameraId = cameraDeviceId;
+        }
+        
+        newVideoTrack = await AgoraRTC.createCameraVideoTrack(cameraConfig);
         toast.success('📹 Câmera ativada');
       }
       
@@ -2172,12 +2392,20 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         
         // Criar câmera track (sempre criamos para poder mostrar como PiP)
         console.log('📹 Criando camera track...');
-        cameraTrack = await AgoraRTC.createCameraVideoTrack({
+        const cameraConfig: any = {
           encoderConfig: {
             width: { ideal: 640 },
             height: { ideal: 480 },
           }
-        });
+        };
+        
+        // Se cameraDeviceId foi especificado (ex: OBS Virtual Camera), usar
+        if (cameraDeviceId) {
+          cameraConfig.cameraId = cameraDeviceId;
+          console.log('📹 Usando câmera específica:', cameraDeviceId);
+        }
+        
+        cameraTrack = await AgoraRTC.createCameraVideoTrack(cameraConfig);
         console.log('✅ Camera track criado com sucesso');
         
         cameraVideoTrackRef.current = cameraTrack;

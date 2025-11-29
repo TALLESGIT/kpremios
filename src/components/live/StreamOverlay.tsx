@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ActiveScene } from '../../hooks/useStreamStudioSync';
 
 interface StreamOverlayProps {
@@ -6,24 +6,57 @@ interface StreamOverlayProps {
 }
 
 const StreamOverlay: React.FC<StreamOverlayProps> = ({ activeScene }) => {
-  // Debug
+  // Memoizar fontes visíveis para evitar recálculos desnecessários
+  const visibleSources = useMemo(() => {
+    if (!activeScene || !activeScene.sources || activeScene.sources.length === 0) {
+      return [];
+    }
+    
+    const visible = activeScene.sources.filter(source => source.is_visible);
+    
+    if (visible.length === 0) {
+      return [];
+    }
+    
+    // Ordenar por zIndex
+    return visible.sort((a, b) => (a.position?.zIndex || 0) - (b.position?.zIndex || 0));
+  }, [activeScene]);
+  
+  // Criar key única baseada nas fontes visíveis para forçar re-render quando mudar
+  const overlayKey = useMemo(() => {
+    if (visibleSources.length === 0) return 'no-sources';
+    return visibleSources.map(s => `${s.id}-${s.is_visible}`).join('|');
+  }, [visibleSources]);
+  // Debug detalhado
   React.useEffect(() => {
     if (activeScene) {
       console.log('🎬 StreamOverlay - Cena ativa:', activeScene.name);
       console.log('📦 StreamOverlay - Total de fontes:', activeScene.sources?.length || 0);
-      const visible = activeScene.sources?.filter(s => s.is_visible) || [];
-      console.log('👁️ StreamOverlay - Fontes visíveis:', visible.length, visible.map(s => s.name));
+      
+      if (activeScene.sources && activeScene.sources.length > 0) {
+        console.log('📋 StreamOverlay - Todas as fontes:', activeScene.sources.map(s => ({
+          id: s.id,
+          name: s.name,
+          type: s.type,
+          is_visible: s.is_visible,
+          hasUrl: !!s.url
+        })));
+      }
+      
+      console.log('👁️ StreamOverlay - Fontes visíveis calculadas:', visibleSources.length, visibleSources.map(s => ({
+        name: s.name,
+        type: s.type,
+        is_visible: s.is_visible,
+        hasUrl: !!s.url
+      })));
     } else {
       console.log('⚠️ StreamOverlay - Nenhuma cena ativa');
     }
-  }, [activeScene]);
+  }, [activeScene, visibleSources]);
 
   if (!activeScene || !activeScene.sources || activeScene.sources.length === 0) {
     return null;
   }
-
-  // Filtrar apenas fontes visíveis
-  const visibleSources = activeScene.sources.filter(source => source.is_visible);
 
   if (visibleSources.length === 0) {
     console.log('⚠️ StreamOverlay - Nenhuma fonte visível');
@@ -118,9 +151,10 @@ const StreamOverlay: React.FC<StreamOverlayProps> = ({ activeScene }) => {
 
   return (
     <div 
+      key={overlayKey} // Key única baseada nas fontes visíveis para forçar re-render
       className="absolute inset-0 pointer-events-none" 
       style={{ 
-        zIndex: 100,
+        zIndex: 9999, // zIndex muito alto para aparecer sobre tudo (screen share, câmera, etc)
         position: 'absolute',
         top: 0,
         left: 0,
@@ -130,9 +164,7 @@ const StreamOverlay: React.FC<StreamOverlayProps> = ({ activeScene }) => {
         height: '100%'
       }}
     >
-      {visibleSources
-        .sort((a, b) => (a.position?.zIndex || 0) - (b.position?.zIndex || 0))
-        .map(renderSource)}
+      {visibleSources.map(renderSource)}
     </div>
   );
 };

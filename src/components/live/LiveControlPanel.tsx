@@ -42,11 +42,38 @@ const LiveControlPanel: React.FC<LiveControlPanelProps> = ({ streamId, channelNa
     return () => clearInterval(interval);
   }, [streamId]);
 
-  // Carregar fontes da cena ativa
+  // Carregar fontes da cena ativa com sincronização em tempo real
   useEffect(() => {
     const activeScene = scenes.find(s => s.is_active);
     if (activeScene) {
       loadActiveSources(activeScene.id);
+      
+      // Subscription em tempo real para mudanças nas fontes
+      const sourcesChannel = supabase
+        .channel(`live_control_sources_${activeScene.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'stream_sources',
+            filter: `scene_id=eq.${activeScene.id}`
+          },
+          (payload) => {
+            console.log('🔄 LiveControlPanel - Fonte atualizada via realtime:', {
+              event: payload.eventType,
+              sourceId: payload.new?.id || payload.old?.id,
+              visible: payload.new?.is_visible
+            });
+            // Recarregar fontes imediatamente
+            loadActiveSources(activeScene.id);
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(sourcesChannel);
+      };
     }
   }, [scenes]);
 
@@ -132,33 +159,46 @@ const LiveControlPanel: React.FC<LiveControlPanelProps> = ({ streamId, channelNa
   };
 
   const toggleSourceVisibility = async (source: Source) => {
+    const newVisibility = !source.is_visible;
+    
+    // Atualizar estado local imediatamente para feedback instantâneo
+    setActiveSources(activeSources.map(s =>
+      s.id === source.id ? { ...s, is_visible: newVisibility } : s
+    ));
+
     try {
       const { error } = await supabase
         .from('stream_sources')
-        .update({ is_visible: !source.is_visible })
+        .update({ is_visible: newVisibility })
         .eq('id', source.id);
 
       if (error) throw error;
 
-      setActiveSources(activeSources.map(s =>
-        s.id === source.id ? { ...s, is_visible: !s.is_visible } : s
-      ));
-
       toast.success(
-        source.is_visible 
-          ? `${source.name} ocultado 🚫` 
-          : `${source.name} visível ✅`,
+        newVisibility
+          ? `${source.name} visível ✅` 
+          : `${source.name} ocultado 🚫`,
         {
           duration: 1500,
           style: {
-            background: source.is_visible ? '#64748b' : '#10b981',
+            background: newVisibility ? '#10b981' : '#64748b',
             color: '#fff',
             fontWeight: 'bold'
           }
         }
       );
+      
+      console.log('✅ LiveControlPanel - Visibilidade atualizada:', {
+        sourceId: source.id,
+        sourceName: source.name,
+        isVisible: newVisibility
+      });
     } catch (error) {
-      console.error('Erro:', error);
+      console.error('❌ Erro ao alterar visibilidade:', error);
+      // Reverter estado local em caso de erro
+      setActiveSources(activeSources.map(s =>
+        s.id === source.id ? { ...s, is_visible: source.is_visible } : s
+      ));
       toast.error('Erro ao alterar visibilidade');
     }
   };

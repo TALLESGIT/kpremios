@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast';
 import VideoStream from '../components/live/VideoStream';
 import StreamStudio from '../components/live/StreamStudio';
 import LiveControlPanel from '../components/live/LiveControlPanel';
+import CameraSelector from '../components/live/CameraSelector';
 import { useStreamStudioSync } from '../hooks/useStreamStudioSync';
 
 interface LiveStream {
@@ -43,6 +44,13 @@ const AdminLiveStreamPage: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Estado para seleção de câmera (OBS Virtual Camera, etc)
+  const [selectedCameraDeviceId, setSelectedCameraDeviceId] = useState<string | undefined>(() => {
+    // Tentar carregar preferência salva
+    const saved = localStorage.getItem('selectedCameraDeviceId');
+    return saved || undefined;
+  });
   
   // Funções de gravação
   const handleStartRecording = async () => {
@@ -164,21 +172,28 @@ const AdminLiveStreamPage: React.FC = () => {
   // Sincronizar Stream Studio com transmissão ao vivo
   const { activeScene, loading: sceneLoading, refresh: refreshActiveScene } = useStreamStudioSync(currentStream?.id || '');
 
-  // Log quando activeScene muda
+  // Log quando activeScene muda (com debounce para evitar spam)
+  const lastSceneIdRef = React.useRef<string | null>(null);
   useEffect(() => {
-    if (activeScene) {
-      console.log('📺 AdminLiveStreamPage - Cena ativa atualizada:', {
-        sceneId: activeScene.id,
-        sceneName: activeScene.name,
-        totalSources: activeScene.sources?.length || 0,
-        visibleSources: activeScene.sources?.filter(s => s.is_visible)?.length || 0
-      });
-    } else {
-      console.log('⚠️ AdminLiveStreamPage - Nenhuma cena ativa');
+    const currentSceneId = activeScene?.id || null;
+    
+    // Só logar se a cena realmente mudou (não apenas uma atualização de fontes)
+    if (currentSceneId !== lastSceneIdRef.current) {
+      if (activeScene) {
+        console.log('📺 AdminLiveStreamPage - Cena ativa atualizada:', {
+          sceneId: activeScene.id,
+          sceneName: activeScene.name,
+          totalSources: activeScene.sources?.length || 0,
+          visibleSources: activeScene.sources?.filter(s => s.is_visible)?.length || 0
+        });
+      } else {
+        console.log('⚠️ AdminLiveStreamPage - Nenhuma cena ativa');
+      }
+      lastSceneIdRef.current = currentSceneId;
     }
-  }, [activeScene]);
+  }, [activeScene?.id, activeScene?.name]); // Só depende do ID e nome, não das fontes
   
-  // Verificar se há fonte screenshare ativa
+  // Verificar se há fonte screenshare ativa (com log reduzido para evitar spam)
   const hasActiveScreenShare = React.useMemo(() => {
     if (!activeScene?.sources) return false;
     
@@ -189,13 +204,17 @@ const AdminLiveStreamPage: React.FC = () => {
     
     const result = visibleScreenshare.length > 0;
     
-    console.log('🖥️ Screenshare Detection:', {
-      totalSources: activeScene.sources.length,
-      screenshareSources: screenshareSources.length,
-      screenshareNames: screenshareSources.map(s => ({ name: s.name, visible: s.is_visible })),
-      visibleCount: visibleScreenshare.length,
-      hasActiveScreenShare: result
-    });
+    // Log apenas quando o resultado muda (evitar spam)
+    if (result !== (window as any)._lastScreenShareState) {
+      console.log('🖥️ Screenshare Detection:', {
+        totalSources: activeScene.sources.length,
+        screenshareSources: screenshareSources.length,
+        screenshareNames: screenshareSources.map(s => ({ name: s.name, visible: s.is_visible })),
+        visibleCount: visibleScreenshare.length,
+        hasActiveScreenShare: result
+      });
+      (window as any)._lastScreenShareState = result;
+    }
     
     return result;
   }, [activeScene]);
@@ -1163,52 +1182,71 @@ const AdminLiveStreamPage: React.FC = () => {
             {/* Player de Vídeo */}
             <div className="mb-4">
               {!currentStream.is_active ? (
-                <div className="bg-slate-800 rounded-lg p-8 text-center">
-                  <div className="text-6xl mb-4">📹</div>
-                  <h3 className="text-xl font-bold text-white mb-2">Transmissão Pronta</h3>
-                  <p className="text-slate-400 mb-6">
-                    Clique no botão abaixo para iniciar a transmissão ao vivo
-                  </p>
-                  <button
-                    onClick={async () => {
-                      // Verificar se já existe transmissão ativa antes de iniciar
-                      const { data: activeStreams } = await supabase
-                        .from('live_streams')
-                        .select('id, title')
-                        .eq('is_active', true);
-                      
-                      if (activeStreams && activeStreams.length > 0) {
-                        const otherStream = activeStreams.find(s => s.id !== currentStream.id);
-                        if (otherStream) {
-                          toast.error(`⚠️ Já existe uma transmissão ativa: "${otherStream.title}". Apenas uma transmissão pode estar ativa por vez.`);
-                          return;
+                <div className="bg-slate-800 rounded-lg p-8">
+                  <div className="text-center mb-6">
+                    <div className="text-6xl mb-4">📹</div>
+                    <h3 className="text-xl font-bold text-white mb-2">Transmissão Pronta</h3>
+                    <p className="text-slate-400">
+                      Configure sua câmera e clique no botão abaixo para iniciar
+                    </p>
+                  </div>
+                  
+                  {/* Seletor de Câmera */}
+                  <div className="mb-6 max-w-md mx-auto">
+                    <CameraSelector
+                      onSelectCamera={(deviceId) => {
+                        setSelectedCameraDeviceId(deviceId);
+                        // Salvar preferência
+                        localStorage.setItem('selectedCameraDeviceId', deviceId);
+                        toast.success('Câmera selecionada!');
+                      }}
+                      selectedDeviceId={selectedCameraDeviceId}
+                    />
+                  </div>
+                  
+                  <div className="text-center">
+                    <button
+                      onClick={async () => {
+                        // Verificar se já existe transmissão ativa antes de iniciar
+                        const { data: activeStreams } = await supabase
+                          .from('live_streams')
+                          .select('id, title')
+                          .eq('is_active', true);
+                        
+                        if (activeStreams && activeStreams.length > 0) {
+                          const otherStream = activeStreams.find(s => s.id !== currentStream.id);
+                          if (otherStream) {
+                            toast.error(`⚠️ Já existe uma transmissão ativa: "${otherStream.title}". Apenas uma transmissão pode estar ativa por vez.`);
+                            return;
+                          }
                         }
-                      }
-                      
-                      startStream(currentStream);
-                    }}
-                    className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 flex items-center justify-center gap-2 mx-auto"
-                  >
-                    <Camera size={20} />
-                    Iniciar Transmissão
-                  </button>
+                        
+                        startStream(currentStream);
+                      }}
+                      className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 flex items-center justify-center gap-2 mx-auto"
+                    >
+                      <Camera size={20} />
+                      Iniciar Transmissão
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="relative">
-                  <VideoStream
-                    channelName={currentStream.channel_name}
-                    isBroadcaster={true}
-                    onEnd={endStream}
-                    adImages={adImages}
-                    overlayAd={overlayAd || undefined}
-                    onStatsUpdate={setStreamStats}
-                    onRecordingStateChange={setIsRecording}
-                    onRecordingReady={handleRecordingReady}
-                    screenShareEnabled={hasActiveScreenShare}
-                    hideScreenShareButton={!!activeScene}
-                    activeScene={activeScene}
-                    key={`video-${currentStream.id}-${hasActiveScreenShare}`}
-                  />
+                    <VideoStream
+                      channelName={currentStream.channel_name}
+                      isBroadcaster={true}
+                      onEnd={endStream}
+                      adImages={adImages}
+                      overlayAd={overlayAd || undefined}
+                      onStatsUpdate={setStreamStats}
+                      onRecordingStateChange={setIsRecording}
+                      onRecordingReady={handleRecordingReady}
+                      screenShareEnabled={hasActiveScreenShare}
+                      hideScreenShareButton={!!activeScene}
+                      activeScene={activeScene}
+                      cameraDeviceId={selectedCameraDeviceId}
+                      key={`video-${currentStream.id}-${hasActiveScreenShare}-${selectedCameraDeviceId || 'default'}`}
+                    />
                 </div>
               )}
             </div>

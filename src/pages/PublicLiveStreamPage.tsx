@@ -489,7 +489,35 @@ const PublicLiveStreamPage: React.FC = () => {
           .video-container-fullscreen video {
             width: 100% !important;
             height: 100% !important;
-            object-fit: contain !important;
+            object-fit: cover !important;
+          }
+          
+          /* Para desktop, também garantir cover no fullscreen */
+          .video-container-fullscreen > div > div video,
+          .video-container-fullscreen video,
+          .video-container-fullscreen [ref="remoteVideoRef"] video,
+          .video-container-fullscreen [ref="remoteVideoRef"] > div > video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+          }
+          
+          /* Container do vídeo em fullscreen */
+          .video-container-fullscreen {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+          
+          .video-container-fullscreen > div {
+            width: 100% !important;
+            height: 100% !important;
+          }
+          
+          /* Garantir que o container do vídeo ocupe toda a tela */
+          .video-container-fullscreen > div > div:first-child {
+            width: 100% !important;
+            height: 100% !important;
           }
         `}</style>
       )}

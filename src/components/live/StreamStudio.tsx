@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Play, 
   Pause, 
@@ -249,31 +249,132 @@ const StreamStudio: React.FC<StreamStudioProps> = ({
     }
   }, [selectedScene]);
 
-  // Carregar fontes da cena ativa (PROGRAMA)
+  // Ref para debounce do loadProgramSources
+  const loadProgramSourcesTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastLoadedSceneIdRef = useRef<string | null>(null);
+
+  // Recarregar fontes do programa quando cena ativa mudar (com debounce)
+  const loadProgramSources = useCallback(async (sceneId: string, immediate: boolean = false) => {
+    // Se é a mesma cena que acabamos de carregar, ignorar (evitar duplicatas)
+    if (!immediate && lastLoadedSceneIdRef.current === sceneId && loadProgramSourcesTimeoutRef.current) {
+      console.log('⏸️ StreamStudio - Ignorando carregamento duplicado da cena:', sceneId);
+      return;
+    }
+
+    // Cancelar timeout anterior
+    if (loadProgramSourcesTimeoutRef.current && !immediate) {
+      clearTimeout(loadProgramSourcesTimeoutRef.current);
+    }
+
+    const load = async () => {
+      try {
+        console.log('📥 StreamStudio - Carregando fontes do programa para cena:', sceneId);
+        const { data, error } = await supabase
+          .from('stream_sources')
+          .select('*')
+          .eq('scene_id', sceneId)
+          .order('position->zIndex', { ascending: true });
+
+        if (error) throw error;
+        
+        console.log('✅ StreamStudio - Fontes do programa carregadas:', {
+          total: data?.length || 0,
+          visible: data?.filter(s => s.is_visible)?.length || 0,
+          sources: data?.map(s => ({ name: s.name, type: s.type, visible: s.is_visible }))
+        });
+        
+        lastLoadedSceneIdRef.current = sceneId;
+        setProgramSources(data || []);
+      } catch (error) {
+        console.error('Erro ao carregar fontes do programa:', error);
+      }
+    };
+
+    if (immediate) {
+      loadProgramSourcesTimeoutRef.current = null;
+      return load();
+    } else {
+      loadProgramSourcesTimeoutRef.current = setTimeout(load, 300);
+    }
+  }, []);
+
+  // Carregar fontes da cena ativa (PROGRAMA) com sincronização em tempo real
   useEffect(() => {
+    if (!streamId || streamId.trim() === '') return;
+
     const activeScene = scenes.find(s => s.is_active);
     if (activeScene) {
-      loadProgramSources(activeScene.id);
+      // Carregar imediatamente na primeira vez ou quando a cena realmente mudou
+      const sceneChanged = lastLoadedSceneIdRef.current !== activeScene.id;
+      loadProgramSources(activeScene.id, sceneChanged);
+      
+      // Subscription em tempo real para mudanças nas fontes da cena ativa
+      const sourcesChannel = supabase
+        .channel(`stream_studio_sources_${activeScene.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'stream_sources',
+            filter: `scene_id=eq.${activeScene.id}`
+          },
+          (payload) => {
+            console.log('🔄 StreamStudio - Fonte atualizada via realtime no PROGRAMA:', {
+              event: payload.eventType,
+              sourceId: payload.new?.id || payload.old?.id,
+              sourceName: payload.new?.name || payload.old?.name
+            });
+            // Atualizar (com debounce para evitar múltiplas chamadas)
+            loadProgramSources(activeScene.id, false);
+          }
+        )
+        .subscribe();
+
+      return () => {
+        // Limpar timeout pendente
+        if (loadProgramSourcesTimeoutRef.current) {
+          clearTimeout(loadProgramSourcesTimeoutRef.current);
+          loadProgramSourcesTimeoutRef.current = null;
+        }
+        supabase.removeChannel(sourcesChannel);
+      };
     } else {
       setProgramSources([]);
+      lastLoadedSceneIdRef.current = null;
     }
-  }, [scenes]);
+  }, [scenes, streamId, loadProgramSources]);
 
-  // Recarregar fontes do programa quando cena ativa mudar
-  const loadProgramSources = async (sceneId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('stream_sources')
-        .select('*')
-        .eq('scene_id', sceneId)
-        .order('position->zIndex', { ascending: true });
+  // Subscription em tempo real para mudanças nas cenas (ativar/desativar)
+  useEffect(() => {
+    if (!streamId || streamId.trim() === '') return;
 
-      if (error) throw error;
-      setProgramSources(data || []);
-    } catch (error) {
-      console.error('Erro ao carregar fontes do programa:', error);
-    }
-  };
+    const sceneChannel = supabase
+      .channel(`stream_studio_scenes_${streamId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'stream_scenes',
+          filter: `stream_id=eq.${streamId}`
+        },
+        (payload) => {
+          console.log('🔄 StreamStudio - Cena atualizada via realtime:', {
+            event: payload.eventType,
+            sceneId: payload.new?.id || payload.old?.id,
+            isActive: payload.new?.is_active
+          });
+          // Recarregar cenas para detectar mudanças
+          loadScenes();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(sceneChannel);
+    };
+  }, [streamId]);
 
   // Carregar overlay ad e escutar mudanças
   useEffect(() => {
@@ -517,8 +618,8 @@ const StreamStudio: React.FC<StreamStudioProps> = ({
       const activatedScene = scenes.find(s => s.id === sceneId);
       setScenes(scenes.map(s => ({ ...s, is_active: s.id === sceneId })));
       
-      // Recarregar fontes da cena ativada no PROGRAMA
-      await loadProgramSources(sceneId);
+      // NÃO carregar fontes aqui - o useEffect vai detectar a mudança e carregar
+      // Isso evita carregamento duplicado
       
       // Toast com nome da cena ativada
       toast.success(
@@ -645,6 +746,9 @@ const StreamStudio: React.FC<StreamStudioProps> = ({
 
   const updateSourcePosition = async (sourceId: string, position: any) => {
     try {
+      const source = sources.find(s => s.id === sourceId);
+      if (!source) return;
+
       const { error } = await supabase
         .from('stream_sources')
         .update({ position })
@@ -652,9 +756,20 @@ const StreamStudio: React.FC<StreamStudioProps> = ({
 
       if (error) throw error;
 
+      // Atualizar estado local imediatamente
       setSources(sources.map(s => 
         s.id === sourceId ? { ...s, position } : s
       ));
+      
+      // Se a fonte pertence à cena ativa, atualizar TAMBÉM no preview do PROGRAMA
+      const activeScene = scenes.find(s => s.is_active);
+      if (activeScene && source.scene_id === activeScene.id) {
+        // Atualização otimista no preview do PROGRAMA
+        setProgramSources(programSources.map(s => 
+          s.id === sourceId ? { ...s, position } : s
+        ));
+        console.log('🔄 Preview do PROGRAMA atualizado em tempo real (posição)');
+      }
     } catch (error) {
       console.error('Erro ao atualizar posição:', error);
     }
@@ -828,9 +943,9 @@ const StreamStudio: React.FC<StreamStudioProps> = ({
       {activeTab === 'scenes' ? (
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4 p-4 overflow-hidden">
         {/* Canvas de Preview e Program */}
-        <div className="space-y-4 overflow-y-auto">
+        <div className="grid grid-cols-2 gap-4 overflow-y-auto h-full">
           {/* Preview Canvas */}
-          <div className="bg-slate-800 rounded-lg p-4">
+          <div className="bg-slate-800 rounded-lg p-4 flex flex-col h-full">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-white font-bold flex items-center gap-2">
                 <Eye size={16} className="text-blue-400" />
@@ -946,17 +1061,22 @@ const StreamStudio: React.FC<StreamStudioProps> = ({
           </div>
 
           {/* Program Canvas (Ao Vivo) */}
-          <div className="bg-slate-800 rounded-lg p-4">
+          <div className="bg-slate-800 rounded-lg p-4 flex flex-col h-full">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-white font-bold flex items-center gap-2">
                 <Play size={16} className="text-red-400" />
                 PROGRAMA (AO VIVO)
               </h4>
-              {scenes.find(s => s.is_active) && (
-                <span className="text-amber-400 text-sm font-medium">
-                  {scenes.find(s => s.is_active)?.name}
-                </span>
-              )}
+              {(() => {
+                const activeScene = scenes.find(s => s.is_active);
+                const previewScene = activeScene || selectedScene;
+                return previewScene && (
+                  <span className={`text-sm font-medium ${activeScene ? 'text-amber-400' : 'text-slate-400'}`}>
+                    {previewScene.name}
+                    {!activeScene && ' (Preview)'}
+                  </span>
+                );
+              })()}
             </div>
             
             {/* Canvas Program - Proporção 16:9 */}
@@ -966,105 +1086,238 @@ const StreamStudio: React.FC<StreamStudioProps> = ({
               style={{ paddingBottom: '56.25%' }} // 16:9 aspect ratio
             >
               <div className="absolute inset-0">
-                {scenes.find(s => s.is_active) ? (
-                  programSources.length > 0 ? (
-                    // Renderizar fontes da cena ativa
-                    programSources
-                      .filter(s => s.is_visible)
-                      .sort((a, b) => a.position.zIndex - b.position.zIndex)
-                      .map(source => {
-                        const style: React.CSSProperties = {
-                          position: 'absolute',
-                          left: `${(source.position.x / 1920) * 100}%`,
-                          top: `${(source.position.y / 1080) * 100}%`,
-                          width: `${(source.position.width / 1920) * 100}%`,
-                          height: `${(source.position.height / 1080) * 100}%`,
-                          opacity: source.opacity,
-                          zIndex: source.position.zIndex,
-                          pointerEvents: 'none'
-                        };
+                {(() => {
+                  const activeScene = scenes.find(s => s.is_active);
+                  const previewScene = activeScene || selectedScene;
+                  
+                  // Se não há cena ativa mas há cena selecionada, mostrar preview da selecionada
+                  if (!activeScene && selectedScene) {
+                    const previewSources = sources.filter(s => s.scene_id === selectedScene.id && s.is_visible);
+                    return previewSources.length > 0 ? (
+                      previewSources
+                        .sort((a, b) => a.position.zIndex - b.position.zIndex)
+                        .map(source => {
+                          const canvasWidth = 1280;
+                          const canvasHeight = 720;
+                          const style: React.CSSProperties = {
+                            position: 'absolute',
+                            left: `${(source.position.x / canvasWidth) * 100}%`,
+                            top: `${(source.position.y / canvasHeight) * 100}%`,
+                            width: `${(source.position.width / canvasWidth) * 100}%`,
+                            height: `${(source.position.height / canvasHeight) * 100}%`,
+                            opacity: source.opacity,
+                            zIndex: source.position.zIndex,
+                            pointerEvents: 'none'
+                          };
+                          
+                          switch (source.type) {
+                            case 'image':
+                            case 'logo':
+                            case 'sponsor':
+                              return source.url ? (
+                                <div key={source.id} style={style}>
+                                  <img src={source.url} alt={source.name} className="w-full h-full object-contain" />
+                                </div>
+                              ) : null;
+                            case 'text':
+                              return (
+                                <div key={source.id} style={{...style, color: source.content.color || '#ffffff', fontSize: `${(source.content.fontSize || 24) * (100 / 1280)}vw`, fontWeight: source.content.fontWeight || 'bold', textAlign: source.content.textAlign || 'left', padding: '0.5%', backgroundColor: source.content.backgroundColor || 'transparent', overflow: 'hidden', wordWrap: 'break-word'}}>
+                                  {source.content.text || source.name}
+                                </div>
+                              );
+                            case 'scoreboard':
+                              return (
+                                <div key={source.id} style={style} className="bg-gradient-to-r from-blue-900/90 to-blue-800/90 backdrop-blur-sm rounded-lg border border-blue-400/50 flex items-center justify-between gap-4 text-white px-4">
+                                  <div className="text-center flex-1">
+                                    <div className="text-xs font-semibold">Cruzeiro</div>
+                                    <div className="text-xl font-bold">{source.content.homeScore || 0}</div>
+                                  </div>
+                                  <div className="text-lg font-bold">×</div>
+                                  <div className="text-center flex-1">
+                                    <div className="text-xs font-semibold truncate">{source.content.awayTeam || 'Visitante'}</div>
+                                    <div className="text-xl font-bold">{source.content.awayScore || 0}</div>
+                                  </div>
+                                </div>
+                              );
+                            case 'screenshare':
+                              return (
+                                <div 
+                                  key={source.id} 
+                                  style={style}
+                                  className="bg-gradient-to-br from-purple-900/90 to-purple-800/90 backdrop-blur-sm rounded-lg border-2 border-purple-400/50 flex items-center justify-center"
+                                >
+                                  <div className="text-center text-white p-4">
+                                    <Monitor size={48} className="mx-auto mb-2 opacity-80" />
+                                    <div className="text-lg font-bold">{source.name}</div>
+                                    <div className="text-sm opacity-70 mt-1">Compartilhamento de Tela</div>
+                                    <div className="text-xs opacity-50 mt-2">Será exibido ao vivo</div>
+                                  </div>
+                                </div>
+                              );
+                            default:
+                              return null;
+                          }
+                        })
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white">
+                        <div className="text-center">
+                          <p className="text-sm">Preview: {selectedScene.name}</p>
+                          <p className="text-xs text-slate-400 mt-1">Nenhuma fonte visível</p>
+                          <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg max-w-xs mx-auto">
+                            <p className="text-xs text-amber-400 mb-1">⚠️ Preview - Não está ao vivo</p>
+                            <p className="text-xs text-slate-300">Clique em "Enviar ao PROGRAMA" para ativar</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  // Se há cena ativa, mostrar normalmente
+                  if (activeScene) {
+                    return programSources.length > 0 ? (
+                      // Renderizar fontes da cena ativa
+                      programSources
+                        .filter(s => s.is_visible)
+                        .sort((a, b) => a.position.zIndex - b.position.zIndex)
+                        .map(source => {
+                          // IMPORTANTE: Usar mesma base (1280x720) que o StreamOverlay para garantir consistência
+                          const canvasWidth = 1280;
+                          const canvasHeight = 720;
+                          
+                          const style: React.CSSProperties = {
+                            position: 'absolute',
+                            left: `${(source.position.x / canvasWidth) * 100}%`,
+                            top: `${(source.position.y / canvasHeight) * 100}%`,
+                            width: `${(source.position.width / canvasWidth) * 100}%`,
+                            height: `${(source.position.height / canvasHeight) * 100}%`,
+                            opacity: source.opacity,
+                            zIndex: source.position.zIndex,
+                            pointerEvents: 'none'
+                          };
 
-                        switch (source.type) {
-                          case 'image':
-                          case 'logo':
-                          case 'sponsor':
-                            return source.url ? (
-                              <div key={source.id} style={style}>
-                                <img 
-                                  src={source.url} 
-                                  alt={source.name}
-                                  className="w-full h-full object-contain"
-                                />
-                              </div>
-                            ) : null;
-                          
-                          case 'text':
-                            return (
-                              <div 
-                                key={source.id} 
-                                style={{
-                                  ...style,
-                                  color: source.content.color || '#ffffff',
-                                  fontSize: `${(source.content.fontSize || 24) * (100 / 1920)}vw`,
-                                  fontWeight: source.content.fontWeight || 'bold',
-                                  textAlign: source.content.textAlign || 'left',
-                                  padding: '0.5%',
-                                  backgroundColor: source.content.backgroundColor || 'transparent',
-                                  overflow: 'hidden',
-                                  wordWrap: 'break-word'
-                                }}
-                              >
-                                {source.content.text || source.name}
-                              </div>
-                            );
-                          
-                          case 'scoreboard':
+                          switch (source.type) {
+                            case 'image':
+                            case 'logo':
+                            case 'sponsor':
+                              return source.url ? (
+                                <div key={source.id} style={style}>
+                                  <img 
+                                    src={source.url} 
+                                    alt={source.name}
+                                    className="w-full h-full object-contain"
+                                  />
+                                </div>
+                              ) : null;
+                            
+                            case 'text':
+                              return (
+                                <div 
+                                  key={source.id} 
+                                  style={{
+                                    ...style,
+                                    color: source.content.color || '#ffffff',
+                                    fontSize: `${(source.content.fontSize || 24) * (100 / 1280)}vw`,
+                                    fontWeight: source.content.fontWeight || 'bold',
+                                    textAlign: source.content.textAlign || 'left',
+                                    padding: '0.5%',
+                                    backgroundColor: source.content.backgroundColor || 'transparent',
+                                    overflow: 'hidden',
+                                    wordWrap: 'break-word'
+                                  }}
+                                >
+                                  {source.content.text || source.name}
+                                </div>
+                              );
+                            
+                            case 'scoreboard':
+                              return (
+                                <div 
+                                  key={source.id} 
+                                  style={style}
+                                  className="bg-gradient-to-r from-blue-900/90 to-blue-800/90 backdrop-blur-sm rounded-lg border border-blue-400/50 flex items-center justify-between gap-4 text-white px-4"
+                                >
+                                  <div className="text-center flex-1">
+                                    <div className="text-xs font-semibold">Cruzeiro</div>
+                                    <div className="text-xl font-bold">{source.content.homeScore || 0}</div>
+                                  </div>
+                                  <div className="text-lg font-bold">×</div>
+                                  <div className="text-center flex-1">
+                                    <div className="text-xs font-semibold truncate">{source.content.awayTeam || 'Visitante'}</div>
+                                    <div className="text-xl font-bold">{source.content.awayScore || 0}</div>
+                                  </div>
+                                </div>
+                              );
+                            
+                          case 'screenshare':
                             return (
                               <div 
                                 key={source.id} 
                                 style={style}
-                                className="bg-gradient-to-r from-blue-900/90 to-blue-800/90 backdrop-blur-sm rounded-lg border border-blue-400/50 flex items-center justify-between gap-4 text-white px-4"
+                                className="bg-gradient-to-br from-purple-900/90 to-purple-800/90 backdrop-blur-sm rounded-lg border-2 border-purple-400/50 flex items-center justify-center"
                               >
-                                <div className="text-center flex-1">
-                                  <div className="text-xs font-semibold">Cruzeiro</div>
-                                  <div className="text-xl font-bold">{source.content.homeScore || 0}</div>
-                                </div>
-                                <div className="text-lg font-bold">×</div>
-                                <div className="text-center flex-1">
-                                  <div className="text-xs font-semibold truncate">{source.content.awayTeam || 'Visitante'}</div>
-                                  <div className="text-xl font-bold">{source.content.awayScore || 0}</div>
+                                <div className="text-center text-white p-4">
+                                  <Monitor size={48} className="mx-auto mb-2 opacity-80" />
+                                  <div className="text-lg font-bold">{source.name}</div>
+                                  <div className="text-sm opacity-70 mt-1">Compartilhamento de Tela</div>
+                                  <div className="text-xs opacity-50 mt-2">Será exibido ao vivo</div>
                                 </div>
                               </div>
                             );
-                          
-                          case 'screenshare':
-                            return null; // Compartilhar tela é tratado pelo VideoStream
-                          
-                          default:
-                            return null;
-                        }
-                      })
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-white">
-                      <div className="text-center">
-                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse mx-auto mb-2"></div>
-                        <p className="text-sm">Cena ativa: {scenes.find(s => s.is_active)?.name}</p>
-                        <p className="text-xs text-slate-400 mt-1">Nenhuma fonte visível</p>
+                            
+                            default:
+                              return null;
+                          }
+                        })
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white">
+                        <div className="text-center">
+                          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse mx-auto mb-2"></div>
+                          <p className="text-sm">Cena ativa: {activeScene.name}</p>
+                          <p className="text-xs text-slate-400 mt-1">Nenhuma fonte visível</p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  // Se não há cena ativa nem selecionada, mostrar mensagem
+                  return (
+                    <div className="w-full h-full flex items-center justify-center text-slate-400">
+                      <div className="text-center max-w-md">
+                        <Layers size={48} className="mx-auto mb-4 opacity-50" />
+                        <p className="text-lg font-medium mb-2">Nenhuma cena selecionada</p>
+                        <p className="text-sm mb-4">Selecione uma cena na lista ao lado para visualizar o preview</p>
                       </div>
                     </div>
-                  )
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-slate-500">
-                    <p>Nenhuma cena ativa</p>
+                  );
+                })()}
+                
+                {/* Aviso se não há cena ativa mas há preview */}
+                {!scenes.find(s => s.is_active) && selectedScene && (
+                  <div className="absolute bottom-2 left-2 right-2 bg-amber-500/90 text-white px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 z-50">
+                    <span>⚠️</span>
+                    <span>Preview - Esta cena não está ao vivo. Clique em "Enviar ao PROGRAMA" para ativar.</span>
+                  </div>
+                )}
+                
+                {/* Propaganda Overlay Fullscreen (PROGRAMA) */}
+                {overlayAd && overlayAd.enabled && overlayAd.url && (
+                  <div className="absolute inset-0 z-[10000] bg-black">
+                    <img 
+                      src={overlayAd.url} 
+                      alt="Overlay Ad" 
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-2 right-2 bg-purple-600/80 text-white px-2 py-1 rounded text-xs font-bold">
+                      OVERLAY FULLSCREEN
+                    </div>
                   </div>
                 )}
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Painel de Controle Lateral */}
-        <div className="bg-slate-800 rounded-lg p-4 overflow-y-auto space-y-4">
+          
+          {/* Painel de Controle Lateral */}
+          <div className="bg-slate-800 rounded-lg p-4 overflow-y-auto space-y-4">
           {/* Cenas */}
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -1334,10 +1587,10 @@ const StreamStudio: React.FC<StreamStudioProps> = ({
               </div>
             </div>
           )}
+          </div>
         </div>
         </div>
       ) : (
-        /* Layout de Propagandas */
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-5xl mx-auto">
             <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
@@ -1621,7 +1874,25 @@ const StreamStudio: React.FC<StreamStudioProps> = ({
           source={editingSource}
           onClose={() => setEditingSource(null)}
           onUpdate={(updatedSource) => {
+            // Atualizar estado local do preview
             setSources(sources.map(s => s.id === updatedSource.id ? updatedSource : s));
+            
+            // Se a fonte pertence à cena ativa, atualizar TAMBÉM no preview do PROGRAMA imediatamente
+            const activeScene = scenes.find(s => s.is_active);
+            if (activeScene && updatedSource.scene_id === activeScene.id) {
+              // Atualização otimista no preview do PROGRAMA
+              setProgramSources(programSources.map(s => 
+                s.id === updatedSource.id ? updatedSource : s
+              ));
+              console.log('🔄 Preview do PROGRAMA atualizado em tempo real após edição:', {
+                sourceName: updatedSource.name,
+                sourceId: updatedSource.id
+              });
+              
+              // NÃO recarregar do banco imediatamente - a subscription em tempo real vai atualizar
+              // Isso evita recarregamentos duplicados
+            }
+            
             setEditingSource(null);
           }}
           onDelete={() => {
