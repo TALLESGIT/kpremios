@@ -4317,9 +4317,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         }
         [ref="localVideoRef"] {
           width: calc(100% - 2rem) !important;
+          max-width: 1600px !important;
           aspect-ratio: 16 / 9 !important;
           position: relative !important;
-          margin: 1rem !important;
+          margin: 1rem auto !important;
           padding: 0 !important;
         }
         [ref="remoteVideoRef"] video,
@@ -4340,9 +4341,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         }
         [ref="remoteVideoRef"] {
           width: calc(100% - 2rem) !important;
+          max-width: 1600px !important;
           aspect-ratio: 16 / 9 !important;
           position: relative !important;
-          margin: 1rem !important;
+          margin: 1rem auto !important;
           padding: 0 !important;
         }
         [ref="remoteVideoRef"] > div {
@@ -4419,8 +4421,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         
         /* Aplicar margens e paddings adequados aos containers de vídeo */
         #video-player {
-          margin: 1rem !important;
+          margin: 1rem auto !important;
           padding: 1rem !important;
+          max-width: 1600px !important;
+          width: 100% !important;
         }
         
         /* Em fullscreen, remover margens e paddings */
@@ -4432,10 +4436,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           padding: 0 !important;
         }
       `}</style>
-      <div id="video-player" className="relative w-full bg-black overflow-hidden rounded-lg" style={{ margin: '1rem', padding: '1rem' }}>
+      <div id="video-player" className="relative w-full bg-black overflow-hidden rounded-lg mx-auto" style={{ margin: '1rem auto', padding: '1rem', maxWidth: '1600px' }}>
         {/* Vídeo Local (Broadcaster) */}
         {isBroadcaster && (
-          <div className="relative w-full bg-black overflow-hidden rounded-lg" style={{ aspectRatio: '16/9', margin: '1rem', padding: '1rem' }}>
+          <div className="relative w-full bg-black overflow-hidden rounded-lg" style={{ aspectRatio: '16/9' }}>
             {/* Container para o vídeo - SDK do Agora gerencia este elemento */}
             <div 
               ref={localVideoRef} 
@@ -4565,7 +4569,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
       {/* Vídeo Remoto (Viewers) */}
       {!isBroadcaster && (
-        <div className="relative w-full bg-black overflow-hidden" style={{ margin: 0, padding: 0, aspectRatio: '16/9' }}>
+        <div className="relative w-full bg-black overflow-hidden rounded-lg mx-auto" style={{ margin: '1rem auto', padding: '1rem', aspectRatio: '16/9', maxWidth: '1600px' }}>
           <div 
             ref={remoteVideoRef} 
             className="w-full h-full relative"
@@ -4573,9 +4577,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               width: '100%',
               height: '100%',
               position: 'relative',
-              backgroundColor: '#000',
-              margin: 0,
-              padding: 0
+              backgroundColor: '#000'
             }}
           />
           {/* Overlays do Stream Studio - Para Viewers também */}
