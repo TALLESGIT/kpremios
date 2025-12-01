@@ -1638,8 +1638,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             videoElement.style.height = '100%';
             videoElement.style.objectFit = 'cover';
             videoElement.style.position = 'absolute';
-            videoElement.style.top = '0';
-            videoElement.style.left = '0';
+            videoElement.style.top = '0px';
+            videoElement.style.left = '0px';
             videoElement.style.zIndex = '1';
           }
         }, 300);
@@ -2418,8 +2418,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             videoElement.style.height = '100%';
             videoElement.style.objectFit = 'cover';
             videoElement.style.position = 'absolute';
-            videoElement.style.top = '0';
-            videoElement.style.left = '0';
+            videoElement.style.top = '5px';
+            videoElement.style.left = '0px';
             videoElement.style.zIndex = '5';
             videoElement.style.backgroundColor = '#000';
           }
@@ -2569,8 +2569,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             videoElement.style.height = '100%';
             videoElement.style.objectFit = 'cover';
             videoElement.style.position = 'absolute';
-            videoElement.style.top = '0';
-            videoElement.style.left = '0';
+            videoElement.style.top = '5px';
+            videoElement.style.left = '0px';
             videoElement.style.zIndex = '5'; // Abaixo dos controles mas acima do fundo
             videoElement.style.backgroundColor = '#000';
             videoElement.style.display = 'block';
@@ -2581,6 +2581,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             
             videoElement.setAttribute('autoplay', 'true');
             videoElement.setAttribute('playsinline', 'true');
+            videoElement.setAttribute('tabindex', '-1');
+            videoElement.setAttribute('controlslist', 'nodownload');
+            videoElement.classList.add('video-stream', 'html5-main-video');
             
             // Forçar play se estiver pausado
             if (videoElement.paused) {
@@ -2831,8 +2834,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             videoElement.style.height = '100%';
             videoElement.style.objectFit = 'cover';
             videoElement.style.position = 'absolute';
-            videoElement.style.top = '0';
-            videoElement.style.left = '0';
+            videoElement.style.top = '5px';
+            videoElement.style.left = '0px';
             videoElement.style.zIndex = '5'; // Abaixo dos controles mas acima do fundo
             videoElement.style.backgroundColor = '#000';
             videoElement.style.display = 'block';
@@ -2843,6 +2846,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             
             videoElement.setAttribute('autoplay', 'true');
             videoElement.setAttribute('playsinline', 'true');
+            videoElement.setAttribute('tabindex', '-1');
+            videoElement.setAttribute('controlslist', 'nodownload');
+            videoElement.classList.add('video-stream', 'html5-main-video');
             
             // Forçar play se estiver pausado
             if (videoElement.paused) {
@@ -4306,21 +4312,28 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           height: 100% !important;
           object-fit: cover !important;
           position: absolute !important;
-          top: 0 !important;
-          left: 0 !important;
+          top: 0px !important;
+          left: 0px !important;
           z-index: 5 !important;
           background-color: #000 !important;
           display: block !important;
           visibility: visible !important;
           opacity: 1 !important;
           border-radius: 0.5rem !important;
+          tabindex: -1 !important;
+        }
+        
+        [ref="localVideoRef"] video.video-stream,
+        [ref="localVideoRef"] > video.video-stream {
+          width: 100% !important;
+          height: 100% !important;
         }
         [ref="localVideoRef"] {
           width: calc(100% - 2rem) !important;
           max-width: 1600px !important;
           aspect-ratio: 16 / 9 !important;
           position: relative !important;
-          margin: 1rem auto !important;
+          margin: 0 auto !important;
           padding: 0 !important;
         }
         [ref="remoteVideoRef"] video,
@@ -4329,8 +4342,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           height: 100% !important;
           object-fit: cover !important;
           position: absolute !important;
-          top: 0 !important;
-          left: 0 !important;
+          top: 5px !important;
+          left: 0px !important;
           z-index: 15 !important;
           background-color: #000 !important;
           display: block !important;
@@ -4338,6 +4351,13 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           opacity: 1 !important;
           margin: 0 !important;
           padding: 0 !important;
+          tabindex: -1 !important;
+        }
+        
+        [ref="remoteVideoRef"] video.video-stream,
+        [ref="remoteVideoRef"] > div > video.video-stream {
+          width: 100% !important;
+          height: 100% !important;
         }
         [ref="remoteVideoRef"] {
           width: calc(100% - 2rem) !important;
@@ -4417,6 +4437,11 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             padding: 0 !important;
             border-radius: 0 !important;
           }
+        }
+        
+        /* Remover background-color do .bg-black */
+        .bg-black {
+          background-color: transparent !important;
         }
         
         /* Aplicar margens e paddings adequados aos containers de vídeo */
