@@ -3,11 +3,12 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Users, Share2, Copy, Check, ArrowLeft, Trash2, ChevronDown, ChevronUp, Settings as SettingsIcon, X } from 'lucide-react';
+import { Camera, Users, Share2, Copy, Check, ArrowLeft, Trash2, ChevronDown, ChevronUp, Settings as SettingsIcon, X, MessageSquare } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import VideoStream from '../components/live/VideoStream';
 import StreamStudio from '../components/live/StreamStudio';
 import CameraSelector from '../components/live/CameraSelector';
+import LiveChat from '../components/live/LiveChat';
 import { useStreamStudioSync } from '../hooks/useStreamStudioSync';
 
 interface LiveStream {
@@ -1181,7 +1182,9 @@ const AdminLiveStreamPage: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div className="relative">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {/* Vídeo - Ocupa 2/3 da largura em telas grandes */}
+                  <div className="lg:col-span-2 relative">
                     <VideoStream
                       channelName={currentStream.channel_name}
                       isBroadcaster={true}
@@ -1196,6 +1199,23 @@ const AdminLiveStreamPage: React.FC = () => {
                       hideControls={isOBSCamera}
                       key={`video-${currentStream.id}-${hasActiveScreenShare}-${selectedCameraDeviceId || 'default'}`}
                     />
+                  </div>
+                  
+                  {/* Chat - Ocupa 1/3 da largura em telas grandes, oculto em mobile por padrão */}
+                  <div className="lg:col-span-1 hidden lg:block">
+                    <div className="bg-slate-800/50 rounded-lg p-4 h-full flex flex-col">
+                      <h3 className="text-white font-bold mb-4 flex items-center gap-2">
+                        <MessageSquare size={20} />
+                        Chat ao Vivo
+                      </h3>
+                      <div className="flex-1 overflow-hidden">
+                        <LiveChat 
+                          streamId={currentStream.id}
+                          channelName={currentStream.channel_name}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
