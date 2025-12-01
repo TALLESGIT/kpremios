@@ -4466,10 +4466,23 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         @media (max-width: 767px) {
           #video-player {
             margin: 0 !important;
+            padding: 0 !important;
           }
           
           /* Remover padding da classe p-3 no mobile */
           .p-3 {
+            padding: 0 !important;
+          }
+          
+          /* Remover background-color transparent do .bg-black no mobile (voltar ao padrão) */
+          .bg-black {
+            background-color: rgb(0 0 0 / var(--tw-bg-opacity, 1)) !important;
+          }
+          
+          /* Remover margin e padding de elementos com estilo inline no mobile */
+          [style*="margin: 1rem auto"],
+          [style*="padding: 1rem"] {
+            margin: 0 !important;
             padding: 0 !important;
           }
         }
@@ -4616,7 +4629,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
       {/* Vídeo Remoto (Viewers) */}
       {!isBroadcaster && (
-        <div className="relative w-full bg-black overflow-hidden rounded-lg mx-auto" style={{ margin: '1rem auto', padding: '1rem', aspectRatio: '16/9', maxWidth: '1600px' }}>
+        <div className="relative w-full bg-black overflow-hidden rounded-lg mx-auto" style={{ margin: '0', padding: '0', aspectRatio: '16/9', maxWidth: '1600px' }}>
           <div 
             ref={remoteVideoRef} 
             className="w-full h-full relative"
