@@ -4402,11 +4402,22 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         
         /* No mobile, usar contain para não cortar conteúdo */
         @media (max-width: 767px) {
+          #video-player:fullscreen,
+          #video-player:-webkit-full-screen,
+          #video-player:-moz-full-screen,
+          #video-player:-ms-fullscreen {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+          
           #video-player:fullscreen video,
           #video-player:-webkit-full-screen video,
           #video-player:-moz-full-screen video,
           #video-player:-ms-fullscreen video {
             object-fit: contain !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
           }
         }
         
