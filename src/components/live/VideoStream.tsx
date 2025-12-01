@@ -5,6 +5,50 @@ import AgoraRTC from 'agora-rtc-sdk-ng';
 import { supabase } from '../../lib/supabase';
 import StreamOverlay from './StreamOverlay';
 
+// Suprimir warnings específicos do Agora SDK que são comuns e não afetam funcionalidade
+// Esses erros ocorrem durante reconexões WebSocket e são normais
+let agoraWarningsSuppressed = false;
+
+const suppressAgoraWarnings = () => {
+  // Aplicar apenas uma vez
+  if (agoraWarningsSuppressed) return;
+  
+  const originalError = console.error;
+  const originalWarn = console.warn;
+  
+  // Padrões de erros do Agora SDK que podem ser ignorados (são comuns durante reconexões)
+  const ignorablePatterns = [
+    /AgoraRTCError WS_ABORT: type: ping/i,
+    /AgoraRTCError WS_ABORT: type: traffic_stats/i,
+    /AgoraRTCError WS_ABORT: type: restart_ice/i,
+    /restart ICE failed, abort operation/i,
+    /get traffic stats error.*WS_ABORT/i,
+    /P2PChannel\.restartICE warning/i,
+    /AgoraRTCException.*WS_ABORT.*type: (ping|traffic_stats|restart_ice)/i
+  ];
+  
+  console.error = (...args: any[]) => {
+    const message = args.join(' ');
+    const shouldIgnore = ignorablePatterns.some(pattern => pattern.test(message));
+    if (!shouldIgnore) {
+      originalError.apply(console, args);
+    }
+  };
+  
+  console.warn = (...args: any[]) => {
+    const message = args.join(' ');
+    const shouldIgnore = ignorablePatterns.some(pattern => pattern.test(message));
+    if (!shouldIgnore) {
+      originalWarn.apply(console, args);
+    }
+  };
+  
+  agoraWarningsSuppressed = true;
+};
+
+// Aplicar supressão ao carregar o módulo (apenas uma vez)
+suppressAgoraWarnings();
+
 interface AdImage {
   id: string;
   url: string;
@@ -888,17 +932,17 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         // Desenhar primeiro frame imediatamente
         drawFrame();
         
-        // Iniciar loop de desenho (30 FPS)
+        // Iniciar loop de desenho (60 FPS)
         const drawInterval = setInterval(() => {
           try {
             drawFrame();
           } catch (e) {
             console.warn('Erro ao desenhar frame:', e);
           }
-        }, 1000 / 30);
+        }, 1000 / 60);
         
         // Criar stream a partir do canvas
-        const stream = canvas.captureStream(30);
+        const stream = canvas.captureStream(60);
         const videoTrack = stream.getVideoTracks()[0];
         
         if (!videoTrack) {
@@ -1023,7 +1067,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             await new Promise(resolve => setTimeout(resolve, 500));
             
             // Criar track a partir do elemento de vídeo usando captureStream
-            const stream = videoElement.captureStream(30); // 30 FPS
+            const stream = videoElement.captureStream(60); // 60 FPS
             const videoTrack = stream.getVideoTracks()[0];
             
             if (!videoTrack) {
@@ -1943,7 +1987,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             if (videoElement) {
               videoElement.style.width = '100%';
               videoElement.style.height = '100%';
-              videoElement.style.objectFit = 'contain';
+              videoElement.style.objectFit = 'cover';
               videoElement.style.position = 'absolute';
               videoElement.style.top = '0';
               videoElement.style.left = '0';
@@ -4227,9 +4271,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           opacity: 1 !important;
         }
         [ref="localVideoRef"] {
-          aspect-ratio: 16 / 9 !important;
           width: 100% !important;
+          height: 100% !important;
           position: relative !important;
+          min-height: 400px !important;
         }
         [ref="remoteVideoRef"] video,
         [ref="remoteVideoRef"] > div > video {
@@ -4246,14 +4291,16 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           opacity: 1 !important;
         }
         [ref="remoteVideoRef"] {
-          aspect-ratio: 16 / 9 !important;
           width: 100% !important;
+          height: 100% !important;
           position: relative !important;
+          min-height: 400px !important;
         }
         [ref="remoteVideoRef"] > div {
-          aspect-ratio: 16 / 9 !important;
           width: 100% !important;
+          height: 100% !important;
           position: relative !important;
+          min-height: 400px !important;
         }
         @keyframes fadeIn {
           from { opacity: 0; }
@@ -4263,18 +4310,19 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       <div className="relative w-full bg-black rounded-lg overflow-hidden">
         {/* Vídeo Local (Broadcaster) */}
         {isBroadcaster && (
-          <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16 / 9' }}>
+          <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ minHeight: '400px', height: '100%' }}>
             {/* Container para o vídeo - SDK do Agora gerencia este elemento */}
             <div 
               ref={localVideoRef} 
               className="w-full h-full relative"
               style={{ 
                 width: '100%',
+                height: '100%',
+                minHeight: '400px',
                 position: 'relative',
                 backgroundColor: '#000',
                 overflow: 'hidden',
-                display: 'block',
-                aspectRatio: '16 / 9'
+                display: 'block'
               }}
             />
             {/* Overlays do Stream Studio - Renderizar sobre o vídeo */}
@@ -4610,15 +4658,16 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
       {/* Vídeo Remoto (Viewers) */}
       {!isBroadcaster && (
-        <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16 / 9' }}>
+        <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ minHeight: '400px', height: '100%' }}>
           <div 
             ref={remoteVideoRef} 
             className="w-full h-full relative"
             style={{ 
               width: '100%',
+              height: '100%',
+              minHeight: '400px',
               position: 'relative',
-              backgroundColor: '#000',
-              aspectRatio: '16 / 9'
+              backgroundColor: '#000'
             }}
           />
           {/* Overlays do Stream Studio - Para Viewers também */}
