@@ -247,18 +247,13 @@ const PublicLiveStreamPage: React.FC = () => {
         let element: HTMLElement | null = null;
 
         if (isMobile) {
-          // No mobile, tentar primeiro o video-player, depois o container, por último o documentElement
-          element = document.getElementById('video-player') as HTMLElement;
-          if (!element) {
-            element = videoContainerRef.current;
-          }
-          if (!element) {
-            element = document.documentElement;
-          }
+          // No mobile, usar documentElement diretamente para melhor compatibilidade
+          element = document.documentElement;
         } else {
           // Desktop: usar container do vídeo
           element = videoContainerRef.current || 
                    document.querySelector('.video-container-fullscreen') as HTMLElement ||
+                   document.getElementById('video-player') as HTMLElement ||
                    document.documentElement;
         }
 
@@ -269,18 +264,25 @@ const PublicLiveStreamPage: React.FC = () => {
         // Tentar entrar em fullscreen com suporte a todos os navegadores
         let fullscreenPromise: Promise<void> | null = null;
 
-        if (element.requestFullscreen) {
-          fullscreenPromise = element.requestFullscreen() as Promise<void>;
-        } else if ((element as any).webkitRequestFullscreen) {
-          fullscreenPromise = (element as any).webkitRequestFullscreen();
-        } else if ((element as any).mozRequestFullScreen) {
-          fullscreenPromise = (element as any).mozRequestFullScreen();
-        } else if ((element as any).msRequestFullscreen) {
-          fullscreenPromise = (element as any).msRequestFullscreen();
-        }
+        try {
+          if (element.requestFullscreen) {
+            fullscreenPromise = element.requestFullscreen() as Promise<void>;
+          } else if ((element as any).webkitRequestFullscreen) {
+            fullscreenPromise = (element as any).webkitRequestFullscreen();
+          } else if ((element as any).mozRequestFullScreen) {
+            fullscreenPromise = (element as any).mozRequestFullScreen();
+          } else if ((element as any).msRequestFullscreen) {
+            fullscreenPromise = (element as any).msRequestFullscreen();
+          }
 
-        if (fullscreenPromise) {
-          await fullscreenPromise;
+          if (fullscreenPromise) {
+            await fullscreenPromise;
+            // Aguardar um pouco para garantir que o fullscreen foi aplicado
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        } catch (fullscreenError) {
+          console.error('Erro ao entrar em fullscreen:', fullscreenError);
+          throw fullscreenError;
         }
         
         setIsFullscreen(true);

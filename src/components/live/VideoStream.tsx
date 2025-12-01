@@ -504,13 +504,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           const pixelX = (cameraPipPosition.x / 100) * availableWidth;
           const pixelY = (cameraPipPosition.y / 100) * availableHeight;
           
-          console.log('📐 Conversão de posição (Viewer):', {
-            percent: cameraPipPosition,
-            containerSize: { width: container.width, height: container.height },
-            availableSize: { width: availableWidth, height: availableHeight },
-            pixelPosition: { x: pixelX, y: pixelY },
-            finalPosition: { x: Math.max(0, Math.min(availableWidth, pixelX)), y: Math.max(0, Math.min(availableHeight, pixelY)) }
-          });
+          // Log removido para evitar spam no console durante fullscreen
           
           setCameraPosition({
             x: Math.max(0, Math.min(availableWidth, pixelX)),
