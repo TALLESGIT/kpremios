@@ -1317,15 +1317,15 @@ const AdminLiveStreamPage: React.FC = () => {
                       key={`video-${currentStream.id}-${hasActiveScreenShare}-${selectedCameraDeviceId || 'default'}`}
                     />
                     
-                    {/* Botão de Fullscreen - Sempre visível, transparente e acima de tudo (apenas desktop) */}
-                    <div className="fullscreen-button-container absolute bottom-4 right-4 z-[9999]">
+                    {/* Botão de Fullscreen - Sempre visível, transparente e acima de tudo */}
+                    <div className="fullscreen-button-container absolute bottom-2 right-4 z-[9999]">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           e.preventDefault();
                           toggleFullscreen();
                         }}
-                        className="bg-black/20 hover:bg-black/40 text-white p-3 rounded-full transition-all backdrop-blur-sm border border-white/20 shadow-lg"
+                        className="bg-black/10 hover:bg-black/30 text-white p-3 rounded-full transition-all backdrop-blur-sm border border-white/15 shadow-lg"
                         aria-label={isFullscreen ? "Sair de tela cheia" : "Tela cheia"}
                         title={isFullscreen ? "Sair de tela cheia" : "Tela cheia"}
                         style={{ zIndex: 9999 }}
