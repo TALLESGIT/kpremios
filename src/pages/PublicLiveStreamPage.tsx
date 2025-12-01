@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Share2, Copy, Check, Eye, ArrowLeft, Home, Maximize2, Minimize2, MessageSquare, X } from 'lucide-react';
@@ -24,6 +24,7 @@ const PublicLiveStreamPage: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false); // Detectar se é mobile
   const [controlsVisible, setControlsVisible] = useState(true); // Controles visíveis
   const [vipMessages, setVipMessages] = useState<any[]>([]); // Mensagens VIP para overlay
+  const videoContainerRef = useRef<HTMLDivElement>(null); // Ref para o container do vídeo (para fullscreen como YouTube)
   
   // Sincronizar Stream Studio com transmissão ao vivo
   const { activeScene } = useStreamStudioSync(stream?.id || '');
@@ -253,18 +254,24 @@ const PublicLiveStreamPage: React.FC = () => {
           }
         }
 
-        // Tentar entrar em fullscreen no container do vídeo primeiro
-        const videoContainer = document.querySelector('.video-container-fullscreen') as HTMLElement;
-        const element = videoContainer || document.documentElement;
+        // Tentar entrar em fullscreen no container do vídeo (como YouTube)
+        // Priorizar o ref, depois querySelector, por último documentElement
+        const element = videoContainerRef.current || 
+                       document.querySelector('.video-container-fullscreen') as HTMLElement ||
+                       document.documentElement;
         
-        // Request fullscreen
+        // Request fullscreen usando a API nativa (como YouTube)
         if (element.requestFullscreen) {
+          // Padrão W3C (Chrome, Firefox, Edge moderno)
           await element.requestFullscreen();
         } else if ((element as any).webkitRequestFullscreen) {
+          // Safari e Chrome antigo
           await (element as any).webkitRequestFullscreen();
         } else if ((element as any).mozRequestFullScreen) {
+          // Firefox antigo
           await (element as any).mozRequestFullScreen();
         } else if ((element as any).msRequestFullscreen) {
+          // Internet Explorer / Edge antigo
           await (element as any).msRequestFullscreen();
         }
         
@@ -502,11 +509,21 @@ const PublicLiveStreamPage: React.FC = () => {
             object-fit: cover !important;
           }
           
-          /* Container do vídeo em fullscreen */
+          /* Container do vídeo em fullscreen - Estilo YouTube */
           .video-container-fullscreen {
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
+          }
+          
+          /* Quando em fullscreen, garantir que o container ocupe 100% da tela */
+          .video-container-fullscreen:fullscreen,
+          .video-container-fullscreen:-webkit-full-screen,
+          .video-container-fullscreen:-moz-full-screen,
+          .video-container-fullscreen:-ms-fullscreen {
+            width: 100vw !important;
+            height: 100vh !important;
+            background: #000 !important;
           }
           
           .video-container-fullscreen > div {
@@ -518,6 +535,33 @@ const PublicLiveStreamPage: React.FC = () => {
           .video-container-fullscreen > div > div:first-child {
             width: 100% !important;
             height: 100% !important;
+          }
+          
+          /* Garantir que o vídeo dentro do container cubra toda a área em fullscreen */
+          .video-container-fullscreen:fullscreen video,
+          .video-container-fullscreen:-webkit-full-screen video,
+          .video-container-fullscreen:-moz-full-screen video,
+          .video-container-fullscreen:-ms-fullscreen video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+          }
+          
+          /* Botão de fullscreen sempre visível acima de tudo */
+          .fullscreen-button-container {
+            z-index: 99999 !important;
+            position: absolute !important;
+            pointer-events: none !important;
+          }
+          
+          .fullscreen-button-container button {
+            z-index: 99999 !important;
+            pointer-events: auto !important;
+            opacity: 0.8 !important;
+          }
+          
+          .fullscreen-button-container button:hover {
+            opacity: 1 !important;
           }
         `}</style>
       )}
@@ -578,7 +622,10 @@ const PublicLiveStreamPage: React.FC = () => {
 
         {/* Layout: Vídeo + Chat - Estilo YouTube */}
         {stream.is_active ? (
-          <div className={`relative video-container-fullscreen ${isFullscreen ? 'fixed inset-0 z-50 bg-black' : ''}`}>
+          <div 
+            ref={videoContainerRef}
+            className={`relative video-container-fullscreen ${isFullscreen ? 'fixed inset-0 z-50 bg-black' : ''}`}
+          >
             {/* Container principal - Grid responsivo estilo YouTube */}
             <div className={`relative ${isFullscreen ? 'w-full h-full flex' : 'grid grid-cols-1 xl:grid-cols-[1fr_400px] 2xl:grid-cols-[1fr_450px] gap-4 md:gap-6 mb-6'}`}>
               {/* Player de Vídeo - Ocupa espaço flexível */}
@@ -617,19 +664,22 @@ const PublicLiveStreamPage: React.FC = () => {
                     activeScene={activeScene}
                   />
                   
-                  {/* Botão de Fullscreen dentro do vídeo (como YouTube) */}
+                  {/* Botão de Fullscreen - Sempre visível, transparente e acima de tudo */}
                   {!isFullscreen && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFullscreen();
-                      }}
-                      className="absolute bottom-4 right-4 z-10 bg-black/70 hover:bg-black/90 text-white p-2.5 rounded-full transition-all backdrop-blur-sm border border-white/20 shadow-lg"
-                      aria-label="Tela cheia"
-                      title="Tela cheia"
-                    >
-                      <Maximize2 size={20} />
-                    </button>
+                    <div className="fullscreen-button-container absolute bottom-4 right-4">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          toggleFullscreen();
+                        }}
+                        className="bg-black/40 hover:bg-black/60 text-white p-3 rounded-full transition-all backdrop-blur-md border border-white/30 shadow-2xl"
+                        aria-label="Tela cheia"
+                        title="Tela cheia"
+                      >
+                        <Maximize2 size={22} className="drop-shadow-lg" />
+                      </button>
+                    </div>
                   )}
                   
                   {/* Ícone de Chat Transparente (Mobile Fullscreen) */}

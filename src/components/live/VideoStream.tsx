@@ -4227,7 +4227,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           opacity: 1 !important;
         }
         [ref="localVideoRef"] {
-          aspect-ratio: 1 / 1 !important;
+          aspect-ratio: 16 / 9 !important;
           width: 100% !important;
           position: relative !important;
         }
@@ -4246,12 +4246,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           opacity: 1 !important;
         }
         [ref="remoteVideoRef"] {
-          aspect-ratio: 1 / 1 !important;
+          aspect-ratio: 16 / 9 !important;
           width: 100% !important;
           position: relative !important;
         }
         [ref="remoteVideoRef"] > div {
-          aspect-ratio: 1 / 1 !important;
+          aspect-ratio: 16 / 9 !important;
           width: 100% !important;
           position: relative !important;
         }
@@ -4263,7 +4263,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       <div className="relative w-full bg-black rounded-lg overflow-hidden">
         {/* Vídeo Local (Broadcaster) */}
         {isBroadcaster && (
-          <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '1 / 1' }}>
+          <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16 / 9' }}>
             {/* Container para o vídeo - SDK do Agora gerencia este elemento */}
             <div 
               ref={localVideoRef} 
@@ -4274,7 +4274,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                 backgroundColor: '#000',
                 overflow: 'hidden',
                 display: 'block',
-                aspectRatio: '1 / 1'
+                aspectRatio: '16 / 9'
               }}
             />
             {/* Overlays do Stream Studio - Renderizar sobre o vídeo */}
@@ -4610,7 +4610,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
       {/* Vídeo Remoto (Viewers) */}
       {!isBroadcaster && (
-        <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '1 / 1' }}>
+        <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16 / 9' }}>
           <div 
             ref={remoteVideoRef} 
             className="w-full h-full relative"
@@ -4618,7 +4618,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               width: '100%',
               position: 'relative',
               backgroundColor: '#000',
-              aspectRatio: '1 / 1'
+              aspectRatio: '16 / 9'
             }}
           />
           {/* Overlays do Stream Studio - Para Viewers também */}
