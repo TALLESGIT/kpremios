@@ -4470,6 +4470,11 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           .p-3 {
             padding: 0 !important;
           }
+          
+          /* Remover background-color transparent do .bg-black no mobile */
+          .bg-black {
+            background-color: transparent !important;
+          }
         }
         
         /* Em fullscreen, remover margens e paddings */
