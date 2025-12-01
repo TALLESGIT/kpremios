@@ -299,6 +299,56 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     return () => clearInterval(interval);
   }, [isBroadcaster, isStreaming, hasLocalVideo]);
 
+  // Auto fullscreen ao virar o celular para paisagem
+  useEffect(() => {
+    const handleOrientationChange = () => {
+      const videoPlayer = document.getElementById('video-player');
+      if (!videoPlayer) return;
+
+      // Verificar orientação (90 ou -90 = paisagem)
+      const isLandscape = window.orientation === 90 || window.orientation === -90 || 
+                         (window.innerWidth > window.innerHeight);
+
+      if (isLandscape) {
+        // Paisagem = entrar em tela cheia
+        if (videoPlayer.requestFullscreen) {
+          videoPlayer.requestFullscreen().catch((err) => {
+            console.log('⚠️ Não foi possível entrar em fullscreen:', err);
+          });
+        } else if ((videoPlayer as any).webkitRequestFullscreen) {
+          (videoPlayer as any).webkitRequestFullscreen();
+        } else if ((videoPlayer as any).mozRequestFullScreen) {
+          (videoPlayer as any).mozRequestFullScreen();
+        } else if ((videoPlayer as any).msRequestFullscreen) {
+          (videoPlayer as any).msRequestFullscreen();
+        }
+      } else {
+        // Retrato = sair da tela cheia
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch((err) => {
+            console.log('⚠️ Não foi possível sair do fullscreen:', err);
+          });
+        } else if ((document as any).webkitFullscreenElement) {
+          (document as any).webkitExitFullscreen();
+        } else if ((document as any).mozFullScreenElement) {
+          (document as any).mozCancelFullScreen();
+        } else if ((document as any).msFullscreenElement) {
+          (document as any).msExitFullscreen();
+        }
+      }
+    };
+
+    // Adicionar listener para mudança de orientação
+    window.addEventListener('orientationchange', handleOrientationChange);
+    // Também escutar resize para detectar mudanças de orientação em alguns dispositivos
+    window.addEventListener('resize', handleOrientationChange);
+
+    return () => {
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      window.removeEventListener('resize', handleOrientationChange);
+    };
+  }, []);
+
   // Verificar periodicamente se o vídeo remoto está visível (para garantir que o overlay não apareça)
   useEffect(() => {
     if (isBroadcaster) return;
@@ -1838,7 +1888,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         console.log('✅ Screen tracks criados:', {
           hasVideo: !!screenVideoTrack,
           hasAudio: !!screenAudioTrack,
-          audioType: screenAudioTrack?.track?.kind
+          audioType: screenAudioTrack ? 'audio' : undefined
         });
         
         screenVideoTrackRef.current = screenVideoTrack;
@@ -1915,7 +1965,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             console.log('   Tracks publicados:', clientRef.current.localTracks.length);
           } catch (error) {
             console.error('❌ Erro ao criar track combinado:', error);
-            console.error('   Stack:', error.stack);
+            console.error('   Stack:', error instanceof Error ? error.stack : 'N/A');
             console.log('🔄 Fallback: publicando apenas screen sharing...');
             // Fallback: publicar apenas screen sharing
             const tracksToPublish = screenAudioTrack ? [screenVideoTrack, screenAudioTrack] : [screenVideoTrack];
@@ -3128,15 +3178,13 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               // Reproduzir áudio se o track estiver disponível
               if (user.audioTrack) {
                 try {
-                  const playResult = user.audioTrack.play();
-                  if (playResult && typeof playResult.then === 'function') {
+                  // play() pode retornar Promise<void> ou void
+                  const playResult = user.audioTrack.play() as Promise<void> | void | null | undefined;
+                  if (playResult && playResult instanceof Promise) {
                     await playResult;
-                    console.log('✅ Áudio remoto reproduzindo');
-                    setAudioBlocked(false);
-                  } else {
-                    console.log('✅ Áudio remoto reproduzindo (sem Promise)');
-                    setAudioBlocked(false);
                   }
+                  console.log('✅ Áudio remoto reproduzindo');
+                  setAudioBlocked(false);
                 } catch (audioError: any) {
                   console.error('❌ Erro ao reproduzir áudio:', audioError);
                   console.log('⚠️ Áudio bloqueado pelo navegador');
@@ -4126,9 +4174,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       
       // Parar todos os MediaStreams que possam estar ativos
       try {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          // Obter todos os streams ativos e parar
-          const streams = await navigator.mediaDevices.enumerateDevices();
+        // Obter todos os streams ativos e parar
+        if (navigator.mediaDevices?.enumerateDevices) {
+          await navigator.mediaDevices.enumerateDevices();
           // Isso não para os streams, mas podemos tentar parar via getTracks
         }
       } catch (e) {
@@ -4306,8 +4354,27 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           from { opacity: 0; }
           to { opacity: 1; }
         }
+        
+        /* Estilos para fullscreen automático ao virar celular */
+        #video-player:fullscreen,
+        #video-player:-webkit-full-screen,
+        #video-player:-moz-full-screen,
+        #video-player:-ms-fullscreen {
+          width: 100vw !important;
+          height: 100vh !important;
+          background: #000 !important;
+        }
+        
+        #video-player:fullscreen video,
+        #video-player:-webkit-full-screen video,
+        #video-player:-moz-full-screen video,
+        #video-player:-ms-fullscreen video {
+          width: 100% !important;
+          height: 100% !important;
+          object-fit: cover !important;
+        }
       `}</style>
-      <div className="relative w-full bg-black rounded-lg overflow-hidden">
+      <div id="video-player" className="relative w-full bg-black rounded-lg overflow-hidden">
         {/* Vídeo Local (Broadcaster) */}
         {isBroadcaster && (
           <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ minHeight: '400px', height: '100%' }}>
