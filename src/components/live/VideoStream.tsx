@@ -4594,7 +4594,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
       {/* Vídeo Remoto (Viewers) */}
       {!isBroadcaster && (
-        <div className="relative w-full bg-black overflow-hidden rounded-lg mx-auto" style={{ margin: '1rem auto', padding: '1rem', aspectRatio: '16/9', maxWidth: '1600px' }}>
+        <div className="relative w-full bg-black overflow-hidden rounded-lg mx-auto" style={{ margin: '1rem auto', aspectRatio: '16/9', maxWidth: '1600px' }}>
           <div 
             ref={remoteVideoRef} 
             className="w-full h-full relative"
