@@ -234,47 +234,53 @@ const PublicLiveStreamPage: React.FC = () => {
   // Função para entrar/sair de tela cheia (com suporte mobile)
   const toggleFullscreen = async () => {
     try {
-      if (!document.fullscreenElement) {
-        // Para mobile, tentar orientação landscape ANTES de entrar em fullscreen
+      // Verificar se já está em fullscreen (com suporte a todos os navegadores)
+      const isCurrentlyFullscreen = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+
+      if (!isCurrentlyFullscreen) {
+        // Entrar em fullscreen
+        let element: HTMLElement | null = null;
+
         if (isMobile) {
-          // Tentar múltiplas formas de bloquear orientação
-          try {
-            if (screen.orientation && (screen.orientation as any).lock) {
-              await (screen.orientation as any).lock('landscape');
-            } else if ((window as any).DeviceOrientationEvent && (window as any).DeviceOrientationEvent.requestPermission) {
-              // iOS 13+
-              const permission = await (window as any).DeviceOrientationEvent.requestPermission();
-              if (permission === 'granted') {
-                // Orientação será controlada pelo CSS
-              }
-            }
-          } catch (orientationError) {
-            console.log('Não foi possível bloquear orientação:', orientationError);
-            // Continuar mesmo se não conseguir bloquear
+          // No mobile, tentar primeiro o video-player, depois o container, por último o documentElement
+          element = document.getElementById('video-player') as HTMLElement;
+          if (!element) {
+            element = videoContainerRef.current;
           }
+          if (!element) {
+            element = document.documentElement;
+          }
+        } else {
+          // Desktop: usar container do vídeo
+          element = videoContainerRef.current || 
+                   document.querySelector('.video-container-fullscreen') as HTMLElement ||
+                   document.documentElement;
         }
 
-        // Tentar entrar em fullscreen no container do vídeo (como YouTube)
-        // No mobile, usar #video-player diretamente para melhor compatibilidade
-        const element = isMobile 
-          ? (document.getElementById('video-player') as HTMLElement) || videoContainerRef.current || document.documentElement
-          : videoContainerRef.current || 
-            document.querySelector('.video-container-fullscreen') as HTMLElement ||
-            document.documentElement;
-        
-        // Request fullscreen usando a API nativa (como YouTube)
+        if (!element) {
+          element = document.documentElement;
+        }
+
+        // Tentar entrar em fullscreen com suporte a todos os navegadores
+        let fullscreenPromise: Promise<void> | null = null;
+
         if (element.requestFullscreen) {
-          // Padrão W3C (Chrome, Firefox, Edge moderno)
-          await element.requestFullscreen();
+          fullscreenPromise = element.requestFullscreen() as Promise<void>;
         } else if ((element as any).webkitRequestFullscreen) {
-          // Safari e Chrome antigo
-          await (element as any).webkitRequestFullscreen();
+          fullscreenPromise = (element as any).webkitRequestFullscreen();
         } else if ((element as any).mozRequestFullScreen) {
-          // Firefox antigo
-          await (element as any).mozRequestFullScreen();
+          fullscreenPromise = (element as any).mozRequestFullScreen();
         } else if ((element as any).msRequestFullscreen) {
-          // Internet Explorer / Edge antigo
-          await (element as any).msRequestFullscreen();
+          fullscreenPromise = (element as any).msRequestFullscreen();
+        }
+
+        if (fullscreenPromise) {
+          await fullscreenPromise;
         }
         
         setIsFullscreen(true);
@@ -292,19 +298,29 @@ const PublicLiveStreamPage: React.FC = () => {
         }
       } else {
         // Sair do fullscreen
+        let exitPromise: Promise<void> | null = null;
+
         if (document.exitFullscreen) {
-          await document.exitFullscreen();
+          exitPromise = document.exitFullscreen() as Promise<void>;
         } else if ((document as any).webkitExitFullscreen) {
-          await (document as any).webkitExitFullscreen();
+          exitPromise = (document as any).webkitExitFullscreen();
         } else if ((document as any).mozCancelFullScreen) {
-          await (document as any).mozCancelFullScreen();
+          exitPromise = (document as any).mozCancelFullScreen();
         } else if ((document as any).msExitFullscreen) {
-          await (document as any).msExitFullscreen();
+          exitPromise = (document as any).msExitFullscreen();
+        }
+
+        if (exitPromise) {
+          await exitPromise;
         }
         
         // Desbloquear orientação
         if (screen.orientation && screen.orientation.unlock) {
-          screen.orientation.unlock();
+          try {
+            screen.orientation.unlock();
+          } catch (e) {
+            // Ignorar erro ao desbloquear
+          }
         }
         
         setIsFullscreen(false);
@@ -314,8 +330,15 @@ const PublicLiveStreamPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Erro ao alternar tela cheia:', err);
-      if (!document.fullscreenElement) {
-        toast.error('Não foi possível entrar em tela cheia');
+      const isCurrentlyFullscreen = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+      
+      if (!isCurrentlyFullscreen) {
+        toast.error('Não foi possível entrar em tela cheia. Tente novamente.');
       }
     }
   };
