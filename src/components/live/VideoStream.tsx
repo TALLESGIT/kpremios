@@ -4417,11 +4417,6 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             margin: 0 !important;
           }
           
-          /* Border-radius apenas para broadcaster (admin) */
-          #video-player[data-broadcaster="true"] > div {
-            border-radius: 0 !important;
-          }
-          
           [ref="localVideoRef"],
           [ref="remoteVideoRef"] {
             aspect-ratio: auto !important;
