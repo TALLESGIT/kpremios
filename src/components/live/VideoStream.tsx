@@ -4390,6 +4390,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           margin: 0 !important;
           padding: 0 !important;
           border-radius: 0 !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
         }
         
         #video-player:fullscreen video,
@@ -4398,9 +4401,19 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         #video-player:-ms-fullscreen video {
           width: 100% !important;
           height: 100% !important;
-          object-fit: cover !important;
+          object-fit: contain !important;
           margin: 0 !important;
           padding: 0 !important;
+        }
+        
+        /* No mobile, usar contain para não cortar conteúdo */
+        @media (max-width: 767px) {
+          #video-player:fullscreen video,
+          #video-player:-webkit-full-screen video,
+          #video-player:-moz-full-screen video,
+          #video-player:-ms-fullscreen video {
+            object-fit: contain !important;
+          }
         }
         
         /* Media query para orientação landscape em mobile */
@@ -4430,7 +4443,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           [ref="remoteVideoRef"] video {
             width: 100vw !important;
             height: 100vh !important;
-            object-fit: cover !important;
+            object-fit: contain !important;
             margin: 0 !important;
             padding: 0 !important;
             border-radius: 0 !important;

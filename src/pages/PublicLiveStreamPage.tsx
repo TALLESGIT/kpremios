@@ -521,17 +521,17 @@ const PublicLiveStreamPage: React.FC = () => {
           .video-container-fullscreen video {
             width: 100% !important;
             height: 100% !important;
-            object-fit: cover !important;
+            object-fit: contain !important;
           }
           
-          /* Para desktop, também garantir cover no fullscreen */
+          /* Para mobile, usar contain para não cortar conteúdo */
           .video-container-fullscreen > div > div video,
           .video-container-fullscreen video,
           .video-container-fullscreen [ref="remoteVideoRef"] video,
           .video-container-fullscreen [ref="remoteVideoRef"] > div > video {
             width: 100% !important;
             height: 100% !important;
-            object-fit: cover !important;
+            object-fit: contain !important;
           }
           
           /* Container do vídeo em fullscreen - Estilo YouTube */
