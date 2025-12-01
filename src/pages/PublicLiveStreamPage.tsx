@@ -665,22 +665,20 @@ const PublicLiveStreamPage: React.FC = () => {
                   />
                   
                   {/* Botão de Fullscreen - Sempre visível, transparente e acima de tudo */}
-                  {!isFullscreen && (
-                    <div className="fullscreen-button-container absolute bottom-4 right-4">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          toggleFullscreen();
-                        }}
-                        className="bg-black/40 hover:bg-black/60 text-white p-3 rounded-full transition-all backdrop-blur-md border border-white/30 shadow-2xl"
-                        aria-label="Tela cheia"
-                        title="Tela cheia"
-                      >
-                        <Maximize2 size={22} className="drop-shadow-lg" />
-                      </button>
-                    </div>
-                  )}
+                  <div className="fullscreen-button-container absolute bottom-4 right-4 z-50">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        toggleFullscreen();
+                      }}
+                      className="bg-black/40 hover:bg-black/60 text-white p-3 rounded-full transition-all backdrop-blur-md border border-white/30 shadow-2xl"
+                      aria-label={isFullscreen ? "Sair de tela cheia" : "Tela cheia"}
+                      title={isFullscreen ? "Sair de tela cheia" : "Tela cheia"}
+                    >
+                      {isFullscreen ? <Minimize2 size={22} className="drop-shadow-lg" /> : <Maximize2 size={22} className="drop-shadow-lg" />}
+                    </button>
+                  </div>
                   
                   {/* Ícone de Chat Transparente (Mobile Fullscreen) */}
                   {isFullscreen && isMobile && showChatIcon && !showChatInFullscreen && (

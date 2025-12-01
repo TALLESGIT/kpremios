@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Users, Share2, Copy, Check, ArrowLeft, Trash2, ChevronDown, ChevronUp, Settings as SettingsIcon, X, MessageSquare } from 'lucide-react';
+import { Camera, Users, Share2, Copy, Check, ArrowLeft, Trash2, ChevronDown, ChevronUp, Settings as SettingsIcon, X, MessageSquare, Maximize2, Minimize2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import VideoStream from '../components/live/VideoStream';
 import StreamStudio from '../components/live/StreamStudio';
@@ -63,6 +63,7 @@ const AdminLiveStreamPage: React.FC = () => {
   const [showAdManager, setShowAdManager] = useState(false);
   const [showStats, setShowStats] = useState(false); // Estado para mostrar/ocultar estatísticas
   const [showStreamStudio, setShowStreamStudio] = useState(false); // Estado para o Stream Studio
+  const [isFullscreen, setIsFullscreen] = useState(false); // Estado para tela cheia
   const [newAdImage, setNewAdImage] = useState<{url: string; file: File | null; duration: number}>({url: '', file: null, duration: 5});
   const [newOverlayAd, setNewOverlayAd] = useState<{url: string; file: File | null}>({url: '', file: null});
   
@@ -246,6 +247,69 @@ const AdminLiveStreamPage: React.FC = () => {
     
     return () => clearInterval(interval);
   }, [currentStream?.id]);
+
+  // Função para entrar/sair de tela cheia
+  const toggleFullscreen = async () => {
+    try {
+      const videoPlayer = document.getElementById('video-player');
+      if (!videoPlayer) return;
+
+      if (!document.fullscreenElement) {
+        // Entrar em fullscreen
+        if (videoPlayer.requestFullscreen) {
+          await videoPlayer.requestFullscreen();
+        } else if ((videoPlayer as any).webkitRequestFullscreen) {
+          await (videoPlayer as any).webkitRequestFullscreen();
+        } else if ((videoPlayer as any).mozRequestFullScreen) {
+          await (videoPlayer as any).mozRequestFullScreen();
+        } else if ((videoPlayer as any).msRequestFullscreen) {
+          await (videoPlayer as any).msRequestFullscreen();
+        }
+      } else {
+        // Sair do fullscreen
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        } else if ((document as any).mozCancelFullScreen) {
+          await (document as any).mozCancelFullScreen();
+        } else if ((document as any).msExitFullscreen) {
+          await (document as any).msExitFullscreen();
+        }
+      }
+    } catch (err: any) {
+      console.error('Erro ao alternar tela cheia:', err);
+      if (!document.fullscreenElement) {
+        toast.error('Não foi possível entrar em tela cheia');
+      }
+    }
+  };
+
+  // Detectar mudanças no estado de tela cheia
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(
+        !!(
+          document.fullscreenElement ||
+          (document as any).webkitFullscreenElement ||
+          (document as any).mozFullScreenElement ||
+          (document as any).msFullscreenElement
+        )
+      );
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
   
   // Inicializar detailedStats como objeto vazio se não existir
   useEffect(() => {
@@ -1199,6 +1263,22 @@ const AdminLiveStreamPage: React.FC = () => {
                       hideControls={isOBSCamera}
                       key={`video-${currentStream.id}-${hasActiveScreenShare}-${selectedCameraDeviceId || 'default'}`}
                     />
+                    
+                    {/* Botão de Fullscreen - Sempre visível, transparente e acima de tudo */}
+                    <div className="fullscreen-button-container absolute bottom-4 right-4 z-50">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          toggleFullscreen();
+                        }}
+                        className="bg-black/40 hover:bg-black/60 text-white p-3 rounded-full transition-all backdrop-blur-md border border-white/30 shadow-2xl"
+                        aria-label={isFullscreen ? "Sair de tela cheia" : "Tela cheia"}
+                        title={isFullscreen ? "Sair de tela cheia" : "Tela cheia"}
+                      >
+                        {isFullscreen ? <Minimize2 size={22} className="drop-shadow-lg" /> : <Maximize2 size={22} className="drop-shadow-lg" />}
+                      </button>
+                    </div>
                   </div>
                   
                   {/* Chat - Ocupa 1/3 da largura em telas grandes, oculto em mobile por padrão */}
