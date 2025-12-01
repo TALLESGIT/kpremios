@@ -1193,6 +1193,7 @@ const AdminLiveStreamPage: React.FC = () => {
                       hideScreenShareButton={!!activeScene}
                       activeScene={activeScene}
                       cameraDeviceId={selectedCameraDeviceId}
+                      hideControls={isOBSCamera}
                       key={`video-${currentStream.id}-${hasActiveScreenShare}-${selectedCameraDeviceId || 'default'}`}
                     />
                 </div>
