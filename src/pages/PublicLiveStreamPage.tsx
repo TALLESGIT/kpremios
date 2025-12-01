@@ -255,10 +255,12 @@ const PublicLiveStreamPage: React.FC = () => {
         }
 
         // Tentar entrar em fullscreen no container do vídeo (como YouTube)
-        // Priorizar o ref, depois querySelector, por último documentElement
-        const element = videoContainerRef.current || 
-                       document.querySelector('.video-container-fullscreen') as HTMLElement ||
-                       document.documentElement;
+        // No mobile, usar #video-player diretamente para melhor compatibilidade
+        const element = isMobile 
+          ? (document.getElementById('video-player') as HTMLElement) || videoContainerRef.current || document.documentElement
+          : videoContainerRef.current || 
+            document.querySelector('.video-container-fullscreen') as HTMLElement ||
+            document.documentElement;
         
         // Request fullscreen usando a API nativa (como YouTube)
         if (element.requestFullscreen) {
@@ -665,23 +667,21 @@ const PublicLiveStreamPage: React.FC = () => {
                   />
                   
                   {/* Botão de Fullscreen - Sempre visível, transparente e acima de tudo */}
-                  {!isMobile && (
-                    <div className="fullscreen-button-container absolute bottom-4 right-4 z-[9999]">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          toggleFullscreen();
-                        }}
-                        className="bg-black/20 hover:bg-black/40 text-white p-3 rounded-full transition-all backdrop-blur-sm border border-white/20 shadow-lg"
-                        aria-label={isFullscreen ? "Sair de tela cheia" : "Tela cheia"}
-                        title={isFullscreen ? "Sair de tela cheia" : "Tela cheia"}
-                        style={{ zIndex: 9999 }}
-                      >
-                        {isFullscreen ? <Minimize2 size={22} className="drop-shadow-lg" /> : <Maximize2 size={22} className="drop-shadow-lg" />}
-                      </button>
-                    </div>
-                  )}
+                  <div className="fullscreen-button-container absolute bottom-4 right-4 z-[9999]">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        toggleFullscreen();
+                      }}
+                      className="bg-black/20 hover:bg-black/40 text-white p-3 rounded-full transition-all backdrop-blur-sm border border-white/20 shadow-lg"
+                      aria-label={isFullscreen ? "Sair de tela cheia" : "Tela cheia"}
+                      title={isFullscreen ? "Sair de tela cheia" : "Tela cheia"}
+                      style={{ zIndex: 9999 }}
+                    >
+                      {isFullscreen ? <Minimize2 size={22} className="drop-shadow-lg" /> : <Maximize2 size={22} className="drop-shadow-lg" />}
+                    </button>
+                  </div>
                   
                   {/* Ícone de Chat Transparente (Mobile Fullscreen) */}
                   {isFullscreen && isMobile && showChatIcon && !showChatInFullscreen && (
