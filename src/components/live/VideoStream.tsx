@@ -4460,6 +4460,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           width: 100% !important;
         }
         
+        /* Remover margin no mobile */
+        @media (max-width: 767px) {
+          #video-player {
+            margin: 0 !important;
+          }
+        }
         
         /* Em fullscreen, remover margens e paddings */
         #video-player:fullscreen,
@@ -4470,7 +4476,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           padding: 0 !important;
         }
       `}</style>
-      <div id="video-player" data-broadcaster={isBroadcaster ? 'true' : 'false'} className="relative w-full bg-black overflow-hidden rounded-lg mx-auto" style={{ margin: '0', padding: '0', maxWidth: '1600px' }}>
+      <div id="video-player" data-broadcaster={isBroadcaster ? 'true' : 'false'} className="relative w-full bg-black overflow-hidden rounded-lg" style={{ margin: '0', padding: '0', maxWidth: '1600px' }}>
         {/* Vídeo Local (Broadcaster) */}
         {isBroadcaster && (
           <div className="relative w-full bg-black overflow-hidden rounded-lg" style={{ aspectRatio: '16/9' }}>
