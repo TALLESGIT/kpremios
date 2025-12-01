@@ -1540,7 +1540,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           if (videoElement) {
             videoElement.style.width = '100%';
             videoElement.style.height = '100%';
-            videoElement.style.objectFit = 'contain';
+            videoElement.style.objectFit = 'cover';
             videoElement.style.position = 'absolute';
             videoElement.style.top = '0';
             videoElement.style.left = '0';
@@ -4229,8 +4229,6 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         [ref="localVideoRef"] {
           aspect-ratio: 1 / 1 !important;
           width: 100% !important;
-          max-width: 800px !important;
-          margin: 0 auto !important;
           position: relative !important;
         }
         [ref="remoteVideoRef"] video,
@@ -4250,8 +4248,6 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         [ref="remoteVideoRef"] {
           aspect-ratio: 1 / 1 !important;
           width: 100% !important;
-          max-width: 800px !important;
-          margin: 0 auto !important;
           position: relative !important;
         }
         [ref="remoteVideoRef"] > div {
@@ -4264,10 +4260,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           to { opacity: 1; }
         }
       `}</style>
-      <div className="relative w-full bg-black rounded-lg overflow-hidden flex justify-center">
+      <div className="relative w-full bg-black rounded-lg overflow-hidden">
         {/* Vídeo Local (Broadcaster) */}
         {isBroadcaster && (
-          <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '1 / 1', maxWidth: '800px', margin: '0 auto' }}>
+          <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '1 / 1' }}>
             {/* Container para o vídeo - SDK do Agora gerencia este elemento */}
             <div 
               ref={localVideoRef} 
@@ -4614,7 +4610,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
       {/* Vídeo Remoto (Viewers) */}
       {!isBroadcaster && (
-        <div className="relative w-full bg-black rounded-lg overflow-hidden flex justify-center" style={{ aspectRatio: '1 / 1', maxWidth: '800px', margin: '0 auto' }}>
+        <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '1 / 1' }}>
           <div 
             ref={remoteVideoRef} 
             className="w-full h-full relative"
