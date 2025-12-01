@@ -4465,6 +4465,11 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           #video-player {
             margin: 0 !important;
           }
+          
+          /* Remover padding da classe p-3 no mobile */
+          .p-3 {
+            padding: 0 !important;
+          }
         }
         
         /* Em fullscreen, remover margens e paddings */
