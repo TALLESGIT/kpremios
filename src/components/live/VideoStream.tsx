@@ -4407,11 +4407,15 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         @media screen and (orientation: landscape) {
           #video-player {
             width: 100vw !important;
-            height: 100vh !important;
             aspect-ratio: auto !important;
             margin: 0 !important;
             padding: 0 !important;
             border-radius: 0 !important;
+          }
+          
+          /* Height apenas para broadcaster (admin) */
+          #video-player[data-broadcaster="true"] {
+            height: 100vh !important;
           }
           
           #video-player > div {
