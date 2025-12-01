@@ -4413,11 +4413,6 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             border-radius: 0 !important;
           }
           
-          /* Height apenas para broadcaster (admin) */
-          #video-player[data-broadcaster="true"] {
-            height: 100vh !important;
-          }
-          
           #video-player > div {
             margin: 0 !important;
           }
