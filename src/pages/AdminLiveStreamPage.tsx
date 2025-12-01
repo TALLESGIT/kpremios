@@ -310,6 +310,59 @@ const AdminLiveStreamPage: React.FC = () => {
       document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
     };
   }, []);
+
+  // Auto fullscreen ao virar o celular para paisagem (mobile)
+  useEffect(() => {
+    const isMobile = window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (!isMobile) return; // Apenas em mobile
+
+    const handleOrientationChange = () => {
+      const videoPlayer = document.getElementById('video-player');
+      if (!videoPlayer) return;
+
+      // Verificar orientação (90 ou -90 = paisagem)
+      const isLandscape = window.orientation === 90 || window.orientation === -90 || 
+                         (window.innerWidth > window.innerHeight);
+
+      if (isLandscape) {
+        // Paisagem = entrar em tela cheia
+        if (videoPlayer.requestFullscreen) {
+          videoPlayer.requestFullscreen().catch((err) => {
+            console.log('⚠️ Não foi possível entrar em fullscreen:', err);
+          });
+        } else if ((videoPlayer as any).webkitRequestFullscreen) {
+          (videoPlayer as any).webkitRequestFullscreen();
+        } else if ((videoPlayer as any).mozRequestFullScreen) {
+          (videoPlayer as any).mozRequestFullScreen();
+        } else if ((videoPlayer as any).msRequestFullscreen) {
+          (videoPlayer as any).msRequestFullscreen();
+        }
+      } else {
+        // Retrato = sair da tela cheia
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch((err) => {
+            console.log('⚠️ Não foi possível sair do fullscreen:', err);
+          });
+        } else if ((document as any).webkitFullscreenElement) {
+          (document as any).webkitExitFullscreen();
+        } else if ((document as any).mozFullScreenElement) {
+          (document as any).mozCancelFullScreen();
+        } else if ((document as any).msFullscreenElement) {
+          (document as any).msExitFullscreen();
+        }
+      }
+    };
+
+    // Adicionar listener para mudança de orientação
+    window.addEventListener('orientationchange', handleOrientationChange);
+    // Também escutar resize para detectar mudanças de orientação em alguns dispositivos
+    window.addEventListener('resize', handleOrientationChange);
+
+    return () => {
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      window.removeEventListener('resize', handleOrientationChange);
+    };
+  }, []);
   
   // Inicializar detailedStats como objeto vazio se não existir
   useEffect(() => {
@@ -1264,17 +1317,18 @@ const AdminLiveStreamPage: React.FC = () => {
                       key={`video-${currentStream.id}-${hasActiveScreenShare}-${selectedCameraDeviceId || 'default'}`}
                     />
                     
-                    {/* Botão de Fullscreen - Sempre visível, transparente e acima de tudo */}
-                    <div className="fullscreen-button-container absolute bottom-4 right-4 z-50">
+                    {/* Botão de Fullscreen - Sempre visível, transparente e acima de tudo (apenas desktop) */}
+                    <div className="fullscreen-button-container absolute bottom-4 right-4 z-[9999]">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           e.preventDefault();
                           toggleFullscreen();
                         }}
-                        className="bg-black/40 hover:bg-black/60 text-white p-3 rounded-full transition-all backdrop-blur-md border border-white/30 shadow-2xl"
+                        className="bg-black/20 hover:bg-black/40 text-white p-3 rounded-full transition-all backdrop-blur-sm border border-white/20 shadow-lg"
                         aria-label={isFullscreen ? "Sair de tela cheia" : "Tela cheia"}
                         title={isFullscreen ? "Sair de tela cheia" : "Tela cheia"}
+                        style={{ zIndex: 9999 }}
                       >
                         {isFullscreen ? <Minimize2 size={22} className="drop-shadow-lg" /> : <Maximize2 size={22} className="drop-shadow-lg" />}
                       </button>
