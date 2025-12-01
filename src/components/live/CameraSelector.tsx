@@ -8,7 +8,7 @@ interface CameraDevice {
 }
 
 interface CameraSelectorProps {
-  onSelectCamera: (deviceId: string) => void;
+  onSelectCamera: (deviceId: string, label: string) => void;
   selectedDeviceId?: string;
 }
 
@@ -48,11 +48,19 @@ const CameraSelector: React.FC<CameraSelectorProps> = ({
       
       setCameras(videoDevices);
       
+      // Se há câmera selecionada, notificar o componente pai sobre o label
+      if (selectedDeviceId && videoDevices.length > 0) {
+        const selectedCamera = videoDevices.find(c => c.deviceId === selectedDeviceId);
+        if (selectedCamera) {
+          // Notificar sobre a câmera já selecionada (sem mostrar toast)
+          onSelectCamera(selectedDeviceId, selectedCamera.label);
+        }
+      }
       // Se não há câmera selecionada e há OBS Virtual Camera, selecionar automaticamente
-      if (!selectedDeviceId && videoDevices.length > 0) {
+      else if (!selectedDeviceId && videoDevices.length > 0) {
         const obsCamera = videoDevices.find(c => c.isOBS);
         if (obsCamera) {
-          onSelectCamera(obsCamera.deviceId);
+          onSelectCamera(obsCamera.deviceId, obsCamera.label);
         }
       }
     } catch (err: any) {
@@ -103,7 +111,7 @@ const CameraSelector: React.FC<CameraSelectorProps> = ({
           {cameras.map((camera) => (
             <button
               key={camera.deviceId}
-              onClick={() => onSelectCamera(camera.deviceId)}
+              onClick={() => onSelectCamera(camera.deviceId, camera.label)}
               className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
                 selectedDeviceId === camera.deviceId
                   ? 'bg-amber-500/20 border-amber-500'

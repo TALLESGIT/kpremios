@@ -3,11 +3,10 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Users, Share2, Copy, Check, ArrowLeft, Trash2, Circle, Square, ChevronDown, ChevronUp, Settings as SettingsIcon, X } from 'lucide-react';
+import { Camera, Users, Share2, Copy, Check, ArrowLeft, Trash2, ChevronDown, ChevronUp, Settings as SettingsIcon, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import VideoStream from '../components/live/VideoStream';
 import StreamStudio from '../components/live/StreamStudio';
-import LiveControlPanel from '../components/live/LiveControlPanel';
 import CameraSelector from '../components/live/CameraSelector';
 import { useStreamStudioSync } from '../hooks/useStreamStudioSync';
 
@@ -40,100 +39,21 @@ const AdminLiveStreamPage: React.FC = () => {
   });
   const [autoGenerateSlug, setAutoGenerateSlug] = useState(true); // Controla se deve gerar automaticamente
   
-  // Estados para gravação
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
   // Estado para seleção de câmera (OBS Virtual Camera, etc)
   const [selectedCameraDeviceId, setSelectedCameraDeviceId] = useState<string | undefined>(() => {
     // Tentar carregar preferência salva
     const saved = localStorage.getItem('selectedCameraDeviceId');
     return saved || undefined;
   });
+  const [selectedCameraLabel, setSelectedCameraLabel] = useState<string>(() => {
+    // Tentar carregar label salvo
+    const saved = localStorage.getItem('selectedCameraLabel');
+    return saved || '';
+  });
   
-  // Funções de gravação
-  const handleStartRecording = async () => {
-    // Aguardar um pouco para garantir que a API está disponível
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const recordingAPI = (window as any).__videoStreamRecording;
-    console.log('🔍 API de gravação:', recordingAPI);
-    
-    if (recordingAPI && typeof recordingAPI.start === 'function') {
-      try {
-        await recordingAPI.start();
-        // Atualizar tempo de gravação
-        if (recordingIntervalRef.current) {
-          clearInterval(recordingIntervalRef.current);
-        }
-        recordingIntervalRef.current = setInterval(() => {
-          setRecordingTime(prev => prev + 1);
-        }, 1000);
-      } catch (error: any) {
-        console.error('Erro ao iniciar gravação:', error);
-        toast.error(`Erro ao iniciar gravação: ${error.message || 'Erro desconhecido'}`);
-      }
-    } else {
-      console.error('API de gravação não disponível:', recordingAPI);
-      toast.error('Aguarde a transmissão iniciar completamente. A gravação estará disponível em alguns segundos.');
-    }
-  };
-
-  const handleStopRecording = () => {
-    const recordingAPI = (window as any).__videoStreamRecording;
-    if (recordingAPI && recordingAPI.stop) {
-      recordingAPI.stop();
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current);
-        recordingIntervalRef.current = null;
-      }
-    }
-  };
-
-  const handleRecordingReady = (blob: Blob, filename: string) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success('✅ Gravação salva com sucesso!');
-    setRecordingTime(0);
-  };
-
-  // Verificar estado de gravação periodicamente
-  useEffect(() => {
-    if (!currentStream?.is_active) return;
-
-    const checkRecordingState = () => {
-      const recordingAPI = (window as any).__videoStreamRecording;
-      if (recordingAPI) {
-        const recording = recordingAPI.isRecording();
-        if (recording !== isRecording) {
-          setIsRecording(recording);
-        }
-        if (recording) {
-          const time = recordingAPI.recordingTime();
-          if (time !== undefined) {
-            setRecordingTime(time);
-          }
-        }
-      }
-    };
-
-    const interval = setInterval(checkRecordingState, 500);
-    return () => clearInterval(interval);
-  }, [currentStream?.is_active, isRecording]);
-
-  // Formatar tempo de gravação
-  const formatRecordingTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  // Verificar se a câmera selecionada é OBS Virtual Camera
+  const isOBSCamera = selectedCameraLabel.toLowerCase().includes('obs') || 
+                      selectedCameraLabel.toLowerCase().includes('virtual');
   const [copied, setCopied] = useState(false);
   
   // Estados para gerenciar propagandas e slideshow
@@ -151,6 +71,12 @@ const AdminLiveStreamPage: React.FC = () => {
       // Ctrl+Shift+S para abrir Stream Studio
       if (e.ctrlKey && e.shiftKey && e.key === 'S') {
         e.preventDefault();
+        if (isOBSCamera) {
+          toast.error('⚠️ Stream Studio está desabilitado quando usando OBS Virtual Camera. Configure tudo no OBS Studio.', {
+            duration: 3000,
+          });
+          return;
+        }
         if (currentStream && !showStreamStudio) {
           setShowStreamStudio(true);
           toast.success('🎬 Stream Studio aberto!', {
@@ -167,7 +93,7 @@ const AdminLiveStreamPage: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [currentStream, showStreamStudio]);
+  }, [currentStream, showStreamStudio, isOBSCamera]);
   
   // Sincronizar Stream Studio com transmissão ao vivo
   const { activeScene, loading: sceneLoading, refresh: refreshActiveScene } = useStreamStudioSync(currentStream?.id || '');
@@ -972,15 +898,17 @@ const AdminLiveStreamPage: React.FC = () => {
                 )}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
-                <button
-                  onClick={() => setShowStreamStudio(true)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-bold transition-all text-sm md:text-base whitespace-nowrap flex items-center gap-2 group"
-                  title="Abrir Stream Studio (Ctrl+Shift+S)"
-                >
-                  <SettingsIcon size={16} className="group-hover:rotate-90 transition-transform" />
-                  Stream Studio
-                  <kbd className="hidden md:inline bg-purple-800/50 px-1.5 py-0.5 rounded text-xs ml-1">Ctrl+Shift+S</kbd>
-                </button>
+                {!isOBSCamera && (
+                  <button
+                    onClick={() => setShowStreamStudio(true)}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-bold transition-all text-sm md:text-base whitespace-nowrap flex items-center gap-2 group"
+                    title="Abrir Stream Studio (Ctrl+Shift+S)"
+                  >
+                    <SettingsIcon size={16} className="group-hover:rotate-90 transition-transform" />
+                    Stream Studio
+                    <kbd className="hidden md:inline bg-purple-800/50 px-1.5 py-0.5 rounded text-xs ml-1">Ctrl+Shift+S</kbd>
+                  </button>
+                )}
                 <button
                   onClick={backToList}
                   className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-bold transition-all text-sm md:text-base whitespace-nowrap flex items-center gap-2"
@@ -1194,15 +1122,37 @@ const AdminLiveStreamPage: React.FC = () => {
                   {/* Seletor de Câmera */}
                   <div className="mb-6 max-w-md mx-auto">
                     <CameraSelector
-                      onSelectCamera={(deviceId) => {
+                      onSelectCamera={(deviceId, label) => {
+                        const previousDeviceId = selectedCameraDeviceId;
                         setSelectedCameraDeviceId(deviceId);
+                        setSelectedCameraLabel(label);
                         // Salvar preferência
                         localStorage.setItem('selectedCameraDeviceId', deviceId);
-                        toast.success('Câmera selecionada!');
+                        localStorage.setItem('selectedCameraLabel', label);
+                        // Só mostrar toast se a câmera realmente mudou (seleção manual do usuário)
+                        if (previousDeviceId && previousDeviceId !== deviceId) {
+                          toast.success('Câmera selecionada!');
+                        }
                       }}
                       selectedDeviceId={selectedCameraDeviceId}
                     />
                   </div>
+                  
+                  {/* Aviso quando usando OBS */}
+                  {isOBSCamera && (
+                    <div className="mb-6 max-w-md mx-auto bg-purple-900/30 border-2 border-purple-500 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="text-2xl">🎬</div>
+                        <div className="flex-1">
+                          <h4 className="text-white font-bold mb-1">Modo OBS Studio Ativo</h4>
+                          <p className="text-purple-200 text-sm">
+                            Você está usando OBS Virtual Camera. Configure suas cenas, overlays e controles diretamente no OBS Studio. 
+                            O Stream Studio do site estará desabilitado enquanto usar OBS.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   
                   <div className="text-center">
                     <button
@@ -1239,8 +1189,6 @@ const AdminLiveStreamPage: React.FC = () => {
                       adImages={adImages}
                       overlayAd={overlayAd || undefined}
                       onStatsUpdate={setStreamStats}
-                      onRecordingStateChange={setIsRecording}
-                      onRecordingReady={handleRecordingReady}
                       screenShareEnabled={hasActiveScreenShare}
                       hideScreenShareButton={!!activeScene}
                       activeScene={activeScene}
@@ -1252,44 +1200,6 @@ const AdminLiveStreamPage: React.FC = () => {
             </div>
             
             {/* Gerenciador de Propagandas foi integrado no Stream Studio - Aba "Propagandas" */}
-
-            {/* Botão de Gravação */}
-            {currentStream.is_active && (
-              <div className="bg-slate-800/50 rounded-lg p-3 md:p-4 mb-4">
-                <div className="flex flex-col sm:flex-row items-center gap-3">
-                  {!isRecording ? (
-                    <button
-                      onClick={handleStartRecording}
-                      className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition-all flex items-center justify-center gap-2 font-bold w-full sm:w-auto"
-                    >
-                      <Circle size={20} className="fill-white" />
-                      Iniciar Gravação
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={handleStopRecording}
-                        className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-all flex items-center justify-center gap-2 font-bold w-full sm:w-auto"
-                      >
-                        <Square size={20} />
-                        Parar Gravação
-                      </button>
-                      <div className="flex items-center gap-2 text-red-400">
-                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                        <span className="font-mono font-bold">{formatRecordingTime(recordingTime)}</span>
-                        <span className="text-sm">Gravando...</span>
-                      </div>
-                    </>
-                  )}
-                  <p className="text-xs text-slate-400 text-center sm:text-left">
-                    {isRecording 
-                      ? 'A gravação será salva automaticamente quando você parar'
-                      : 'Grave a transmissão em formato WebM (compatível com MP4)'
-                    }
-                  </p>
-                </div>
-              </div>
-            )}
 
             {/* Compartilhar Link */}
             <div className="bg-slate-800/50 rounded-lg p-3 md:p-4">
@@ -1359,7 +1269,7 @@ const AdminLiveStreamPage: React.FC = () => {
         )}
 
         {/* Modal do Stream Studio - Controle Profissional */}
-        {currentStream && showStreamStudio && (
+        {currentStream && showStreamStudio && !isOBSCamera && (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-slate-900 rounded-2xl w-full max-w-[95vw] h-[90vh] flex flex-col border border-slate-700 shadow-2xl">
               {/* Header do Stream Studio */}
@@ -1477,13 +1387,6 @@ const AdminLiveStreamPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Painel de Controle AO VIVO (sempre visível durante transmissão) */}
-      {currentStream?.is_active && (
-        <LiveControlPanel
-          streamId={currentStream.id}
-          channelName={currentStream.channel_name}
-        />
-      )}
     </div>
   );
 };

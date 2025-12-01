@@ -2060,8 +2060,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         // Ativar câmera
         const cameraConfig: any = {
           encoderConfig: {
-            width: { ideal: 640 },
-            height: { ideal: 480 },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
           }
         };
         
@@ -2274,8 +2274,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         console.log('🖥️ Alternando para screen sharing...');
         newVideoTrack = await AgoraRTC.createScreenVideoTrack({
           encoderConfig: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
           }
         }, 'auto');
         toast.success('🖥️ Compartilhamento de tela ativado');
@@ -2288,8 +2288,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         console.log('📹 Alternando para câmera...');
         const cameraConfig: any = {
           encoderConfig: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
           }
         };
         
@@ -2394,8 +2394,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         console.log('📹 Criando camera track...');
         const cameraConfig: any = {
           encoderConfig: {
-            width: { ideal: 640 },
-            height: { ideal: 480 },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
           }
         };
         
@@ -4216,7 +4216,6 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         [ref="localVideoRef"] > video {
           width: 100% !important;
           height: 100% !important;
-          min-height: 400px !important;
           object-fit: cover !important;
           position: absolute !important;
           top: 0 !important;
@@ -4226,17 +4225,18 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           display: block !important;
           visibility: visible !important;
           opacity: 1 !important;
-          min-width: 100% !important;
         }
         [ref="localVideoRef"] {
-          min-height: 400px !important;
-          height: 400px !important;
+          aspect-ratio: 1 / 1 !important;
+          width: 100% !important;
+          max-width: 800px !important;
+          margin: 0 auto !important;
+          position: relative !important;
         }
         [ref="remoteVideoRef"] video,
         [ref="remoteVideoRef"] > div > video {
           width: 100% !important;
           height: 100% !important;
-          min-height: 400px !important;
           object-fit: cover !important;
           position: absolute !important;
           top: 0 !important;
@@ -4246,38 +4246,39 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           display: block !important;
           visibility: visible !important;
           opacity: 1 !important;
-          min-width: 100% !important;
         }
         [ref="remoteVideoRef"] {
-          min-height: 400px !important;
-          height: 400px !important;
+          aspect-ratio: 1 / 1 !important;
+          width: 100% !important;
+          max-width: 800px !important;
+          margin: 0 auto !important;
+          position: relative !important;
         }
         [ref="remoteVideoRef"] > div {
-          min-height: 400px !important;
-          height: 400px !important;
+          aspect-ratio: 1 / 1 !important;
           width: 100% !important;
+          position: relative !important;
         }
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
         }
       `}</style>
-      <div className="relative w-full bg-black rounded-lg overflow-hidden">
+      <div className="relative w-full bg-black rounded-lg overflow-hidden flex justify-center">
         {/* Vídeo Local (Broadcaster) */}
         {isBroadcaster && (
-          <div className="relative w-full h-full min-h-[400px] bg-black rounded-lg overflow-hidden">
+          <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '1 / 1', maxWidth: '800px', margin: '0 auto' }}>
             {/* Container para o vídeo - SDK do Agora gerencia este elemento */}
             <div 
               ref={localVideoRef} 
               className="w-full h-full relative"
               style={{ 
-                minHeight: '400px',
-                height: '400px',
                 width: '100%',
                 position: 'relative',
                 backgroundColor: '#000',
                 overflow: 'hidden',
-                display: 'block'
+                display: 'block',
+                aspectRatio: '1 / 1'
               }}
             />
             {/* Overlays do Stream Studio - Renderizar sobre o vídeo */}
@@ -4613,16 +4614,15 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
       {/* Vídeo Remoto (Viewers) */}
       {!isBroadcaster && (
-        <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ minHeight: '400px', height: '400px' }}>
+        <div className="relative w-full bg-black rounded-lg overflow-hidden flex justify-center" style={{ aspectRatio: '1 / 1', maxWidth: '800px', margin: '0 auto' }}>
           <div 
             ref={remoteVideoRef} 
             className="w-full h-full relative"
             style={{ 
-              minHeight: '400px',
-              height: '400px',
               width: '100%',
               position: 'relative',
-              backgroundColor: '#000'
+              backgroundColor: '#000',
+              aspectRatio: '1 / 1'
             }}
           />
           {/* Overlays do Stream Studio - Para Viewers também */}
