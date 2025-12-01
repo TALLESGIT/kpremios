@@ -4437,9 +4437,11 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           }
         }
         
-        /* Remover background-color do .bg-black */
-        .bg-black {
-          background-color: transparent !important;
+        /* Remover background-color do .bg-black (apenas desktop) */
+        @media (min-width: 768px) {
+          .bg-black {
+            background-color: transparent !important;
+          }
         }
         
         /* Remover padding da classe md:p-6 para usuários (viewers) */
@@ -4469,11 +4471,6 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           /* Remover padding da classe p-3 no mobile */
           .p-3 {
             padding: 0 !important;
-          }
-          
-          /* Remover background-color transparent do .bg-black no mobile */
-          .bg-black {
-            background-color: transparent !important;
           }
         }
         
