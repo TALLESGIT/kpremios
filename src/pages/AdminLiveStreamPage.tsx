@@ -1318,7 +1318,7 @@ const AdminLiveStreamPage: React.FC = () => {
                     />
                     
                     {/* Botão de Fullscreen - Sempre visível, transparente e acima de tudo */}
-                    <div className="fullscreen-button-container absolute bottom-2 right-4 z-[9999]">
+                    <div className="fullscreen-button-container absolute bottom-1 right-2 z-[9999]">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
