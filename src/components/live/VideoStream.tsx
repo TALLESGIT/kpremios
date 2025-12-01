@@ -4415,8 +4415,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           }
           
           #video-player > div {
-            border-radius: 0 !important;
             margin: 0 !important;
+          }
+          
+          /* Border-radius apenas para broadcaster (admin) */
+          #video-player[data-broadcaster="true"] > div {
+            border-radius: 0 !important;
           }
           
           [ref="localVideoRef"],
