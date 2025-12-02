@@ -799,8 +799,23 @@ const PublicLiveStreamPage: React.FC = () => {
           .video-container-fullscreen:-moz-full-screen,
           .video-container-fullscreen:-ms-fullscreen {
             width: 100vw !important;
-            height: 100vh !important;
+            height: calc(var(--vh, 1vh) * 100) !important;
             background: #000 !important;
+            overflow: hidden !important;
+          }
+          
+          /* Evitar cortes ao girar para paisagem */
+          @media screen and (orientation: landscape) {
+            .video-container-fullscreen:fullscreen,
+            .video-container-fullscreen:-webkit-full-screen,
+            .video-container-fullscreen:-moz-full-screen,
+            .video-container-fullscreen:-ms-fullscreen {
+              width: 100vw !important;
+              height: 100vh !important;
+              max-width: 100vw !important;
+              max-height: 100vh !important;
+              overflow: hidden !important;
+            }
           }
           
           .video-container-fullscreen > div {
