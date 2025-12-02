@@ -25,6 +25,7 @@ const PublicLiveStreamPage: React.FC = () => {
   const [controlsVisible, setControlsVisible] = useState(true); // Controles visíveis
   const [vipMessages, setVipMessages] = useState<any[]>([]); // Mensagens VIP para overlay
   const videoContainerRef = useRef<HTMLDivElement>(null); // Ref para o container do vídeo (para fullscreen como YouTube)
+  const fullscreenAutoRef = useRef(false); // Flag para saber se fullscreen foi ativado automaticamente
   
   // Sincronizar Stream Studio com transmissão ao vivo
   const { activeScene } = useStreamStudioSync(stream?.id || '');
@@ -315,15 +316,16 @@ const PublicLiveStreamPage: React.FC = () => {
         setIsFullscreen(true);
         setShowChatIcon(false);
         setControlsVisible(true);
+        fullscreenAutoRef.current = false; // Marcar como fullscreen manual
         
-        // Auto-hide controles após 3 segundos em mobile
+        // Auto-hide controles após 1.5 segundos em mobile (mais rápido)
         if (isMobile) {
           setTimeout(() => {
             if (isFullscreen) {
               setControlsVisible(false);
               setShowChatIcon(true);
             }
-          }, 3000);
+          }, 1500);
         }
       } else {
         // Sair do fullscreen
@@ -399,6 +401,7 @@ const PublicLiveStreamPage: React.FC = () => {
         if (isLandscape && !isCurrentlyFullscreen) {
           // Paisagem = entrar em tela cheia automaticamente
           isHandlingFullscreen = true;
+          fullscreenAutoRef.current = true; // Marcar como fullscreen automático
           
           try {
             // Usar o container do vídeo
@@ -418,18 +421,24 @@ const PublicLiveStreamPage: React.FC = () => {
             }
 
             setIsFullscreen(true);
+            // Mostrar ícone do chat mais rápido após fullscreen automático
+            setTimeout(() => {
+              setControlsVisible(false);
+              setShowChatIcon(true);
+            }, 1500);
           } catch (err: any) {
             // Ignorar erros de permissão silenciosamente
             if (err.name !== 'NotAllowedError' && err.name !== 'TypeError') {
               console.log('Fullscreen automático não disponível:', err);
             }
+            fullscreenAutoRef.current = false;
           } finally {
             setTimeout(() => {
               isHandlingFullscreen = false;
             }, 1000);
           }
-        } else if (!isLandscape && isCurrentlyFullscreen) {
-          // Retrato = sair da tela cheia automaticamente
+        } else if (!isLandscape && isCurrentlyFullscreen && fullscreenAutoRef.current) {
+          // Retrato = sair da tela cheia automaticamente APENAS se foi o automático que entrou
           try {
             if (document.exitFullscreen) {
               await document.exitFullscreen();
@@ -442,6 +451,7 @@ const PublicLiveStreamPage: React.FC = () => {
             }
 
             setIsFullscreen(false);
+            fullscreenAutoRef.current = false;
           } catch (err: any) {
             // Ignorar erros silenciosamente
             if (err.name !== 'NotAllowedError' && err.name !== 'TypeError') {
@@ -596,14 +606,14 @@ const PublicLiveStreamPage: React.FC = () => {
       setControlsVisible(true);
       setShowChatIcon(true);
       
-      // Auto-hide após 3 segundos
-      clearTimeout(touchTimer);
-      touchTimer = setTimeout(() => {
-        if (isFullscreen && !showChatInFullscreen) {
-          setControlsVisible(false);
-          setShowChatIcon(true); // Manter ícone visível
-        }
-      }, 3000);
+        // Auto-hide após 1.5 segundos (mais rápido)
+        clearTimeout(touchTimer);
+        touchTimer = setTimeout(() => {
+          if (isFullscreen && !showChatInFullscreen) {
+            setControlsVisible(false);
+            setShowChatIcon(true); // Manter ícone visível
+          }
+        }, 1500);
     };
 
     if (videoContainer) {
@@ -674,7 +684,7 @@ const PublicLiveStreamPage: React.FC = () => {
               setControlsVisible(false);
               setShowChatIcon(true);
             }
-          }, 3000);
+          }, 1500); // Mais rápido
         }
       }
     };
