@@ -481,7 +481,7 @@ const PublicLiveStreamPage: React.FC = () => {
     };
   }, [isMobile, videoContainerRef]);
 
-  // 🔥 Pinch-to-zoom no vídeo em fullscreen (estilo YouTube)
+  // 🔥 Pinch-to-zoom no vídeo em fullscreen (estilo YouTube - implementação refinada)
   useEffect(() => {
     if (!isFullscreen || !isMobile) return;
 
@@ -491,13 +491,23 @@ const PublicLiveStreamPage: React.FC = () => {
     const videoElement = videoContainer.querySelector('video') as HTMLVideoElement;
     if (!videoElement) return;
 
-    let initialDistance = 0;
+    // Estado do zoom e pan
     let currentScale = 1;
     let currentTranslateX = 0;
     let currentTranslateY = 0;
-    let isPinching = false;
-    let lastTouchCenter = { x: 0, y: 0 };
 
+    // Estado inicial do gesto
+    let initialDistance = 0;
+    let initialScale = 1;
+    let initialTranslateX = 0;
+    let initialTranslateY = 0;
+    let initialTouchCenter = { x: 0, y: 0 };
+    let initialElementCenter = { x: 0, y: 0 };
+    let isPinching = false;
+    let isPanning = false;
+    let lastSingleTouch = { x: 0, y: 0 };
+
+    // Funções auxiliares
     const getDistance = (touch1: Touch, touch2: Touch) => {
       const dx = touch2.clientX - touch1.clientX;
       const dy = touch2.clientY - touch1.clientY;
@@ -511,19 +521,47 @@ const PublicLiveStreamPage: React.FC = () => {
       };
     };
 
+    const getElementCenter = (element: HTMLElement) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+      };
+    };
+
+    const applyTransform = () => {
+      // Usar translate3d para aceleração de GPU (mais suave)
+      videoElement.style.transform = `translate3d(${currentTranslateX}px, ${currentTranslateY}px, 0) scale(${currentScale})`;
+      videoElement.style.transformOrigin = 'center center';
+    };
+
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
+        // Gesto de pinça (zoom)
         isPinching = true;
+        isPanning = false;
+        
+        // Salvar estado inicial
         initialDistance = getDistance(e.touches[0], e.touches[1]);
-        lastTouchCenter = getTouchCenter(e.touches[0], e.touches[1]);
+        initialScale = currentScale;
+        initialTranslateX = currentTranslateX;
+        initialTranslateY = currentTranslateY;
+        initialTouchCenter = getTouchCenter(e.touches[0], e.touches[1]);
+        initialElementCenter = getElementCenter(videoElement);
+        
+        // Remover transição durante o gesto
+        videoElement.style.transition = 'none';
+        
         e.preventDefault();
-      } else {
+      } else if (e.touches.length === 1 && currentScale > 1) {
+        // Pan (arrastar) quando já está com zoom
+        isPanning = true;
         isPinching = false;
-        currentScale = 1;
-        currentTranslateX = 0;
-        currentTranslateY = 0;
-        videoElement.style.transform = '';
-        videoElement.style.transition = 'transform 0.3s ease-out';
+        lastSingleTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        initialTranslateX = currentTranslateX;
+        initialTranslateY = currentTranslateY;
+        videoElement.style.transition = 'none';
+        e.preventDefault();
       }
     };
 
@@ -531,30 +569,62 @@ const PublicLiveStreamPage: React.FC = () => {
       if (e.touches.length === 2 && isPinching) {
         e.preventDefault();
         
+        // Calcular nova distância e escala
         const currentDistance = getDistance(e.touches[0], e.touches[1]);
-        const scale = currentDistance / initialDistance;
+        const scaleRatio = currentDistance / initialDistance;
+        const newScale = Math.max(1, Math.min(3, initialScale * scaleRatio));
         
-        // Limitar zoom entre 1x e 3x
-        const newScale = Math.max(1, Math.min(3, scale));
-        currentScale = newScale;
-
-        const touchCenter = getTouchCenter(e.touches[0], e.touches[1]);
-        const deltaX = touchCenter.x - lastTouchCenter.x;
-        const deltaY = touchCenter.y - lastTouchCenter.y;
-
-        currentTranslateX += deltaX;
-        currentTranslateY += deltaY;
-
+        // Calcular centro atual do toque
+        const currentTouchCenter = getTouchCenter(e.touches[0], e.touches[1]);
+        
+        // Calcular deslocamento do centro do toque
+        const centerDeltaX = currentTouchCenter.x - initialTouchCenter.x;
+        const centerDeltaY = currentTouchCenter.y - initialTouchCenter.y;
+        
+        // Calcular ajuste necessário para manter o ponto de pinça fixo
+        // Quando você dá zoom, o elemento cresce, então precisa ser movido para compensar
+        const scaleChange = newScale - initialScale;
+        const elementRect = videoElement.getBoundingClientRect();
+        const elementCenterX = elementRect.left + elementRect.width / 2;
+        const elementCenterY = elementRect.top + elementRect.height / 2;
+        
+        // Calcular o vetor do centro do elemento para o ponto de toque inicial
+        const vectorX = initialTouchCenter.x - elementCenterX;
+        const vectorY = initialTouchCenter.y - elementCenterY;
+        
+        // Ajustar translação para manter o ponto de pinça fixo
+        const adjustX = vectorX * (scaleChange / initialScale);
+        const adjustY = vectorY * (scaleChange / initialScale);
+        
+        // Aplicar translação: movimento do centro + ajuste de escala
+        currentTranslateX = initialTranslateX + centerDeltaX - adjustX;
+        currentTranslateY = initialTranslateY + centerDeltaY - adjustY;
+        
         // Limitar movimento para não sair muito da tela
-        const maxTranslate = 100;
+        const maxTranslate = Math.max(100, (newScale - 1) * 150);
         currentTranslateX = Math.max(-maxTranslate, Math.min(maxTranslate, currentTranslateX));
         currentTranslateY = Math.max(-maxTranslate, Math.min(maxTranslate, currentTranslateY));
-
-        videoElement.style.transition = 'none';
-        videoElement.style.transform = `scale(${newScale}) translate(${currentTranslateX / newScale}px, ${currentTranslateY / newScale}px)`;
-        videoElement.style.transformOrigin = 'center center';
-
-        lastTouchCenter = touchCenter;
+        
+        currentScale = newScale;
+        applyTransform();
+        
+      } else if (e.touches.length === 1 && isPanning && currentScale > 1) {
+        e.preventDefault();
+        
+        // Pan (arrastar) quando está com zoom
+        const deltaX = e.touches[0].clientX - lastSingleTouch.x;
+        const deltaY = e.touches[0].clientY - lastSingleTouch.y;
+        
+        currentTranslateX = initialTranslateX + deltaX;
+        currentTranslateY = initialTranslateY + deltaY;
+        
+        // Limitar movimento
+        const maxTranslate = Math.max(100, (currentScale - 1) * 150);
+        currentTranslateX = Math.max(-maxTranslate, Math.min(maxTranslate, currentTranslateX));
+        currentTranslateY = Math.max(-maxTranslate, Math.min(maxTranslate, currentTranslateY));
+        
+        applyTransform();
+        lastSingleTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       }
     };
 
@@ -569,13 +639,30 @@ const PublicLiveStreamPage: React.FC = () => {
           currentTranslateY = 0;
         }
 
-        videoElement.style.transition = 'transform 0.3s ease-out';
-        videoElement.style.transform = `scale(${currentScale}) translate(${currentTranslateX / currentScale}px, ${currentTranslateY / currentScale}px)`;
-        videoElement.style.transformOrigin = 'center center';
+        // Adicionar transição suave ao finalizar
+        videoElement.style.transition = 'transform 0.2s ease-out';
+        applyTransform();
+        
+        // Remover transição após animação
+        setTimeout(() => {
+          videoElement.style.transition = '';
+        }, 200);
+      }
+      
+      if (e.touches.length === 0 && isPanning) {
+        isPanning = false;
+        videoElement.style.transition = 'transform 0.2s ease-out';
+        applyTransform();
+        setTimeout(() => {
+          videoElement.style.transition = '';
+        }, 200);
       }
     };
 
-    // Adicionar listeners
+    // Adicionar listeners com touch-action para melhor performance
+    videoContainer.style.touchAction = 'none';
+    videoElement.style.touchAction = 'none';
+    
     videoContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
     videoContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
     videoContainer.addEventListener('touchend', handleTouchEnd, { passive: false });
@@ -591,6 +678,10 @@ const PublicLiveStreamPage: React.FC = () => {
       if (videoElement) {
         videoElement.style.transform = '';
         videoElement.style.transition = '';
+        videoElement.style.touchAction = '';
+      }
+      if (videoContainer) {
+        videoContainer.style.touchAction = '';
       }
     };
   }, [isFullscreen, isMobile, videoContainerRef]);
