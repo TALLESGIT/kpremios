@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Share2, Copy, Check, Eye, ArrowLeft, Home, Maximize2, Minimize2, MessageSquare, X } from 'lucide-react';
@@ -26,6 +26,7 @@ const PublicLiveStreamPage: React.FC = () => {
   const [vipMessages, setVipMessages] = useState<any[]>([]); // Mensagens VIP para overlay
   const videoContainerRef = useRef<HTMLDivElement>(null); // Ref para o container do vídeo (para fullscreen como YouTube)
   const fullscreenAutoRef = useRef(false); // Flag para saber se fullscreen foi ativado automaticamente
+  const [videoStreamKey, setVideoStreamKey] = useState(0); // Key para forçar remontagem do VideoStream quando stream fica ativo
   
   // Sincronizar Stream Studio com transmissão ao vivo
   const { activeScene } = useStreamStudioSync(stream?.id || '');
@@ -161,7 +162,7 @@ const PublicLiveStreamPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [stream?.id, sessionId, sessionStarted]);
 
-  const loadStream = async () => {
+  const loadStream = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('live_streams')
@@ -178,11 +179,13 @@ const PublicLiveStreamPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [channelName]);
 
   // Sincronização em tempo real do overlayAd, posição da câmera e contador usando Supabase Realtime
   useEffect(() => {
     if (!stream?.id) return;
+
+    let wasActive = stream.is_active;
 
     const channel = supabase
       .channel(`live_stream_${stream.id}`)
@@ -197,9 +200,34 @@ const PublicLiveStreamPage: React.FC = () => {
         (payload) => {
           console.log('📡 Stream atualizado em tempo real:', payload);
           const updatedStream = payload.new as any;
+          const isNowActive = updatedStream.is_active;
+          const previousActive = wasActive;
           
-          // Atualizar stream completo
+          // SEMPRE atualizar o estado imediatamente primeiro
+          console.log('🔄 Atualizando estado do stream:', {
+            anterior: wasActive,
+            novo: isNowActive,
+            streamId: updatedStream.id
+          });
           setStream(updatedStream);
+          wasActive = isNowActive;
+          
+          // Log quando o stream fica ativo
+          if (!previousActive && isNowActive) {
+            console.log('✅✅✅ Stream ficou ATIVO via realtime! Estado atualizado imediatamente.');
+            console.log('   VideoStream deve ser montado agora...');
+            // Forçar remontagem do VideoStream mudando a key
+            setVideoStreamKey(prev => prev + 1);
+            console.log('   Key do VideoStream atualizada para forçar remontagem');
+            // Recarregar stream completo em background para garantir que tudo está atualizado
+            loadStream().catch(err => {
+              console.error('Erro ao recarregar stream:', err);
+            });
+          } else if (previousActive && !isNowActive) {
+            console.log('⏸️ Stream foi desativado');
+          } else if (previousActive && isNowActive) {
+            console.log('🔄 Stream continua ativo, atualizando dados...');
+          }
           
           // Atualizar contador de visualizações em tempo real
           if (updatedStream.viewer_count !== undefined) {
@@ -212,7 +240,47 @@ const PublicLiveStreamPage: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [stream?.id]);
+  }, [stream?.id, loadStream]);
+
+  // Polling periódico para verificar se o stream ficou ativo (quando ainda não está ativo)
+  useEffect(() => {
+    if (!stream?.id || stream.is_active) return; // Só fazer polling se o stream não estiver ativo
+
+    console.log('⏳ Stream não está ativo. Iniciando polling a cada 2 segundos...');
+    
+    const checkStreamStatus = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('live_streams')
+          .select('is_active')
+          .eq('id', stream.id)
+          .single();
+
+        if (error) {
+          console.error('Erro ao verificar status do stream:', error);
+          return;
+        }
+
+        if (data && data.is_active) {
+          console.log('✅ Stream ficou ativo via polling! Recarregando stream completo...');
+          // Recarregar stream completo
+          await loadStream();
+        }
+      } catch (error) {
+        console.error('Erro no polling do stream:', error);
+      }
+    };
+
+    // Verificar imediatamente
+    checkStreamStatus();
+    
+    // Verificar a cada 2 segundos quando o stream não está ativo
+    const interval = setInterval(checkStreamStatus, 2000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [stream?.id, stream?.is_active, loadStream]);
 
   const copyLink = () => {
     const link = window.location.href;
@@ -265,12 +333,22 @@ const PublicLiveStreamPage: React.FC = () => {
         let element: HTMLElement | null = null;
 
         if (isMobile) {
-          // No mobile, tentar primeiro o elemento de vídeo diretamente (melhor compatibilidade iOS)
-          const videoElement = document.querySelector('#video-player video') as HTMLVideoElement;
-          if (videoElement) {
-            element = videoElement;
-          } else {
-            // Fallback para documentElement
+          // No mobile, usar o container do vídeo primeiro (melhor compatibilidade)
+          element = videoContainerRef.current || 
+                   document.getElementById('video-player') as HTMLElement ||
+                   document.querySelector('#video-player') as HTMLElement ||
+                   document.documentElement;
+          
+          // Se não encontrou, tentar o elemento de vídeo diretamente (iOS Safari)
+          if (!element || element === document.documentElement) {
+            const videoElement = document.querySelector('#video-player video') as HTMLVideoElement;
+            if (videoElement) {
+              element = videoElement;
+            }
+          }
+          
+          // Último fallback
+          if (!element || element === document.documentElement) {
             element = document.documentElement;
           }
         } else {
@@ -388,8 +466,11 @@ const PublicLiveStreamPage: React.FC = () => {
       // Aguardar um pouco para a orientação estabilizar
       clearTimeout(orientationTimer);
       orientationTimer = setTimeout(async () => {
-        const isLandscape = window.orientation === 90 || window.orientation === -90 || 
-                           (window.innerWidth > window.innerHeight);
+        // Detectar orientação de forma mais confiável
+        const isLandscape = 
+          (window.orientation !== undefined && (window.orientation === 90 || window.orientation === -90)) ||
+          (window.innerWidth > window.innerHeight) ||
+          (screen.orientation && (screen.orientation.angle === 90 || screen.orientation.angle === 270));
 
         const isCurrentlyFullscreen = !!(
           document.fullscreenElement ||
@@ -404,21 +485,35 @@ const PublicLiveStreamPage: React.FC = () => {
           fullscreenAutoRef.current = true; // Marcar como fullscreen automático
           
           try {
-            // Usar o container do vídeo
+            // Usar o container do vídeo (mesma lógica do toggleFullscreen)
             let element: HTMLElement | null = videoContainerRef.current ||
-                                             document.querySelector('.video-container-fullscreen') as HTMLElement ||
+                                             document.getElementById('video-player') as HTMLElement ||
                                              document.querySelector('#video-player') as HTMLElement ||
                                              document.documentElement;
+            
+            // Se não encontrou, tentar o elemento de vídeo diretamente (iOS Safari)
+            if (!element || element === document.documentElement) {
+              const videoElement = document.querySelector('#video-player video') as HTMLVideoElement;
+              if (videoElement) {
+                element = videoElement;
+              }
+            }
 
             if (element.requestFullscreen) {
               await element.requestFullscreen();
             } else if ((element as any).webkitRequestFullscreen) {
               await (element as any).webkitRequestFullscreen();
+            } else if ((element as any).webkitEnterFullscreen && element instanceof HTMLVideoElement) {
+              // iOS Safari - método específico para vídeo
+              (element as any).webkitEnterFullscreen();
             } else if ((element as any).mozRequestFullScreen) {
               await (element as any).mozRequestFullScreen();
             } else if ((element as any).msRequestFullscreen) {
               await (element as any).msRequestFullscreen();
             }
+
+            // Aguardar um pouco para garantir que o fullscreen foi aplicado
+            await new Promise(resolve => setTimeout(resolve, 200));
 
             setIsFullscreen(true);
             setControlsVisible(true);
@@ -886,6 +981,7 @@ const PublicLiveStreamPage: React.FC = () => {
               margin-top: -50vw !important;
             }
           }
+          /* Container do vídeo em fullscreen - Estilo YouTube (CENTRALIZADO) */
           .video-container-fullscreen {
             position: fixed !important;
             top: 0 !important;
@@ -894,31 +990,12 @@ const PublicLiveStreamPage: React.FC = () => {
             height: 100vh !important;
             z-index: 9999 !important;
             background: black !important;
-          }
-          .video-container-fullscreen video {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: contain !important;
-          }
-          
-          /* Para mobile, usar contain para não cortar conteúdo */
-          .video-container-fullscreen > div > div video,
-          .video-container-fullscreen video,
-          .video-container-fullscreen [ref="remoteVideoRef"] video,
-          .video-container-fullscreen [ref="remoteVideoRef"] > div > video {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: contain !important;
-          }
-          
-          /* Container do vídeo em fullscreen - Estilo YouTube */
-          .video-container-fullscreen {
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
           }
           
-          /* Quando em fullscreen, garantir que o container ocupe 100% da tela */
+          /* Quando em fullscreen, garantir que o container ocupe 100% da tela e centralize */
           .video-container-fullscreen:fullscreen,
           .video-container-fullscreen:-webkit-full-screen,
           .video-container-fullscreen:-moz-full-screen,
@@ -932,9 +1009,77 @@ const PublicLiveStreamPage: React.FC = () => {
             left: 0 !important;
             right: 0 !important;
             bottom: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
           }
           
-          /* Evitar cortes ao girar para paisagem - aplicar sempre em landscape */
+          /* Vídeo centralizado verticalmente - Estilo YouTube */
+          .video-container-fullscreen video {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: 100vh !important;
+            object-fit: contain !important;
+            display: block !important;
+            margin: 0 auto !important;
+          }
+          
+          /* Para mobile, usar contain para não cortar conteúdo e centralizar */
+          .video-container-fullscreen > div > div video,
+          .video-container-fullscreen [ref="remoteVideoRef"] video,
+          .video-container-fullscreen [ref="remoteVideoRef"] > div > video {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: 100vh !important;
+            object-fit: contain !important;
+            display: block !important;
+            margin: 0 auto !important;
+          }
+          
+          /* Container interno também centralizado */
+          .video-container-fullscreen > div {
+            width: 100% !important;
+            height: 100% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+          
+          /* Container do vídeo interno centralizado */
+          .video-container-fullscreen > div > div:first-child {
+            width: 100% !important;
+            height: 100% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+          
+          /* #video-player centralizado dentro do container */
+          .video-container-fullscreen #video-player {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: 100vh !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            margin: 0 auto !important;
+          }
+          
+          /* Vídeo dentro do #video-player centralizado */
+          .video-container-fullscreen #video-player video {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: 100vh !important;
+            object-fit: contain !important;
+            display: block !important;
+            margin: 0 auto !important;
+          }
+          
+          /* Evitar cortes ao girar para paisagem - aplicar sempre em landscape (CENTRALIZADO) */
           @media screen and (orientation: landscape) {
             .video-container-fullscreen:fullscreen,
             .video-container-fullscreen:-webkit-full-screen,
@@ -950,6 +1095,9 @@ const PublicLiveStreamPage: React.FC = () => {
               left: 0 !important;
               right: 0 !important;
               bottom: 0 !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
             }
             
             .video-container-fullscreen:fullscreen video,
@@ -957,48 +1105,31 @@ const PublicLiveStreamPage: React.FC = () => {
             .video-container-fullscreen:-moz-full-screen video,
             .video-container-fullscreen:-ms-fullscreen video {
               width: 100% !important;
-              height: 100% !important;
-              object-fit: contain !important;
               max-width: 100% !important;
-              max-height: 100% !important;
+              height: auto !important;
+              max-height: 100vh !important;
+              object-fit: contain !important;
+              display: block !important;
+              margin: 0 auto !important;
             }
-          }
-          
-          .video-container-fullscreen > div {
-            width: 100% !important;
-            height: 100% !important;
-          }
-          
-          /* Garantir que o container do vídeo ocupe toda a tela */
-          .video-container-fullscreen > div > div:first-child {
-            width: 100% !important;
-            height: 100% !important;
-          }
-          
-          /* Garantir que o vídeo dentro do container cubra toda a área em fullscreen */
-          .video-container-fullscreen:fullscreen video,
-          .video-container-fullscreen:-webkit-full-screen video,
-          .video-container-fullscreen:-moz-full-screen video,
-          .video-container-fullscreen:-ms-fullscreen video {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: cover !important;
           }
           
           /* Botão de fullscreen sempre visível acima de tudo */
           .fullscreen-button-container {
-            z-index: 99999 !important;
+            z-index: 10000 !important;
             position: absolute !important;
             pointer-events: none !important;
           }
           
           .fullscreen-button-container button {
-            z-index: 99999 !important;
+            z-index: 10000 !important;
             pointer-events: auto !important;
-            opacity: 0.8 !important;
+            opacity: 0.9 !important;
+            touch-action: auto !important;
           }
           
-          .fullscreen-button-container button:hover {
+          .fullscreen-button-container button:hover,
+          .fullscreen-button-container button:active {
             opacity: 1 !important;
           }
         `}</style>
@@ -1065,10 +1196,10 @@ const PublicLiveStreamPage: React.FC = () => {
             className={`relative video-container-fullscreen ${isFullscreen ? 'fixed inset-0 z-50 bg-black' : ''}`}
           >
             {/* Container principal - Grid responsivo estilo YouTube */}
-            <div className={`relative ${isFullscreen ? 'w-full h-full flex' : 'grid grid-cols-1 xl:grid-cols-[1fr_400px] 2xl:grid-cols-[1fr_450px] gap-4 md:gap-6 mb-6'}`}>
+            <div className={`relative ${isFullscreen ? 'w-full h-full flex items-center justify-center' : 'grid grid-cols-1 xl:grid-cols-[1fr_400px] 2xl:grid-cols-[1fr_450px] gap-4 md:gap-6 mb-6'}`}>
               {/* Player de Vídeo - Ocupa espaço flexível */}
               <div 
-                className={`${isFullscreen && showChatInFullscreen ? (isMobile ? 'w-1/2' : 'w-full sm:w-[calc(100%-24rem)]') : isFullscreen ? 'w-full h-full' : 'relative min-w-0'} relative transition-all duration-300`}
+                className={`${isFullscreen && showChatInFullscreen ? (isMobile ? 'w-1/2' : 'w-full sm:w-[calc(100%-24rem)]') : isFullscreen ? 'w-full h-full flex items-center justify-center' : 'relative min-w-0'} relative transition-all duration-300`}
                 onClick={() => {
                   // Em mobile fullscreen, toque na tela mostra/oculta controles
                   if (isFullscreen && isMobile && !showChatInFullscreen) {
@@ -1083,43 +1214,29 @@ const PublicLiveStreamPage: React.FC = () => {
                   }
                 }}
               >
-                <div className={`${isFullscreen ? 'w-full h-full p-0' : 'bg-white/10 backdrop-blur-sm rounded-2xl p-3 border border-white/20'} relative`}>
-                  <VideoStream
-                    channelName={stream.channel_name}
-                    isBroadcaster={false}
-                    streamId={stream.id}
-                    sessionId={sessionId}
-                    overlayAd={
-                      stream.overlay_ad_url && stream.overlay_ad_enabled
-                        ? { url: stream.overlay_ad_url, enabled: true }
-                        : undefined
-                    }
-                    cameraPipPosition={
-                      stream.camera_pip_x !== undefined && stream.camera_pip_y !== undefined
-                        ? { x: stream.camera_pip_x, y: stream.camera_pip_y }
-                        : undefined
-                    }
-                    activeScene={activeScene}
-                  />
+                <div className={`${isFullscreen ? 'w-full h-full p-0 flex items-center justify-center' : 'bg-white/10 backdrop-blur-sm rounded-2xl p-3 border border-white/20'} relative`}>
+                  {stream.is_active && (
+                    <VideoStream
+                      key={`video-${stream.id}-active-${videoStreamKey}`}
+                      channelName={stream.channel_name}
+                      isBroadcaster={false}
+                      streamId={stream.id}
+                      sessionId={sessionId}
+                      overlayAd={
+                        stream.overlay_ad_url && stream.overlay_ad_enabled
+                          ? { url: stream.overlay_ad_url, enabled: true }
+                          : undefined
+                      }
+                      cameraPipPosition={
+                        stream.camera_pip_x !== undefined && stream.camera_pip_y !== undefined
+                          ? { x: stream.camera_pip_x, y: stream.camera_pip_y }
+                          : undefined
+                      }
+                      activeScene={activeScene}
+                    />
+                  )}
                   
-                  {/* Botão de Fullscreen - Sempre visível, transparente e acima de tudo */}
-                  <div className="fullscreen-button-container absolute bottom-1 right-2 z-[9999]">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        toggleFullscreen();
-                      }}
-                      className="bg-black/10 hover:bg-black/30 text-white p-3 rounded-full transition-all backdrop-blur-sm border border-white/15 shadow-lg"
-                      aria-label={isFullscreen ? "Sair de tela cheia" : "Tela cheia"}
-                      title={isFullscreen ? "Sair de tela cheia" : "Tela cheia"}
-                      style={{ zIndex: 9999 }}
-                    >
-                      {isFullscreen ? <Minimize2 size={22} className="drop-shadow-lg" /> : <Maximize2 size={22} className="drop-shadow-lg" />}
-                    </button>
-                  </div>
-                  
-                  {/* Ícone de Chat Transparente (Mobile Fullscreen) */}
+                  {/* Ícone de Chat Transparente (Mobile Fullscreen) - Parte superior */}
                   {isFullscreen && isMobile && showChatIcon && !showChatInFullscreen && (
                     <button
                       onClick={(e) => {
@@ -1141,6 +1258,26 @@ const PublicLiveStreamPage: React.FC = () => {
                       <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-black animate-ping"></span>
                     </button>
                   )}
+                  
+                  {/* Botão de Fullscreen - Parte inferior */}
+                  <div className="fullscreen-button-container absolute bottom-4 right-4 z-[10000]">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        toggleFullscreen();
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                      }}
+                      className="bg-black/40 hover:bg-black/60 text-white p-3 rounded-full transition-all backdrop-blur-md border border-white/30 shadow-lg"
+                      aria-label={isFullscreen ? "Sair de tela cheia" : "Tela cheia"}
+                      title={isFullscreen ? "Sair de tela cheia" : "Tela cheia"}
+                      style={{ zIndex: 10000, pointerEvents: 'auto', touchAction: 'auto' }}
+                    >
+                      {isFullscreen ? <Minimize2 size={22} className="drop-shadow-lg" /> : <Maximize2 size={22} className="drop-shadow-lg" />}
+                    </button>
+                  </div>
                   
                   {/* Botões de controle em tela cheia */}
                   {isFullscreen && (controlsVisible || !isMobile) && (

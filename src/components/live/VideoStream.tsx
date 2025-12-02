@@ -24,7 +24,10 @@ const suppressAgoraWarnings = () => {
     /restart ICE failed, abort operation/i,
     /get traffic stats error.*WS_ABORT/i,
     /P2PChannel\.restartICE warning/i,
-    /AgoraRTCException.*WS_ABORT.*type: (ping|traffic_stats|restart_ice)/i
+    /AgoraRTCException.*WS_ABORT.*type: (ping|traffic_stats|restart_ice)/i,
+    /multi unilbs network error, retry.*NETWORK_TIMEOUT/i,
+    /AgoraRTCError NETWORK_TIMEOUT: timeout of \d+ms exceeded/i,
+    /AgoraRTCException.*NETWORK_TIMEOUT.*timeout of \d+ms exceeded/i
   ];
   
   console.error = (...args: any[]) => {
@@ -233,7 +236,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       currentChannel: currentChannelRef.current,
       newChannel: channelName,
       isBroadcaster,
-      isStreaming
+      isStreaming,
+      hasClient: !!clientRef.current,
+      hasRemoteVideo,
+      isConnecting
     });
     
     // Se o channelName mudou e já estávamos conectados, fazer cleanup primeiro
@@ -247,6 +253,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         // Aguardar um pouco antes de reinicializar
         setTimeout(() => {
           if (!isInitializedRef.current) {
+            console.log('🔄 Reinicializando após mudança de canal...');
             initializeBasedOnRole();
           }
         }, 300);
@@ -257,6 +264,25 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     // Evitar múltiplas inicializações
     if (isInitializedRef.current || isJoiningRef.current) {
       console.log('⏸️ Já inicializado ou em processo de join, ignorando...');
+      // Mas se é viewer e não há cliente, pode ser que precisa inicializar
+      if (!isBroadcaster && !clientRef.current) {
+        console.log('⚠️ Viewer sem cliente, forçando reinicialização...');
+        isInitializedRef.current = false;
+        isJoiningRef.current = false;
+        initializeBasedOnRole();
+      }
+      // Se é viewer, tem cliente, mas não tem vídeo remoto e não está conectando, tentar conectar novamente
+      if (!isBroadcaster && clientRef.current && !hasRemoteVideo && !isConnecting && !isJoiningRef.current) {
+        console.log('⚠️ Viewer tem cliente mas não tem vídeo, tentando reconectar...');
+        const connectionState = String(clientRef.current.connectionState);
+        console.log('   Estado da conexão:', connectionState);
+        if (connectionState === 'DISCONNECTED' || connectionState === 'DISCONNECTING') {
+          console.log('   Cliente desconectado, reinicializando...');
+          isInitializedRef.current = false;
+          isJoiningRef.current = false;
+          initializeBasedOnRole();
+        }
+      }
       return;
     }
 
@@ -699,19 +725,51 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       if (isJoiningRef.current) {
         console.warn('⚠️ Componente sendo desmontado durante join!');
         console.warn('   Isso pode ser React Strict Mode. Aguardando join completar...');
-        // Aguardar um pouco para ver se o join completa
-        setTimeout(() => {
-          if (clientRef.current && clientRef.current.connectionState === 'CONNECTED') {
-            console.log('✅ Join completou, não fazendo cleanup');
+        // Marcar que cleanup foi solicitado, mas não executar ainda
+        isCleaningUpRef.current = true;
+        
+        // Aguardar até 3 segundos para o join completar e verificar se componente foi remontado
+        let waitCount = 0;
+        const maxWait = 30; // 30 * 100ms = 3 segundos
+        
+        const checkJoin = setInterval(() => {
+          waitCount++;
+          
+          // Verificar se o join completou
+          if (!isJoiningRef.current) {
+            clearInterval(checkJoin);
+            console.log('   ✅ Join completou, verificando se componente ainda existe...');
+            
+            // Se o cliente ainda existe e está conectado, pode ser React Strict Mode (remontagem)
+            if (clientRef.current && String(clientRef.current.connectionState) === 'CONNECTED') {
+              console.log('   ✅ Componente foi remontado (React Strict Mode), cancelando cleanup');
+              isCleaningUpRef.current = false; // Resetar flag
+              return; // Não fazer cleanup
+            }
+            
+            // Se não há cliente ou não está conectado, fazer cleanup
+            if (!clientRef.current || String(clientRef.current.connectionState) !== 'CONNECTED') {
+              console.log('   ⚠️ Componente realmente foi desmontado, executando cleanup...');
+              if (!cleanupCalledRef.current) {
+                cleanupCalledRef.current = true;
+                cleanup();
+              }
+            }
             return;
           }
-          // Se não completou, fazer cleanup
-          if (!cleanupCalledRef.current) {
-            cleanupCalledRef.current = true;
-            cleanup();
+          
+          // Se passou o tempo máximo e ainda está em join, fazer cleanup
+          if (waitCount >= maxWait) {
+            clearInterval(checkJoin);
+            console.warn('   ⚠️ Join não completou a tempo, executando cleanup...');
+            if (!cleanupCalledRef.current) {
+              cleanupCalledRef.current = true;
+              cleanup();
+            }
           }
-        }, 1000);
-        return;
+        }, 100); // Verificar a cada 100ms
+        
+        return; // Não fazer cleanup imediatamente
       }
       
       // Se o viewer está conectado e há usuários remotos, não fazer cleanup
@@ -3061,18 +3119,87 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       
       // Se não há token, usar null (requer projeto configurado para App ID Only)
       const tokenToUse = TOKEN || null;
-      const uid = await client.join(APP_ID, channelName, tokenToUse, null);
+      
+      // Tentar join com retry em caso de timeout de rede
+      let uid: number | string | null = null;
+      let joinAttempts = 0;
+      const maxJoinAttempts = 3;
+      
+      while (joinAttempts < maxJoinAttempts && !uid) {
+        try {
+          // Verificar se cleanup foi chamado antes de cada tentativa
+          if (isCleaningUpRef.current) {
+            console.log('⚠️ Cleanup foi chamado durante tentativas de join, cancelando...');
+            isJoiningRef.current = false;
+            return;
+          }
+          
+          if (joinAttempts > 0) {
+            console.log(`🔄 Tentativa ${joinAttempts + 1}/${maxJoinAttempts} de join...`);
+            // Aguardar um pouco antes de tentar novamente (backoff exponencial)
+            await new Promise(resolve => setTimeout(resolve, Math.min(1000 * Math.pow(2, joinAttempts - 1), 5000)));
+          }
+          
+          uid = await client.join(APP_ID, channelName, tokenToUse, null) as number | string;
+          console.log('✅ Join bem-sucedido na tentativa', joinAttempts + 1);
+          break; // Sucesso, sair do loop
+        } catch (joinError: any) {
+          joinAttempts++;
+          console.warn(`⚠️ Erro no join (tentativa ${joinAttempts}/${maxJoinAttempts}):`, joinError);
+          
+          // Verificar se é um erro de timeout de rede
+          if (joinError.code === 'NETWORK_TIMEOUT' || 
+              joinError.message?.includes('timeout') ||
+              joinError.message?.includes('NETWORK_TIMEOUT')) {
+            console.warn('   Erro de timeout de rede detectado');
+            
+            if (joinAttempts < maxJoinAttempts) {
+              console.log(`   Tentando novamente em ${Math.min(1000 * Math.pow(2, joinAttempts - 1), 5000)}ms...`);
+              continue; // Tentar novamente
+            } else {
+              console.error('❌ Todas as tentativas de join falharam devido a timeout de rede');
+              isJoiningRef.current = false;
+              setIsConnecting(false);
+              throw new Error('Não foi possível conectar ao servidor após múltiplas tentativas. Verifique sua conexão de internet.');
+            }
+          } else {
+            // Outro tipo de erro, não tentar novamente
+            console.error('❌ Erro não relacionado a timeout:', joinError);
+            isJoiningRef.current = false;
+            setIsConnecting(false);
+            throw joinError;
+          }
+        }
+      }
+      
+      if (!uid) {
+        isJoiningRef.current = false;
+        setIsConnecting(false);
+        throw new Error('Falha ao entrar no canal após múltiplas tentativas');
+      }
       
       // Verificar se cleanup foi chamado durante o join
+      // MAS aguardar um pouco para ver se é React Strict Mode (remontagem rápida)
       if (isCleaningUpRef.current) {
-        console.log('⚠️ Cleanup foi chamado durante join, saindo imediatamente...');
-        try {
-          await client.leave();
-        } catch (e) {
-          // Ignorar erros ao sair durante join
+        console.log('⚠️ Cleanup foi chamado durante join, aguardando para verificar se é React Strict Mode...');
+        // Aguardar 100ms para ver se o componente será remontado (React Strict Mode)
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Se ainda está marcado para cleanup E não há mais cliente, então realmente foi desmontado
+        if (isCleaningUpRef.current && !clientRef.current) {
+          console.log('⚠️ Componente realmente foi desmontado, saindo...');
+          try {
+            await client.leave();
+          } catch (e) {
+            // Ignorar erros ao sair durante join
+          }
+          isJoiningRef.current = false;
+          return;
+        } else {
+          // Pode ser React Strict Mode, continuar normalmente
+          console.log('✅ Pode ser React Strict Mode, continuando...');
+          isCleaningUpRef.current = false; // Resetar flag de cleanup
         }
-        isJoiningRef.current = false;
-        return;
       }
       
       console.log('✅ Entrou no canal com sucesso! UID:', uid);
@@ -3135,12 +3262,46 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         // Se já há usuários no canal quando o viewer entra, fazer subscribe manualmente
         // O evento user-published pode não ser disparado se o usuário já estava no canal
         console.log('📡 Fazendo subscribe manualmente para usuários já no canal...');
+        
+        // Verificar se a conexão está estabelecida antes de tentar subscribe
+        let connectionState = String(client.connectionState);
+        if (connectionState !== 'CONNECTED') {
+          console.warn('⚠️ Conexão não estabelecida ainda. Estado:', connectionState);
+          console.warn('   Aguardando conexão antes de fazer subscribe para usuários já no canal...');
+          
+          // Aguardar até a conexão estar estabelecida (máximo 10 segundos)
+          let waitCount = 0;
+          while (waitCount < 20) {
+            connectionState = String(client.connectionState);
+            if (connectionState === 'CONNECTED') break;
+            await new Promise(resolve => setTimeout(resolve, 500));
+            waitCount++;
+            if (isCleaningUpRef.current) {
+              console.log('⚠️ Cleanup foi chamado durante espera, cancelando subscribe...');
+              return;
+            }
+          }
+          
+          connectionState = String(client.connectionState);
+          if (connectionState !== 'CONNECTED') {
+            console.error('❌ Conexão não estabelecida após aguardar. Cancelando subscribe para usuários já no canal');
+            return;
+          }
+        }
+        
         for (const user of remoteUsers) {
           try {
             // Validar user antes de processar
             if (!user || typeof user !== 'object' || !user.uid) {
               console.warn('⚠️ User inválido, pulando...');
               continue;
+            }
+            
+            // Verificar novamente o estado da conexão antes de cada subscribe
+            const currentState = client.connectionState as string;
+            if (currentState !== 'CONNECTED') {
+              console.warn('⚠️ Conexão perdida durante subscribe. Estado:', currentState);
+              break;
             }
             
             // Subscribe ao vídeo se disponível
@@ -3202,14 +3363,21 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               }
             }
             
+            // Verificar novamente o estado da conexão antes de subscribe de áudio
+            const currentStateAudio = client.connectionState as string;
+            if (currentStateAudio !== 'CONNECTED') {
+              console.warn('⚠️ Conexão perdida durante subscribe de áudio. Estado:', currentStateAudio);
+              break;
+            }
+            
             // Subscribe ao áudio se disponível
             if (user.hasAudio) {
               console.log('🔊 Fazendo subscribe de áudio para user:', user.uid);
               await client.subscribe(user, 'audio');
               console.log('✅ Subscribed to audio for user:', user.uid);
               
-              // Aguardar um pouco para o track estar disponível
-              await new Promise(resolve => setTimeout(resolve, 300));
+              // Aguardar apenas 100ms para o track estar disponível (reduzido de 300ms)
+              await new Promise(resolve => setTimeout(resolve, 100));
               
               // Reproduzir áudio se o track estiver disponível
               if (user.audioTrack) {
@@ -3244,8 +3412,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       
       cleanupCalledRef.current = false; // Reset para permitir cleanup futuro
       
-      // Verificar periodicamente se há tracks já disponíveis (sem fazer subscribe - apenas reproduzir se já existir)
-      const checkForTracks = setInterval(() => {
+      // Verificar periodicamente se há tracks já disponíveis (verificação mais frequente para resposta rápida)
+      const checkForTracks = setInterval(async () => {
         if (!clientRef.current) {
           clearInterval(checkForTracks);
           return;
@@ -3261,8 +3429,17 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             console.log('✅ Vídeo já renderizado, atualizando estado...');
             setHasRemoteVideo(true);
             setIsConnecting(false);
+            clearInterval(checkForTracks);
           }
           return; // Não tentar reproduzir novamente
+        }
+        
+        // Se não há usuários em remoteUsers mas o broadcaster está online, tentar verificar novamente
+        // Isso pode acontecer se o broadcaster entrou antes do viewer ou se o evento user-published não foi disparado
+        if (currentUsers.length === 0 && clientRef.current.connectionState === 'CONNECTED') {
+          // Verificar se há usuários que ainda não aparecem em remoteUsers mas estão online
+          // Tentar fazer subscribe manualmente se detectar que há broadcaster online
+          return;
         }
         
         if (currentUsers.length > 0 && !hasRemoteVideo) {
@@ -3461,6 +3638,92 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       console.log('   Connection state:', client.connectionState);
     });
     
+    // Listener para quando usuário fica online (pode estar online mas ainda não publicou)
+    client.on('user-online', async (user: any) => {
+      console.log('🌐 User online:', user.uid);
+      console.log('   Total remote users:', client.remoteUsers.length);
+      console.log('   hasVideo:', user.hasVideo, 'hasAudio:', user.hasAudio);
+      
+      // Se o usuário já tem tracks publicados, fazer subscribe imediatamente
+      // MAS apenas se a conexão estiver estabelecida
+      if (user.hasVideo || user.hasAudio) {
+        // Verificar se a conexão está estabelecida antes de tentar subscribe
+        if (client.connectionState !== 'CONNECTED') {
+          console.warn('⚠️ Usuário online mas conexão não estabelecida ainda. Estado:', client.connectionState);
+          console.warn('   Aguardando conexão antes de fazer subscribe...');
+          
+          // Aguardar até a conexão estar estabelecida (máximo 10 segundos)
+          let waitCount = 0;
+          while (client.connectionState !== 'CONNECTED' && waitCount < 20) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            waitCount++;
+            if (isCleaningUpRef.current) {
+              console.log('⚠️ Cleanup foi chamado durante espera, cancelando...');
+              return;
+            }
+          }
+          
+          if (client.connectionState !== 'CONNECTED') {
+            console.error('❌ Conexão não estabelecida após aguardar. Cancelando subscribe para user-online');
+            return;
+          }
+        }
+        
+        console.log('📡 Usuário online já tem tracks, fazendo subscribe IMEDIATAMENTE...');
+        try {
+          if (user.hasVideo) {
+            await client.subscribe(user, 'video');
+            console.log('✅ Subscribed to video for online user:', user.uid);
+            // Aguardar apenas 100ms e tentar reproduzir imediatamente
+            setTimeout(async () => {
+              if (user.videoTrack && remoteVideoRef.current && !hasRemoteVideo) {
+                try {
+                  console.log('🎬 Tentando reproduzir vídeo imediatamente após subscribe...');
+                  safeClearElement(remoteVideoRef.current);
+                  const videoContainer = document.createElement('div');
+                  videoContainer.id = `remote-video-${user.uid}`;
+                  videoContainer.className = 'w-full h-full';
+                  videoContainer.style.width = '100%';
+                  videoContainer.style.height = '100%';
+                  videoContainer.style.position = 'relative';
+                  videoContainer.style.overflow = 'hidden';
+                  videoContainer.style.backgroundColor = '#000';
+                  remoteVideoRef.current.appendChild(videoContainer);
+                  
+                  await user.videoTrack.play(videoContainer);
+                  setHasRemoteVideo(true);
+                  setIsConnecting(false);
+                  console.log('✅ Vídeo reproduzido imediatamente após user-online!');
+                } catch (e) {
+                  console.warn('⚠️ Erro ao reproduzir vídeo imediatamente:', e);
+                }
+              }
+            }, 100);
+          }
+          if (user.hasAudio) {
+            await client.subscribe(user, 'audio');
+            console.log('✅ Subscribed to audio for online user:', user.uid);
+            // Reproduzir áudio imediatamente
+            setTimeout(() => {
+              if (user.audioTrack) {
+                try {
+                  user.audioTrack.play();
+                  setAudioBlocked(false);
+                } catch (e) {
+                  console.warn('⚠️ Erro ao reproduzir áudio:', e);
+                  setAudioBlocked(true);
+                }
+              }
+            }, 100);
+          }
+        } catch (e: any) {
+          console.warn('⚠️ Erro ao fazer subscribe para user-online:', e);
+        }
+      } else {
+        console.log('⏳ Usuário online mas ainda não publicou tracks, aguardando user-published...');
+      }
+    });
+    
     // Listener para verificar quando usuários saem do canal
     client.on('user-left', (user: any) => {
       console.log('👋 User left:', user.uid);
@@ -3485,16 +3748,13 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           uid: user.uid
         });
         
-        // Aguardar um pouco para garantir que a conexão está estabelecida
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Subscribe ao stream remoto
+        // Subscribe imediatamente (sem delay desnecessário)
         try {
           await client.subscribe(user, mediaType);
           console.log('✅ Subscribed to user:', user.uid, 'MediaType:', mediaType);
           
-          // Aguardar um pouco para o track estar disponível
-          await new Promise(resolve => setTimeout(resolve, 300));
+          // Aguardar apenas 100ms para o track estar disponível (reduzido de 300ms)
+          await new Promise(resolve => setTimeout(resolve, 100));
         } catch (subscribeError: any) {
           console.error('❌ Erro ao fazer subscribe no evento:', subscribeError);
           
@@ -3503,22 +3763,49 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               subscribeError.message?.includes('not joined') ||
               subscribeError.code === 'INVALID_OPERATION') {
             console.warn('⚠️ Conexão ainda não estabelecida, aguardando...');
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Verificar estado da conexão e aguardar até estar CONNECTED
+            let waitCount = 0;
+            const maxWaitAttempts = 20; // 20 * 500ms = 10 segundos máximo
+            while (client.connectionState !== 'CONNECTED' && waitCount < maxWaitAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+              waitCount++;
+              console.log(`   Aguardando conexão... (${waitCount}/${maxWaitAttempts}) Estado: ${client.connectionState}`);
+              
+              // Se cleanup foi chamado, cancelar
+              if (isCleaningUpRef.current) {
+                console.log('⚠️ Cleanup foi chamado durante espera de conexão, cancelando subscribe...');
+                return;
+              }
+            }
+            
+            // Verificar se a conexão está estabelecida antes de tentar subscribe novamente
+            if (client.connectionState !== 'CONNECTED') {
+              console.error('❌ Conexão não estabelecida após aguardar. Estado:', client.connectionState);
+              console.error('   Cancelando subscribe - o join pode ter falhado');
+              return;
+            }
+            
+            // Tentar subscribe novamente agora que a conexão está estabelecida
             try {
               await client.subscribe(user, mediaType);
               console.log('✅ Subscribe bem-sucedido após aguardar conexão');
-              await new Promise(resolve => setTimeout(resolve, 300));
-            } catch (retryError) {
+              await new Promise(resolve => setTimeout(resolve, 100));
+            } catch (retryError: any) {
               console.error('❌ Erro na segunda tentativa de subscribe:', retryError);
+              // Se ainda é "not joined", não tentar mais
+              if (retryError.message?.includes('not joined') || retryError.code === 'INVALID_OPERATION') {
+                console.error('   Cliente não está no canal, cancelando subscribe');
+              }
               return;
             }
           } else if (subscribeError.message?.includes("Cannot use 'in' operator")) {
             console.warn('⚠️ User object pode estar incompleto, tentando novamente...');
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 300)); // Reduzido de 500ms
             try {
               await client.subscribe(user, mediaType);
               console.log('✅ Subscribe bem-sucedido na segunda tentativa');
-              await new Promise(resolve => setTimeout(resolve, 300));
+              await new Promise(resolve => setTimeout(resolve, 100)); // Reduzido de 300ms
             } catch (retryError) {
               console.error('❌ Erro na segunda tentativa de subscribe:', retryError);
               return;
@@ -3536,8 +3823,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           console.log('🔄 Limpando vídeo anterior para aplicar novo track...');
           safeClearElement(remoteVideoRef.current);
           
-          // Aguardar um pouco para o track estar disponível
-          await new Promise(resolve => setTimeout(resolve, 300));
+          // Aguardar apenas 100ms para o track estar disponível (reduzido de 300ms)
+          await new Promise(resolve => setTimeout(resolve, 100));
           
           // Criar um elemento div para o vídeo
           const videoContainer = document.createElement('div');
@@ -4057,39 +4344,56 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   };
 
   const cleanup = async () => {
+    // Proteção: evitar múltiplas chamadas de cleanup
+    if (cleanupCalledRef.current && isCleaningUpRef.current) {
+      console.log('⏸️ Cleanup já está em andamento, ignorando...');
+      return;
+    }
+    
     // Marcar que cleanup está em andamento
     isCleaningUpRef.current = true;
+    cleanupCalledRef.current = true;
+    
     // Limpar intervalo de verificação de tracks
-    if (checkTracksIntervalRef.current) {
-      clearInterval(checkTracksIntervalRef.current);
-      checkTracksIntervalRef.current = null;
-      console.log('✅ Intervalo de verificação de tracks limpo');
+    try {
+      if (checkTracksIntervalRef.current) {
+        clearInterval(checkTracksIntervalRef.current);
+        checkTracksIntervalRef.current = null;
+        console.log('✅ Intervalo de verificação de tracks limpo');
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar intervalo:', e);
     }
     
     // Evitar múltiplas chamadas de cleanup
-    if (cleanupCalledRef.current && !clientRef.current && !localAudioTrackRef.current && !localVideoTrackRef.current) {
-      console.log('⏸️ Cleanup já foi chamado e não há recursos para limpar, ignorando...');
+    if (!clientRef.current && !localAudioTrackRef.current && !localVideoTrackRef.current && !screenVideoTrackRef.current) {
+      console.log('⏸️ Não há recursos para limpar, finalizando cleanup...');
+      isCleaningUpRef.current = false;
       return;
     }
     
     // Proteção: Se o viewer está conectado e há usuários remotos, não fazer cleanup
-    if (!isBroadcaster && clientRef.current) {
-      const remoteUsers = clientRef.current.remoteUsers;
-      const connectionState = clientRef.current.connectionState;
-      
-      if (connectionState === 'CONNECTED' && remoteUsers.length > 0) {
-        console.warn('⚠️ Tentativa de cleanup enquanto viewer está conectado com usuários remotos!');
-        console.warn('   Remote users:', remoteUsers.length);
-        console.warn('   Connection state:', connectionState);
-        console.warn('   Stack trace:', new Error().stack);
-        console.warn('   Ignorando cleanup para evitar desconexão prematura');
-        return;
+    try {
+      if (!isBroadcaster && clientRef.current) {
+        const remoteUsers = clientRef.current?.remoteUsers || [];
+        const connectionState = clientRef.current?.connectionState;
+        
+        if (connectionState === 'CONNECTED' && remoteUsers.length > 0) {
+          console.warn('⚠️ Tentativa de cleanup enquanto viewer está conectado com usuários remotos!');
+          console.warn('   Remote users:', remoteUsers.length);
+          console.warn('   Connection state:', connectionState);
+          console.warn('   Ignorando cleanup para evitar desconexão prematura');
+          isCleaningUpRef.current = false;
+          cleanupCalledRef.current = false; // Permitir cleanup futuro
+          return;
+        }
       }
+    } catch (e) {
+      console.warn('Erro ao verificar estado do cliente:', e);
     }
 
     try {
       console.log('Cleaning up resources...');
-      console.log('   Stack trace:', new Error().stack);
       console.log('   isBroadcaster:', isBroadcaster);
       console.log('   isStreaming:', isStreaming);
       console.log('   hasClient:', !!clientRef.current);
@@ -4234,13 +4538,22 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           // Verificar se ainda está conectando antes de sair
           if (isJoiningRef.current) {
             console.log('⚠️ Ainda está conectando, aguardando join completar ou falhar...');
-            // Aguardar mais tempo para a conexão completar ou falhar
+            // Aguardar mais tempo para a conexão completar ou falhar (aumentado para dar tempo aos retries)
             let waitCount = 0;
-            while (isJoiningRef.current && waitCount < 10) {
-              await new Promise(resolve => setTimeout(resolve, 200));
+            const maxWaitTime = 30; // 30 * 500ms = 15 segundos (tempo suficiente para 3 tentativas de join)
+            while (isJoiningRef.current && waitCount < maxWaitTime) {
+              await new Promise(resolve => setTimeout(resolve, 500));
               waitCount++;
+              
+              // Verificar se a conexão mudou de estado
+              if (clientRef.current && 
+                  (clientRef.current.connectionState === 'CONNECTED' || 
+                   clientRef.current.connectionState === 'DISCONNECTED')) {
+                console.log(`   Estado da conexão mudou para: ${clientRef.current.connectionState}`);
+                break;
+              }
             }
-            console.log(`   Aguardou ${waitCount * 200}ms, isJoining: ${isJoiningRef.current}`);
+            console.log(`   Aguardou ${waitCount * 500}ms, isJoining: ${isJoiningRef.current}`);
           }
           
           // Verificar se o cliente ainda está conectado antes de sair
@@ -4308,14 +4621,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       isJoiningRef.current = false;
       ensureVideoDisplayRunningRef.current = false;
       currentChannelRef.current = '';
-      isCleaningUpRef.current = false; // Resetar flag de cleanup
-      
-      isCleaningUpRef.current = false; // Resetar flag de cleanup
       console.log('✅ Cleanup completed - todos os recursos foram liberados');
     } catch (error) {
       console.error('Erro ao limpar recursos:', error);
     } finally {
-      cleanupCalledRef.current = true;
+      // Sempre resetar flags no finally para garantir que não fiquem travadas
+      isCleaningUpRef.current = false;
     }
   };
 
@@ -4434,13 +4745,16 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         #video-player:-moz-full-screen video,
         #video-player:-ms-fullscreen video {
           width: 100% !important;
-          height: 100% !important;
+          max-width: 100% !important;
+          height: auto !important;
+          max-height: 100vh !important;
           object-fit: contain !important;
-          margin: 0 !important;
+          margin: 0 auto !important;
           padding: 0 !important;
+          display: block !important;
         }
         
-        /* No mobile, usar contain para não cortar conteúdo */
+        /* No mobile, usar contain para não cortar conteúdo e centralizar */
         @media (max-width: 767px) {
           #video-player:fullscreen,
           #video-player:-webkit-full-screen,
@@ -4455,9 +4769,13 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           #video-player:-webkit-full-screen video,
           #video-player:-moz-full-screen video,
           #video-player:-ms-fullscreen video {
-            object-fit: contain !important;
+            width: 100% !important;
             max-width: 100% !important;
-            max-height: 100% !important;
+            height: auto !important;
+            max-height: 100vh !important;
+            object-fit: contain !important;
+            display: block !important;
+            margin: 0 auto !important;
           }
         }
         
@@ -4487,11 +4805,14 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           [ref="localVideoRef"] video,
           [ref="remoteVideoRef"] video {
             width: 100vw !important;
-            height: calc(var(--vh, 1vh) * 100) !important; /* Altura real no mobile */
+            max-width: 100vw !important;
+            height: auto !important;
+            max-height: calc(var(--vh, 1vh) * 100) !important; /* Altura real no mobile */
             object-fit: contain !important;
-            margin: 0 !important;
+            margin: 0 auto !important;
             padding: 0 !important;
             border-radius: 0 !important;
+            display: block !important;
           }
         }
         
@@ -4549,13 +4870,68 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           }
         }
         
-        /* Em fullscreen, remover margens e paddings */
+        /* Em fullscreen, remover margens e paddings e centralizar */
         #video-player:fullscreen,
         #video-player:-webkit-full-screen,
         #video-player:-moz-full-screen,
         #video-player:-ms-fullscreen {
           margin: 0 !important;
           padding: 0 !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+        }
+        
+        /* Garantir que o vídeo dentro do #video-player fique centralizado */
+        #video-player:fullscreen > div,
+        #video-player:-webkit-full-screen > div,
+        #video-player:-moz-full-screen > div,
+        #video-player:-ms-fullscreen > div {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 100% !important;
+          height: 100% !important;
+        }
+        
+        /* Remover position absolute e top do vídeo em fullscreen para centralizar */
+        #video-player:fullscreen [ref="remoteVideoRef"] video,
+        #video-player:-webkit-full-screen [ref="remoteVideoRef"] video,
+        #video-player:-moz-full-screen [ref="remoteVideoRef"] video,
+        #video-player:-ms-fullscreen [ref="remoteVideoRef"] video,
+        #video-player:fullscreen [ref="localVideoRef"] video,
+        #video-player:-webkit-full-screen [ref="localVideoRef"] video,
+        #video-player:-moz-full-screen [ref="localVideoRef"] video,
+        #video-player:-ms-fullscreen [ref="localVideoRef"] video {
+          position: relative !important;
+          top: auto !important;
+          left: auto !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          height: auto !important;
+          max-height: 100vh !important;
+          object-fit: contain !important;
+          margin: 0 auto !important;
+          display: block !important;
+        }
+        
+        /* Container do vídeo remoto em fullscreen centralizado */
+        #video-player:fullscreen [ref="remoteVideoRef"],
+        #video-player:-webkit-full-screen [ref="remoteVideoRef"],
+        #video-player:-moz-full-screen [ref="remoteVideoRef"],
+        #video-player:-ms-fullscreen [ref="remoteVideoRef"],
+        #video-player:fullscreen [ref="localVideoRef"],
+        #video-player:-webkit-full-screen [ref="localVideoRef"],
+        #video-player:-moz-full-screen [ref="localVideoRef"],
+        #video-player:-ms-fullscreen [ref="localVideoRef"] {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 100% !important;
+          height: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          aspect-ratio: auto !important;
         }
       `}</style>
       <div id="video-player" data-broadcaster={isBroadcaster ? 'true' : 'false'} className="relative w-full bg-black overflow-hidden rounded-lg" style={{ margin: '0', padding: '0', maxWidth: '1600px' }}>
