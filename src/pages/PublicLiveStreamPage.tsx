@@ -372,78 +372,15 @@ const PublicLiveStreamPage: React.FC = () => {
     }
   };
 
-  // 🔥 Fullscreen automático ao girar o celular (landscape)
+  // 🔥 Fullscreen automático ao girar o celular (landscape) - DESABILITADO
+  // Desabilitado para evitar conflitos com o botão manual de fullscreen
+  // O fullscreen automático causa erro "Permissions check failed" quando o usuário
+  // tenta usar o botão manual enquanto o automático também está tentando ativar
   useEffect(() => {
-    if (!isMobile) return;
-
-    const handleOrientationChange = async () => {
-      // Aguardar um pouco para a orientação estabilizar
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      const isLandscape = window.orientation === 90 || window.orientation === -90 || 
-                         (window.innerWidth > window.innerHeight);
-
-      const isCurrentlyFullscreen = !!(
-        document.fullscreenElement ||
-        (document as any).webkitFullscreenElement ||
-        (document as any).mozFullScreenElement ||
-        (document as any).msFullscreenElement
-      );
-
-      if (isLandscape && !isCurrentlyFullscreen) {
-        // Entrar em fullscreen automaticamente
-        try {
-          const videoElement = document.querySelector('#video-player video') as HTMLVideoElement;
-          let element: HTMLElement | null = videoElement || document.documentElement;
-
-          if (element.requestFullscreen) {
-            await element.requestFullscreen();
-          } else if ((element as any).webkitRequestFullscreen) {
-            await (element as any).webkitRequestFullscreen();
-          } else if (videoElement && (videoElement as any).webkitEnterFullscreen) {
-            (videoElement as any).webkitEnterFullscreen();
-          }
-
-          setIsFullscreen(true);
-        } catch (err) {
-          console.log('Fullscreen automático não disponível:', err);
-        }
-      } else if (!isLandscape && isCurrentlyFullscreen) {
-        // Sair do fullscreen ao voltar para vertical
-        try {
-          if (document.exitFullscreen) {
-            await document.exitFullscreen();
-          } else if ((document as any).webkitExitFullscreen) {
-            await (document as any).webkitExitFullscreen();
-          } else if ((document as any).mozCancelFullScreen) {
-            await (document as any).mozCancelFullScreen();
-          } else if ((document as any).msExitFullscreen) {
-            await (document as any).msExitFullscreen();
-          }
-
-          setIsFullscreen(false);
-        } catch (err) {
-          console.log('Erro ao sair do fullscreen:', err);
-        }
-      }
-    };
-
-    // Escutar mudanças de orientação
-    window.addEventListener('orientationchange', handleOrientationChange);
-    
-    // Também escutar resize (alguns dispositivos não disparam orientationchange)
-    let resizeTimer: NodeJS.Timeout;
-    const handleResize = () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(handleOrientationChange, 500);
-    };
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('orientationchange', handleOrientationChange);
-      window.removeEventListener('resize', handleResize);
-      clearTimeout(resizeTimer);
-    };
+    // Desabilitado - usar apenas o botão manual de fullscreen
+    // O fullscreen automático está desabilitado para viewers para evitar conflitos
+    // com o botão manual. Os usuários podem usar o botão de fullscreen manualmente.
+    return;
   }, [isMobile]);
 
   // Detectar toque na tela para mostrar/ocultar controles (mobile)
