@@ -372,16 +372,218 @@ const PublicLiveStreamPage: React.FC = () => {
     }
   };
 
-  // 🔥 Fullscreen automático ao girar o celular (landscape) - DESABILITADO
-  // Desabilitado para evitar conflitos com o botão manual de fullscreen
-  // O fullscreen automático causa erro "Permissions check failed" quando o usuário
-  // tenta usar o botão manual enquanto o automático também está tentando ativar
+  // 🔥 Fullscreen automático ao girar o celular (landscape) - Estilo YouTube
   useEffect(() => {
-    // Desabilitado - usar apenas o botão manual de fullscreen
-    // O fullscreen automático está desabilitado para viewers para evitar conflitos
-    // com o botão manual. Os usuários podem usar o botão de fullscreen manualmente.
-    return;
-  }, [isMobile]);
+    if (!isMobile) return;
+
+    let isHandlingFullscreen = false; // Flag para evitar múltiplas tentativas simultâneas
+    let orientationTimer: NodeJS.Timeout;
+
+    const handleOrientationChange = async () => {
+      // Evitar múltiplas tentativas simultâneas
+      if (isHandlingFullscreen) return;
+
+      // Aguardar um pouco para a orientação estabilizar
+      clearTimeout(orientationTimer);
+      orientationTimer = setTimeout(async () => {
+        const isLandscape = window.orientation === 90 || window.orientation === -90 || 
+                           (window.innerWidth > window.innerHeight);
+
+        const isCurrentlyFullscreen = !!(
+          document.fullscreenElement ||
+          (document as any).webkitFullscreenElement ||
+          (document as any).mozFullScreenElement ||
+          (document as any).msFullscreenElement
+        );
+
+        if (isLandscape && !isCurrentlyFullscreen) {
+          // Paisagem = entrar em tela cheia automaticamente
+          isHandlingFullscreen = true;
+          
+          try {
+            // Usar o container do vídeo
+            let element: HTMLElement | null = videoContainerRef.current ||
+                                             document.querySelector('.video-container-fullscreen') as HTMLElement ||
+                                             document.querySelector('#video-player') as HTMLElement ||
+                                             document.documentElement;
+
+            if (element.requestFullscreen) {
+              await element.requestFullscreen();
+            } else if ((element as any).webkitRequestFullscreen) {
+              await (element as any).webkitRequestFullscreen();
+            } else if ((element as any).mozRequestFullScreen) {
+              await (element as any).mozRequestFullScreen();
+            } else if ((element as any).msRequestFullscreen) {
+              await (element as any).msRequestFullscreen();
+            }
+
+            setIsFullscreen(true);
+          } catch (err: any) {
+            // Ignorar erros de permissão silenciosamente
+            if (err.name !== 'NotAllowedError' && err.name !== 'TypeError') {
+              console.log('Fullscreen automático não disponível:', err);
+            }
+          } finally {
+            setTimeout(() => {
+              isHandlingFullscreen = false;
+            }, 1000);
+          }
+        } else if (!isLandscape && isCurrentlyFullscreen) {
+          // Retrato = sair da tela cheia automaticamente
+          try {
+            if (document.exitFullscreen) {
+              await document.exitFullscreen();
+            } else if ((document as any).webkitExitFullscreen) {
+              await (document as any).webkitExitFullscreen();
+            } else if ((document as any).mozCancelFullScreen) {
+              await (document as any).mozCancelFullScreen();
+            } else if ((document as any).msExitFullscreen) {
+              await (document as any).msExitFullscreen();
+            }
+
+            setIsFullscreen(false);
+          } catch (err: any) {
+            // Ignorar erros silenciosamente
+            if (err.name !== 'NotAllowedError' && err.name !== 'TypeError') {
+              console.log('Erro ao sair do fullscreen:', err);
+            }
+          }
+        }
+      }, 300);
+    };
+
+    // Escutar mudanças de orientação
+    window.addEventListener('orientationchange', handleOrientationChange);
+    
+    // Também escutar resize (alguns dispositivos não disparam orientationchange)
+    let resizeTimer: NodeJS.Timeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(handleOrientationChange, 500);
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(orientationTimer);
+      clearTimeout(resizeTimer);
+    };
+  }, [isMobile, videoContainerRef]);
+
+  // 🔥 Pinch-to-zoom no vídeo em fullscreen (estilo YouTube)
+  useEffect(() => {
+    if (!isFullscreen || !isMobile) return;
+
+    const videoContainer = videoContainerRef.current;
+    if (!videoContainer) return;
+
+    const videoElement = videoContainer.querySelector('video') as HTMLVideoElement;
+    if (!videoElement) return;
+
+    let initialDistance = 0;
+    let currentScale = 1;
+    let currentTranslateX = 0;
+    let currentTranslateY = 0;
+    let isPinching = false;
+    let lastTouchCenter = { x: 0, y: 0 };
+
+    const getDistance = (touch1: Touch, touch2: Touch) => {
+      const dx = touch2.clientX - touch1.clientX;
+      const dy = touch2.clientY - touch1.clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    const getTouchCenter = (touch1: Touch, touch2: Touch) => {
+      return {
+        x: (touch1.clientX + touch2.clientX) / 2,
+        y: (touch1.clientY + touch2.clientY) / 2
+      };
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        isPinching = true;
+        initialDistance = getDistance(e.touches[0], e.touches[1]);
+        lastTouchCenter = getTouchCenter(e.touches[0], e.touches[1]);
+        e.preventDefault();
+      } else {
+        isPinching = false;
+        currentScale = 1;
+        currentTranslateX = 0;
+        currentTranslateY = 0;
+        videoElement.style.transform = '';
+        videoElement.style.transition = 'transform 0.3s ease-out';
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && isPinching) {
+        e.preventDefault();
+        
+        const currentDistance = getDistance(e.touches[0], e.touches[1]);
+        const scale = currentDistance / initialDistance;
+        
+        // Limitar zoom entre 1x e 3x
+        const newScale = Math.max(1, Math.min(3, scale));
+        currentScale = newScale;
+
+        const touchCenter = getTouchCenter(e.touches[0], e.touches[1]);
+        const deltaX = touchCenter.x - lastTouchCenter.x;
+        const deltaY = touchCenter.y - lastTouchCenter.y;
+
+        currentTranslateX += deltaX;
+        currentTranslateY += deltaY;
+
+        // Limitar movimento para não sair muito da tela
+        const maxTranslate = 100;
+        currentTranslateX = Math.max(-maxTranslate, Math.min(maxTranslate, currentTranslateX));
+        currentTranslateY = Math.max(-maxTranslate, Math.min(maxTranslate, currentTranslateY));
+
+        videoElement.style.transition = 'none';
+        videoElement.style.transform = `scale(${newScale}) translate(${currentTranslateX / newScale}px, ${currentTranslateY / newScale}px)`;
+        videoElement.style.transformOrigin = 'center center';
+
+        lastTouchCenter = touchCenter;
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2 && isPinching) {
+        isPinching = false;
+        
+        // Se o zoom for muito pequeno, resetar para 1x
+        if (currentScale < 1.1) {
+          currentScale = 1;
+          currentTranslateX = 0;
+          currentTranslateY = 0;
+        }
+
+        videoElement.style.transition = 'transform 0.3s ease-out';
+        videoElement.style.transform = `scale(${currentScale}) translate(${currentTranslateX / currentScale}px, ${currentTranslateY / currentScale}px)`;
+        videoElement.style.transformOrigin = 'center center';
+      }
+    };
+
+    // Adicionar listeners
+    videoContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
+    videoContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
+    videoContainer.addEventListener('touchend', handleTouchEnd, { passive: false });
+    videoContainer.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+
+    return () => {
+      videoContainer.removeEventListener('touchstart', handleTouchStart);
+      videoContainer.removeEventListener('touchmove', handleTouchMove);
+      videoContainer.removeEventListener('touchend', handleTouchEnd);
+      videoContainer.removeEventListener('touchcancel', handleTouchEnd);
+      
+      // Resetar transformações ao sair
+      if (videoElement) {
+        videoElement.style.transform = '';
+        videoElement.style.transition = '';
+      }
+    };
+  }, [isFullscreen, isMobile, videoContainerRef]);
 
   // Detectar toque na tela para mostrar/ocultar controles (mobile)
   useEffect(() => {
