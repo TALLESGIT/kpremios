@@ -231,6 +231,23 @@ const PublicLiveStreamPage: React.FC = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // 🔥 Ajustar altura real do mobile (evita corte por barra de navegação)
+  useEffect(() => {
+    const updateVh = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+
+    updateVh();
+    window.addEventListener('resize', updateVh);
+    window.addEventListener('orientationchange', updateVh);
+
+    return () => {
+      window.removeEventListener('resize', updateVh);
+      window.removeEventListener('orientationchange', updateVh);
+    };
+  }, []);
+
   // Função para entrar/sair de tela cheia (com suporte mobile)
   const toggleFullscreen = async () => {
     try {
@@ -247,8 +264,14 @@ const PublicLiveStreamPage: React.FC = () => {
         let element: HTMLElement | null = null;
 
         if (isMobile) {
-          // No mobile, usar documentElement diretamente para melhor compatibilidade
-          element = document.documentElement;
+          // No mobile, tentar primeiro o elemento de vídeo diretamente (melhor compatibilidade iOS)
+          const videoElement = document.querySelector('#video-player video') as HTMLVideoElement;
+          if (videoElement) {
+            element = videoElement;
+          } else {
+            // Fallback para documentElement
+            element = document.documentElement;
+          }
         } else {
           // Desktop: usar container do vídeo
           element = videoContainerRef.current || 
@@ -269,6 +292,10 @@ const PublicLiveStreamPage: React.FC = () => {
             fullscreenPromise = element.requestFullscreen() as Promise<void>;
           } else if ((element as any).webkitRequestFullscreen) {
             fullscreenPromise = (element as any).webkitRequestFullscreen();
+          } else if ((element as any).webkitEnterFullscreen && element instanceof HTMLVideoElement) {
+            // iOS Safari - método específico para vídeo
+            (element as any).webkitEnterFullscreen();
+            fullscreenPromise = Promise.resolve();
           } else if ((element as any).mozRequestFullScreen) {
             fullscreenPromise = (element as any).mozRequestFullScreen();
           } else if ((element as any).msRequestFullscreen) {
@@ -344,6 +371,80 @@ const PublicLiveStreamPage: React.FC = () => {
       }
     }
   };
+
+  // 🔥 Fullscreen automático ao girar o celular (landscape)
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const handleOrientationChange = async () => {
+      // Aguardar um pouco para a orientação estabilizar
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const isLandscape = window.orientation === 90 || window.orientation === -90 || 
+                         (window.innerWidth > window.innerHeight);
+
+      const isCurrentlyFullscreen = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+
+      if (isLandscape && !isCurrentlyFullscreen) {
+        // Entrar em fullscreen automaticamente
+        try {
+          const videoElement = document.querySelector('#video-player video') as HTMLVideoElement;
+          let element: HTMLElement | null = videoElement || document.documentElement;
+
+          if (element.requestFullscreen) {
+            await element.requestFullscreen();
+          } else if ((element as any).webkitRequestFullscreen) {
+            await (element as any).webkitRequestFullscreen();
+          } else if (videoElement && (videoElement as any).webkitEnterFullscreen) {
+            (videoElement as any).webkitEnterFullscreen();
+          }
+
+          setIsFullscreen(true);
+        } catch (err) {
+          console.log('Fullscreen automático não disponível:', err);
+        }
+      } else if (!isLandscape && isCurrentlyFullscreen) {
+        // Sair do fullscreen ao voltar para vertical
+        try {
+          if (document.exitFullscreen) {
+            await document.exitFullscreen();
+          } else if ((document as any).webkitExitFullscreen) {
+            await (document as any).webkitExitFullscreen();
+          } else if ((document as any).mozCancelFullScreen) {
+            await (document as any).mozCancelFullScreen();
+          } else if ((document as any).msExitFullscreen) {
+            await (document as any).msExitFullscreen();
+          }
+
+          setIsFullscreen(false);
+        } catch (err) {
+          console.log('Erro ao sair do fullscreen:', err);
+        }
+      }
+    };
+
+    // Escutar mudanças de orientação
+    window.addEventListener('orientationchange', handleOrientationChange);
+    
+    // Também escutar resize (alguns dispositivos não disparam orientationchange)
+    let resizeTimer: NodeJS.Timeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(handleOrientationChange, 500);
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimer);
+    };
+  }, [isMobile]);
 
   // Detectar toque na tela para mostrar/ocultar controles (mobile)
   useEffect(() => {

@@ -4379,7 +4379,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         #video-player:-moz-full-screen,
         #video-player:-ms-fullscreen {
           width: 100vw !important;
-          height: 100vh !important;
+          height: calc(var(--vh, 1vh) * 100) !important; /* Altura real no mobile */
           background: #000 !important;
           margin: 0 !important;
           padding: 0 !important;
@@ -4438,7 +4438,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           [ref="localVideoRef"],
           [ref="remoteVideoRef"] {
             aspect-ratio: auto !important;
-            height: 100vh !important;
+            height: calc(var(--vh, 1vh) * 100) !important; /* Altura real no mobile */
             width: 100vw !important;
             margin: 0 !important;
             padding: 0 !important;
@@ -4447,7 +4447,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           [ref="localVideoRef"] video,
           [ref="remoteVideoRef"] video {
             width: 100vw !important;
-            height: 100vh !important;
+            height: calc(var(--vh, 1vh) * 100) !important; /* Altura real no mobile */
             object-fit: contain !important;
             margin: 0 !important;
             padding: 0 !important;
