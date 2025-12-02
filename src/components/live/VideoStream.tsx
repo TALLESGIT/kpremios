@@ -301,55 +301,95 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     return () => clearInterval(interval);
   }, [isBroadcaster, isStreaming, hasLocalVideo]);
 
-  // Auto fullscreen ao virar o celular para paisagem
+  // Auto fullscreen ao virar o celular para paisagem (apenas para broadcaster, desabilitado para viewers)
   useEffect(() => {
-    const handleOrientationChange = () => {
+    // Desabilitar fullscreen automático para viewers (eles usam o botão manual)
+    if (!isBroadcaster) return;
+
+    let isHandlingFullscreen = false; // Flag para evitar múltiplas tentativas simultâneas
+
+    const handleOrientationChange = async () => {
+      // Evitar múltiplas tentativas simultâneas
+      if (isHandlingFullscreen) return;
+      
       const videoPlayer = document.getElementById('video-player');
       if (!videoPlayer) return;
+
+      // Verificar se já está em fullscreen
+      const isCurrentlyFullscreen = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
 
       // Verificar orientação (90 ou -90 = paisagem)
       const isLandscape = window.orientation === 90 || window.orientation === -90 || 
                          (window.innerWidth > window.innerHeight);
 
-      if (isLandscape) {
-        // Paisagem = entrar em tela cheia
-        if (videoPlayer.requestFullscreen) {
-          videoPlayer.requestFullscreen().catch((err) => {
+      if (isLandscape && !isCurrentlyFullscreen) {
+        // Paisagem = entrar em tela cheia (apenas se não estiver já em fullscreen)
+        isHandlingFullscreen = true;
+        
+        try {
+          if (videoPlayer.requestFullscreen) {
+            await videoPlayer.requestFullscreen();
+          } else if ((videoPlayer as any).webkitRequestFullscreen) {
+            await (videoPlayer as any).webkitRequestFullscreen();
+          } else if ((videoPlayer as any).mozRequestFullScreen) {
+            await (videoPlayer as any).mozRequestFullScreen();
+          } else if ((videoPlayer as any).msRequestFullscreen) {
+            await (videoPlayer as any).msRequestFullscreen();
+          }
+        } catch (err: any) {
+          // Ignorar erros de permissão (usuário pode ter cancelado ou não permitido)
+          if (err.name !== 'NotAllowedError' && err.name !== 'TypeError') {
             console.log('⚠️ Não foi possível entrar em fullscreen:', err);
-          });
-        } else if ((videoPlayer as any).webkitRequestFullscreen) {
-          (videoPlayer as any).webkitRequestFullscreen();
-        } else if ((videoPlayer as any).mozRequestFullScreen) {
-          (videoPlayer as any).mozRequestFullScreen();
-        } else if ((videoPlayer as any).msRequestFullscreen) {
-          (videoPlayer as any).msRequestFullscreen();
+          }
+        } finally {
+          // Resetar flag após um delay
+          setTimeout(() => {
+            isHandlingFullscreen = false;
+          }, 1000);
         }
-      } else {
+      } else if (!isLandscape && isCurrentlyFullscreen) {
         // Retrato = sair da tela cheia
-        if (document.fullscreenElement) {
-          document.exitFullscreen().catch((err) => {
+        try {
+          if (document.exitFullscreen) {
+            await document.exitFullscreen();
+          } else if ((document as any).webkitExitFullscreen) {
+            await (document as any).webkitExitFullscreen();
+          } else if ((document as any).mozCancelFullScreen) {
+            await (document as any).mozCancelFullScreen();
+          } else if ((document as any).msExitFullscreen) {
+            await (document as any).msExitFullscreen();
+          }
+        } catch (err: any) {
+          // Ignorar erros silenciosamente
+          if (err.name !== 'NotAllowedError' && err.name !== 'TypeError') {
             console.log('⚠️ Não foi possível sair do fullscreen:', err);
-          });
-        } else if ((document as any).webkitFullscreenElement) {
-          (document as any).webkitExitFullscreen();
-        } else if ((document as any).mozFullScreenElement) {
-          (document as any).mozCancelFullScreen();
-        } else if ((document as any).msFullscreenElement) {
-          (document as any).msExitFullscreen();
+          }
         }
       }
     };
 
-    // Adicionar listener para mudança de orientação
-    window.addEventListener('orientationchange', handleOrientationChange);
+    // Adicionar listener para mudança de orientação com debounce
+    let orientationTimer: NodeJS.Timeout;
+    const debouncedHandleOrientationChange = () => {
+      clearTimeout(orientationTimer);
+      orientationTimer = setTimeout(handleOrientationChange, 500);
+    };
+
+    window.addEventListener('orientationchange', debouncedHandleOrientationChange);
     // Também escutar resize para detectar mudanças de orientação em alguns dispositivos
-    window.addEventListener('resize', handleOrientationChange);
+    window.addEventListener('resize', debouncedHandleOrientationChange);
 
     return () => {
-      window.removeEventListener('orientationchange', handleOrientationChange);
-      window.removeEventListener('resize', handleOrientationChange);
+      window.removeEventListener('orientationchange', debouncedHandleOrientationChange);
+      window.removeEventListener('resize', debouncedHandleOrientationChange);
+      clearTimeout(orientationTimer);
     };
-  }, []);
+  }, [isBroadcaster]);
 
   // Verificar periodicamente se o vídeo remoto está visível (para garantir que o overlay não apareça)
   useEffect(() => {
