@@ -4472,6 +4472,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           .md\:p-6:has(#video-player[data-broadcaster="false"]) {
             padding: 0 !important;
           }
+          /* Remover padding de elementos com classe p-6 que contêm o video-player de viewer */
+          .p-6:has(#video-player[data-broadcaster="false"]) {
+            padding: 0 !important;
+          }
         }
         
         /* Aplicar margens e paddings adequados aos containers de vídeo */

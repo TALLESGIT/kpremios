@@ -773,7 +773,7 @@ const PublicLiveStreamPage: React.FC = () => {
                   }
                 }}
               >
-                <div className={`${isFullscreen ? 'w-full h-full p-0' : 'bg-white/10 backdrop-blur-sm rounded-2xl p-3 md:p-6 border border-white/20'} relative`}>
+                <div className={`${isFullscreen ? 'w-full h-full p-0' : 'bg-white/10 backdrop-blur-sm rounded-2xl p-3 border border-white/20'} relative`}>
                   <VideoStream
                     channelName={stream.channel_name}
                     isBroadcaster={false}
