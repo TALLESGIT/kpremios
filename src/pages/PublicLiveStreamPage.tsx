@@ -421,10 +421,20 @@ const PublicLiveStreamPage: React.FC = () => {
             }
 
             setIsFullscreen(true);
+            setControlsVisible(true);
+            setShowChatIcon(false);
             // Mostrar ícone do chat mais rápido após fullscreen automático
             setTimeout(() => {
-              setControlsVisible(false);
-              setShowChatIcon(true);
+              const stillFullscreen = !!(
+                document.fullscreenElement ||
+                (document as any).webkitFullscreenElement ||
+                (document as any).mozFullScreenElement ||
+                (document as any).msFullscreenElement
+              );
+              if (stillFullscreen && !showChatInFullscreen) {
+                setControlsVisible(false);
+                setShowChatIcon(true);
+              }
             }, 1500);
           } catch (err: any) {
             // Ignorar erros de permissão silenciosamente
@@ -536,6 +546,20 @@ const PublicLiveStreamPage: React.FC = () => {
     };
 
     const handleTouchStart = (e: TouchEvent) => {
+      // Verificar se o toque é em um botão ou elemento interativo
+      const target = e.target as HTMLElement;
+      const isInteractiveElement = target.closest('button') || 
+                                   target.closest('a') || 
+                                   target.closest('[role="button"]') ||
+                                   target.closest('.fullscreen-button-container') ||
+                                   target.closest('[aria-label*="Chat"]') ||
+                                   target.closest('[aria-label*="chat"]');
+      
+      // Se for elemento interativo, não interferir
+      if (isInteractiveElement) {
+        return;
+      }
+
       if (e.touches.length === 2) {
         // Gesto de pinça (zoom)
         isPinching = true;
@@ -770,12 +794,22 @@ const PublicLiveStreamPage: React.FC = () => {
         if (isMobile) {
           setControlsVisible(true);
           setShowChatIcon(false);
+          // Garantir que o ícone apareça após um tempo
           setTimeout(() => {
-            if (isCurrentlyFullscreen && !showChatInFullscreen) {
+            const stillFullscreen = !!(
+              document.fullscreenElement ||
+              (document as any).webkitFullscreenElement ||
+              (document as any).mozFullScreenElement ||
+              (document as any).msFullscreenElement
+            );
+            if (stillFullscreen && !showChatInFullscreen) {
               setControlsVisible(false);
               setShowChatIcon(true);
             }
           }, 1500); // Mais rápido
+        } else {
+          // Desktop também mostra controles
+          setControlsVisible(true);
         }
       }
     };
@@ -1069,12 +1103,17 @@ const PublicLiveStreamPage: React.FC = () => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        e.preventDefault();
                         setShowChatInFullscreen(true);
                         setControlsVisible(true);
                         setShowChatIcon(false);
                       }}
-                      className="absolute top-4 right-4 z-20 bg-black/40 hover:bg-black/60 text-white p-3 rounded-full transition-all backdrop-blur-md border border-white/30 shadow-lg animate-pulse"
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                      }}
+                      className="absolute top-4 right-4 z-[9999] bg-black/40 hover:bg-black/60 text-white p-3 rounded-full transition-all backdrop-blur-md border border-white/30 shadow-lg animate-pulse"
                       aria-label="Abrir Chat"
+                      style={{ pointerEvents: 'auto', touchAction: 'auto' }}
                     >
                       <MessageSquare size={24} className="opacity-90" />
                       {/* Badge de notificação */}
