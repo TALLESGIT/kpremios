@@ -927,9 +927,14 @@ const PublicLiveStreamPage: React.FC = () => {
             height: calc(var(--vh, 1vh) * 100) !important;
             background: #000 !important;
             overflow: hidden !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
           }
           
-          /* Evitar cortes ao girar para paisagem */
+          /* Evitar cortes ao girar para paisagem - aplicar sempre em landscape */
           @media screen and (orientation: landscape) {
             .video-container-fullscreen:fullscreen,
             .video-container-fullscreen:-webkit-full-screen,
@@ -940,6 +945,22 @@ const PublicLiveStreamPage: React.FC = () => {
               max-width: 100vw !important;
               max-height: 100vh !important;
               overflow: hidden !important;
+              position: fixed !important;
+              top: 0 !important;
+              left: 0 !important;
+              right: 0 !important;
+              bottom: 0 !important;
+            }
+            
+            .video-container-fullscreen:fullscreen video,
+            .video-container-fullscreen:-webkit-full-screen video,
+            .video-container-fullscreen:-moz-full-screen video,
+            .video-container-fullscreen:-ms-fullscreen video {
+              width: 100% !important;
+              height: 100% !important;
+              object-fit: contain !important;
+              max-width: 100% !important;
+              max-height: 100% !important;
             }
           }
           
