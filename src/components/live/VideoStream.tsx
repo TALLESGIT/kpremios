@@ -3179,8 +3179,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                   if (playResult && playResult instanceof Promise) {
                     await playResult;
                   }
-                  console.log('✅ Áudio remoto reproduzindo');
-                  setAudioBlocked(false);
+                    console.log('✅ Áudio remoto reproduzindo');
+                    setAudioBlocked(false);
                 } catch (audioError: any) {
                   console.error('❌ Erro ao reproduzir áudio:', audioError);
                   console.log('⚠️ Áudio bloqueado pelo navegador');
@@ -4170,7 +4170,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       
       // Parar todos os MediaStreams que possam estar ativos
       try {
-        // Obter todos os streams ativos e parar
+          // Obter todos os streams ativos e parar
         if (navigator.mediaDevices?.enumerateDevices) {
           await navigator.mediaDevices.enumerateDevices();
           // Isso não para os streams, mas podemos tentar parar via getTracks
