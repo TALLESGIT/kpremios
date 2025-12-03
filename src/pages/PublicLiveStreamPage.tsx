@@ -1199,7 +1199,7 @@ const PublicLiveStreamPage: React.FC = () => {
             <div className={`relative ${isFullscreen ? 'w-full h-full flex items-center justify-center' : 'grid grid-cols-1 xl:grid-cols-[1fr_400px] 2xl:grid-cols-[1fr_450px] gap-4 md:gap-6 mb-6'}`}>
               {/* Player de Vídeo - Ocupa espaço flexível */}
               <div 
-                className={`${isFullscreen && showChatInFullscreen ? (isMobile ? 'w-1/2' : 'w-full sm:w-[calc(100%-24rem)]') : isFullscreen ? 'w-full h-full flex items-center justify-center' : 'relative min-w-0'} relative transition-all duration-300`}
+                className={`${isFullscreen && showChatInFullscreen ? (isMobile ? 'w-1/2' : 'w-full sm:w-[calc(100%-24rem)]') : isFullscreen ? 'w-full h-full flex items-center justify-center' : 'relative min-w-0 w-full h-full'} relative transition-all duration-300`}
                 onClick={() => {
                   // Em mobile fullscreen, toque na tela mostra/oculta controles
                   if (isFullscreen && isMobile && !showChatInFullscreen) {
@@ -1214,7 +1214,7 @@ const PublicLiveStreamPage: React.FC = () => {
                   }
                 }}
               >
-                <div className={`${isFullscreen ? 'w-full h-full p-0 flex items-center justify-center' : 'bg-white/10 backdrop-blur-sm rounded-2xl p-3 border border-white/20'} relative`}>
+                <div className={`${isFullscreen ? 'w-full h-full p-0 flex items-center justify-center' : 'bg-white/10 backdrop-blur-sm rounded-2xl p-0 border border-white/20'} relative w-full`} style={{ aspectRatio: '16/9', minHeight: '0', width: '100%' }}>
                   {stream.is_active && (
                     <VideoStream
                       key={`video-${stream.id}-active-${videoStreamKey}`}

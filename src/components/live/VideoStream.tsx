@@ -3483,7 +3483,6 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               videoContainer.className = 'w-full h-full';
               videoContainer.style.width = '100%';
               videoContainer.style.height = '100%';
-              videoContainer.style.minHeight = '400px';
               videoContainer.style.position = 'relative';
               videoContainer.style.overflow = 'hidden';
               videoContainer.style.backgroundColor = '#000';
@@ -3497,7 +3496,6 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                 if (videoElement) {
                   videoElement.style.width = '100%';
                   videoElement.style.height = '100%';
-                  videoElement.style.minHeight = '400px';
                   videoElement.style.objectFit = 'cover';
                   videoElement.style.position = 'absolute';
                   videoElement.style.top = '0';
@@ -3508,14 +3506,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                   videoElement.style.visibility = 'visible';
                   videoElement.style.opacity = '1';
                   
-                  // Garantir que o container também tenha altura
+                  // Container se adapta ao tamanho disponível
                   if (remoteVideoRef.current) {
-                    remoteVideoRef.current.style.minHeight = '400px';
-                    remoteVideoRef.current.style.height = '400px';
+                    remoteVideoRef.current.style.height = '100%';
                   }
                   if (videoContainer) {
-                    videoContainer.style.minHeight = '400px';
-                    videoContainer.style.height = '400px';
+                    videoContainer.style.height = '100%';
                   }
                   
                   return true;
@@ -3832,7 +3828,6 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           videoContainer.className = 'w-full h-full';
           videoContainer.style.width = '100%';
           videoContainer.style.height = '100%';
-          videoContainer.style.minHeight = '400px';
           videoContainer.style.position = 'relative';
           videoContainer.style.overflow = 'hidden';
           videoContainer.style.backgroundColor = '#000';
@@ -3856,7 +3851,6 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               if (videoElement) {
                 videoElement.style.width = '100%';
                 videoElement.style.height = '100%';
-                videoElement.style.minHeight = '400px';
                 videoElement.style.objectFit = 'cover';
                 videoElement.style.position = 'absolute';
                 videoElement.style.top = '0';
@@ -3867,14 +3861,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                 videoElement.style.visibility = 'visible';
                 videoElement.style.opacity = '1';
                 
-                // Garantir que o container também tenha altura
+                // Container se adapta ao tamanho disponível
                 if (remoteVideoRef.current) {
-                  remoteVideoRef.current.style.minHeight = '400px';
-                  remoteVideoRef.current.style.height = '400px';
+                  remoteVideoRef.current.style.height = '100%';
                 }
                 if (videoContainer) {
-                  videoContainer.style.minHeight = '400px';
-                  videoContainer.style.height = '400px';
+                  videoContainer.style.height = '100%';
                 }
                 
                 console.log('✅ Estilos aplicados ao vídeo remoto:', {
@@ -4680,6 +4672,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           position: relative !important;
           margin: 0 auto !important;
           padding: 0 !important;
+          min-height: 0 !important;
+          height: auto !important;
         }
         [ref="remoteVideoRef"] video,
         [ref="remoteVideoRef"] > div > video {
@@ -4687,8 +4681,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           height: 100% !important;
           object-fit: cover !important;
           position: absolute !important;
-          top: 5px !important;
+          top: 0px !important;
           left: 0px !important;
+          right: 0px !important;
+          bottom: 0px !important;
           z-index: 15 !important;
           background-color: #000 !important;
           display: block !important;
@@ -4705,12 +4701,30 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           height: 100% !important;
         }
         [ref="remoteVideoRef"] {
-          width: calc(100% - 2rem) !important;
-          max-width: 1600px !important;
-          aspect-ratio: 16 / 9 !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          aspect-ratio: 16 / 9 !important; /* Sempre 16/9 para OBS */
           position: relative !important;
-          margin: 1rem auto !important;
+          margin: 0 !important;
           padding: 0 !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          min-height: 0 !important;
+          height: auto !important;
+        }
+        
+        /* Container pai também mantém 16/9 e ocupa todo espaço - IGUAL AO ADMIN */
+        .relative.w-full.bg-black {
+          aspect-ratio: 16 / 9 !important; /* Sempre 16/9 para OBS */
+          width: 100% !important;
+          max-width: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          min-height: 0 !important;
+          height: auto !important;
+          position: relative !important;
+          display: block !important;
         }
         [ref="remoteVideoRef"] > div {
           width: 100% !important;
@@ -4718,6 +4732,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           position: relative !important;
           margin: 0 !important;
           padding: 0 !important;
+          min-height: 0 !important;
         }
         @keyframes fadeIn {
           from { opacity: 0; }
@@ -4783,7 +4798,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         @media screen and (orientation: landscape) {
           #video-player {
             width: 100vw !important;
-            aspect-ratio: auto !important;
+            aspect-ratio: 16 / 9 !important; /* Sempre 16/9 para OBS */
             margin: 0 !important;
             padding: 0 !important;
             border-radius: 0 !important;
@@ -4795,8 +4810,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           
           [ref="localVideoRef"],
           [ref="remoteVideoRef"] {
-            aspect-ratio: auto !important;
-            height: calc(var(--vh, 1vh) * 100) !important; /* Altura real no mobile */
+            aspect-ratio: 16 / 9 !important; /* Sempre 16/9 para OBS */
             width: 100vw !important;
             margin: 0 !important;
             padding: 0 !important;
@@ -4841,8 +4855,14 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         
         /* Aplicar margens e paddings adequados aos containers de vídeo */
         #video-player {
-          max-width: 1600px !important;
+          max-width: 100% !important;
           width: 100% !important;
+          height: auto !important;
+          min-height: 0 !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          aspect-ratio: 16 / 9 !important; /* Garantir aspect-ratio desde o início */
         }
         
         /* Remover margin no mobile */
@@ -4850,6 +4870,15 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           #video-player {
             margin: 0 !important;
             padding: 0 !important;
+            max-height: 100vh !important;
+          }
+          
+          [ref="remoteVideoRef"] {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            aspect-ratio: 16 / 9 !important; /* Sempre 16/9 para OBS */
           }
           
           /* Remover padding da classe p-3 no mobile */
@@ -4931,10 +4960,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           height: 100% !important;
           margin: 0 !important;
           padding: 0 !important;
-          aspect-ratio: auto !important;
+          aspect-ratio: 16 / 9 !important; /* Sempre 16/9 para OBS */
         }
       `}</style>
-      <div id="video-player" data-broadcaster={isBroadcaster ? 'true' : 'false'} className="relative w-full bg-black overflow-hidden rounded-lg" style={{ margin: '0', padding: '0', maxWidth: '1600px' }}>
+      <div id="video-player" data-broadcaster={isBroadcaster ? 'true' : 'false'} className="relative w-full bg-black overflow-hidden rounded-lg" style={{ margin: '0', padding: '0', maxWidth: '100%', aspectRatio: '16/9' }}>
         {/* Vídeo Local (Broadcaster) */}
         {isBroadcaster && (
           <div className="relative w-full bg-black overflow-hidden rounded-lg" style={{ aspectRatio: '16/9' }}>
@@ -5065,9 +5094,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         </div>
       )}
 
-      {/* Vídeo Remoto (Viewers) */}
+      {/* Vídeo Remoto (Viewers) - MESMA ESTRUTURA DO ADMIN */}
       {!isBroadcaster && (
-        <div className="relative w-full bg-black overflow-hidden rounded-lg mx-auto" style={{ margin: '0', padding: '0', aspectRatio: '16/9', maxWidth: '1600px' }}>
+        <div className="relative w-full bg-black overflow-hidden rounded-lg" style={{ aspectRatio: '16/9' }}>
           <div 
             ref={remoteVideoRef} 
             className="w-full h-full relative"
@@ -5075,7 +5104,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               width: '100%',
               height: '100%',
               position: 'relative',
-              backgroundColor: '#000'
+              backgroundColor: '#000',
+              overflow: 'hidden',
+              display: 'block'
             }}
           />
           {/* Overlays do Stream Studio - Para Viewers também */}
