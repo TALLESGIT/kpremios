@@ -23,9 +23,6 @@ import UserDashboardPage from './pages/UserDashboardPage';
 import LiveRafflePage from './pages/LiveRafflePage';
 import FreeRafflesPage from './pages/FreeRafflesPage';
 
-// Páginas de transmissão ao vivo
-import AdminLiveStreamPage from './pages/AdminLiveStreamPage';
-import PublicLiveStreamPage from './pages/PublicLiveStreamPage';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
@@ -141,17 +138,6 @@ function AppContent() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/admin/live-stream" 
-            element={
-              <ProtectedRoute>
-                <AdminLiveStreamPage />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* Página pública de transmissão ao vivo */}
-          <Route path="/live/:channelName" element={<PublicLiveStreamPage />} />
 
           {/* Redirect /admin to /admin/login if not authenticated */}
           <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
