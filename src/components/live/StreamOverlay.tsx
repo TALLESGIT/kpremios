@@ -50,7 +50,8 @@ const StreamOverlay: React.FC<StreamOverlayProps> = ({ activeScene }) => {
         hasUrl: !!s.url
       })));
     } else {
-      console.log('⚠️ StreamOverlay - Nenhuma cena ativa');
+      // Log apenas em modo debug (não é um erro, é esperado quando não há cena ativa)
+      console.debug('ℹ️ StreamOverlay - Nenhuma cena ativa (normal quando não há transmissão ou cena configurada)');
     }
   }, [activeScene, visibleSources]);
 
@@ -64,9 +65,9 @@ const StreamOverlay: React.FC<StreamOverlayProps> = ({ activeScene }) => {
   }
 
   const renderSource = (source: any) => {
-    // Converter posições de pixels para porcentagem baseado em canvas de 1280x720 (proporção 16:9)
-    const canvasWidth = 1280;
-    const canvasHeight = 720;
+    // Converter posições de pixels para porcentagem baseado em canvas de 1920x1080 (proporção 16:9)
+    const canvasWidth = 1920;
+    const canvasHeight = 1080;
     
     const leftPercent = (source.position.x / canvasWidth) * 100;
     const topPercent = (source.position.y / canvasHeight) * 100;

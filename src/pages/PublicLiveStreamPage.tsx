@@ -9,6 +9,9 @@ import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import { useStreamStudioSync } from '../hooks/useStreamStudioSync';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import MobileLiveControls from '../components/player/MobileLiveControls';
+import MiniPlayer from '../components/player/MiniPlayer';
+import { enterFullscreen, lockLandscape } from '../components/player/utils/fullscreen';
 
 const PublicLiveStreamPage: React.FC = () => {
   const { channelName } = useParams<{ channelName: string }>();
@@ -27,6 +30,10 @@ const PublicLiveStreamPage: React.FC = () => {
   const videoContainerRef = useRef<HTMLDivElement>(null); // Ref para o container do vídeo (para fullscreen como YouTube)
   const fullscreenAutoRef = useRef(false); // Flag para saber se fullscreen foi ativado automaticamente
   const [videoStreamKey, setVideoStreamKey] = useState(0); // Key para forçar remontagem do VideoStream quando stream fica ativo
+  const [isMinimized, setIsMinimized] = useState(false); // Estado do mini-player
+  const [videoStream, setVideoStream] = useState<MediaStream | null>(null); // Stream para o mini-player
+  const zoomLockedRef = useRef(false); // Flag para zoom travado
+  const currentScaleRef = useRef(1); // Escala atual do zoom
   
   // Sincronizar Stream Studio com transmissão ao vivo
   const { activeScene } = useStreamStudioSync(stream?.id || '');
@@ -384,7 +391,19 @@ const PublicLiveStreamPage: React.FC = () => {
           if (fullscreenPromise) {
             await fullscreenPromise;
             // Aguardar um pouco para garantir que o fullscreen foi aplicado
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            // Garantir que o vídeo seja mantido visível em fullscreen
+            setTimeout(() => {
+              const videoElement = document.querySelector('#video-player video') as HTMLVideoElement;
+              if (videoElement) {
+                videoElement.style.display = 'block';
+                videoElement.style.visibility = 'visible';
+                videoElement.style.opacity = '1';
+                videoElement.style.zIndex = '20';
+                console.log('✅ Vídeo mantido visível após entrar em fullscreen');
+              }
+            }, 100);
           }
         } catch (fullscreenError) {
           console.error('Erro ao entrar em fullscreen:', fullscreenError);
@@ -518,6 +537,18 @@ const PublicLiveStreamPage: React.FC = () => {
             setIsFullscreen(true);
             setControlsVisible(true);
             setShowChatIcon(false);
+            
+            // Garantir que o vídeo seja mantido visível em fullscreen automático
+            setTimeout(() => {
+              const videoElement = document.querySelector('#video-player video') as HTMLVideoElement;
+              if (videoElement) {
+                videoElement.style.display = 'block';
+                videoElement.style.visibility = 'visible';
+                videoElement.style.opacity = '1';
+                videoElement.style.zIndex = '20';
+                console.log('✅ Vídeo mantido visível após fullscreen automático');
+              }
+            }, 100);
             // Mostrar ícone do chat mais rápido após fullscreen automático
             setTimeout(() => {
               const stillFullscreen = !!(
@@ -725,6 +756,17 @@ const PublicLiveStreamPage: React.FC = () => {
         currentTranslateY = Math.max(-maxTranslate, Math.min(maxTranslate, currentTranslateY));
         
         currentScale = newScale;
+        currentScaleRef.current = currentScale;
+        
+        // Ativar zoom travado se scale > 1.05
+        if (currentScale > 1.05 && !zoomLockedRef.current) {
+          zoomLockedRef.current = true;
+          console.debug('🔒 Zoom travado ativado (scale > 1.05)');
+        } else if (currentScale < 0.95 && zoomLockedRef.current) {
+          zoomLockedRef.current = false;
+          console.debug('🔓 Zoom travado desativado (scale < 0.95)');
+        }
+        
         applyTransform();
         
       } else if (e.touches.length === 1 && isPanning && currentScale > 1) {
@@ -754,8 +796,13 @@ const PublicLiveStreamPage: React.FC = () => {
         // Se o zoom for muito pequeno, resetar para 1x
         if (currentScale < 1.1) {
           currentScale = 1;
+          currentScaleRef.current = 1;
           currentTranslateX = 0;
           currentTranslateY = 0;
+          if (zoomLockedRef.current) {
+            zoomLockedRef.current = false;
+            console.debug('🔓 Zoom travado desativado (reset para 1x)');
+          }
         }
 
         // Adicionar transição suave ao finalizar
@@ -805,35 +852,101 @@ const PublicLiveStreamPage: React.FC = () => {
     };
   }, [isFullscreen, isMobile, videoContainerRef]);
 
-  // Detectar toque na tela para mostrar/ocultar controles (mobile)
+  // Swipe up/down para minimizar e mostrar controles (mobile)
   useEffect(() => {
-    if (!isFullscreen || !isMobile) return;
+    if (!isFullscreen || !isMobile || zoomLockedRef.current) return;
 
-    let touchTimer: NodeJS.Timeout;
-    const videoContainer = document.querySelector('.video-container-fullscreen');
+    const videoContainer = videoContainerRef.current;
+    if (!videoContainer) return;
 
-    const handleTouch = () => {
-      setControlsVisible(true);
-      setShowChatIcon(true);
-      
-        // Auto-hide após 1.5 segundos (mais rápido)
-        clearTimeout(touchTimer);
-        touchTimer = setTimeout(() => {
-          if (isFullscreen && !showChatInFullscreen) {
-            setControlsVisible(false);
-            setShowChatIcon(true); // Manter ícone visível
-          }
-        }, 1500);
+    let touchStartY = 0;
+    let touchStartTime = 0;
+    const SWIPE_THRESHOLD = 70; // pixels
+    const SWIPE_TIME_THRESHOLD = 300; // ms
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        touchStartY = e.touches[0].clientY;
+        touchStartTime = Date.now();
+      }
     };
 
-    if (videoContainer) {
-      videoContainer.addEventListener('touchstart', handleTouch);
-      return () => {
-        videoContainer.removeEventListener('touchstart', handleTouch);
-        clearTimeout(touchTimer);
-      };
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.changedTouches.length === 1) {
+        const touchEndY = e.changedTouches[0].clientY;
+        const touchEndTime = Date.now();
+        const deltaY = touchStartY - touchEndY; // Positivo = swipe up, negativo = swipe down
+        const deltaTime = touchEndTime - touchStartTime;
+
+        // Verificar se é um swipe rápido e suficiente
+        if (deltaTime < SWIPE_TIME_THRESHOLD && Math.abs(deltaY) > SWIPE_THRESHOLD) {
+          if (deltaY > 0) {
+            // Swipe Up: mostrar controles
+            setControlsVisible(true);
+            setShowChatIcon(true);
+            setTimeout(() => {
+              if (isFullscreen && !showChatInFullscreen) {
+                setControlsVisible(false);
+              }
+            }, 3000);
+          } else {
+            // Swipe Down: minimizar para mini-player
+            if (!isMinimized) {
+              handleMinimize();
+            }
+          }
+        }
+      }
+    };
+
+    videoContainer.addEventListener('touchstart', handleTouchStart, { passive: true });
+    videoContainer.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      videoContainer.removeEventListener('touchstart', handleTouchStart);
+      videoContainer.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isFullscreen, isMobile, isMinimized]);
+
+  // Prevenir mudanças de orientação quando zoom está travado
+  useEffect(() => {
+    if (!zoomLockedRef.current) return;
+
+    const handleOrientationChange = (e: Event) => {
+      e.preventDefault();
+      // Manter orientação atual quando zoom está travado
+    };
+
+    window.addEventListener('orientationchange', handleOrientationChange, { passive: false });
+    
+    return () => {
+      window.removeEventListener('orientationchange', handleOrientationChange);
+    };
+  }, [zoomLockedRef.current]);
+
+  // Funções para minimizar/restaurar
+  const handleMinimize = useCallback(() => {
+    // Obter stream do vídeo atual
+    const videoElement = videoContainerRef.current?.querySelector('video') as HTMLVideoElement;
+    if (videoElement && videoElement.srcObject) {
+      setVideoStream(videoElement.srcObject as MediaStream);
     }
-  }, [isFullscreen, isMobile, showChatInFullscreen]);
+    setIsMinimized(true);
+    // Sair do fullscreen ao minimizar
+    if (isFullscreen) {
+      document.exitFullscreen?.();
+    }
+  }, [isFullscreen]);
+
+  const handleRestore = useCallback(() => {
+    setIsMinimized(false);
+    setVideoStream(null);
+  }, []);
+
+  const handleCloseMiniPlayer = useCallback(() => {
+    setIsMinimized(false);
+    setVideoStream(null);
+  }, []);
 
   // Escutar mensagens VIP em tempo real para overlay
   useEffect(() => {
@@ -1236,6 +1349,37 @@ const PublicLiveStreamPage: React.FC = () => {
                     />
                   )}
                   
+                  {/* Controles Mobile estilo YouTube */}
+                  {!isMinimized && (
+                    <MobileLiveControls
+                      onFullscreen={async () => {
+                        if (zoomLockedRef.current) return; // Não permitir fullscreen com zoom travado
+                        const element = videoContainerRef.current || 
+                                       document.getElementById('video-player') as HTMLElement ||
+                                       document.documentElement;
+                        if (element) {
+                          await enterFullscreen(element);
+                          if (isMobile) {
+                            await lockLandscape();
+                          }
+                        }
+                      }}
+                      onRotate={async () => {
+                        if (zoomLockedRef.current) return; // Não permitir rotação com zoom travado
+                        await lockLandscape();
+                        const element = videoContainerRef.current || 
+                                       document.getElementById('video-player') as HTMLElement ||
+                                       document.documentElement;
+                        if (element) {
+                          await enterFullscreen(element);
+                        }
+                      }}
+                      onMinimize={handleMinimize}
+                      showMinimize={isMobile && !isFullscreen}
+                      isFullscreen={isFullscreen}
+                    />
+                  )}
+                  
                   {/* Ícone de Chat Transparente (Mobile Fullscreen) - Parte superior */}
                   {isFullscreen && isMobile && showChatIcon && !showChatInFullscreen && (
                     <button
@@ -1458,6 +1602,17 @@ const PublicLiveStreamPage: React.FC = () => {
       </div>
 
       {!isFullscreen && <Footer />}
+      
+      {/* Mini-Player Flutuante */}
+      {isMinimized && videoStream && (
+        <MiniPlayer
+          stream={videoStream}
+          onClose={handleCloseMiniPlayer}
+          onRestore={handleRestore}
+          initialRight={16}
+          initialBottom={16}
+        />
+      )}
       </div>
     </>
   );

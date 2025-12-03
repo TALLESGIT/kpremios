@@ -25,8 +25,14 @@ const CameraSelector: React.FC<CameraSelectorProps> = ({
     setError(null);
     
     try {
-      // Solicitar permissão primeiro
-      await navigator.mediaDevices.getUserMedia({ video: true });
+      // Solicitar permissão primeiro com resolução ideal 1080p60
+      await navigator.mediaDevices.getUserMedia({ 
+        video: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 60 }
+        }
+      });
       
       // Listar dispositivos
       const devices = await navigator.mediaDevices.enumerateDevices();

@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import { supabase } from '../../lib/supabase';
 import StreamOverlay from './StreamOverlay';
+import { setupIOSPlaybackFix } from '../player/utils/iosPlaybackFix';
 
 // Suprimir warnings específicos do Agora SDK que são comuns e não afetam funcionalidade
 // Esses erros ocorrem durante reconexões WebSocket e são normais
@@ -27,7 +28,18 @@ const suppressAgoraWarnings = () => {
     /AgoraRTCException.*WS_ABORT.*type: (ping|traffic_stats|restart_ice)/i,
     /multi unilbs network error, retry.*NETWORK_TIMEOUT/i,
     /AgoraRTCError NETWORK_TIMEOUT: timeout of \d+ms exceeded/i,
-    /AgoraRTCException.*NETWORK_TIMEOUT.*timeout of \d+ms exceeded/i
+    /AgoraRTCException.*NETWORK_TIMEOUT.*timeout of \d+ms exceeded/i,
+    // Avisos de áudio que são normais (nível baixo não é um problema real)
+    /AUDIO_OUTPUT_LEVEL_TOO_LOW/i,
+    /AUDIO_OUTPUT_LEVEL_TOO_LOW_RECOVER/i,
+    /code: 2002.*AUDIO_OUTPUT_LEVEL_TOO_LOW/i,
+    /code: 4002.*AUDIO_OUTPUT_LEVEL_TOO_LOW_RECOVER/i,
+    // Avisos de AudioContext que são comuns e não afetam funcionalidade
+    /AudioContext current time stuck/i,
+    // Avisos de TURN/STUN timeout que são comuns em algumas redes
+    /TURN allocate request timed out/i,
+    /STUN binding request timed out/i,
+    /P2PConnection\.onICECandidateError.*code: 701/i
   ];
   
   console.error = (...args: any[]) => {
@@ -126,9 +138,25 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       if (hasVideo) {
         const videoElement = hasVideo as HTMLVideoElement;
         // Verificar se o vídeo está realmente sendo reproduzido
-        if (videoElement.videoWidth > 0 || videoElement.offsetWidth > 0 || !videoElement.paused) {
-          console.log('⚠️ Tentativa de limpar elemento com vídeo ativo, ignorando...');
-          return; // Não limpar se há vídeo ativo
+        // Verificar também se está em fullscreen (não limpar em fullscreen)
+        const isInFullscreen = !!(document.fullscreenElement || 
+          (document as any).webkitFullscreenElement || 
+          (document as any).mozFullScreenElement || 
+          (document as any).msFullscreenElement);
+        
+        if (videoElement.videoWidth > 0 || 
+            videoElement.offsetWidth > 0 || 
+            !videoElement.paused || 
+            videoElement.readyState >= 2 || // HAVE_CURRENT_DATA ou superior
+            isInFullscreen) {
+          console.log('⚠️ Tentativa de limpar elemento com vídeo ativo, ignorando...', {
+            videoWidth: videoElement.videoWidth,
+            offsetWidth: videoElement.offsetWidth,
+            paused: videoElement.paused,
+            readyState: videoElement.readyState,
+            isInFullscreen
+          });
+          return; // Não limpar se há vídeo ativo ou em fullscreen
         }
       }
       
@@ -327,10 +355,11 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     return () => clearInterval(interval);
   }, [isBroadcaster, isStreaming, hasLocalVideo]);
 
-  // Auto fullscreen ao virar o celular para paisagem (apenas para broadcaster, desabilitado para viewers)
+  // Auto fullscreen ao virar o celular para paisagem (para broadcaster e viewers)
   useEffect(() => {
-    // Desabilitar fullscreen automático para viewers (eles usam o botão manual)
-    if (!isBroadcaster) return;
+    // Habilitar fullscreen automático para viewers também (mas apenas em mobile)
+    const isMobileDevice = window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (!isMobileDevice) return; // Apenas em mobile
 
     let isHandlingFullscreen = false; // Flag para evitar múltiplas tentativas simultâneas
 
@@ -403,16 +432,49 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     let orientationTimer: NodeJS.Timeout;
     const debouncedHandleOrientationChange = () => {
       clearTimeout(orientationTimer);
-      orientationTimer = setTimeout(handleOrientationChange, 500);
+      orientationTimer = setTimeout(handleOrientationChange, 300); // Reduzido para resposta mais rápida
     };
 
     window.addEventListener('orientationchange', debouncedHandleOrientationChange);
     // Também escutar resize para detectar mudanças de orientação em alguns dispositivos
     window.addEventListener('resize', debouncedHandleOrientationChange);
+    
+    // Escutar mudanças de fullscreen para garantir que o vídeo seja mantido
+    const handleFullscreenChange = () => {
+      const isCurrentlyFullscreen = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+      
+      if (isCurrentlyFullscreen) {
+        // Quando entra em fullscreen, garantir que o vídeo está visível
+        setTimeout(() => {
+          const videoElement = remoteVideoRef.current?.querySelector('video') as HTMLVideoElement;
+          if (videoElement) {
+            videoElement.style.display = 'block';
+            videoElement.style.visibility = 'visible';
+            videoElement.style.opacity = '1';
+            videoElement.style.zIndex = '20';
+            console.log('✅ Vídeo mantido visível em fullscreen');
+          }
+        }, 100);
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 
     return () => {
       window.removeEventListener('orientationchange', debouncedHandleOrientationChange);
       window.removeEventListener('resize', debouncedHandleOrientationChange);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
       clearTimeout(orientationTimer);
     };
   }, [isBroadcaster]);
@@ -423,27 +485,67 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
     const checkRemoteVideo = () => {
       if (remoteVideoRef.current) {
+        // Verificar se há vídeo em qualquer lugar dentro do remoteVideoRef
         const videoElement = remoteVideoRef.current.querySelector('video') as HTMLVideoElement;
-        if (videoElement && (videoElement.videoWidth > 0 || videoElement.offsetWidth > 0)) {
-          // Se há vídeo renderizado mas hasRemoteVideo é false, atualizar
-          if (!hasRemoteVideo) {
-            console.log('✅ Vídeo remoto detectado e visível, atualizando estado...');
-            setHasRemoteVideo(true);
-            setIsConnecting(false);
-          }
+        const videoInContainer = remoteVideoRef.current.querySelector('div > video') as HTMLVideoElement;
+        const actualVideo = videoElement || videoInContainer;
+        
+        if (actualVideo) {
+          // Verificar se o vídeo tem conteúdo válido
+          const hasValidVideo = actualVideo.videoWidth > 0 || 
+                               actualVideo.offsetWidth > 0 || 
+                               !actualVideo.paused || 
+                               actualVideo.readyState >= 2 ||
+                               actualVideo.srcObject !== null;
           
-          // Garantir que o vídeo está visível
-          if (videoElement.style.zIndex !== '20') {
-            videoElement.style.zIndex = '20';
-          }
-          if (videoElement.style.display !== 'block') {
-            videoElement.style.display = 'block';
-          }
-          if (videoElement.style.visibility !== 'visible') {
-            videoElement.style.visibility = 'visible';
-          }
-          if (videoElement.style.opacity !== '1') {
-            videoElement.style.opacity = '1';
+          if (hasValidVideo) {
+            // Se há vídeo renderizado mas hasRemoteVideo é false, atualizar IMEDIATAMENTE
+            if (!hasRemoteVideo) {
+              console.log('✅ Vídeo remoto detectado e visível, atualizando estado...', {
+                videoWidth: actualVideo.videoWidth,
+                offsetWidth: actualVideo.offsetWidth,
+                paused: actualVideo.paused,
+                readyState: actualVideo.readyState,
+                hasSrcObject: actualVideo.srcObject !== null
+              });
+              setHasRemoteVideo(true);
+              setIsConnecting(false);
+            }
+            
+            // Garantir que o vídeo está visível e acima de tudo
+            actualVideo.style.zIndex = '20';
+            actualVideo.style.display = 'block';
+            actualVideo.style.visibility = 'visible';
+            actualVideo.style.opacity = '1';
+            actualVideo.style.position = 'absolute';
+            actualVideo.style.top = '0';
+            actualVideo.style.left = '0';
+            actualVideo.style.width = '100%';
+            actualVideo.style.height = '100%';
+            actualVideo.style.objectFit = 'cover';
+            actualVideo.style.backgroundColor = '#000';
+            
+            // Garantir que o container pai também está visível
+            if (remoteVideoRef.current) {
+              remoteVideoRef.current.style.display = 'block';
+              remoteVideoRef.current.style.visibility = 'visible';
+              remoteVideoRef.current.style.opacity = '1';
+            }
+            
+            // Garantir que o container do vídeo está visível
+            const videoContainer = actualVideo.parentElement;
+            if (videoContainer) {
+              videoContainer.style.display = 'block';
+              videoContainer.style.visibility = 'visible';
+              videoContainer.style.opacity = '1';
+            }
+          } else {
+            console.log('⚠️ Vídeo encontrado mas sem conteúdo válido ainda...', {
+              videoWidth: actualVideo.videoWidth,
+              offsetWidth: actualVideo.offsetWidth,
+              paused: actualVideo.paused,
+              readyState: actualVideo.readyState
+            });
           }
         } else if (hasRemoteVideo) {
           // Se hasRemoteVideo é true mas não há vídeo, verificar se foi removido
@@ -452,9 +554,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       }
     };
 
-    // Verificar imediatamente e depois periodicamente
+    // Verificar imediatamente e depois periodicamente (mais frequente)
     checkRemoteVideo();
-    const interval = setInterval(checkRemoteVideo, 1000);
+    const interval = setInterval(checkRemoteVideo, 500); // Verificar a cada 500ms
     
     return () => clearInterval(interval);
   }, [isBroadcaster, hasRemoteVideo]);
@@ -723,8 +825,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       // Se está em processo de join, aguardar um pouco antes de fazer cleanup
       // (pode ser React Strict Mode desmontando durante a inicialização)
       if (isJoiningRef.current) {
-        console.warn('⚠️ Componente sendo desmontado durante join!');
-        console.warn('   Isso pode ser React Strict Mode. Aguardando join completar...');
+        console.debug('🔄 Componente sendo desmontado durante join (provavelmente React Strict Mode)');
+        console.debug('   Aguardando join completar antes de fazer cleanup...');
         // Marcar que cleanup foi solicitado, mas não executar ainda
         isCleaningUpRef.current = true;
         
@@ -742,14 +844,14 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             
             // Se o cliente ainda existe e está conectado, pode ser React Strict Mode (remontagem)
             if (clientRef.current && String(clientRef.current.connectionState) === 'CONNECTED') {
-              console.log('   ✅ Componente foi remontado (React Strict Mode), cancelando cleanup');
+              console.debug('   ✅ Componente foi remontado (React Strict Mode), cancelando cleanup');
               isCleaningUpRef.current = false; // Resetar flag
               return; // Não fazer cleanup
             }
             
             // Se não há cliente ou não está conectado, fazer cleanup
             if (!clientRef.current || String(clientRef.current.connectionState) !== 'CONNECTED') {
-              console.log('   ⚠️ Componente realmente foi desmontado, executando cleanup...');
+              console.debug('   ℹ️ Componente realmente foi desmontado, executando cleanup...');
               if (!cleanupCalledRef.current) {
                 cleanupCalledRef.current = true;
                 cleanup();
@@ -1833,7 +1935,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     });
 
     if (!isBroadcaster || !isStreaming || !clientRef.current) {
-      console.log('⏸️ ScreenShare - Condições não atendidas, ignorando...');
+      // Log apenas em modo debug (não é um erro, é comportamento esperado)
+      console.debug('⏸️ ScreenShare - Condições não atendidas (normal para viewers ou quando não está transmitindo)');
       return;
     }
     
@@ -2579,11 +2682,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
         
         // Criar câmera track (sempre criamos para poder mostrar como PiP)
-        console.log('📹 Criando camera track...');
+        console.log('📹 Criando camera track com resolução 1080p60...');
         const cameraConfig: any = {
           encoderConfig: {
             width: { ideal: 1920 },
             height: { ideal: 1080 },
+            frameRate: { ideal: 60 }
           }
         };
         
@@ -3413,9 +3517,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       cleanupCalledRef.current = false; // Reset para permitir cleanup futuro
       
       // Verificar periodicamente se há tracks já disponíveis (verificação mais frequente para resposta rápida)
-      const checkForTracks = setInterval(async () => {
-        if (!clientRef.current) {
-          clearInterval(checkForTracks);
+      checkTracksIntervalRef.current = setInterval(async () => {
+        if (!clientRef.current || isCleaningUpRef.current) {
+          if (checkTracksIntervalRef.current) {
+            clearInterval(checkTracksIntervalRef.current);
+            checkTracksIntervalRef.current = null;
+          }
           return;
         }
         
@@ -3423,13 +3530,16 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         
         // Verificar se já há vídeo renderizado antes de tentar reproduzir
         const hasRenderedVideo = remoteVideoRef.current?.querySelector('video') as HTMLVideoElement;
-        if (hasRenderedVideo && (hasRenderedVideo.videoWidth > 0 || hasRenderedVideo.offsetWidth > 0)) {
+        if (hasRenderedVideo && (hasRenderedVideo.videoWidth > 0 || hasRenderedVideo.offsetWidth > 0 || !hasRenderedVideo.paused)) {
           // Já há vídeo renderizado, apenas atualizar estado se necessário
           if (!hasRemoteVideo) {
             console.log('✅ Vídeo já renderizado, atualizando estado...');
             setHasRemoteVideo(true);
             setIsConnecting(false);
-            clearInterval(checkForTracks);
+            if (checkTracksIntervalRef.current) {
+              clearInterval(checkTracksIntervalRef.current);
+              checkTracksIntervalRef.current = null;
+            }
           }
           return; // Não tentar reproduzir novamente
         }
@@ -3455,11 +3565,17 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               // Verificar se já há um vídeo sendo reproduzido
               const existingVideo = document.getElementById(`remote-video-${user.uid}`);
               if (existingVideo && existingVideo.querySelector('video')) {
-                console.log('✅ Vídeo já está sendo reproduzido, apenas atualizando estado...');
-                setHasRemoteVideo(true);
-                setIsConnecting(false);
-                clearInterval(checkForTracks);
-                return;
+                const existingVideoElement = existingVideo.querySelector('video') as HTMLVideoElement;
+                if (existingVideoElement && (existingVideoElement.videoWidth > 0 || existingVideoElement.offsetWidth > 0 || !existingVideoElement.paused)) {
+                  console.log('✅ Vídeo já está sendo reproduzido, apenas atualizando estado...');
+                  setHasRemoteVideo(true);
+                  setIsConnecting(false);
+                  if (checkTracksIntervalRef.current) {
+                    clearInterval(checkTracksIntervalRef.current);
+                    checkTracksIntervalRef.current = null;
+                  }
+                  return;
+                }
               }
               
               // Verificar se o track já está sendo reproduzido
@@ -3467,14 +3583,18 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                 console.log('✅ Vídeo track já está sendo reproduzido, apenas aplicando estilos...');
                 setHasRemoteVideo(true);
                 setIsConnecting(false);
-                clearInterval(checkForTracks);
+                if (checkTracksIntervalRef.current) {
+                  clearInterval(checkTracksIntervalRef.current);
+                  checkTracksIntervalRef.current = null;
+                }
                 return;
               }
               
               console.log('📹 Vídeo track já disponível, reproduzindo...');
               
-              // Verificar se já há vídeo renderizado antes de limpar
-              if (!remoteVideoRef.current.querySelector('video')) {
+              // NUNCA limpar se já há vídeo sendo reproduzido
+              const existingVideoInRef = remoteVideoRef.current.querySelector('video') as HTMLVideoElement;
+              if (!existingVideoInRef || existingVideoInRef.videoWidth === 0) {
                 safeClearElement(remoteVideoRef.current);
               }
               
@@ -3519,28 +3639,61 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                 return false;
               };
               
+              // Marcar como tendo vídeo IMEDIATAMENTE após chamar play()
+              setHasRemoteVideo(true);
+              setIsConnecting(false);
+              
+              // Aplicar estilos imediatamente também
+              setTimeout(() => {
+                applyStylesToVideo();
+              }, 50);
+              
               // Verificar se play() retorna uma Promise
               if (playResult && typeof playResult.then === 'function') {
                 playResult.then(() => {
                   setTimeout(() => {
                     if (applyStylesToVideo()) {
-                      setHasRemoteVideo(true);
-                      setIsConnecting(false);
                       console.log('✅ Vídeo conectado via verificação periódica');
                       toast.success('Vídeo conectado!');
-                      clearInterval(checkForTracks);
+                      if (checkTracksIntervalRef.current) {
+                        clearInterval(checkTracksIntervalRef.current);
+                        checkTracksIntervalRef.current = null;
+                      }
+                    } else {
+                      // Aplicar estilos mesmo se não encontrou imediatamente
+                      setTimeout(() => {
+                        if (applyStylesToVideo()) {
+                          console.log('✅ Estilos aplicados após delay');
+                        }
+                      }, 500);
                     }
                   }, 200);
-                }).catch((e: any) => console.error('Erro ao reproduzir:', e));
+                }).catch((e: any) => {
+                  console.error('Erro ao reproduzir:', e);
+                  // Mesmo com erro, manter hasRemoteVideo como true se o vídeo existe
+                  const videoElement = videoContainer.querySelector('video') as HTMLVideoElement;
+                  if (videoElement) {
+                    applyStylesToVideo();
+                  }
+                });
               } else {
                 // Se não retornou Promise, aplicar estilos diretamente
                 setTimeout(() => {
                   if (applyStylesToVideo()) {
-                    setHasRemoteVideo(true);
-                    setIsConnecting(false);
                     console.log('✅ Vídeo conectado via verificação periódica (sem Promise)');
                     toast.success('Vídeo conectado!');
-                    clearInterval(checkForTracks);
+                    if (checkTracksIntervalRef.current) {
+                      clearInterval(checkTracksIntervalRef.current);
+                      checkTracksIntervalRef.current = null;
+                    }
+                  } else {
+                    // Tentar novamente após mais tempo
+                    setTimeout(() => {
+                      if (applyStylesToVideo()) {
+                        console.log('✅ Estilos aplicados após delay');
+                        toast.success('Vídeo conectado!');
+                      }
+                    }, 500);
                   }
                 }, 200);
               }
@@ -3548,11 +3701,14 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             }
           }
         }
-      }, 1000); // Verificar a cada 1 segundo
+      }, 500); // Verificar a cada 500ms para resposta mais rápida
       
       // Limpar intervalo após 60 segundos
       setTimeout(() => {
-        clearInterval(checkForTracks);
+        if (checkTracksIntervalRef.current) {
+          clearInterval(checkTracksIntervalRef.current);
+          checkTracksIntervalRef.current = null;
+        }
       }, 60000);
       
       toast.success('Conectado! Aguardando transmissor...');
@@ -3672,10 +3828,16 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             console.log('✅ Subscribed to video for online user:', user.uid);
             // Aguardar apenas 100ms e tentar reproduzir imediatamente
             setTimeout(async () => {
-              if (user.videoTrack && remoteVideoRef.current && !hasRemoteVideo) {
+              if (user.videoTrack && remoteVideoRef.current) {
                 try {
                   console.log('🎬 Tentando reproduzir vídeo imediatamente após subscribe...');
-                  safeClearElement(remoteVideoRef.current);
+                  
+                  // Verificar se já há vídeo antes de limpar
+                  const existingVideo = remoteVideoRef.current.querySelector('video') as HTMLVideoElement;
+                  if (!existingVideo || existingVideo.videoWidth === 0) {
+                    safeClearElement(remoteVideoRef.current);
+                  }
+                  
                   const videoContainer = document.createElement('div');
                   videoContainer.id = `remote-video-${user.uid}`;
                   videoContainer.className = 'w-full h-full';
@@ -3687,8 +3849,29 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                   remoteVideoRef.current.appendChild(videoContainer);
                   
                   await user.videoTrack.play(videoContainer);
+                  
+                  // Marcar como visível IMEDIATAMENTE
                   setHasRemoteVideo(true);
                   setIsConnecting(false);
+                  
+                  // Garantir que o vídeo está visível
+                  setTimeout(() => {
+                    const videoElement = videoContainer.querySelector('video') as HTMLVideoElement;
+                    if (videoElement) {
+                      videoElement.style.display = 'block';
+                      videoElement.style.visibility = 'visible';
+                      videoElement.style.opacity = '1';
+                      videoElement.style.zIndex = '20';
+                      videoElement.style.width = '100%';
+                      videoElement.style.height = '100%';
+                      videoElement.style.objectFit = 'cover';
+                      videoElement.style.position = 'absolute';
+                      videoElement.style.top = '0';
+                      videoElement.style.left = '0';
+                      videoElement.style.backgroundColor = '#000';
+                    }
+                  }, 100);
+                  
                   console.log('✅ Vídeo reproduzido imediatamente após user-online!');
                 } catch (e) {
                   console.warn('⚠️ Erro ao reproduzir vídeo imediatamente:', e);
@@ -3814,10 +3997,21 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         if (mediaType === 'video' && remoteVideoRef.current) {
           console.log('🎬 Processando vídeo remoto...');
           
-          // SEMPRE limpar vídeo anterior quando um novo track é publicado (mudança de tela/câmera)
-          // Isso garante que mudanças de tela sejam refletidas imediatamente
-          console.log('🔄 Limpando vídeo anterior para aplicar novo track...');
-          safeClearElement(remoteVideoRef.current);
+          // Verificar se já há vídeo sendo reproduzido antes de limpar
+          const existingVideo = remoteVideoRef.current.querySelector('video') as HTMLVideoElement;
+          const shouldClear = !existingVideo || 
+                             (existingVideo.videoWidth === 0 && 
+                              existingVideo.offsetWidth === 0 && 
+                              existingVideo.paused &&
+                              existingVideo.readyState < 2);
+          
+          // Apenas limpar se não há vídeo ativo sendo reproduzido
+          if (shouldClear) {
+            console.log('🔄 Limpando vídeo anterior para aplicar novo track...');
+            safeClearElement(remoteVideoRef.current);
+          } else {
+            console.log('⚠️ Vídeo já está sendo reproduzido, mantendo e aplicando novo track...');
+          }
           
           // Aguardar apenas 100ms para o track estar disponível (reduzido de 300ms)
           await new Promise(resolve => setTimeout(resolve, 100));
@@ -3837,12 +4031,57 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           if (user.videoTrack) {
             console.log('▶️ Reproduzindo vídeo track...');
             
+            // Marcar como tendo vídeo IMEDIATAMENTE antes de chamar play()
+            // Isso garante que o overlay não apareça enquanto o vídeo está sendo renderizado
+            setHasRemoteVideo(true);
+            setIsConnecting(false);
+            
             // Verificar se o track já está sendo reproduzido
             if (user.videoTrack.isPlaying) {
               console.log('✅ Vídeo track já está sendo reproduzido, apenas aplicando estilos...');
               // Apenas aplicar estilos se já está reproduzindo
             } else {
-              await user.videoTrack.play(videoContainer);
+              try {
+                await user.videoTrack.play(videoContainer);
+                console.log('✅ play() chamado com sucesso');
+                
+                // Aguardar o elemento de vídeo ser criado
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Aplicar correções de iOS/Safari se necessário
+                const videoElement = videoContainer.querySelector('video') as HTMLVideoElement;
+                if (videoElement) {
+                  // Aplicar correções de iOS
+                  const cleanupIOSFix = setupIOSPlaybackFix(videoElement);
+                  
+                  // Listener para loadedmetadata (garantir que o vídeo carregou)
+                  const handleLoadedMetadata = () => {
+                    console.log('📏 Resolução detectada:', videoElement.videoWidth, 'x', videoElement.videoHeight);
+                    
+                    // Forçar play caso o navegador não tenha iniciado automaticamente
+                    if (videoElement.paused) {
+                      videoElement.play().catch((err) => {
+                        console.warn('Erro ao forçar play após metadata:', err);
+                      });
+                    }
+                  };
+                  
+                  videoElement.addEventListener('loadedmetadata', handleLoadedMetadata);
+                  
+                  // Se já tem metadata, chamar imediatamente
+                  if (videoElement.readyState >= 1) {
+                    handleLoadedMetadata();
+                  }
+                  
+                  // Cleanup quando o componente desmontar
+                  const originalCleanup = cleanupIOSFix;
+                  // Armazenar cleanup para usar depois se necessário
+                  (videoElement as any)._iosCleanup = originalCleanup;
+                }
+              } catch (playError: any) {
+                console.error('❌ Erro ao chamar play():', playError);
+                // Mesmo com erro, tentar continuar
+              }
             }
             
             // Aplicar estilos ao vídeo após ser criado
@@ -3855,18 +4094,26 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                 videoElement.style.position = 'absolute';
                 videoElement.style.top = '0';
                 videoElement.style.left = '0';
-                videoElement.style.zIndex = '20'; // Muito acima do overlay (z-10)
+                videoElement.style.right = '0';
+                videoElement.style.bottom = '0';
+                videoElement.style.zIndex = '20'; // Muito acima do overlay (z-[5])
                 videoElement.style.backgroundColor = '#000';
                 videoElement.style.display = 'block';
                 videoElement.style.visibility = 'visible';
                 videoElement.style.opacity = '1';
+                videoElement.style.margin = '0';
+                videoElement.style.padding = '0';
                 
                 // Container se adapta ao tamanho disponível
                 if (remoteVideoRef.current) {
                   remoteVideoRef.current.style.height = '100%';
+                  remoteVideoRef.current.style.display = 'block';
+                  remoteVideoRef.current.style.visibility = 'visible';
                 }
                 if (videoContainer) {
                   videoContainer.style.height = '100%';
+                  videoContainer.style.display = 'block';
+                  videoContainer.style.visibility = 'visible';
                 }
                 
                 console.log('✅ Estilos aplicados ao vídeo remoto:', {
@@ -3878,7 +4125,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                   offsetHeight: videoElement.offsetHeight,
                   containerHeight: remoteVideoRef.current?.offsetHeight,
                   videoContainerHeight: videoContainer.offsetHeight,
-                  zIndex: videoElement.style.zIndex
+                  zIndex: videoElement.style.zIndex,
+                  display: videoElement.style.display,
+                  visibility: videoElement.style.visibility,
+                  opacity: videoElement.style.opacity
                 });
                 return true;
               }
@@ -3886,52 +4136,91 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             };
             
             // Tentar aplicar estilos imediatamente e depois periodicamente
-            let stylesApplied = false;
-            if (applyStyles()) {
-              stylesApplied = true;
-            } else {
+            // Aplicar estilos imediatamente
+            if (!applyStyles()) {
+              // Se não encontrou, tentar após um pequeno delay
+              // Nota: É normal o elemento demorar um pouco para ser criado pelo Agora SDK
               setTimeout(() => {
                 if (applyStyles()) {
-                  stylesApplied = true;
+                  console.log('✅ Estilos aplicados após delay inicial');
                 } else {
-                  console.warn('⚠️ Elemento de vídeo não encontrado após 200ms');
+                  console.debug('🔄 Elemento de vídeo ainda não criado pelo SDK (normal, aguardando...)');
                 }
-              }, 200);
+              }, 100);
               
               // Tentar novamente após mais tempo
               setTimeout(() => {
                 if (applyStyles()) {
-                  stylesApplied = true;
+                  console.log('✅ Vídeo encontrado e estilizado após 500ms');
+                }
+              }, 500);
+              
+              // Última tentativa
+              setTimeout(() => {
+                if (applyStyles()) {
                   console.log('✅ Vídeo encontrado e estilizado após 1s');
+                } else {
+                  // Verificar se o vídeo foi encontrado em outro lugar (pode ter sido criado pelo SDK)
+                  const videoInRef = remoteVideoRef.current?.querySelector('video') as HTMLVideoElement;
+                  if (videoInRef && (videoInRef.videoWidth > 0 || videoInRef.offsetWidth > 0)) {
+                    console.debug('ℹ️ Vídeo encontrado em outro local, aplicando estilos...');
+                    applyStyles();
+                  } else {
+                    console.debug('🔄 Elemento de vídeo ainda não disponível (o SDK pode criar mais tarde)');
+                  }
                 }
               }, 1000);
             }
             
-            // Marcar como tendo vídeo remoto APENAS após aplicar estilos e confirmar que o vídeo existe
-            // Aguardar um pouco para garantir que o vídeo está renderizado
+            // Verificar se o vídeo foi renderizado e mostrar toast
             setTimeout(() => {
               const videoElement = videoContainer.querySelector('video') as HTMLVideoElement;
-              if (videoElement && (videoElement.videoWidth > 0 || videoElement.offsetWidth > 0)) {
-                setHasRemoteVideo(true);
-                setIsConnecting(false);
-                console.log('✅ Video track playing successfully - marcando como visível');
-                toast.success('Vídeo conectado!');
+              if (videoElement) {
+                console.log('✅ Video track playing - vídeo encontrado', {
+                  videoWidth: videoElement.videoWidth,
+                  offsetWidth: videoElement.offsetWidth,
+                  paused: videoElement.paused,
+                  readyState: videoElement.readyState,
+                  hasSrcObject: videoElement.srcObject !== null,
+                  display: videoElement.style.display,
+                  visibility: videoElement.style.visibility,
+                  opacity: videoElement.style.opacity,
+                  zIndex: videoElement.style.zIndex
+                });
+                
+                // Se tem dimensões válidas, mostrar toast
+                if (videoElement.videoWidth > 0 || videoElement.offsetWidth > 0) {
+                  toast.success('Vídeo conectado!');
+                } else {
+                  // Aguardar um pouco mais e verificar novamente
+                  setTimeout(() => {
+                    const retryVideoElement = videoContainer.querySelector('video') as HTMLVideoElement;
+                    if (retryVideoElement && (retryVideoElement.videoWidth > 0 || retryVideoElement.offsetWidth > 0)) {
+                      toast.success('Vídeo conectado!');
+                    }
+                  }, 1000);
+                }
               } else {
-                console.warn('⚠️ Vídeo não tem dimensões válidas ainda, aguardando...');
+                // É normal o elemento demorar um pouco para ser criado pelo Agora SDK
+                console.debug('🔄 Elemento de vídeo ainda não criado após play() (normal, aguardando SDK...)');
                 // Tentar novamente após mais tempo
                 setTimeout(() => {
                   const retryVideoElement = videoContainer.querySelector('video') as HTMLVideoElement;
                   if (retryVideoElement) {
-                    setHasRemoteVideo(true);
-                    setIsConnecting(false);
                     console.log('✅ Video track marcado como visível após retry');
+                    retryVideoElement.style.display = 'block';
+                    retryVideoElement.style.visibility = 'visible';
+                    retryVideoElement.style.opacity = '1';
+                    retryVideoElement.style.zIndex = '20';
                     toast.success('Vídeo conectado!');
                   }
                 }, 500);
               }
-            }, 300);
+            }, 100); // Reduzido para resposta mais rápida
           } else {
             console.warn('⚠️ user.videoTrack não disponível após subscribe');
+            // Se não há track, manter hasRemoteVideo como false para mostrar overlay
+            setHasRemoteVideo(false);
           }
         }
 
@@ -4685,7 +4974,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           left: 0px !important;
           right: 0px !important;
           bottom: 0px !important;
-          z-index: 15 !important;
+          z-index: 20 !important; /* Aumentado para ficar acima do overlay (z-10) */
           background-color: #000 !important;
           display: block !important;
           visibility: visible !important;
@@ -5116,8 +5405,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               Não precisamos renderizar separadamente, mas mantemos o código caso seja necessário no futuro */}
           
           {/* Overlay de carregamento - só mostra se não há vídeo */}
+          {/* IMPORTANTE: z-index menor que o vídeo (z-10 < z-20 do vídeo) para não cobrir */}
           {!hasRemoteVideo && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10 pointer-events-none">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-[5] pointer-events-none">
               <div className="text-white text-center">
                 {isConnecting ? (
                   <>
