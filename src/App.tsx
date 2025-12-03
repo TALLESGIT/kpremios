@@ -15,6 +15,8 @@ import LiveParticipationPage from './pages/LiveParticipationPage';
 import AdminLiveGamesPage from './pages/AdminLiveGamesPage';
 import AdminLiveControlPage from './pages/AdminLiveControlPage';
 import AdminUsersPage from './pages/AdminUsersPage';
+import AdminLiveStreamPage from './pages/AdminLiveStreamPage';
+import PublicLiveStreamPage from './pages/PublicLiveStreamPage';
 
 // Novas páginas de autenticação e sorteio ao vivo
 import LoginPage from './pages/LoginPage';
@@ -138,6 +140,17 @@ function AppContent() {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/admin/live-stream" 
+            element={
+              <ProtectedRoute>
+                <AdminLiveStreamPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Rotas públicas de live streaming */}
+          <Route path="/live/:channelName" element={<PublicLiveStreamPage />} />
 
           {/* Redirect /admin to /admin/login if not authenticated */}
           <Route path="/admin" element={<Navigate to="/admin/login" replace />} />

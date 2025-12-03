@@ -5,7 +5,7 @@ import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import { LogOut, Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, TrendingUp, Award, Settings, CheckCircle, MessageSquare, Trash2 } from 'lucide-react';
+import { LogOut, Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, TrendingUp, Award, Settings, CheckCircle, MessageSquare, Trash2, Video } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { WhatsAppTestPanel } from '../components/admin/WhatsAppTestPanel';
 import QuickTest from '../components/admin/QuickTest';
@@ -1192,6 +1192,55 @@ export default function AdminDashboardPage() {
                   <Trash2 className="h-5 w-5 group-hover:scale-110 transition-transform duration-300" />
                   Limpar Solicitações
                 </button>
+              </div>
+            </div>
+
+            {/* Transmitir Live */}
+            <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-red-400/20 backdrop-blur-sm hover:border-red-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-red-500/10">
+              {/* Header com gradiente */}
+              <div className="bg-gradient-to-r from-red-500/10 to-red-600/10 p-4 sm:p-6 lg:p-8 border-b border-red-400/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-red-500 to-red-600 rounded-2xl flex items-center justify-center mr-3 sm:mr-4 shadow-lg shadow-red-500/25">
+                      <Video className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg sm:text-xl font-black text-white mb-1">Transmitir Live</h3>
+                      <p className="text-red-200 text-sm font-medium">Transmissão ao vivo</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xl sm:text-2xl font-black text-red-400">📹</div>
+                    <div className="text-xs text-red-300 font-medium">ao vivo</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Conteúdo */}
+              <div className="p-4 sm:p-6 lg:p-8">
+                <p className="text-slate-300 mb-6 leading-relaxed font-medium text-sm">
+                  Crie e gerencie transmissões ao vivo com integração OBS Studio e Agora.io. 
+                  Transmita para seus usuários com chat em tempo real e painel de controle profissional.
+                </p>
+                
+                {/* Status Badge */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full mr-3 bg-red-500 animate-pulse"></div>
+                    <span className="text-sm font-bold text-slate-300">Sistema completo</span>
+                  </div>
+                  <div className="bg-gradient-to-r from-red-500/20 to-red-600/20 border border-red-400/30 rounded-lg px-3 py-1">
+                    <span className="text-xs font-bold text-red-200">Profissional</span>
+                  </div>
+                </div>
+
+                <Link
+                  to="/admin/live-stream"
+                  className="w-full py-4 px-6 rounded-2xl font-black transition-all duration-300 flex items-center justify-center gap-3 group bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 shadow-2xl hover:shadow-red-500/25 transform hover:-translate-y-1 hover:scale-105"
+                >
+                  <Video className="h-5 w-5 group-hover:scale-110 transition-transform duration-300" />
+                  Transmitir Live
+                </Link>
               </div>
             </div>
 
