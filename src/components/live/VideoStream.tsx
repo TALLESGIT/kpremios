@@ -989,7 +989,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const handleException = (exception: any) => {
     // Ignorar avisos não críticos
     const nonCriticalCodes = [
+      2001, // AUDIO_INPUT_LEVEL_TOO_LOW - aviso de nível de áudio de entrada baixo (normal com OBS)
       2002, // AUDIO_OUTPUT_LEVEL_TOO_LOW - apenas aviso de nível de áudio baixo
+      4001, // AUDIO_INPUT_LEVEL_TOO_LOW_RECOVER - aviso de recuperação de nível de áudio de entrada (normal com OBS)
       4002, // AUDIO_OUTPUT_LEVEL_TOO_LOW_RECOVER - apenas aviso de nível de áudio baixo
       4003, // AUDIO_OUTPUT_LEVEL_TOO_LOW - apenas aviso
     ];
