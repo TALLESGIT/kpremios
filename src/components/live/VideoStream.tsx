@@ -957,13 +957,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             setTimeout(async () => {
               try {
                 if (user.audioTrack) {
-                  // Garantir que não está mutado antes de tentar novamente
-                  if (user.audioTrack.muted) {
-                    await user.audioTrack.setMuted(false);
-                  }
-                  if (!user.audioTrack.enabled) {
-                    await user.audioTrack.setEnabled(true);
-                  }
+                  // Não podemos controlar muted/enabled em tracks remotos
+                  // Apenas tentar reproduzir novamente
                   await user.audioTrack.play();
                   console.log('✅ Áudio remoto reproduzido após retry');
                 }
