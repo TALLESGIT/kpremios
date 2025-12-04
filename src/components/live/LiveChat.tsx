@@ -422,7 +422,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
                     }`}
                     title={message.user_name}
                   >
-                    {message.user_name}
+                    {formatDisplayName(message.user_name, messages)}
                     {message.is_admin && (
                       <span className="ml-1 text-xs bg-amber-500 text-white px-1.5 py-0.5 rounded whitespace-nowrap">
                         ADMIN
