@@ -56,12 +56,19 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Scroll para o final do chat
+  // Scroll para o final do chat (apenas dentro do container do chat)
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current && messagesEndRef.current) {
+      // Scroll apenas dentro do container do chat, não na página inteira
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   };
 
   useEffect(() => {
+    // Só fazer scroll se o usuário não estiver rolando manualmente
     scrollToBottom();
   }, [messages]);
 

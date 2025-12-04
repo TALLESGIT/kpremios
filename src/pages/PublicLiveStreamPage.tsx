@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Eye } from 'lucide-react';
+import { ArrowLeft, Eye, Share2, MessageSquare, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import VideoStream from '../components/live/VideoStream';
 import LiveChat from '../components/live/LiveChat';
 import Header from '../components/shared/Header';
@@ -24,6 +25,10 @@ const PublicLiveStreamPage: React.FC = () => {
   const [stream, setStream] = useState<LiveStream | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewerCount, setViewerCount] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
   const [sessionId] = useState(() => {
     // Tentar recuperar sessionId do localStorage para manter a mesma sessão entre recarregamentos
     const storageKey = `live_session_${channelName}`;
@@ -52,17 +57,85 @@ const PublicLiveStreamPage: React.FC = () => {
     };
   }, [channelName]);
 
-
-  // Track viewer após stream ser carregado
+  // Scroll para o topo quando a página carregar (após renderização)
   useEffect(() => {
-    if (stream && channelName) {
+    // Forçar scroll para o topo imediatamente e após um pequeno delay
+    window.scrollTo(0, 0);
+    const timer = setTimeout(() => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Scroll para o topo quando o stream for carregado
+  useEffect(() => {
+    if (stream) {
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }, 100);
+    }
+  }, [stream]);
+
+  // Detectar se é mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
+                    window.innerWidth <= 768;
+      setIsMobile(mobile);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Detectar fullscreen
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+      // Fechar chat quando sair do fullscreen
+      if (!document.fullscreenElement) {
+        setIsChatOpen(false);
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
+
+
+  // Track viewer após stream ser carregado (apenas se estiver ativo)
+  useEffect(() => {
+    if (stream && channelName && stream.is_active) {
       trackViewer();
+    } else if (stream && !stream.is_active) {
+      // Se a transmissão não está ativa, encerrar sessão se existir
+      endViewerSession();
     }
   }, [stream, channelName]);
 
-  // Heartbeat e atualização do contador
+  // Heartbeat e atualização do contador (apenas se estiver ativo)
   useEffect(() => {
-    if (!stream) return;
+    if (!stream || !stream.is_active) {
+      // Se não está ativo, definir contador como 0
+      setViewerCount(0);
+      return;
+    }
 
     // Atualizar heartbeat e contador imediatamente
     updateHeartbeat();
@@ -82,7 +155,7 @@ const PublicLiveStreamPage: React.FC = () => {
       clearInterval(heartbeatInterval);
       clearInterval(countInterval);
     };
-  }, [stream]);
+  }, [stream, stream?.is_active]);
 
   const loadStream = async () => {
     try {
@@ -127,6 +200,12 @@ const PublicLiveStreamPage: React.FC = () => {
   const trackViewer = async () => {
     if (!stream) {
       console.log('⏳ Stream ainda não carregado, aguardando...');
+      return;
+    }
+
+    // Só rastrear viewer se a transmissão estiver ativa
+    if (!stream.is_active) {
+      console.log('⏸️ Transmissão não está ativa, não rastreando viewer');
       return;
     }
 
@@ -194,7 +273,7 @@ const PublicLiveStreamPage: React.FC = () => {
   };
 
   const updateHeartbeat = async () => {
-    if (!stream) return;
+    if (!stream || !stream.is_active) return;
 
     try {
       // Atualizar heartbeat usando função SQL
@@ -273,6 +352,17 @@ const PublicLiveStreamPage: React.FC = () => {
 
   const updateViewerCount = async () => {
     if (!stream) return;
+
+    // Se a transmissão não está ativa, definir contador como 0
+    if (!stream.is_active) {
+      setViewerCount(0);
+      // Atualizar no banco também
+      await supabase
+        .from('live_streams')
+        .update({ viewer_count: 0 })
+        .eq('id', stream.id);
+      return;
+    }
 
     try {
       // Limpar sessões antigas primeiro
@@ -448,11 +538,11 @@ const PublicLiveStreamPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
+    <div className="h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col overflow-hidden">
       <Header />
 
       {/* Conteúdo Principal */}
-      <div className="flex-1 max-w-[1400px] mx-auto w-full p-4">
+      <div className="flex-1 max-w-[1400px] mx-auto w-full p-4 overflow-y-auto">
         {/* Header da Transmissão */}
         <div className="mb-4">
           <button
@@ -469,10 +559,51 @@ const PublicLiveStreamPage: React.FC = () => {
                 <p className="text-slate-400">{stream.description}</p>
               )}
             </div>
-            <div className="flex items-center gap-2 text-slate-300">
-              <Eye className="w-5 h-5" />
-              <span className="font-medium">{viewerCount > 0 ? viewerCount : stream?.viewer_count || 0}</span>
-              <span className="text-sm text-slate-400">viewers</span>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 text-slate-300">
+                <Eye className="w-5 h-5" />
+                <span className="font-medium">{stream?.is_active ? (viewerCount > 0 ? viewerCount : stream?.viewer_count || 0) : 0}</span>
+                <span className="text-sm text-slate-400">viewers</span>
+              </div>
+              {/* Botão de Compartilhar */}
+              <button
+                onClick={async () => {
+                  const streamUrl = `${window.location.origin}/live/${stream.channel_name}`;
+                  
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({
+                        title: stream.title,
+                        text: `Assista à transmissão ao vivo: ${stream.title}`,
+                        url: streamUrl,
+                      });
+                    } catch (error) {
+                      // Usuário cancelou ou erro - copiar para área de transferência
+                      try {
+                        await navigator.clipboard.writeText(streamUrl);
+                        toast.success('Link copiado');
+                      } catch (err) {
+                        console.error('Erro ao copiar link:', err);
+                        toast.error('Erro ao compartilhar link');
+                      }
+                    }
+                  } else {
+                    // Fallback: copiar para área de transferência
+                    try {
+                      await navigator.clipboard.writeText(streamUrl);
+                      toast.success('Link copiado');
+                    } catch (err) {
+                      console.error('Erro ao copiar link:', err);
+                      toast.error('Erro ao copiar link');
+                    }
+                  }
+                }}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors flex items-center gap-2"
+                title="Compartilhar transmissão"
+              >
+                <Share2 className="w-4 h-4" />
+                <span className="text-sm font-medium">Compartilhar</span>
+              </button>
             </div>
           </div>
         </div>
@@ -487,13 +618,18 @@ const PublicLiveStreamPage: React.FC = () => {
         )}
 
         {/* Layout Principal - 16:9 */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 relative">
           {/* Vídeo - Ocupa 8 colunas */}
-          <div className="lg:col-span-8">
-            <div className="bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
+          <div className="lg:col-span-8 relative">
+            <div 
+              ref={videoContainerRef}
+              className="bg-black rounded-lg overflow-hidden relative" 
+              style={{ aspectRatio: '16/9' }}
+            >
               <VideoStream
                 channelName={stream.channel_name}
                 role="audience"
+                isActive={stream.is_active}
                 onStreamError={(error) => {
                   console.error('Erro no stream:', error);
                   if (stream.is_active) {
@@ -501,15 +637,83 @@ const PublicLiveStreamPage: React.FC = () => {
                   }
                 }}
               />
+              
+              {/* Botão de Chat em Fullscreen (Mobile) - Estilo YouTube */}
+              {isFullscreen && isMobile && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  onClick={() => setIsChatOpen(!isChatOpen)}
+                  className="absolute top-4 left-4 z-50 bg-black/60 backdrop-blur-md text-white p-3 rounded-full hover:bg-black/80 transition-colors shadow-lg"
+                  aria-label={isChatOpen ? "Fechar chat" : "Abrir chat"}
+                  title={isChatOpen ? "Fechar chat" : "Abrir chat"}
+                >
+                  {isChatOpen ? (
+                    <X className="w-5 h-5" />
+                  ) : (
+                    <MessageSquare className="w-5 h-5" />
+                  )}
+                </motion.button>
+              )}
             </div>
           </div>
 
-          {/* Chat - Ocupa 4 colunas */}
-          <div className="lg:col-span-4">
-            <div style={{ minHeight: '600px' }}>
-              <LiveChat streamId={stream.id} isAdmin={false} />
+          {/* Chat - Ocupa 4 colunas (Desktop) ou Overlay (Mobile Fullscreen) */}
+          {isFullscreen && isMobile ? (
+            /* Chat Overlay em Fullscreen (Mobile) - Estilo YouTube */
+            <AnimatePresence>
+              {isChatOpen && (
+                <>
+                  {/* Backdrop */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setIsChatOpen(false)}
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+                  />
+                  
+                  {/* Chat Panel - Desliza da direita */}
+                  <motion.div
+                    initial={{ x: '100%' }}
+                    animate={{ x: 0 }}
+                    exit={{ x: '100%' }}
+                    transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                    className="fixed top-0 right-0 h-full w-[75%] max-w-sm bg-slate-900 z-50 shadow-2xl flex flex-col"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Header do Chat */}
+                    <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-800">
+                      <h3 className="text-white font-semibold flex items-center gap-2">
+                        <MessageSquare className="w-5 h-5" />
+                        Chat ao Vivo
+                      </h3>
+                      <button
+                        onClick={() => setIsChatOpen(false)}
+                        className="text-slate-400 hover:text-white transition-colors p-1"
+                        aria-label="Fechar chat"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                    
+                    {/* Chat Content */}
+                    <div className="flex-1 overflow-hidden">
+                      <LiveChat streamId={stream.id} isAdmin={false} />
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          ) : (
+            /* Chat Normal (Desktop ou Mobile não-fullscreen) */
+            <div className="lg:col-span-4">
+              <div style={{ minHeight: '600px' }}>
+                <LiveChat streamId={stream.id} isAdmin={false} />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 

@@ -36,6 +36,30 @@ const AdminLiveStreamPage: React.FC = () => {
     loadStreams();
   }, []);
 
+  // Scroll para o topo quando a página carregar (após renderização)
+  useEffect(() => {
+    // Forçar scroll para o topo imediatamente e após um pequeno delay
+    window.scrollTo(0, 0);
+    const timer = setTimeout(() => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Scroll para o topo quando selecionar um stream
+  useEffect(() => {
+    if (selectedStream) {
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }, 100);
+    }
+  }, [selectedStream]);
+
   const loadStreams = async () => {
     try {
       setLoading(true);
@@ -153,26 +177,38 @@ const AdminLiveStreamPage: React.FC = () => {
 
     try {
       // Primeiro, encerrar todas as sessões ativas
-      const { error: endSessionsError } = await supabase.rpc(
+      const { error: endSessionsErr } = await supabase.rpc(
         'end_all_active_viewer_sessions',
         { p_stream_id: selectedStream.id }
       );
 
-      if (endSessionsError) {
-        console.error('Erro ao encerrar sessões:', endSessionsError);
+      if (endSessionsErr) {
+        console.error('Erro ao encerrar sessões:', endSessionsErr);
       }
 
+      // Limpar sessões antigas e duplicadas
+      await supabase.rpc('cleanup_inactive_viewer_sessions');
+      await supabase.rpc('cleanup_duplicate_viewer_sessions', {
+        p_stream_id: selectedStream.id
+      });
+
       // Atualizar viewer_count para 0
-      await supabase
+      const { data: updatedStream, error: updateError } = await supabase
         .from('live_streams')
         .update({ 
           is_active: false,
           viewer_count: 0
         })
-        .eq('id', selectedStream.id);
+        .eq('id', selectedStream.id)
+        .select()
+        .single();
 
-      // Limpar sessões antigas
-      await supabase.rpc('cleanup_inactive_viewer_sessions');
+      if (updateError) {
+        console.error('Erro ao atualizar stream:', updateError);
+      } else if (updatedStream) {
+        // Atualizar o estado local do stream selecionado
+        setSelectedStream(updatedStream);
+      }
 
       setIsStreaming(false);
       setShouldStartStream(false); // Resetar flag
@@ -448,16 +484,25 @@ const AdminLiveStreamPage: React.FC = () => {
                     channelName={selectedStream.channel_name}
                     role="host"
                     startStreaming={shouldStartStream}
+                    isActive={selectedStream.is_active}
                     onStreamReady={async () => {
                       console.log('🎬 VideoStream está pronto, atualizando banco de dados...');
                       // Atualizar banco apenas quando o stream estiver realmente pronto
                       if (!isStreaming) {
                         try {
-                          const { error } = await supabase
+                          const { data: updatedStream, error } = await supabase
                             .from('live_streams')
                             .update({ is_active: true })
-                            .eq('id', selectedStream.id);
+                            .eq('id', selectedStream.id)
+                            .select()
+                            .single();
                           if (error) throw error;
+                          
+                          // Atualizar o estado local do stream selecionado
+                          if (updatedStream) {
+                            setSelectedStream(updatedStream);
+                          }
+                          
                           setIsStreaming(true);
                           setShouldStartStream(false); // Resetar flag
                           toast.success('Transmissão iniciada!');

@@ -1,7 +1,66 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import AgoraRTC from 'agora-rtc-sdk-ng';
-import { Video, VideoOff, Camera, Mic, MicOff, Settings, Monitor } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import MobileVideoPlayer from './MobileVideoPlayer';
+
+// Declaração de tipos para AgoraRTC (fallback se o arquivo de tipos não for carregado)
+declare namespace AgoraRTC {
+  interface ILocalVideoTrack {
+    getTrackId(): string;
+    enabled: boolean;
+    isPlaying: boolean;
+    muted: boolean;
+    play(element: HTMLElement, config?: any): Promise<void>;
+    stop(): void;
+    close(): void;
+    setEnabled(enabled: boolean): Promise<void>;
+    setMuted(muted: boolean): Promise<void>;
+    setDevice(deviceId: string): Promise<void>;
+    on(event: string, callback: (...args: any[]) => void): void;
+  }
+
+  interface ILocalAudioTrack {
+    getTrackId(): string;
+    enabled: boolean;
+    muted: boolean;
+    play(): Promise<void>;
+    stop(): void;
+    close(): void;
+    setEnabled(enabled: boolean): Promise<void>;
+    setMuted(muted: boolean): Promise<void>;
+    setDevice(deviceId: string): Promise<void>;
+  }
+
+  interface IRemoteVideoTrack {
+    stop(): void;
+    play(element: HTMLElement, config?: any): Promise<void>;
+  }
+
+  interface IAgoraRTCRemoteUser {
+    uid: number;
+    hasVideo: boolean;
+    hasAudio: boolean;
+    videoTrack: IRemoteVideoTrack | null;
+    audioTrack: any;
+  }
+
+  type ConnectionState = 'CONNECTED' | 'CONNECTING' | 'RECONNECTING' | 'DISCONNECTING' | 'DISCONNECTED' | 'FAILED';
+
+  interface IAgoraRTCClient {
+    connectionState: ConnectionState;
+    role?: 'host' | 'audience';
+    localTracks: Array<ILocalVideoTrack | ILocalAudioTrack>;
+    remoteUsers: IAgoraRTCRemoteUser[];
+    join(appId: string, channel: string, token: string | null, uid: number | null): Promise<number>;
+    leave(): Promise<void>;
+    publish(track: ILocalVideoTrack | ILocalAudioTrack): Promise<void>;
+    subscribe(user: IAgoraRTCRemoteUser, mediaType: 'audio' | 'video'): Promise<void>;
+    setClientRole(role: 'host' | 'audience'): Promise<void>;
+    on(event: string, callback: (...args: any[]) => void): void;
+    removeAllListeners(): void;
+  }
+}
 
 interface VideoStreamProps {
   channelName: string;
@@ -11,6 +70,7 @@ interface VideoStreamProps {
   onStreamReady?: () => void;
   onStreamError?: (error: Error) => void;
   startStreaming?: boolean; // Flag para iniciar stream externamente
+  isActive?: boolean; // Se a transmissão está ativa
 }
 
 const VideoStream: React.FC<VideoStreamProps> = ({
@@ -21,16 +81,26 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   onStreamReady,
   onStreamError,
   startStreaming = false,
+  isActive = false,
 }) => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [hasRemoteUsers, setHasRemoteUsers] = useState(false);
+  const [hasVideoElement, setHasVideoElement] = useState(false);
+  const [hasLocalVideoElement, setHasLocalVideoElement] = useState(false);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string | null>(cameraDeviceId || null);
   const [availableMicrophones, setAvailableMicrophones] = useState<MediaDeviceInfo[]>([]);
   const [selectedMicrophone, setSelectedMicrophone] = useState<string | null>(null);
   const [previewTrack, setPreviewTrack] = useState<AgoraRTC.ILocalVideoTrack | null>(null);
   const joiningRef = useRef(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isRotated, setIsRotated] = useState(false);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const reconnectTimeoutRef = useRef<number | null>(null);
+  const maxReconnectAttempts = 6;
+  const lastChannelInfoRef = useRef<{ channelName: string; appId: string; token: string | null; uid: number | null } | null>(null);
 
   const clientRef = useRef<AgoraRTC.IAgoraRTCClient | null>(null);
   const localVideoTrackRef = useRef<AgoraRTC.ILocalVideoTrack | null>(null);
@@ -41,6 +111,92 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
   const appId = import.meta.env.VITE_AGORA_APP_ID;
   const token = import.meta.env.VITE_AGORA_TOKEN || null;
+
+  // Função para salvar informações do canal para reconexão
+  const saveChannelInfo = useCallback((channelName: string, appId: string, token: string | null, uid: number | null) => {
+    lastChannelInfoRef.current = { channelName, appId, token, uid };
+  }, []);
+
+  // Função de reconexão com backoff exponencial
+  const handleReconnect = useCallback(async () => {
+    if (!lastChannelInfoRef.current) {
+      console.warn('⚠️ Não há informações de canal salvas para reconexão');
+      return;
+    }
+
+    if (reconnectAttempts >= maxReconnectAttempts) {
+      console.error('❌ Máximo de tentativas de reconexão atingido');
+      if (onStreamError) {
+        onStreamError(new Error('Falha na conexão. Por favor, recarregue a página.'));
+      }
+      toast.error('Falha na conexão. Por favor, recarregue a página.');
+      return;
+    }
+
+    // Calcular delay com backoff exponencial (1s, 2s, 4s, 8s, 16s, 32s) - máximo 30s
+    const delay = Math.min(Math.pow(2, reconnectAttempts) * 1000, 30000);
+    console.log(`🔄 Tentativa de reconexão ${reconnectAttempts + 1}/${maxReconnectAttempts} em ${delay}ms...`);
+
+    // Limpar timeout anterior se existir
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+    }
+
+    reconnectTimeoutRef.current = window.setTimeout(async () => {
+      try {
+        const { channelName, appId, token, uid } = lastChannelInfoRef.current!;
+        
+        if (!clientRef.current) {
+          console.error('❌ Cliente não está disponível para reconexão');
+          return;
+        }
+
+        // Verificar se já está conectado
+        if (clientRef.current.connectionState === 'CONNECTED') {
+          console.log('✅ Já está conectado, cancelando reconexão');
+          setReconnectAttempts(0);
+          return;
+        }
+
+        // Fazer join novamente
+        await clientRef.current.join(appId, channelName, token, uid);
+        
+        // Configurar role
+        if (role === 'host') {
+          await clientRef.current.setClientRole('host');
+          
+          // Se estava transmitindo, republicar tracks
+          if (isStreaming) {
+            if (localVideoTrackRef.current) {
+              await clientRef.current.publish(localVideoTrackRef.current);
+            }
+            if (localAudioTrackRef.current) {
+              await clientRef.current.publish(localAudioTrackRef.current);
+            }
+          }
+        } else {
+          await clientRef.current.setClientRole('audience');
+        }
+
+        console.log('✅ Reconexão bem-sucedida!');
+        setReconnectAttempts(0);
+        toast.success('Reconectado com sucesso!');
+      } catch (error: any) {
+        console.error(`❌ Erro na tentativa de reconexão ${reconnectAttempts + 1}:`, error);
+        setReconnectAttempts(prev => prev + 1);
+        
+        // Tentar novamente se não atingiu o máximo
+        if (reconnectAttempts + 1 < maxReconnectAttempts) {
+          handleReconnect();
+        } else {
+          if (onStreamError) {
+            onStreamError(new Error('Falha na conexão após múltiplas tentativas.'));
+          }
+          toast.error('Falha na conexão. Por favor, recarregue a página.');
+        }
+      }
+    }, delay);
+  }, [reconnectAttempts, maxReconnectAttempts, role, isStreaming, onStreamError]);
 
   // Função para iniciar preview da câmera (definida antes dos useEffect que a usam)
   const startPreview = useCallback(async (deviceId: string) => {
@@ -138,7 +294,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             
             // Forçar play se estiver pausado
             if (videoElement.paused) {
-              videoElement.play().catch(err => {
+              videoElement.play().catch((err: unknown) => {
                 console.error('Erro ao forçar play:', err);
               });
             }
@@ -230,16 +386,16 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const loadDevices = async () => {
     try {
       const devices = await AgoraRTC.getDevices();
-      const cameras = devices.filter((device) => device.kind === 'videoinput');
-      const microphones = devices.filter((device) => device.kind === 'audioinput');
+      const cameras = devices.filter((device: MediaDeviceInfo) => device.kind === 'videoinput');
+      const microphones = devices.filter((device: MediaDeviceInfo) => device.kind === 'audioinput');
 
       setAvailableCameras(cameras);
       setAvailableMicrophones(microphones);
 
-      console.log('Câmeras disponíveis:', cameras.map(c => ({ label: c.label, deviceId: c.deviceId })));
+      console.log('Câmeras disponíveis:', cameras.map((c: MediaDeviceInfo) => ({ label: c.label, deviceId: c.deviceId })));
 
       // Detectar OBS Virtual Camera (apenas para informação, não selecionar automaticamente)
-      const obsCamera = cameras.find((cam) => {
+      const obsCamera = cameras.find((cam: MediaDeviceInfo) => {
         const labelLower = cam.label.toLowerCase();
         return (
           labelLower.includes('obs') ||
@@ -255,7 +411,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
       // Se cameraDeviceId foi passado, usar ele
       if (cameraDeviceId) {
-        const foundCamera = cameras.find(c => c.deviceId === cameraDeviceId);
+        const foundCamera = cameras.find((c: MediaDeviceInfo) => c.deviceId === cameraDeviceId);
         if (foundCamera) {
           setSelectedCamera(cameraDeviceId);
           console.log('Câmera selecionada (via prop):', foundCamera.label);
@@ -300,7 +456,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     client.on('exception', handleException);
     
     // Listener para quando o próprio host publica um stream
-    client.on('stream-published', (event) => {
+    client.on('stream-published', (event: any) => {
       console.log('📡 EVENTO: Stream publicado pelo próprio cliente:', {
         streamType: event.streamType,
         role,
@@ -308,8 +464,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       });
     });
     
-    // Logs adicionais para debug
-    client.on('connection-state-change', (curState, revState) => {
+    // Logs adicionais para debug e reconexão automática
+    client.on('connection-state-change', (curState: AgoraRTC.ConnectionState, revState: AgoraRTC.ConnectionState) => {
       console.log('🔄 Agora: Estado de conexão mudou:', { 
         curState, 
         revState,
@@ -317,9 +473,24 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         remoteUsers: client.remoteUsers.length,
         localTracks: client.localTracks.length
       });
+      
+      // Detectar desconexão e iniciar reconexão automática
+      // Só reconectar se não foi uma desconexão intencional (leave)
+      if ((curState === 'DISCONNECTED' || curState === 'FAILED') && 
+          revState !== 'DISCONNECTED' && 
+          revState !== 'DISCONNECTING' &&
+          lastChannelInfoRef.current) {
+        console.warn('⚠️ Conexão perdida, iniciando reconexão automática...');
+        // Usar setTimeout para evitar chamar handleReconnect durante a renderização
+        setTimeout(() => {
+          if (clientRef.current && lastChannelInfoRef.current) {
+            handleReconnect();
+          }
+        }, 500);
+      }
     });
     
-    client.on('user-info-updated', (uid, msg) => {
+    client.on('user-info-updated', (uid: number, msg: string) => {
       console.log('ℹ️ Agora: Informações do usuário atualizadas:', { uid, msg, role });
       
       // Se for mensagem de mute, verificar se é do host
@@ -330,7 +501,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     });
     
     // Listener adicional para detectar quando usuários entram
-    client.on('network-quality', (stats) => {
+    client.on('network-quality', (_stats: any) => {
       // Este evento é disparado periodicamente, podemos usar para verificar usuários
       if (role === 'audience' && client.remoteUsers.length > 0) {
         console.log('📡 Network quality check - Usuários remotos:', client.remoteUsers.length);
@@ -338,12 +509,41 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     });
 
     return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
       if (clientRef.current) {
         clientRef.current.removeAllListeners();
         clientRef.current.leave();
       }
     };
-  }, [appId]);
+  }, [appId]); // Removido handleReconnect das dependências para evitar recriação do cliente
+
+  // Reagir quando isActive mudar (para desconectar usuários quando transmissão for encerrada)
+  useEffect(() => {
+    if (role === 'audience' && clientRef.current) {
+      if (!isActive) {
+        // Só desconectar se realmente estava conectado
+        const connectionState = clientRef.current.connectionState;
+        if (connectionState === 'CONNECTED' || connectionState === 'CONNECTING') {
+          console.log('🛑 Transmissão foi encerrada, desconectando usuário...');
+          // Limpar vídeo remoto
+          if (remoteVideoTrackRef.current) {
+            remoteVideoTrackRef.current.stop();
+            remoteVideoTrackRef.current = null;
+          }
+          setHasRemoteUsers(false);
+          setHasVideoElement(false);
+          setIsStreaming(false);
+          
+          // Desconectar do canal
+          clientRef.current.leave().catch(err => {
+            console.error('Erro ao sair do canal:', err);
+          });
+        }
+      }
+    }
+  }, [isActive, role]);
 
   // Auto-join para host quando o cliente estiver pronto (mas não publica automaticamente)
   useEffect(() => {
@@ -369,8 +569,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           return;
         }
         
+        // Salvar informações para reconexão
+        saveChannelInfo(channelName, appId, token, uid || null);
+        
         await clientRef.current!.setClientRole('host');
         console.log('✅ HOST: Conectado ao canal (aguardando iniciar transmissão)');
+        setReconnectAttempts(0); // Reset contador ao conectar
         
         // Não publica automaticamente - aguarda startStream() ser chamado
       } catch (error: any) {
@@ -413,6 +617,11 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       if (!role || role !== 'audience') return;
       if (!clientRef.current || !appId || !channelName) return;
       if (isStreaming || joiningRef.current) return;
+      // Só conectar se a transmissão estiver ativa
+      if (!isActive) {
+        console.log('⏸️ Transmissão não está ativa, aguardando...');
+        return;
+      }
 
       // Verificar se já está conectado
       const connectionState = clientRef.current.connectionState;
@@ -445,9 +654,14 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           return;
         }
         
+        // Salvar informações para reconexão
+        saveChannelInfo(channelName, appId, token, uid || null);
+
         // Configurar role como audience
         await clientRef.current.setClientRole('audience');
         console.log('✅ Audience: Conectado ao canal e aguardando stream');
+        setReconnectAttempts(0); // Reset contador ao conectar
+        reconnectTimeoutRef.current = null; // Limpar timeout de reconexão
         
         // Verificar se já há usuários no canal (caso o host já esteja transmitindo)
         const checkRemoteUsers = () => {
@@ -455,6 +669,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           
           const remoteUsers = clientRef.current.remoteUsers;
           console.log('👥 Verificando usuários remotos no canal:', remoteUsers.length);
+          
+          // Atualizar estado de usuários remotos
+          setHasRemoteUsers(remoteUsers.length > 0);
           
           if (remoteUsers.length > 0) {
             console.log('🔍 Host encontrado no canal! Verificando streams publicados...');
@@ -539,11 +756,18 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     };
 
     // Delay para garantir que o cliente está totalmente inicializado
-    timeoutId = setTimeout(() => {
-      if (isMounted && role === 'audience' && clientRef.current && appId && channelName && !isStreaming && !joiningRef.current) {
-        joinAsAudience();
-      }
-    }, 1000);
+    // Só tentar conectar se isActive for true E não estiver já conectado
+    if (isActive && !isStreaming && !joiningRef.current) {
+      timeoutId = setTimeout(() => {
+        if (isMounted && role === 'audience' && clientRef.current && appId && channelName) {
+          // Verificar se já está conectado antes de tentar conectar novamente
+          const connectionState = clientRef.current.connectionState;
+          if (connectionState !== 'CONNECTED' && connectionState !== 'CONNECTING') {
+            joinAsAudience();
+          }
+        }
+      }, 1000);
+    }
 
     return () => {
       isMounted = false;
@@ -552,12 +776,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         clearTimeout(timeoutId);
       }
     };
-  }, [role, appId, channelName, token, uid]);
+  }, [role, appId, channelName, token, uid, isActive, isStreaming]);
 
   const handleUserPublished = async (
     user: AgoraRTC.IAgoraRTCRemoteUser,
     mediaType: 'audio' | 'video'
-  ) => {
+  ): Promise<void> => {
     try {
       console.log('🎥 EVENTO: Usuário publicou stream:', { 
         uid: user.uid, 
@@ -581,32 +805,102 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           console.log('Reproduzindo vídeo remoto...');
           remoteVideoTrackRef.current = remoteVideoTrack;
           
+          // Atualizar estado quando vídeo for recebido
+          if (role === 'audience') {
+            setHasRemoteUsers(true);
+            setIsStreaming(true); // Marcar como streaming quando receber vídeo
+          }
+          
           // Aguardar container estar pronto
           if (remoteVideoContainerRef.current) {
-            await remoteVideoTrack.play(remoteVideoContainerRef.current);
-            console.log('Vídeo remoto reproduzido com sucesso');
-            
-            // Aplicar estilos para garantir visibilidade
-            setTimeout(() => {
-              const videoElement = remoteVideoContainerRef.current?.querySelector('video');
-              if (videoElement) {
-                videoElement.style.cssText = `
-                  width: 100% !important;
-                  height: 100% !important;
-                  object-fit: contain !important;
-                  position: absolute !important;
-                  top: 0 !important;
-                  left: 0 !important;
-                  z-index: 10 !important;
-                  display: block !important;
-                  visibility: visible !important;
-                  opacity: 1 !important;
-                `;
-                console.log('Estilos aplicados ao vídeo remoto');
-              }
-            }, 100);
+            try {
+              await remoteVideoTrack.play(remoteVideoContainerRef.current);
+              console.log('✅ Vídeo remoto reproduzido com sucesso');
+              
+              // Aplicar estilos para garantir visibilidade - com retry
+              const applyVideoStyles = (attempt = 1) => {
+                const videoElement = remoteVideoContainerRef.current?.querySelector('video');
+                if (videoElement) {
+                  videoElement.style.cssText = `
+                    width: 100% !important;
+                    height: 100% !important;
+                    max-width: 100% !important;
+                    max-height: 100% !important;
+                    object-fit: contain !important;
+                    position: absolute !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    right: 0 !important;
+                    bottom: 0 !important;
+                    z-index: 20 !important;
+                    display: block !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                    background: transparent !important;
+                    pointer-events: auto !important;
+                  `;
+                  
+                  // Forçar play se estiver pausado
+                  if (videoElement.paused) {
+                    videoElement.play().catch((err: unknown) => {
+                      console.error('Erro ao forçar play do vídeo:', err);
+                    });
+                  }
+                  
+                  // Verificar se o vídeo tem dimensões válidas
+                  if (videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
+                    setHasVideoElement(true);
+                    console.log('✅ Vídeo remoto renderizado com sucesso:', {
+                      width: videoElement.videoWidth,
+                      height: videoElement.videoHeight,
+                      playing: !videoElement.paused,
+                      readyState: videoElement.readyState
+                    });
+                  } else if (attempt < 5) {
+                    // Tentar novamente se o vídeo ainda não tem dimensões
+                    setTimeout(() => applyVideoStyles(attempt + 1), 300);
+                  }
+                } else if (attempt < 5) {
+                  // Tentar novamente se o elemento ainda não existe
+                  setTimeout(() => applyVideoStyles(attempt + 1), 200);
+                } else {
+                  console.warn('⚠️ Elemento de vídeo não encontrado após múltiplas tentativas');
+                }
+              };
+              
+              // Aplicar estilos imediatamente e com retry
+              setTimeout(() => applyVideoStyles(), 100);
+              setTimeout(() => applyVideoStyles(), 500);
+              setTimeout(() => applyVideoStyles(), 1000);
+            } catch (playError: any) {
+              console.error('❌ Erro ao reproduzir vídeo remoto:', playError);
+              // Tentar novamente após um delay
+              setTimeout(async () => {
+                try {
+                  if (remoteVideoContainerRef.current && remoteVideoTrackRef.current) {
+                    await remoteVideoTrackRef.current.play(remoteVideoContainerRef.current);
+                    console.log('✅ Vídeo remoto reproduzido após retry');
+                    setHasVideoElement(true);
+                  }
+                } catch (retryError) {
+                  console.error('❌ Erro no retry de reprodução:', retryError);
+                }
+              }, 1000);
+            }
           } else {
-            console.warn('Container de vídeo remoto não está disponível');
+            console.warn('⚠️ Container de vídeo remoto não está disponível');
+            // Tentar novamente quando o container estiver disponível
+            setTimeout(async () => {
+              if (remoteVideoContainerRef.current && remoteVideoTrackRef.current) {
+                try {
+                  await remoteVideoTrackRef.current.play(remoteVideoContainerRef.current);
+                  console.log('✅ Vídeo remoto reproduzido após container ficar disponível');
+                  setHasVideoElement(true);
+                } catch (err) {
+                  console.error('Erro ao reproduzir após container disponível:', err);
+                }
+              }
+            }, 500);
           }
         } else {
           console.warn('Track de vídeo remoto não encontrado');
@@ -633,6 +927,15 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     if (mediaType === 'video') {
       remoteVideoTrackRef.current?.stop();
       remoteVideoTrackRef.current = null;
+      
+      // Atualizar estado quando vídeo for removido
+      if (role === 'audience' && clientRef.current) {
+        const hasOtherUsers = clientRef.current.remoteUsers.some(u => u.uid !== user.uid && u.hasVideo);
+        if (!hasOtherUsers) {
+          setHasRemoteUsers(false);
+          setIsStreaming(false);
+        }
+      }
     }
   };
 
@@ -645,6 +948,11 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       audioTrack: !!user.audioTrack,
       role: role
     });
+    
+    // Atualizar estado de usuários remotos
+    if (role === 'audience') {
+      setHasRemoteUsers(true);
+    }
     
     // Se o usuário já tem tracks publicados, tentar fazer subscribe
     if (user.hasVideo && user.videoTrack) {
@@ -669,6 +977,11 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     if (remoteVideoTrackRef.current) {
       remoteVideoTrackRef.current.stop();
       remoteVideoTrackRef.current = null;
+    }
+    
+    // Atualizar estado de usuários remotos
+    if (role === 'audience' && clientRef.current) {
+      setHasRemoteUsers(clientRef.current.remoteUsers.length > 0);
     }
   };
 
@@ -789,7 +1102,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               trackId: videoTrack.getTrackId(),
               enabled: videoTrack.enabled,
               isPlaying: videoTrack.isPlaying,
-              muted: videoTrack.isMuted
+              muted: videoTrack.muted
             });
             
             // GARANTIR que o track está habilitado e não mutado antes de salvar
@@ -799,14 +1112,14 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             }
             
             // Garantir que não está mutado
-            if (videoTrack.isMuted) {
+            if (videoTrack.muted) {
               console.log('⚠️ Track criado mutado, desmutando...');
               await videoTrack.setMuted(false);
             }
             
             console.log('✅ Track de vídeo configurado:', {
               enabled: videoTrack.enabled,
-              muted: videoTrack.isMuted
+              muted: videoTrack.muted
             });
             
             // Salvar referência
@@ -817,15 +1130,6 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             
             // Configurar listeners do track
             videoTrack.on('track-ended', () => {
-              console.log('Track de vídeo encerrado');
-            });
-            
-            videoTrack.on('beauty-effect-overload', () => {
-              console.warn('Beauty effect overload');
-            });
-            
-            // Listener para detectar mudanças no estado do track
-            videoTrack.on('track-ended', () => {
               console.log('⚠️ Track de vídeo foi encerrado');
             });
             
@@ -833,13 +1137,13 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             const checkTrackState = () => {
               if (videoTrack.enabled !== true) {
                 console.warn('⚠️ Track de vídeo foi desabilitado! Reabilitando...');
-                videoTrack.setEnabled(true).catch(err => {
+                videoTrack.setEnabled(true).catch((err: unknown) => {
                   console.error('Erro ao reabilitar track:', err);
                 });
               }
-              if (videoTrack.isMuted === true) {
+              if (videoTrack.muted === true) {
                 console.warn('⚠️ Track de vídeo foi mutado! Desmutando...');
-                videoTrack.setMuted(false).catch(err => {
+                videoTrack.setMuted(false).catch((err: unknown) => {
                   console.error('Erro ao desmutar track:', err);
                 });
               }
@@ -859,7 +1163,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               trackId: videoTrack.getTrackId(),
               enabled: videoTrack.enabled,
               isPlaying: videoTrack.isPlaying,
-              muted: videoTrack.isMuted
+              muted: videoTrack.muted
             });
             
             // GARANTIR que o track está habilitado e não mutado ANTES de publicar
@@ -868,7 +1172,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               await videoTrack.setEnabled(true);
             }
             
-            if (videoTrack.isMuted) {
+            if (videoTrack.muted) {
               console.log('⚠️ Track está mutado, desmutando ANTES de publicar...');
               await videoTrack.setMuted(false);
             }
@@ -876,7 +1180,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             // Verificar novamente após garantir
             console.log('✅ Estado do track após garantir (antes de publicar):', {
               enabled: videoTrack.enabled,
-              muted: videoTrack.isMuted
+              muted: videoTrack.muted
             });
             
             // Publicar primeiro
@@ -894,7 +1198,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             await new Promise(resolve => setTimeout(resolve, 100));
             console.log('🔍 Verificação imediata após publicar:', {
               enabled: videoTrack.enabled,
-              muted: videoTrack.isMuted,
+              muted: videoTrack.muted,
               isPlaying: videoTrack.isPlaying
             });
             
@@ -903,7 +1207,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               console.warn('⚠️ Track foi desabilitado após publicar! Reabilitando...');
               await videoTrack.setEnabled(true);
             }
-            if (videoTrack.isMuted) {
+            if (videoTrack.muted) {
               console.warn('⚠️ Track foi mutado após publicar! Desmutando...');
               await videoTrack.setMuted(false);
             }
@@ -911,15 +1215,18 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             // Verificar se foi publicado corretamente
             const localTracks = clientRef.current.localTracks;
             console.log('📊 Tracks locais publicados:', {
-              video: localTracks.filter(t => t.trackMediaType === 'video').length,
-              audio: localTracks.filter(t => t.trackMediaType === 'audio').length,
+              video: localTracks.filter((t: any) => t.trackMediaType === 'video').length,
+              audio: localTracks.filter((t: any) => t.trackMediaType === 'audio').length,
               total: localTracks.length,
-              tracks: localTracks.map(t => ({
-                type: t.trackMediaType,
-                enabled: t.enabled,
-                muted: t.isMuted,
-                trackId: t.getTrackId()
-              }))
+              tracks: localTracks.map((t: AgoraRTC.ILocalVideoTrack | AgoraRTC.ILocalAudioTrack) => {
+                const track = t as any;
+                return {
+                  type: track.trackMediaType || 'unknown',
+                  enabled: t.enabled,
+                  muted: t.muted,
+                  trackId: t.getTrackId()
+                };
+              })
             });
             
             // Verificar estado do cliente após publicar
@@ -977,15 +1284,16 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             
             // Iniciar tentativa de reprodução
             await tryPlayVideo(1);
-          } catch (videoError: any) {
-            console.error('Erro ao criar track de vídeo:', videoError);
+          } catch (videoError: unknown) {
+            const error = videoError as Error & { code?: string };
+            console.error('Erro ao criar track de vídeo:', error);
             console.error('Detalhes do erro:', {
-              name: videoError.name,
-              message: videoError.message,
-              code: videoError.code
+              name: error.name,
+              message: error.message,
+              code: error.code
             });
-            toast.error(`Erro ao acessar câmera: ${videoError.message || 'Verifique se a câmera está disponível e se o OBS Virtual Camera está ativo'}`);
-            throw videoError;
+            toast.error(`Erro ao acessar câmera: ${error.message || 'Verifique se a câmera está disponível e se o OBS Virtual Camera está ativo'}`);
+            throw error;
           }
         } else {
           console.warn('Nenhuma câmera selecionada');
@@ -1000,7 +1308,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           console.log('Track de áudio criado:', {
             trackId: audioTrack.getTrackId(),
             enabled: audioTrack.enabled,
-            muted: audioTrack.isMuted
+            muted: audioTrack.muted
           });
           
           // GARANTIR que o track está habilitado e não mutado
@@ -1009,7 +1317,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             await audioTrack.setEnabled(true);
           }
           
-          if (audioTrack.isMuted) {
+          if (audioTrack.muted) {
             console.log('⚠️ Track de áudio está mutado, desmutando...');
             await audioTrack.setMuted(false);
           }
@@ -1022,7 +1330,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           console.log('📤 Publicando áudio no canal...', {
             trackId: audioTrack.getTrackId(),
             enabled: audioTrack.enabled,
-            muted: audioTrack.isMuted
+            muted: audioTrack.muted
           });
           await clientRef.current.publish(audioTrack);
           console.log('✅ Áudio publicado no canal com sucesso!');
@@ -1031,7 +1339,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           await new Promise(resolve => setTimeout(resolve, 100));
           console.log('🔍 Verificação imediata após publicar áudio:', {
             enabled: audioTrack.enabled,
-            muted: audioTrack.isMuted
+            muted: audioTrack.muted
           });
           
           // Se foi mutado/desabilitado, corrigir imediatamente
@@ -1039,7 +1347,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             console.warn('⚠️ Track de áudio foi desabilitado após publicar! Reabilitando...');
             await audioTrack.setEnabled(true);
           }
-          if (audioTrack.isMuted) {
+          if (audioTrack.muted) {
             console.warn('⚠️ Track de áudio foi mutado após publicar! Desmutando...');
             await audioTrack.setMuted(false);
           }
@@ -1053,16 +1361,18 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       
       // Verificar novamente após um delay
       const finalCheck = () => {
+        if (!clientRef.current) return;
+        
         const localTracks = clientRef.current.localTracks;
         console.log('🔍 Verificação final após publicar:', {
           role,
           channelName,
           connectionState: clientRef.current.connectionState,
           localTracksCount: localTracks.length,
-          localTracks: localTracks.map(t => ({
-            type: t.trackMediaType,
-            enabled: t.isPlaying,
-            muted: t.isMuted,
+          localTracks: localTracks.map((t: AgoraRTC.ILocalVideoTrack | AgoraRTC.ILocalAudioTrack) => ({
+            type: (t as any).trackMediaType,
+            enabled: (t as any).isPlaying || t.enabled,
+            muted: t.muted,
             trackId: t.getTrackId()
           })),
           remoteUsers: clientRef.current.remoteUsers.length,
@@ -1073,15 +1383,15 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         });
         
         // Se os tracks não foram publicados, tentar novamente
-        if (localTracks.length === 0 && localVideoTrackRef.current) {
+        if (localTracks.length === 0 && localVideoTrackRef.current && clientRef.current) {
           console.warn('⚠️ Nenhum track local encontrado após publicar. Tentando republicar...');
           if (localVideoTrackRef.current) {
-            clientRef.current.publish(localVideoTrackRef.current).catch(err => {
+            clientRef.current.publish(localVideoTrackRef.current).catch((err: unknown) => {
               console.error('Erro ao republicar vídeo:', err);
             });
           }
-          if (localAudioTrackRef.current) {
-            clientRef.current.publish(localAudioTrackRef.current).catch(err => {
+          if (localAudioTrackRef.current && clientRef.current) {
+            clientRef.current.publish(localAudioTrackRef.current).catch((err: unknown) => {
               console.error('Erro ao republicar áudio:', err);
             });
           }
@@ -1254,6 +1564,28 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       [data-video-container] video {
         z-index: 10 !important;
       }
+      
+      /* Estilos para fullscreen */
+      div:fullscreen,
+      div:-webkit-full-screen,
+      div:-moz-full-screen,
+      div:-ms-fullscreen {
+        width: 100vw !important;
+        height: 100vh !important;
+        background: #000 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+      
+      div:fullscreen video,
+      div:-webkit-full-screen video,
+      div:-moz-full-screen video,
+      div:-ms-fullscreen video {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important;
+      }
     `;
     
     // Remover estilo anterior se existir
@@ -1272,24 +1604,148 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     };
   }, []);
 
+  // Container principal para fullscreen
+  const fullscreenContainerRef = useRef<HTMLDivElement>(null);
+
+  // Funções para fullscreen e rotate (mobile)
+  const handleFullscreen = useCallback(() => {
+    const container = fullscreenContainerRef.current;
+    if (!container) return;
+
+    if (!isFullscreen) {
+      // Tentar fazer fullscreen do container principal
+      if (container.requestFullscreen) {
+        container.requestFullscreen().catch((err) => {
+          console.error('Erro ao entrar em fullscreen:', err);
+        });
+      } else if ((container as any).webkitRequestFullscreen) {
+        (container as any).webkitRequestFullscreen();
+      } else if ((container as any).mozRequestFullScreen) {
+        (container as any).mozRequestFullScreen();
+      } else if ((container as any).msRequestFullscreen) {
+        (container as any).msRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch((err) => {
+          console.error('Erro ao sair do fullscreen:', err);
+        });
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
+      } else if ((document as any).mozCancelFullScreen) {
+        (document as any).mozCancelFullScreen();
+      } else if ((document as any).msExitFullscreen) {
+        (document as any).msExitFullscreen();
+      }
+    }
+  }, [isFullscreen]);
+
+  const handleRotate = useCallback(() => {
+    setIsRotated(!isRotated);
+  }, [isRotated]);
+
+  // Listener para mudanças de fullscreen
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
+
+  // Verificar periodicamente se há elemento de vídeo renderizado (apenas para audience)
+  useEffect(() => {
+    if (role !== 'audience') return;
+    
+    const checkVideo = () => {
+      const videoEl = remoteVideoContainerRef.current?.querySelector('video');
+      if (videoEl && videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
+        setHasVideoElement(true);
+      } else if (videoEl) {
+        // Vídeo existe mas ainda não tem dimensões - aguardar
+        setHasVideoElement(false);
+      } else if (!remoteVideoTrackRef.current) {
+        // Não há track nem elemento de vídeo
+        setHasVideoElement(false);
+      }
+    };
+    
+    const interval = setInterval(checkVideo, 500);
+    checkVideo(); // Verificar imediatamente
+    
+    return () => clearInterval(interval);
+  }, [role]);
+
+  // Verificar periodicamente se há elemento de vídeo renderizado (apenas para host)
+  useEffect(() => {
+    if (role !== 'host') return;
+    
+    const checkVideo = () => {
+      const videoEl = videoContainerRef.current?.querySelector('video');
+      if (videoEl && (videoEl.videoWidth > 0 || videoEl.videoHeight > 0)) {
+        setHasLocalVideoElement(true);
+      } else {
+        setHasLocalVideoElement(false);
+      }
+    };
+    
+    const interval = setInterval(checkVideo, 500);
+    checkVideo(); // Verificar imediatamente
+    
+    return () => clearInterval(interval);
+  }, [role]);
+
   return (
-    <div className="flex flex-col h-full bg-black rounded-lg overflow-hidden">
+    <div 
+      ref={fullscreenContainerRef}
+      className="flex flex-col h-full bg-black rounded-lg overflow-hidden"
+      style={{
+        width: '100%',
+        height: '100%'
+      }}
+    >
       {/* Container de Vídeo */}
-      <div className="flex-1 relative bg-black" style={{ aspectRatio: '16/9', overflow: 'hidden', minHeight: '100%' }}>
-        {/* Vídeo Local (Host) */}
-        {role === 'host' && (
-          <div
-            ref={videoContainerRef}
-            data-video-container
-            className={`absolute inset-0 w-full h-full ${isVideoOff ? 'bg-slate-900 flex items-center justify-center' : 'bg-black'}`}
-            style={{ 
-              minHeight: '100%', 
-              minWidth: '100%',
-              position: 'relative',
-              zIndex: 1,
-              overflow: 'hidden'
-            }}
-          >
+      <MobileVideoPlayer
+        videoElement={null}
+        isFullscreen={isFullscreen}
+        onFullscreen={handleFullscreen}
+        onRotate={handleRotate}
+        isActive={isActive}
+      >
+        <div 
+          className="flex-1 relative bg-black w-full h-full" 
+          style={{ 
+            aspectRatio: '16/9', 
+            overflow: 'hidden', 
+            minHeight: '100%',
+            width: '100%',
+            height: '100%'
+          }}
+        >
+          {/* Vídeo Local (Host) */}
+          {role === 'host' && (
+            <div
+              ref={videoContainerRef}
+              data-video-container
+              className={`absolute inset-0 w-full h-full ${isVideoOff ? 'bg-slate-900 flex items-center justify-center' : 'bg-black'}`}
+              style={{ 
+                minHeight: '100%', 
+                minWidth: '100%',
+                position: 'relative',
+                zIndex: 1,
+                overflow: 'hidden'
+              }}
+            >
             {isVideoOff && (
               <div className="text-slate-400 text-center absolute inset-0 flex items-center justify-center z-10">
                 <div>
@@ -1298,8 +1754,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                 </div>
               </div>
             )}
-            {/* Mensagem só aparece se não houver preview e não estiver transmitindo */}
-            {!isVideoOff && !isStreaming && !previewTrack && (
+            {/* Mensagem só aparece se não houver preview, não estiver transmitindo E não houver vídeo renderizado */}
+            {!isVideoOff && !isStreaming && !previewTrack && !localVideoTrackRef.current && !hasLocalVideoElement && (
               <div className="text-slate-400 text-center absolute inset-0 flex items-center justify-center z-0 bg-black pointer-events-none">
                 <div>
                   <Video className="w-16 h-16 mx-auto mb-2 opacity-50" />
@@ -1310,83 +1766,67 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           </div>
         )}
 
-        {/* Vídeo Remoto (Audience) */}
-        {role === 'audience' && (
-          <div
-            ref={remoteVideoContainerRef}
-            className="absolute inset-0 w-full h-full bg-black"
-            style={{ 
-              minHeight: '100%', 
-              minWidth: '100%',
-              position: 'relative',
-              zIndex: 1,
-              overflow: 'hidden'
-            }}
-          >
-            {!remoteVideoTrackRef.current && (
-              <div className="text-slate-400 text-center absolute inset-0 flex items-center justify-center z-0">
-                <div>
-                  <Video className="w-16 h-16 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Aguardando transmissão...</p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Controles Overlay (Host) */}
-        {role === 'host' && isStreaming && (
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
-            <button
-              onClick={toggleMute}
-              className={`p-3 rounded-full transition-colors ${
-                isMuted
-                  ? 'bg-red-500 hover:bg-red-600'
-                  : 'bg-slate-700/80 hover:bg-slate-600/80'
-              } text-white`}
-              title={isMuted ? 'Ativar microfone' : 'Desativar microfone'}
+          {/* Vídeo Remoto (Audience) */}
+          {role === 'audience' && (
+            <div
+              ref={remoteVideoContainerRef}
+              className="absolute inset-0 w-full h-full bg-black"
+              style={{ 
+                minHeight: '100%', 
+                minWidth: '100%',
+                position: 'relative',
+                zIndex: 1,
+                overflow: 'hidden'
+              }}
             >
-              {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-            </button>
-            <button
-              onClick={toggleVideo}
-              className={`p-3 rounded-full transition-colors ${
-                isVideoOff
-                  ? 'bg-red-500 hover:bg-red-600'
-                  : 'bg-slate-700/80 hover:bg-slate-600/80'
-              } text-white`}
-              title={isVideoOff ? 'Ativar câmera' : 'Desativar câmera'}
-            >
-              {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Painel de Controles (Host) - Apenas quando estiver transmitindo */}
-      {role === 'host' && isStreaming && (
-        <div className="p-4 bg-slate-900 border-t border-slate-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-              <span className="text-white font-medium">AO VIVO</span>
+              {/* Mostrar mensagem apenas se não há vídeo renderizado */}
+              {(() => {
+                // Verificar se há elemento de vídeo com dimensões válidas
+                const videoEl = remoteVideoContainerRef.current?.querySelector('video');
+                const hasValidVideo = videoEl && videoEl.videoWidth > 0 && videoEl.videoHeight > 0;
+                const shouldShowMessage = !hasValidVideo && !hasVideoElement && !remoteVideoTrackRef.current;
+                
+                // Se a transmissão não está ativa, sempre mostrar mensagem
+                if (!isActive) {
+                  return (
+                    <div className="text-slate-400 text-center absolute inset-0 flex items-center justify-center z-0">
+                      <div>
+                        <Video className="w-16 h-16 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">Aguardando transmissão...</p>
+                      </div>
+                    </div>
+                  );
+                }
+                
+                // Se está ativo mas não há vídeo ainda
+                return shouldShowMessage ? (
+                  <div className="text-slate-400 text-center absolute inset-0 flex items-center justify-center z-0">
+                    <div>
+                      {/* Se stream está ativo e há usuários remotos, mostrar spinner de carregamento */}
+                      {hasRemoteUsers ? (
+                        <>
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-400 mx-auto mb-2"></div>
+                          <p className="text-sm">Conectando...</p>
+                          <p className="text-xs mt-1 opacity-70">Aguardando transmissor iniciar a transmissão</p>
+                        </>
+                      ) : (
+                        <>
+                          <Video className="w-16 h-16 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">Aguardando transmissão...</p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
             </div>
-            <button
-              onClick={stopStream}
-              className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors"
-            >
-              Encerrar Transmissão
-            </button>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Status para Audience */}
-      {role === 'audience' && !isStreaming && (
-        <div className="p-4 bg-slate-900 border-t border-slate-700 text-center">
-          <p className="text-slate-400">Aguardando transmissão...</p>
+          {/* Controles Overlay (Host) - Removidos pois são configurados pelo OBS */}
         </div>
-      )}
+      </MobileVideoPlayer>
+
+      {/* Status para Audience - Removido, agora mostra dentro do player */}
     </div>
   );
 };

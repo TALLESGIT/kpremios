@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Users, MessageSquare, Eye, TrendingUp, Clock, Copy, Share2 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast, Toaster } from 'react-hot-toast';
 
 interface AdminLivePanelProps {
   streamId: string;
@@ -226,9 +226,14 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
     }
   };
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(streamLink);
-    toast.success('Link copiado para a área de transferência!');
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(streamLink);
+      toast.success('Link copiado');
+    } catch (error) {
+      console.error('Erro ao copiar link:', error);
+      toast.error('Erro ao copiar link');
+    }
   };
 
   const shareLink = async () => {
@@ -353,6 +358,7 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
           <p className="text-xs text-slate-400 mt-1">Desde o início</p>
         </div>
       </div>
+      <Toaster position="top-right" />
     </div>
   );
 };
