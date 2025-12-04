@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import AgoraRTC from 'agora-rtc-sdk-ng';
-import { Video, VideoOff, Mic, MicOff, Volume2 } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, Volume2, MonitorSpeaker, Square } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import MobileVideoPlayer from './MobileVideoPlayer';
 
@@ -106,6 +106,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const maxReconnectAttempts = 6;
   const lastChannelInfoRef = useRef<{ channelName: string; appId: string; token: string | null; uid: number | null } | null>(null);
   const [showAudioControls, setShowAudioControls] = useState(false);
+  const [isCapturingDesktopAudio, setIsCapturingDesktopAudio] = useState(false);
+  const desktopAudioStreamRef = useRef<MediaStream | null>(null);
 
   const clientRef = useRef<AgoraRTC.IAgoraRTCClient | null>(null);
   const localVideoTrackRef = useRef<AgoraRTC.ILocalVideoTrack | null>(null);
@@ -1693,6 +1695,106 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     if (screenAudioTrackRef.current && screenAudioTrackRef.current.setVolume) {
       screenAudioTrackRef.current.setVolume(volume);
       console.log('🔊 Volume do áudio da tela compartilhada ajustado para:', volume);
+    }
+  };
+
+  // Função para capturar áudio do sistema/desktop (incluindo áudio de vídeos do OBS)
+  const captureDesktopAudio = async () => {
+    if (!clientRef.current || !isStreaming) {
+      toast.error('Inicie a transmissão primeiro');
+      return;
+    }
+
+    try {
+      console.log('🎤 Solicitando permissão para capturar áudio do sistema...');
+      
+      // Pedir permissão para capturar áudio da tela/sistema
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+        video: false, 
+        audio: true 
+      });
+      
+      const screenAudioTracks = screenStream.getAudioTracks();
+      if (screenAudioTracks.length === 0) {
+        toast.error('Nenhum áudio detectado. Certifique-se de selecionar "Compartilhar áudio" na janela de compartilhamento.');
+        screenStream.getTracks().forEach(track => track.stop());
+        return;
+      }
+
+      console.log('🎤 Áudio do sistema/desktop detectado!', {
+        trackCount: screenAudioTracks.length,
+        trackLabel: screenAudioTracks[0].label
+      });
+
+      // Salvar referência do stream para poder parar depois
+      desktopAudioStreamRef.current = screenStream;
+
+      // Criar track de áudio do Agora
+      let screenAudioTrack: any;
+      if ((AgoraRTC as any).createCustomAudioTrack) {
+        screenAudioTrack = await (AgoraRTC as any).createCustomAudioTrack({
+          mediaStreamTrack: screenAudioTracks[0]
+        });
+      } else {
+        toast.error('Funcionalidade não suportada neste navegador. Use Chrome ou Edge.');
+        screenStream.getTracks().forEach(track => track.stop());
+        return;
+      }
+
+      // Aplicar volume inicial
+      if (screenAudioTrack.setVolume) {
+        screenAudioTrack.setVolume(screenAudioVolume);
+      }
+
+      screenAudioTrackRef.current = screenAudioTrack;
+      setIsCapturingDesktopAudio(true);
+      
+      console.log('📤 Publicando áudio do sistema/desktop no canal...', {
+        trackId: screenAudioTrack.getTrackId(),
+        volume: screenAudioVolume
+      });
+      await clientRef.current.publish(screenAudioTrack);
+      console.log('✅ Áudio do sistema/desktop publicado no canal com sucesso!');
+      
+      toast.success('Áudio do sistema capturado! Agora o áudio de vídeos do OBS será transmitido.');
+      
+      // Escutar quando o áudio for encerrado
+      screenAudioTracks[0].addEventListener('ended', () => {
+        console.log('⚠️ Áudio do sistema foi encerrado');
+        stopDesktopAudio();
+      });
+    } catch (error: any) {
+      console.error('❌ Erro ao capturar áudio do sistema:', error);
+      if (error.name === 'NotAllowedError') {
+        toast.error('Permissão negada. Por favor, permita o compartilhamento de áudio.');
+      } else if (error.name === 'NotFoundError') {
+        toast.error('Nenhuma fonte de áudio encontrada.');
+      } else {
+        toast.error('Erro ao capturar áudio: ' + error.message);
+      }
+    }
+  };
+
+  // Função para parar captura de áudio do sistema
+  const stopDesktopAudio = async () => {
+    try {
+      if (screenAudioTrackRef.current && clientRef.current) {
+        await clientRef.current.unpublish(screenAudioTrackRef.current);
+        screenAudioTrackRef.current.stop();
+        screenAudioTrackRef.current.close();
+        screenAudioTrackRef.current = null;
+      }
+
+      if (desktopAudioStreamRef.current) {
+        desktopAudioStreamRef.current.getTracks().forEach(track => track.stop());
+        desktopAudioStreamRef.current = null;
+      }
+
+      setIsCapturingDesktopAudio(false);
+      toast.success('Captura de áudio do sistema encerrada');
+      console.log('🛑 Áudio do sistema parado');
+    } catch (error) {
+      console.error('Erro ao parar áudio do sistema:', error);
     }
   };
 
