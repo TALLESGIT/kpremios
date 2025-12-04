@@ -264,8 +264,8 @@ const PublicLiveStreamPage: React.FC = () => {
         }
       }
       
-      // Limpar sessões antigas e atualizar contador
-      await cleanupOldSessions();
+      // NÃO limpar sessões aqui - isso será feito periodicamente pelo updateViewerCount
+      // Apenas atualizar contador (que já faz limpeza internamente)
       await updateViewerCount();
     } catch (error) {
       console.error('Erro ao rastrear viewer:', error);
@@ -350,8 +350,17 @@ const PublicLiveStreamPage: React.FC = () => {
     }
   };
 
+  // Ref para evitar múltiplas chamadas simultâneas
+  const updatingCountRef = useRef(false);
+  const lastCleanupRef = useRef(0);
+
   const updateViewerCount = async () => {
     if (!stream) return;
+
+    // Evitar chamadas simultâneas
+    if (updatingCountRef.current) {
+      return;
+    }
 
     // Se a transmissão não está ativa, definir contador como 0
     if (!stream.is_active) {
@@ -364,9 +373,15 @@ const PublicLiveStreamPage: React.FC = () => {
       return;
     }
 
+    updatingCountRef.current = true;
+
     try {
-      // Limpar sessões antigas primeiro
-      await cleanupOldSessions();
+      // Limpar sessões apenas a cada 30 segundos (não a cada atualização)
+      const now = Date.now();
+      if (now - lastCleanupRef.current > 30000) {
+        await cleanupOldSessions();
+        lastCleanupRef.current = now;
+      }
       
       console.log('📊 Atualizando contador de viewers...', { streamId: stream.id });
       
@@ -423,6 +438,8 @@ const PublicLiveStreamPage: React.FC = () => {
       setViewerCount(newCount);
     } catch (error) {
       console.error('Erro ao atualizar contador de viewers:', error);
+    } finally {
+      updatingCountRef.current = false;
     }
   };
 
