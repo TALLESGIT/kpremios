@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import AgoraRTC from 'agora-rtc-sdk-ng';
-import { Video, VideoOff, Mic, MicOff } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, Volume2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import MobileVideoPlayer from './MobileVideoPlayer';
 
@@ -94,6 +94,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const [availableMicrophones, setAvailableMicrophones] = useState<MediaDeviceInfo[]>([]);
   const [selectedMicrophone, setSelectedMicrophone] = useState<string | null>(null);
   const [previewTrack, setPreviewTrack] = useState<AgoraRTC.ILocalVideoTrack | null>(null);
+  // Controles de volume para múltiplos áudios
+  const [cameraAudioVolume, setCameraAudioVolume] = useState(100);
+  const [screenAudioVolume, setScreenAudioVolume] = useState(100);
   const joiningRef = useRef(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isRotated, setIsRotated] = useState(false);
@@ -106,6 +109,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const clientRef = useRef<AgoraRTC.IAgoraRTCClient | null>(null);
   const localVideoTrackRef = useRef<AgoraRTC.ILocalVideoTrack | null>(null);
   const localAudioTrackRef = useRef<AgoraRTC.ILocalAudioTrack | null>(null);
+  const screenAudioTrackRef = useRef<AgoraRTC.ILocalAudioTrack | null>(null); // Áudio da tela compartilhada
   const remoteVideoTrackRef = useRef<AgoraRTC.IRemoteVideoTrack | null>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const remoteVideoContainerRef = useRef<HTMLDivElement>(null);
@@ -1388,18 +1392,24 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             await audioTrack.setMuted(false);
           }
           
+          // Aplicar volume inicial
+          if (audioTrack.setVolume) {
+            audioTrack.setVolume(cameraAudioVolume);
+          }
+          
           localAudioTrackRef.current = audioTrack;
           
           // Garantir que o estado local está correto
           setIsMuted(false);
           
-          console.log('📤 Publicando áudio no canal...', {
+          console.log('📤 Publicando áudio da câmera no canal...', {
             trackId: audioTrack.getTrackId(),
             enabled: audioTrack.enabled,
-            muted: audioTrack.muted
+            muted: audioTrack.muted,
+            volume: cameraAudioVolume
           });
           await clientRef.current.publish(audioTrack);
-          console.log('✅ Áudio publicado no canal com sucesso!');
+          console.log('✅ Áudio da câmera publicado no canal com sucesso!');
           
           // Verificar IMEDIATAMENTE após publicar se o track ainda está habilitado
           await new Promise(resolve => setTimeout(resolve, 100));
@@ -1417,6 +1427,63 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             console.warn('⚠️ Track de áudio foi mutado após publicar! Desmutando...');
             await audioTrack.setMuted(false);
           }
+        }
+
+        // Tentar capturar áudio da tela compartilhada (se disponível)
+        // Nota: Isso requer que o navegador tenha permissão para capturar áudio da tela
+        try {
+          const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+            video: false, 
+            audio: true 
+          });
+          
+          const screenAudioTracks = screenStream.getAudioTracks();
+          if (screenAudioTracks.length > 0) {
+            console.log('🎤 Áudio da tela compartilhada detectado!');
+            
+            // Criar track de áudio do Agora a partir do MediaStreamTrack
+            // Nota: O Agora SDK pode não ter createCustomAudioTrack, então vamos tentar uma abordagem alternativa
+            // Se não funcionar, o áudio da tela precisa ser configurado no OBS
+            let screenAudioTrack: any;
+            if ((AgoraRTC as any).createCustomAudioTrack) {
+              screenAudioTrack = await (AgoraRTC as any).createCustomAudioTrack({
+                mediaStreamTrack: screenAudioTracks[0]
+              });
+            } else {
+              // Fallback: usar o MediaStreamTrack diretamente (pode não funcionar com Agora)
+              console.warn('⚠️ createCustomAudioTrack não disponível. O áudio da tela precisa ser configurado no OBS.');
+              screenStream.getTracks().forEach(track => track.stop());
+              return;
+            }
+
+            // Aplicar volume inicial
+            if (screenAudioTrack.setVolume) {
+              screenAudioTrack.setVolume(screenAudioVolume);
+            }
+
+            screenAudioTrackRef.current = screenAudioTrack;
+            
+            console.log('📤 Publicando áudio da tela compartilhada no canal...', {
+              trackId: screenAudioTrack.getTrackId(),
+              volume: screenAudioVolume
+            });
+            await clientRef.current.publish(screenAudioTrack);
+            console.log('✅ Áudio da tela compartilhada publicado no canal com sucesso!');
+            
+            // Escutar quando a tela compartilhada for encerrada
+            screenAudioTracks[0].addEventListener('ended', () => {
+              console.log('⚠️ Áudio da tela compartilhada foi encerrado');
+              if (screenAudioTrackRef.current && clientRef.current) {
+                clientRef.current.unpublish(screenAudioTrackRef.current).catch(console.error);
+                screenAudioTrackRef.current.stop();
+                screenAudioTrackRef.current.close();
+                screenAudioTrackRef.current = null;
+              }
+            });
+          }
+        } catch (screenAudioError: any) {
+          // Não é crítico se não conseguir capturar áudio da tela
+          console.log('ℹ️ Áudio da tela compartilhada não disponível ou negado:', screenAudioError.message);
         }
       }
 
@@ -1524,6 +1591,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         localAudioTrackRef.current.close();
         localAudioTrackRef.current = null;
       }
+      
+      if (screenAudioTrackRef.current) {
+        screenAudioTrackRef.current.stop();
+        screenAudioTrackRef.current.close();
+        screenAudioTrackRef.current = null;
+      }
 
       // Parar tracks remotos
       if (remoteVideoTrackRef.current) {
@@ -1549,6 +1622,24 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       await localAudioTrackRef.current.setMuted(!isMuted);
       setIsMuted(!isMuted);
       console.log('🔊 Áudio mutado/desmutado:', !isMuted);
+    }
+  };
+
+  // Função para ajustar volume do áudio da câmera
+  const handleCameraAudioVolumeChange = (volume: number) => {
+    setCameraAudioVolume(volume);
+    if (localAudioTrackRef.current && localAudioTrackRef.current.setVolume) {
+      localAudioTrackRef.current.setVolume(volume);
+      console.log('🔊 Volume do áudio da câmera ajustado para:', volume);
+    }
+  };
+
+  // Função para ajustar volume do áudio da tela compartilhada
+  const handleScreenAudioVolumeChange = (volume: number) => {
+    setScreenAudioVolume(volume);
+    if (screenAudioTrackRef.current && screenAudioTrackRef.current.setVolume) {
+      screenAudioTrackRef.current.setVolume(volume);
+      console.log('🔊 Volume do áudio da tela compartilhada ajustado para:', volume);
     }
   };
 
@@ -1976,7 +2067,53 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             </div>
           )}
 
-          {/* Controles Overlay (Host) - Removidos pois são configurados pelo OBS */}
+          {/* Controles de Volume (Host) - Apenas quando está transmitindo */}
+          {role === 'host' && isStreaming && (
+            <div className="absolute bottom-4 left-4 right-4 md:left-auto md:right-4 md:bottom-4 z-50 bg-black/70 backdrop-blur-md rounded-lg p-4 max-w-md">
+              <h3 className="text-white text-sm font-semibold mb-3 flex items-center gap-2">
+                <Volume2 className="w-4 h-4" />
+                Controles de Áudio
+              </h3>
+              
+              {/* Volume do Áudio da Câmera */}
+              {localAudioTrackRef.current && (
+                <div className="mb-3">
+                  <label className="text-white text-xs mb-1 block">
+                    Áudio da Câmera: {cameraAudioVolume}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={cameraAudioVolume}
+                    onChange={(e) => handleCameraAudioVolumeChange(Number(e.target.value))}
+                    className="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                </div>
+              )}
+              
+              {/* Volume do Áudio da Tela Compartilhada */}
+              {screenAudioTrackRef.current && (
+                <div>
+                  <label className="text-white text-xs mb-1 block">
+                    Áudio da Tela Compartilhada: {screenAudioVolume}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={screenAudioVolume}
+                    onChange={(e) => handleScreenAudioVolumeChange(Number(e.target.value))}
+                    className="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-green-500"
+                  />
+                </div>
+              )}
+              
+              {!localAudioTrackRef.current && !screenAudioTrackRef.current && (
+                <p className="text-slate-400 text-xs">Nenhum áudio ativo</p>
+              )}
+            </div>
+          )}
         </div>
       </MobileVideoPlayer>
 
