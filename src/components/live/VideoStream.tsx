@@ -1432,62 +1432,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           }
         }
 
-        // Tentar capturar áudio da tela compartilhada (se disponível)
-        // Nota: Isso requer que o navegador tenha permissão para capturar áudio da tela
-        try {
-          const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
-            video: false, 
-            audio: true 
-          });
-          
-          const screenAudioTracks = screenStream.getAudioTracks();
-          if (screenAudioTracks.length > 0) {
-            console.log('🎤 Áudio da tela compartilhada detectado!');
-            
-            // Criar track de áudio do Agora a partir do MediaStreamTrack
-            // Nota: O Agora SDK pode não ter createCustomAudioTrack, então vamos tentar uma abordagem alternativa
-            // Se não funcionar, o áudio da tela precisa ser configurado no OBS
-            let screenAudioTrack: any;
-            if ((AgoraRTC as any).createCustomAudioTrack) {
-              screenAudioTrack = await (AgoraRTC as any).createCustomAudioTrack({
-                mediaStreamTrack: screenAudioTracks[0]
-              });
-            } else {
-              // Fallback: usar o MediaStreamTrack diretamente (pode não funcionar com Agora)
-              console.warn('⚠️ createCustomAudioTrack não disponível. O áudio da tela precisa ser configurado no OBS.');
-              screenStream.getTracks().forEach(track => track.stop());
-              return;
-            }
-
-            // Aplicar volume inicial
-            if (screenAudioTrack.setVolume) {
-              screenAudioTrack.setVolume(screenAudioVolume);
-            }
-
-            screenAudioTrackRef.current = screenAudioTrack;
-            
-            console.log('📤 Publicando áudio da tela compartilhada no canal...', {
-              trackId: screenAudioTrack.getTrackId(),
-              volume: screenAudioVolume
-            });
-            await clientRef.current.publish(screenAudioTrack);
-            console.log('✅ Áudio da tela compartilhada publicado no canal com sucesso!');
-            
-            // Escutar quando a tela compartilhada for encerrada
-            screenAudioTracks[0].addEventListener('ended', () => {
-              console.log('⚠️ Áudio da tela compartilhada foi encerrado');
-              if (screenAudioTrackRef.current && clientRef.current) {
-                clientRef.current.unpublish(screenAudioTrackRef.current).catch(console.error);
-                screenAudioTrackRef.current.stop();
-                screenAudioTrackRef.current.close();
-                screenAudioTrackRef.current = null;
-              }
-            });
-          }
-        } catch (screenAudioError: any) {
-          // Não é crítico se não conseguir capturar áudio da tela
-          console.log('ℹ️ Áudio da tela compartilhada não disponível ou negado:', screenAudioError.message);
-        }
+        // Áudio do sistema/desktop será capturado manualmente pelo botão no painel de controles
+        // (não captura automaticamente para não pedir permissão sem o admin querer)
       }
 
       setIsStreaming(true);
