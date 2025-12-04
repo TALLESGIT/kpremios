@@ -710,11 +710,34 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               }
               
               // Se o usuário já tem áudio publicado, fazer subscribe
-              if (remoteUser.hasAudio && remoteUser.audioTrack) {
-                console.log('🔊 Áudio já está publicado, fazendo subscribe...');
-                handleUserPublished(remoteUser, 'audio').catch(err => {
-                  console.error('Erro ao fazer subscribe do áudio:', err);
+              if (remoteUser.hasAudio) {
+                console.log('🎵 Usuário remoto tem áudio (hasAudio=true), verificando track...', {
+                  hasAudio: remoteUser.hasAudio,
+                  audioTrack: !!remoteUser.audioTrack,
+                  uid: remoteUser.uid
                 });
+                
+                if (remoteUser.audioTrack) {
+                  console.log('✅ Track de áudio encontrado, fazendo subscribe...');
+                  handleUserPublished(remoteUser, 'audio').catch(err => {
+                    console.error('❌ Erro ao fazer subscribe de áudio:', err);
+                  });
+                } else {
+                  console.warn('⚠️ Usuário tem hasAudio=true mas audioTrack é null. Aguardando track...');
+                  // Aguardar um pouco e tentar novamente
+                  setTimeout(() => {
+                    if (remoteUser.audioTrack) {
+                      console.log('✅ Track de áudio apareceu, fazendo subscribe...');
+                      handleUserPublished(remoteUser, 'audio').catch(err => {
+                        console.error('❌ Erro ao fazer subscribe de áudio (retry):', err);
+                      });
+                    } else {
+                      console.warn('⚠️ Track de áudio ainda não disponível após espera');
+                    }
+                  }, 2000);
+                }
+              } else {
+                console.log('ℹ️ Usuário remoto não tem áudio (hasAudio=false)');
               }
             }
           } else {
@@ -1034,11 +1057,23 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       console.log('⏳ Usuário tem hasVideo=true mas videoTrack ainda não está disponível, aguardando user-published...');
     }
     
-    if (user.hasAudio && user.audioTrack) {
-      console.log('🔊 Usuário já tem áudio publicado ao entrar, fazendo subscribe...');
-      handleUserPublished(user, 'audio').catch(err => {
-        console.error('Erro ao fazer subscribe do áudio já publicado:', err);
+    if (user.hasAudio) {
+      console.log('🎵 Usuário tem áudio (hasAudio=true) ao entrar, verificando track...', {
+        hasAudio: user.hasAudio,
+        audioTrack: !!user.audioTrack,
+        uid: user.uid
       });
+      
+      if (user.audioTrack) {
+        console.log('✅ Track de áudio encontrado ao entrar, fazendo subscribe...');
+        handleUserPublished(user, 'audio').catch(err => {
+          console.error('❌ Erro ao fazer subscribe do áudio já publicado:', err);
+        });
+      } else {
+        console.warn('⚠️ Usuário tem hasAudio=true mas audioTrack é null ao entrar. Aguardando user-published...');
+      }
+    } else {
+      console.log('ℹ️ Usuário não tem áudio (hasAudio=false) ao entrar');
     }
   };
 
