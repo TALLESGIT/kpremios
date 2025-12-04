@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { Send, Pin, Trash2, Link as LinkIcon, MessageSquare } from 'lucide-react';
+import { Send, Pin, Trash2, Link as LinkIcon, MessageSquare, LogIn } from 'lucide-react';
 
 interface ChatMessage {
   id: string;
@@ -49,10 +50,12 @@ const containsLink = (text: string): boolean => {
 
 const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [pinnedMessage, setPinnedMessage] = useState<ChatMessage | null>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -183,6 +186,13 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
 
+    // Verificar se o usuário está autenticado
+    if (!user) {
+      setShowLoginModal(true);
+      toast.error('Você precisa estar cadastrado para enviar mensagens');
+      return;
+    }
+
     // Validação para usuários não-admin
     if (!isAdmin) {
       if (containsPhoneNumber(newMessage)) {
@@ -197,10 +207,27 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
     }
 
     try {
+      // Buscar nome do usuário na tabela users
+      let userName = 'Usuário';
+      if (user) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('name')
+          .eq('id', user.id)
+          .single();
+        
+        if (userData?.name) {
+          userName = userData.name;
+        } else {
+          // Fallback para user_metadata ou email
+          userName = user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário';
+        }
+      }
+
       const { error } = await supabase.from('live_chat_messages').insert({
         stream_id: streamId,
-        user_id: user?.id || null,
-        user_name: user?.name || 'Anônimo',
+        user_id: user.id,
+        user_name: userName,
         message: newMessage.trim(),
         is_admin: isAdmin || false,
         is_system: false,
@@ -436,6 +463,37 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
             </div>
           </div>
         )}
+
+        {/* Aviso para usuários não autenticados */}
+        {!user && (
+          <div className="mb-3 p-3 bg-amber-500/20 border border-amber-500/30 rounded-lg">
+            <p className="text-xs text-amber-300 mb-2">
+              ⚠️ Você precisa estar cadastrado para enviar mensagens no chat
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const currentPath = window.location.pathname;
+                  navigate('/login', { state: { returnTo: currentPath } });
+                }}
+                className="flex-1 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+              >
+                <LogIn className="w-3 h-3" />
+                Fazer Login
+              </button>
+              <button
+                onClick={() => {
+                  const currentPath = window.location.pathname;
+                  navigate('/register', { state: { returnTo: currentPath } });
+                }}
+                className="flex-1 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs font-medium transition-colors"
+              >
+                Cadastrar
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-2">
           <input
             type="text"
@@ -448,22 +506,67 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
               }
             }}
             placeholder={
-              isAdmin
+              !user
+                ? 'Faça login para enviar mensagens...'
+                : isAdmin
                 ? 'Digite sua mensagem...'
                 : 'Digite sua mensagem (sem links ou telefones)...'
             }
-            className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-lg text-sm border border-slate-600 focus:border-amber-500 focus:outline-none"
+            className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-lg text-sm border border-slate-600 focus:border-amber-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!user}
           />
           <button
             onClick={handleSendMessage}
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() || !user}
             className="px-6 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
+            title={!user ? 'Faça login para enviar mensagens' : 'Enviar mensagem'}
           >
             <Send className="w-4 h-4" />
             Enviar
           </button>
         </div>
       </div>
+
+      {/* Modal de Login (se necessário) */}
+      {showLoginModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-slate-800 rounded-lg p-6 w-full max-w-md border border-slate-700 mx-4">
+            <h3 className="text-xl font-bold text-white mb-4">Login Necessário</h3>
+            <p className="text-slate-300 mb-6">
+              Você precisa estar cadastrado e fazer login para enviar mensagens no chat ao vivo.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  const currentPath = window.location.pathname;
+                  navigate('/login', { state: { returnTo: currentPath } });
+                  setShowLoginModal(false);
+                }}
+                className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <LogIn className="w-4 h-4" />
+                Fazer Login
+              </button>
+              <button
+                onClick={() => {
+                  const currentPath = window.location.pathname;
+                  navigate('/register', { state: { returnTo: currentPath } });
+                  setShowLoginModal(false);
+                }}
+                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors"
+              >
+                Cadastrar
+              </button>
+              <button
+                onClick={() => setShowLoginModal(false)}
+                className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
