@@ -1662,6 +1662,22 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       return;
     }
 
+    // Verificar se o navegador suporta getDisplayMedia
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      toast.error('Seu navegador não suporta captura de áudio do sistema. Use Chrome, Edge ou Firefox mais recente.');
+      return;
+    }
+
+    // Verificar se o Agora SDK suporta createCustomAudioTrack
+    if (!(AgoraRTC as any).createCustomAudioTrack) {
+      toast.error(
+        'Funcionalidade não suportada. O Agora SDK não possui createCustomAudioTrack. ' +
+        'Configure o áudio diretamente no OBS Studio usando "Desktop Audio" ou "Audio Output Capture".',
+        { duration: 6000 }
+      );
+      return;
+    }
+
     try {
       console.log('🎤 Solicitando permissão para capturar áudio do sistema...');
       
@@ -1686,21 +1702,37 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       // Salvar referência do stream para poder parar depois
       desktopAudioStreamRef.current = screenStream;
 
-      // Criar track de áudio do Agora
+      // Criar track de áudio do Agora usando createCustomAudioTrack
       let screenAudioTrack: any;
-      if ((AgoraRTC as any).createCustomAudioTrack) {
+      try {
         screenAudioTrack = await (AgoraRTC as any).createCustomAudioTrack({
           mediaStreamTrack: screenAudioTracks[0]
         });
-      } else {
-        toast.error('Funcionalidade não suportada neste navegador. Use Chrome ou Edge.');
+      } catch (createError: any) {
+        console.error('❌ Erro ao criar track customizado:', createError);
+        toast.error(
+          'Erro ao criar track de áudio. O método createCustomAudioTrack pode não estar disponível nesta versão do Agora SDK. ' +
+          'Configure o áudio diretamente no OBS Studio.',
+          { duration: 6000 }
+        );
+        screenStream.getTracks().forEach(track => track.stop());
+        return;
+      }
+
+      // Verificar se o track foi criado corretamente
+      if (!screenAudioTrack || typeof screenAudioTrack.getTrackId !== 'function') {
+        toast.error('Track de áudio criado incorretamente. Configure o áudio diretamente no OBS Studio.');
         screenStream.getTracks().forEach(track => track.stop());
         return;
       }
 
       // Aplicar volume inicial
-      if (screenAudioTrack.setVolume) {
-        screenAudioTrack.setVolume(screenAudioVolume);
+      if (screenAudioTrack.setVolume && typeof screenAudioTrack.setVolume === 'function') {
+        try {
+          screenAudioTrack.setVolume(screenAudioVolume);
+        } catch (volError) {
+          console.warn('⚠️ Não foi possível ajustar volume inicial:', volError);
+        }
       }
 
       screenAudioTrackRef.current = screenAudioTrack;
@@ -1710,10 +1742,21 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         trackId: screenAudioTrack.getTrackId(),
         volume: screenAudioVolume
       });
-      await clientRef.current.publish(screenAudioTrack);
-      console.log('✅ Áudio do sistema/desktop publicado no canal com sucesso!');
       
-      toast.success('Áudio do sistema capturado! Agora o áudio de vídeos do OBS será transmitido.');
+      try {
+        await clientRef.current.publish(screenAudioTrack);
+        console.log('✅ Áudio do sistema/desktop publicado no canal com sucesso!');
+        toast.success('Áudio do sistema capturado! Agora o áudio de vídeos do OBS será transmitido.');
+      } catch (publishError: any) {
+        console.error('❌ Erro ao publicar áudio:', publishError);
+        toast.error('Erro ao publicar áudio. Verifique o console para mais detalhes.');
+        screenAudioTrack.stop();
+        screenAudioTrack.close();
+        screenStream.getTracks().forEach(track => track.stop());
+        screenAudioTrackRef.current = null;
+        setIsCapturingDesktopAudio(false);
+        return;
+      }
       
       // Escutar quando o áudio for encerrado
       screenAudioTracks[0].addEventListener('ended', () => {
@@ -1726,8 +1769,14 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         toast.error('Permissão negada. Por favor, permita o compartilhamento de áudio.');
       } else if (error.name === 'NotFoundError') {
         toast.error('Nenhuma fonte de áudio encontrada.');
+      } else if (error.name === 'NotSupportedError') {
+        toast.error(
+          'Funcionalidade não suportada neste navegador ou versão do Agora SDK. ' +
+          'Configure o áudio diretamente no OBS Studio usando "Desktop Audio" ou "Audio Output Capture".',
+          { duration: 6000 }
+        );
       } else {
-        toast.error('Erro ao capturar áudio: ' + error.message);
+        toast.error('Erro ao capturar áudio: ' + (error.message || error.name || 'Erro desconhecido'));
       }
     }
   };
