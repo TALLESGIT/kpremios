@@ -2305,18 +2305,31 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                   ) : (
                     <div className="text-slate-400 text-xs">
                       <p className="mb-2">Áudio do sistema não capturado.</p>
-                      <p className="mb-3 text-xs">Para capturar áudio de vídeos do OBS, clique no botão abaixo.</p>
-                      <button
-                        onClick={captureDesktopAudio}
-                        className="w-full px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded text-xs flex items-center justify-center gap-2 transition-colors"
-                        disabled={!isStreaming}
-                      >
-                        <MonitorSpeaker className="w-4 h-4" />
-                        {isStreaming ? 'Capturar Áudio do Sistema' : 'Inicie a transmissão primeiro'}
-                      </button>
-                      <p className="mt-2 text-xs opacity-70">
-                        ⚠️ O navegador pedirá permissão. Selecione "Compartilhar áudio" na janela.
-                      </p>
+                      <p className="mb-3 text-xs">Para capturar áudio de vídeos do OBS, você tem duas opções:</p>
+                      
+                      <div className="space-y-2 mb-3">
+                        <button
+                          onClick={captureDesktopAudio}
+                          className="w-full px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={!isStreaming}
+                        >
+                          <MonitorSpeaker className="w-4 h-4" />
+                          {isStreaming ? 'Capturar Áudio do Sistema (Navegador)' : 'Inicie a transmissão primeiro'}
+                        </button>
+                        
+                        <p className="text-xs opacity-70 text-center">
+                          ⚠️ O navegador pedirá permissão. Selecione "Compartilhar áudio" na janela.
+                        </p>
+                      </div>
+                      
+                      <div className="border-t border-slate-600 pt-2 mt-2">
+                        <p className="text-xs font-semibold mb-1">OU configure no OBS Studio:</p>
+                        <ol className="text-xs space-y-1 list-decimal list-inside opacity-80">
+                          <li>Adicione "Desktop Audio" ou "Audio Output Capture" como fonte</li>
+                          <li>Configure o áudio no OBS para ser capturado</li>
+                          <li>O áudio será transmitido automaticamente</li>
+                        </ol>
+                      </div>
                     </div>
                   )}
                   
