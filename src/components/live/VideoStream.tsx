@@ -1580,38 +1580,90 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
   const stopStream = async () => {
     try {
-      // Parar tracks locais
+      console.log('🛑 Parando stream e desligando câmera...');
+      
+      // Parar e fechar tracks locais completamente
       if (localVideoTrackRef.current) {
-        localVideoTrackRef.current.stop();
-        localVideoTrackRef.current.close();
+        try {
+          localVideoTrackRef.current.stop();
+          localVideoTrackRef.current.close();
+        } catch (err) {
+          console.error('Erro ao parar vídeo:', err);
+        }
         localVideoTrackRef.current = null;
       }
 
       if (localAudioTrackRef.current) {
-        localAudioTrackRef.current.stop();
-        localAudioTrackRef.current.close();
+        try {
+          localAudioTrackRef.current.stop();
+          localAudioTrackRef.current.close();
+        } catch (err) {
+          console.error('Erro ao parar áudio:', err);
+        }
         localAudioTrackRef.current = null;
       }
       
       if (screenAudioTrackRef.current) {
-        screenAudioTrackRef.current.stop();
-        screenAudioTrackRef.current.close();
+        try {
+          screenAudioTrackRef.current.stop();
+          screenAudioTrackRef.current.close();
+        } catch (err) {
+          console.error('Erro ao parar áudio da tela:', err);
+        }
         screenAudioTrackRef.current = null;
+      }
+
+      // Parar preview track também
+      if (previewTrack) {
+        try {
+          previewTrack.stop();
+          previewTrack.close();
+        } catch (err) {
+          console.error('Erro ao parar preview:', err);
+        }
+        setPreviewTrack(null);
       }
 
       // Parar tracks remotos
       if (remoteVideoTrackRef.current) {
-        remoteVideoTrackRef.current.stop();
+        try {
+          remoteVideoTrackRef.current.stop();
+        } catch (err) {
+          console.error('Erro ao parar vídeo remoto:', err);
+        }
         remoteVideoTrackRef.current = null;
       }
 
       // Sair do canal
       if (clientRef.current) {
-        await clientRef.current.leave();
+        try {
+          await clientRef.current.leave();
+        } catch (err) {
+          console.error('Erro ao sair do canal:', err);
+        }
       }
 
+      // Resetar estados
       setIsStreaming(false);
-      toast.success('Transmissão encerrada');
+      setIsMuted(false);
+      setIsVideoOff(false);
+      setHasRemoteUsers(false);
+      setShowAudioControls(false);
+      
+      // Parar todos os MediaStreams que possam estar ativos
+      // Isso garante que a câmera seja completamente desligada
+      try {
+        const streams = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        streams.getTracks().forEach(track => {
+          track.stop();
+          console.log('🛑 Track de mídia parado:', track.kind);
+        });
+      } catch (err) {
+        // Não é um erro crítico se não houver streams ativos
+        console.log('ℹ️ Nenhum stream de mídia ativo para parar');
+      }
+
+      toast.success('Transmissão encerrada e câmera desligada');
     } catch (error) {
       console.error('Erro ao parar stream:', error);
       toast.error('Erro ao encerrar transmissão');
