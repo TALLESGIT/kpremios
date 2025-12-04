@@ -7,6 +7,7 @@ import { ArrowLeft, Plus, Video, Trash2, Play, Square } from 'lucide-react';
 import VideoStream from '../components/live/VideoStream';
 import LiveChat from '../components/live/LiveChat';
 import AdminLivePanel from '../components/live/AdminLivePanel';
+import ModeratorManager from '../components/live/ModeratorManager';
 
 interface LiveStream {
   id: string;
@@ -592,13 +593,14 @@ const AdminLiveStreamPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Painel de Métricas */}
-            <div>
+            {/* Painel de Métricas e Gerenciamento */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <AdminLivePanel
                 streamId={selectedStream.id}
                 channelName={selectedStream.channel_name}
                 isActive={selectedStream.is_active}
               />
+              <ModeratorManager streamId={selectedStream.id} />
             </div>
           </div>
         )}

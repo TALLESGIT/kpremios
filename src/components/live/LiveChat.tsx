@@ -111,6 +111,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
   const [pinnedMessage, setPinnedMessage] = useState<ChatMessage | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isModerator, setIsModerator] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -162,6 +163,37 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
   useEffect(() => {
     loadPinnedMessage();
   }, [streamId]);
+
+  // Verificar se o usuário é moderador
+  useEffect(() => {
+    checkModeratorStatus();
+  }, [streamId, user]);
+
+  const checkModeratorStatus = async () => {
+    if (!user) {
+      setIsModerator(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('stream_moderators')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('stream_id', streamId)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Erro ao verificar status de moderador:', error);
+        return;
+      }
+
+      setIsModerator(!!data || isAdmin);
+    } catch (error) {
+      console.error('Erro ao verificar moderador:', error);
+      setIsModerator(isAdmin); // Fallback: se for admin, é moderador
+    }
+  };
 
   // Subscribe para novas mensagens
   useEffect(() => {
@@ -454,7 +486,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
   };
 
   const handleDeleteMessage = async (messageId: string) => {
-    if (!isAdmin) return;
+    if (!isAdmin && !isModerator) return;
 
     try {
       const { error } = await supabase
@@ -577,7 +609,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
                   </a>
                 )}
               </div>
-              {isAdmin && !message.is_system && (
+              {(isAdmin || isModerator) && !message.is_system && (
                 <button
                   onClick={() => handleDeleteMessage(message.id)}
                   className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300"
@@ -594,10 +626,10 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
 
       {/* Input de Mensagem */}
       <div className="p-4 border-t border-slate-700 bg-slate-800">
-        {isAdmin && (
+        {(isAdmin || isModerator) && (
           <div className="mb-3">
             <label className="block text-xs text-slate-400 mb-1">
-              Fixar Link no Chat (Apenas Admin)
+              Fixar Link no Chat {isModerator && !isAdmin ? '(Moderador)' : '(Admin)'}
             </label>
             <div className="flex gap-2">
               <input
