@@ -193,8 +193,12 @@ const RegisterPage: React.FC = () => {
         }
 
         // Redirecionar imediatamente sem aguardar WhatsApp
+        // Se houver returnTo, passar adiante para o login
         navigate('/login', { 
-          state: { message: 'Conta criada com sucesso! Verifique seu email para confirmar.' }
+          state: { 
+            message: 'Conta criada com sucesso! Verifique seu email para confirmar.',
+            returnTo: returnTo
+          }
         });
       }
     } catch (error: any) {
