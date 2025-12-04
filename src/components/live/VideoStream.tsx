@@ -2274,11 +2274,11 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                     </div>
                   )}
                   
-                  {/* Volume do Áudio da Tela Compartilhada */}
+                  {/* Volume do Áudio do Sistema/Desktop */}
                   {screenAudioTrackRef.current ? (
                     <div>
                       <label className="text-white text-sm mb-2 block">
-                        Áudio da Tela Compartilhada: {screenAudioVolume}%
+                        Áudio do Sistema/Desktop: {screenAudioVolume}%
                       </label>
                       <input
                         type="range"
@@ -2288,11 +2288,29 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                         onChange={(e) => handleScreenAudioVolumeChange(Number(e.target.value))}
                         className="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-green-500"
                       />
+                      <button
+                        onClick={stopDesktopAudio}
+                        className="mt-2 w-full px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs flex items-center justify-center gap-2 transition-colors"
+                      >
+                        <Square className="w-3 h-3" />
+                        Parar Captura de Áudio
+                      </button>
                     </div>
                   ) : (
                     <div className="text-slate-400 text-xs">
-                      <p>Áudio da tela compartilhada não disponível.</p>
-                      <p className="mt-1 text-xs">Configure no OBS Studio para capturar áudio da tela.</p>
+                      <p className="mb-2">Áudio do sistema não capturado.</p>
+                      <p className="mb-3 text-xs">Para capturar áudio de vídeos do OBS, clique no botão abaixo.</p>
+                      <button
+                        onClick={captureDesktopAudio}
+                        className="w-full px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded text-xs flex items-center justify-center gap-2 transition-colors"
+                        disabled={!isStreaming}
+                      >
+                        <MonitorSpeaker className="w-4 h-4" />
+                        {isStreaming ? 'Capturar Áudio do Sistema' : 'Inicie a transmissão primeiro'}
+                      </button>
+                      <p className="mt-2 text-xs opacity-70">
+                        ⚠️ O navegador pedirá permissão. Selecione "Compartilhar áudio" na janela.
+                      </p>
                     </div>
                   )}
                   
