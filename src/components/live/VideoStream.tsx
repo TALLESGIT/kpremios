@@ -475,6 +475,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         localTracks: client.localTracks.length
       });
       
+      // Ignorar erros de WS_ABORT: LEAVE (são normais durante desconexões)
+      if (curState === 'DISCONNECTED' && revState === 'DISCONNECTING') {
+        console.log('ℹ️ Desconexão normal (leave)');
+        return;
+      }
+      
       // Detectar desconexão e iniciar reconexão automática
       // Só reconectar se não foi uma desconexão intencional (leave)
       if ((curState === 'DISCONNECTED' || curState === 'FAILED') && 
@@ -1054,6 +1060,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     const nonCriticalCodes = [
       2001, // AUDIO_INPUT_LEVEL_TOO_LOW - aviso de nível de áudio de entrada baixo (normal com OBS)
       2002, // AUDIO_OUTPUT_LEVEL_TOO_LOW - aviso de nível de áudio de saída baixo (normal)
+      2003, // SEND_AUDIO_BITRATE_TOO_LOW - aviso de bitrate de áudio muito baixo (normal com OBS)
       4001, // AUDIO_INPUT_LEVEL_TOO_LOW_RECOVER - aviso de recuperação de nível de áudio de entrada (normal com OBS)
       4002, // AUDIO_OUTPUT_LEVEL_TOO_LOW_RECOVER - aviso de recuperação de nível de áudio de saída (normal)
       4003, // AUDIO_OUTPUT_LEVEL_TOO_LOW - apenas aviso
