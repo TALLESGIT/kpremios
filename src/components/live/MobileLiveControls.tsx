@@ -1,14 +1,16 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Maximize2, RotateCw, X, Minimize2 } from 'lucide-react';
+import { Maximize2, RotateCw, X, Minimize2, PictureInPicture } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface MobileLiveControlsProps {
   onFullscreen: () => void;
   onRotate: () => void;
   onMinimize?: () => void;
+  onPictureInPicture?: () => void;
   isFullscreen?: boolean;
   showMinimize?: boolean;
   isZoomLocked?: boolean;
+  isPictureInPicture?: boolean;
   onTouchStart?: () => void;
   containerRef?: React.RefObject<HTMLDivElement>;
   isActive?: boolean; // Se a transmissão está ativa
@@ -18,9 +20,11 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
   onFullscreen, 
   onRotate,
   onMinimize,
+  onPictureInPicture,
   isFullscreen = false,
   showMinimize = false,
   isZoomLocked = false,
+  isPictureInPicture = false,
   onTouchStart,
   containerRef,
   isActive = false
@@ -170,6 +174,31 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
                 title="Rotacionar vídeo"
               >
                 <RotateCw className="w-5 h-5" />
+              </motion.button>
+            )}
+
+            {/* Botão Picture-in-Picture (apenas mobile em fullscreen) */}
+            {isFullscreen && isMobile && onPictureInPicture && (
+              <motion.button
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ 
+                  type: "spring", 
+                  stiffness: 200, 
+                  damping: 20,
+                  delay: isMobile ? 0.25 : 0
+                }}
+                whileTap={{ scale: 0.9 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPictureInPicture();
+                  showControls();
+                }}
+                className="bg-black/20 backdrop-blur-sm text-white p-3 rounded-full hover:bg-black/40 transition-colors"
+                aria-label={isPictureInPicture ? "Sair do modo flutuante" : "Modo flutuante"}
+                title={isPictureInPicture ? "Sair do modo flutuante" : "Modo flutuante"}
+              >
+                <PictureInPicture className="w-5 h-5" />
               </motion.button>
             )}
 

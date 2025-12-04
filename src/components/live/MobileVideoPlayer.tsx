@@ -7,6 +7,8 @@ interface MobileVideoPlayerProps {
   isFullscreen: boolean;
   onFullscreen: () => void;
   onRotate: () => void;
+  onPictureInPicture?: () => void;
+  isPictureInPicture?: boolean;
   children?: React.ReactNode;
   isActive?: boolean;
 }
@@ -16,6 +18,8 @@ const MobileVideoPlayer: React.FC<MobileVideoPlayerProps> = ({
   isFullscreen,
   onFullscreen,
   onRotate,
+  onPictureInPicture,
+  isPictureInPicture = false,
   children,
   isActive = false
 }) => {
@@ -274,7 +278,9 @@ const MobileVideoPlayer: React.FC<MobileVideoPlayerProps> = ({
       <MobileLiveControls
         onFullscreen={onFullscreen}
         onRotate={zoomLocked ? () => {} : onRotate}
+        onPictureInPicture={onPictureInPicture}
         isFullscreen={isFullscreen}
+        isPictureInPicture={isPictureInPicture}
         isZoomLocked={zoomLocked}
         containerRef={containerRef}
         isActive={isActive}

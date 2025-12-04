@@ -97,6 +97,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const joiningRef = useRef(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isRotated, setIsRotated] = useState(false);
+  const [isPictureInPicture, setIsPictureInPicture] = useState(false);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const reconnectTimeoutRef = useRef<number | null>(null);
   const maxReconnectAttempts = 6;
@@ -1644,6 +1645,61 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     setIsRotated(!isRotated);
   }, [isRotated]);
 
+  // Função para Picture-in-Picture
+  const handlePictureInPicture = useCallback(async () => {
+    try {
+      // Encontrar o elemento de vídeo (pode ser local ou remoto)
+      const videoElement = 
+        videoContainerRef.current?.querySelector('video') ||
+        remoteVideoContainerRef.current?.querySelector('video');
+      
+      if (!videoElement) {
+        console.warn('Elemento de vídeo não encontrado para PiP');
+        toast.error('Vídeo não encontrado');
+        return;
+      }
+
+      // Verificar se a API está disponível
+      if (!document.pictureInPictureEnabled) {
+        toast.error('Picture-in-Picture não está disponível neste navegador');
+        return;
+      }
+
+      if (isPictureInPicture) {
+        // Sair do PiP
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture();
+        }
+        setIsPictureInPicture(false);
+      } else {
+        // Entrar no PiP
+        await (videoElement as HTMLVideoElement).requestPictureInPicture();
+        setIsPictureInPicture(true);
+      }
+    } catch (error: any) {
+      console.error('Erro ao ativar Picture-in-Picture:', error);
+      if (error.name !== 'NotAllowedError') {
+        toast.error('Erro ao ativar modo flutuante');
+      }
+    }
+  }, [isPictureInPicture]);
+
+  // Listener para mudanças de Picture-in-Picture
+  useEffect(() => {
+    const handlePiPChange = () => {
+      const isInPiP = !!document.pictureInPictureElement;
+      setIsPictureInPicture(isInPiP);
+    };
+
+    document.addEventListener('enterpictureinpicture', handlePiPChange);
+    document.addEventListener('leavepictureinpicture', handlePiPChange);
+
+    return () => {
+      document.removeEventListener('enterpictureinpicture', handlePiPChange);
+      document.removeEventListener('leavepictureinpicture', handlePiPChange);
+    };
+  }, []);
+
   // Listener para mudanças de fullscreen
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -1720,6 +1776,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         isFullscreen={isFullscreen}
         onFullscreen={handleFullscreen}
         onRotate={handleRotate}
+        onPictureInPicture={handlePictureInPicture}
+        isPictureInPicture={isPictureInPicture}
         isActive={isActive}
       >
         <div 
