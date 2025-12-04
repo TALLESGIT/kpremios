@@ -164,7 +164,7 @@ const PublicLiveStreamPage: React.FC = () => {
         .from('live_streams')
         .select('*')
         .eq('channel_name', channelName)
-        .single();
+        .maybeSingle(); // Usar maybeSingle() ao invés de single() para evitar erro 406 quando não há resultado
 
       if (error) throw error;
 
