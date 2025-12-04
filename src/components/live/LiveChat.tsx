@@ -334,6 +334,23 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
     }
 
     try {
+      // Buscar nome do usuário na tabela users
+      let userName = 'Admin';
+      if (user) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('name')
+          .eq('id', user.id)
+          .single();
+        
+        if (userData?.name) {
+          userName = userData.name;
+        } else {
+          // Fallback para user_metadata ou email
+          userName = user.user_metadata?.name || user.email?.split('@')[0] || 'Admin';
+        }
+      }
+
       // Primeiro, desfixar mensagem anterior se houver
       if (pinnedMessage) {
         await supabase
@@ -348,7 +365,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
         .insert({
           stream_id: streamId,
           user_id: user?.id || null,
-          user_name: user?.name || 'Admin',
+          user_name: userName,
           message: `🔗 Link compartilhado pelo admin`,
           is_admin: true,
           is_system: false,
