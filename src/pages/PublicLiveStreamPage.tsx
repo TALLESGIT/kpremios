@@ -538,32 +538,32 @@ const PublicLiveStreamPage: React.FC = () => {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col overflow-x-hidden">
       <Header />
 
       {/* Conteúdo Principal */}
-      <div className="flex-1 max-w-[1400px] mx-auto w-full p-4 overflow-y-auto">
+      <div className="flex-1 max-w-[1400px] mx-auto w-full p-2 sm:p-4 overflow-y-auto overflow-x-hidden">
         {/* Header da Transmissão */}
-        <div className="mb-4">
+        <div className="mb-3 sm:mb-4">
           <button
             onClick={() => navigate('/')}
-            className="text-amber-400 hover:text-amber-300 mb-2 flex items-center gap-2 transition-colors"
+            className="text-amber-400 hover:text-amber-300 mb-2 flex items-center gap-2 transition-colors text-sm sm:text-base"
           >
-            <ArrowLeft className="w-5 h-5" />
-            Voltar
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span>Voltar</span>
           </button>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white mb-1">{stream.title}</h1>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-2xl font-bold text-white mb-1 truncate">{stream.title}</h1>
               {stream.description && (
-                <p className="text-slate-400">{stream.description}</p>
+                <p className="text-xs sm:text-sm text-slate-400 line-clamp-2">{stream.description}</p>
               )}
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-slate-300">
-                <Eye className="w-5 h-5" />
-                <span className="font-medium">{stream?.is_active ? (viewerCount > 0 ? viewerCount : stream?.viewer_count || 0) : 0}</span>
-                <span className="text-sm text-slate-400">viewers</span>
+            <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-slate-300 text-xs sm:text-base">
+                <Eye className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                <span className="font-medium whitespace-nowrap">{stream?.is_active ? (viewerCount > 0 ? viewerCount : stream?.viewer_count || 0) : 0}</span>
+                <span className="text-xs sm:text-sm text-slate-400 hidden sm:inline">viewers</span>
               </div>
               {/* Botão de Compartilhar */}
               <button
@@ -598,11 +598,11 @@ const PublicLiveStreamPage: React.FC = () => {
                     }
                   }
                 }}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors flex items-center gap-2"
+                className="px-2 sm:px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors flex items-center gap-1.5 sm:gap-2 flex-shrink-0"
                 title="Compartilhar transmissão"
               >
-                <Share2 className="w-4 h-4" />
-                <span className="text-sm font-medium">Compartilhar</span>
+                <Share2 className="w-4 h-4 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium hidden sm:inline">Compartilhar</span>
               </button>
             </div>
           </div>
@@ -610,15 +610,15 @@ const PublicLiveStreamPage: React.FC = () => {
 
         {/* Status da Transmissão - Só mostra se realmente não estiver ativa */}
         {stream && !stream.is_active && (
-          <div className="mb-4 p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
-            <p className="text-yellow-300 text-center">
+          <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
+            <p className="text-yellow-300 text-center text-xs sm:text-sm">
               ⏸️ Esta transmissão não está ativa no momento. Aguarde o início da transmissão.
             </p>
           </div>
         )}
 
         {/* Layout Principal - 16:9 */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 relative">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 relative">
           {/* Vídeo - Ocupa 8 colunas */}
           <div className="lg:col-span-8 relative">
             <div 
