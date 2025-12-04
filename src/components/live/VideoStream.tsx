@@ -110,16 +110,13 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const desktopAudioStreamRef = useRef<MediaStream | null>(null);
   const [audioActivated, setAudioActivated] = useState(false); // Se o usuário ativou o áudio manualmente
   const [hasAudioAvailable, setHasAudioAvailable] = useState(false); // Se há áudio disponível para reproduzir
-  const remoteAudioTrackRef = useRef<any>(null); // Ref para o track de áudio remoto
-  const [audioActivated, setAudioActivated] = useState(false); // Se o usuário ativou o áudio manualmente
-  const [hasAudioAvailable, setHasAudioAvailable] = useState(false); // Se há áudio disponível para reproduzir
-  const remoteAudioTrackRef = useRef<any>(null); // Ref para o track de áudio remoto
 
   const clientRef = useRef<AgoraRTC.IAgoraRTCClient | null>(null);
   const localVideoTrackRef = useRef<AgoraRTC.ILocalVideoTrack | null>(null);
   const localAudioTrackRef = useRef<AgoraRTC.ILocalAudioTrack | null>(null);
   const screenAudioTrackRef = useRef<AgoraRTC.ILocalAudioTrack | null>(null); // Áudio da tela compartilhada
   const remoteVideoTrackRef = useRef<AgoraRTC.IRemoteVideoTrack | null>(null);
+  const remoteAudioTrackRef = useRef<any>(null); // Ref para o track de áudio remoto
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const remoteVideoContainerRef = useRef<HTMLDivElement>(null);
 
