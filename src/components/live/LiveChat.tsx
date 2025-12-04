@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { Send, Pin, Trash2, Link as LinkIcon, MessageSquare, LogIn } from 'lucide-react';
+import { Send, Pin, Trash2, Link as LinkIcon, MessageSquare, LogIn, Smile } from 'lucide-react';
 
 interface ChatMessage {
   id: string;
@@ -82,6 +82,26 @@ const formatDisplayName = (fullName: string, allMessages: ChatMessage[]): string
   return firstName;
 };
 
+// Emojis organizados por categoria
+const EMOJI_CATEGORIES = {
+  padrao: {
+    title: 'Padrão',
+    emojis: ['😀', '😂', '😍', '🥰', '😎', '🤔', '😊', '😉', '😋', '😜', '🤪', '😏', '😌', '😴', '🤤', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '😳', '🤯', '😢', '😭', '😤', '😠', '😡', '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👹', '👺', '👻', '👽', '👾', '🤖']
+  },
+  reacoes: {
+    title: 'Reações',
+    emojis: ['👍', '👎', '❤️', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '🔥', '⭐', '🌟', '✨', '💫', '⚡', '🎉', '🎊', '🙌', '👏', '🤝', '🙏', '✌️', '🤞', '🤟', '🤘', '🤙', '👌', '🤌', '🤏', '👈', '👉', '👆', '👇', '☝️', '👋', '🤚', '🖐️', '✋', '🖖', '👊', '✊', '🤛', '🤜', '🤲', '👐', '🙌', '👏', '🤝', '🙏']
+  },
+  futebol: {
+    title: 'Futebol',
+    emojis: ['⚽', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖️', '🏵️', '🎗️', '🎫', '🎟️', '🎪', '🎭', '🎨', '🎬', '🎤', '🎧', '🎼', '🎹', '🥁', '🎷', '🎺', '🎸', '🎻', '🎲', '🎯', '🎳', '🎮', '🎰', '🧩', '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🏎️', '🏍️', '🛵', '🚲', '🛴', '🛹', '🛼', '🚁', '✈️', '🛩️', '🛫', '🛬', '🪂', '💺', '🚀', '🚤', '⛵', '🛥️', '🛳️', '⛴️', '🚢', '⚓', '⛽', '🚧', '🚦', '🚥', '🗺️', '🗿', '🗽', '🗼', '🏰', '🏯', '🏟️', '🎡', '🎢', '🎠', '⛲', '⛱️', '🏖️', '🏝️', '🏜️', '🌋', '⛰️', '🏔️', '🗻', '🏕️', '⛺']
+  },
+  times: {
+    title: 'Times',
+    emojis: ['🇧🇷', '⚽', '🏆', '🥇', '🥈', '🥉', '🎯', '🔥', '💪', '👏', '🙌', '🎉', '🎊', '🚀', '⭐', '🌟', '✨', '💫', '⚡', '🎖️', '🏅', '🎗️', '🎫', '🎟️', '🎪', '🎭', '🎨', '🎬', '🎤', '🎧', '🎼', '🎹', '🥁', '🎷', '🎺', '🎸', '🎻', '🎲', '🎯', '🎳', '🎮', '🎰', '🧩', '💚', '💛', '🔴', '🔵', '⚫', '⚪', '🟢', '🟡', '🟠', '🟣', '🟤', '🟥', '🟦', '🟧', '🟨', '🟩', '🟪', '🟫', '⬛', '⬜', '🟰', '🔴', '🔵', '🟢', '🟡', '🟠', '🟣', '🟤']
+  }
+};
+
 const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -90,8 +110,10 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
   const [loading, setLoading] = useState(true);
   const [pinnedMessage, setPinnedMessage] = useState<ChatMessage | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
 
   // Scroll para o final do chat (apenas dentro do container do chat)
   const scrollToBottom = () => {
@@ -108,6 +130,28 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
     // Só fazer scroll se o usuário não estiver rolando manualmente
     scrollToBottom();
   }, [messages]);
+
+  // Fechar emoji picker ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    if (showEmojiPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showEmojiPicker]);
+
+  const handleEmojiClick = (emoji: string) => {
+    setNewMessage(prev => prev + emoji);
+    setShowEmojiPicker(false);
+  };
 
   // Carregar mensagens iniciais
   useEffect(() => {
@@ -529,7 +573,52 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 relative">
+          {/* Botão de Emoji */}
+          {user && (
+            <div className="relative" ref={emojiPickerRef}>
+              <button
+                type="button"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors flex items-center justify-center border border-slate-600"
+                title="Adicionar emoji"
+              >
+                <Smile className="w-4 h-4" />
+              </button>
+
+              {/* Emoji Picker */}
+              {showEmojiPicker && (
+                <div className="absolute bottom-full left-0 mb-2 w-80 max-h-96 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                  <div className="p-3 border-b border-slate-700 bg-slate-900">
+                    <h4 className="text-sm font-bold text-white">Emojis</h4>
+                  </div>
+                  <div className="overflow-y-auto max-h-80 p-3">
+                    {Object.entries(EMOJI_CATEGORIES).map(([key, category]) => (
+                      <div key={key} className="mb-4 last:mb-0">
+                        <h5 className="text-xs font-semibold text-slate-400 mb-2 uppercase">
+                          {category.title}
+                        </h5>
+                        <div className="grid grid-cols-8 gap-1">
+                          {category.emojis.map((emoji, index) => (
+                            <button
+                              key={`${key}-${index}`}
+                              type="button"
+                              onClick={() => handleEmojiClick(emoji)}
+                              className="w-8 h-8 flex items-center justify-center text-lg hover:bg-slate-700 rounded transition-colors"
+                              title={emoji}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <input
             type="text"
             value={newMessage}
