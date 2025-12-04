@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useData } from '../context/DataContext';
 import { Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
@@ -12,6 +12,8 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = (location.state as any)?.returnTo;
   const { reloadUserData } = useData();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -107,8 +109,10 @@ const LoginPage: React.FC = () => {
           // Não falha o login se o reload falhar
         }
 
-        // Redirecionar baseado no perfil ou padrão
-        if (profile?.is_admin) {
+        // Redirecionar para returnTo se fornecido, senão baseado no perfil
+        if (returnTo) {
+          navigate(returnTo);
+        } else if (profile?.is_admin) {
           navigate('/admin/dashboard');
         } else {
           navigate('/dashboard');

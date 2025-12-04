@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { User, Mail, Phone, Lock, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
 import Header from '../components/shared/Header';
@@ -18,6 +18,8 @@ const RegisterPage: React.FC = () => {
   const [isLoginMode, setIsLoginMode] = useState(false);
   const [checkingEmail, setCheckingEmail] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = (location.state as any)?.returnTo;
   const emailCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,8 +117,10 @@ const RegisterPage: React.FC = () => {
           }
         }
 
-        // Redirecionar baseado no perfil ou padrão
-        if (profile?.is_admin) {
+        // Redirecionar para returnTo se fornecido, senão baseado no perfil
+        if (returnTo) {
+          navigate(returnTo);
+        } else if (profile?.is_admin) {
           navigate('/admin/dashboard');
         } else {
           navigate('/dashboard');

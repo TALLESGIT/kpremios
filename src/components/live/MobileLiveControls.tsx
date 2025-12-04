@@ -253,7 +253,7 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
         )}
       </AnimatePresence>
       
-      {/* Badge AO VIVO - Canto superior direito, apenas quando ativo */}
+      {/* Badge AO VIVO - Canto superior esquerdo em fullscreen mobile, direito em outros casos */}
       {isActive && (
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
@@ -264,7 +264,11 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
             stiffness: 200, 
             damping: 20
           }}
-          className="absolute top-3 right-3 md:top-4 md:right-4 z-50 pointer-events-auto"
+          className={`absolute z-50 pointer-events-auto ${
+            isFullscreen && isMobile 
+              ? 'top-3 left-3' // Esquerda em fullscreen mobile
+              : 'top-3 right-3 md:top-4 md:right-4' // Direita em outros casos
+          }`}
         >
           <div className="bg-red-600/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 shadow-lg border border-red-500/30">
             <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>

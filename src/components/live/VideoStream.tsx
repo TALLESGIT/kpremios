@@ -1616,7 +1616,35 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     if (!container) return;
 
     if (!isFullscreen) {
-      // Tentar fazer fullscreen do container principal
+      // iOS/Safari requer tratamento especial
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      
+      if (isIOS || isSafari) {
+        // No iOS, tentar usar o video element diretamente se disponível
+        const videoElement = container.querySelector('video');
+        if (videoElement) {
+          // iOS Safari suporta fullscreen via video element
+          if ((videoElement as any).webkitEnterFullscreen) {
+            (videoElement as any).webkitEnterFullscreen();
+            return;
+          }
+          // Fallback: tentar requestFullscreen no video
+          if (videoElement.requestFullscreen) {
+            videoElement.requestFullscreen().catch((err) => {
+              console.error('Erro ao entrar em fullscreen (iOS):', err);
+            });
+            return;
+          }
+        }
+        // Fallback: tentar no container com webkit
+        if ((container as any).webkitRequestFullscreen) {
+          (container as any).webkitRequestFullscreen();
+          return;
+        }
+      }
+      
+      // Para outros navegadores, usar APIs padrão
       if (container.requestFullscreen) {
         container.requestFullscreen().catch((err) => {
           console.error('Erro ao entrar em fullscreen:', err);
@@ -1629,12 +1657,15 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         (container as any).msRequestFullscreen();
       }
     } else {
+      // Sair do fullscreen
       if (document.exitFullscreen) {
         document.exitFullscreen().catch((err) => {
           console.error('Erro ao sair do fullscreen:', err);
         });
       } else if ((document as any).webkitExitFullscreen) {
         (document as any).webkitExitFullscreen();
+      } else if ((document as any).webkitCancelFullScreen) {
+        (document as any).webkitCancelFullScreen();
       } else if ((document as any).mozCancelFullScreen) {
         (document as any).mozCancelFullScreen();
       } else if ((document as any).msExitFullscreen) {
