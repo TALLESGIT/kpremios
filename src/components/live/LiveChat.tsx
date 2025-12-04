@@ -165,6 +165,8 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
 
   // Subscribe para novas mensagens
   useEffect(() => {
+    console.log('🔔 Configurando subscription do chat para stream:', streamId);
+    
     const channel = supabase
       .channel(`live_chat_${streamId}`)
       .on(
@@ -176,14 +178,29 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
           filter: `stream_id=eq.${streamId}`,
         },
         (payload) => {
+          console.log('📨 Nova mensagem recebida via Realtime:', payload.eventType, payload.new);
+          
           if (payload.eventType === 'INSERT') {
             const newMsg = payload.new as ChatMessage;
-            setMessages((prev) => [...prev, newMsg]);
+            
+            // Verificar se a mensagem já existe (evitar duplicatas)
+            setMessages((prev) => {
+              const exists = prev.some((msg) => msg.id === newMsg.id);
+              if (exists) {
+                console.log('⚠️ Mensagem já existe, ignorando:', newMsg.id);
+                return prev;
+              }
+              console.log('✅ Adicionando nova mensagem ao chat:', newMsg.id);
+              return [...prev, newMsg];
+            });
             
             // Se for mensagem fixada, atualizar
             if (newMsg.is_pinned && newMsg.pinned_link) {
               setPinnedMessage(newMsg);
             }
+            
+            // Scroll para o final após adicionar mensagem
+            setTimeout(() => scrollToBottom(), 100);
           } else if (payload.eventType === 'UPDATE') {
             const updatedMsg = payload.new as ChatMessage;
             setMessages((prev) =>
@@ -202,9 +219,17 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 Status da subscription do chat:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Subscription do chat ativa');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Erro na subscription do chat');
+        }
+      });
 
     return () => {
+      console.log('🔕 Removendo subscription do chat');
       supabase.removeChannel(channel);
     };
   }, [streamId]);
@@ -212,6 +237,8 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
   const loadMessages = async () => {
     try {
       setLoading(true);
+      console.log('📥 Carregando mensagens do chat para stream:', streamId);
+      
       const { data, error } = await supabase
         .from('live_chat_messages')
         .select('*')
@@ -219,12 +246,19 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
         .order('created_at', { ascending: true })
         .limit(100);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro ao carregar mensagens:', error);
+        throw error;
+      }
 
+      console.log('✅ Mensagens carregadas:', data?.length || 0, 'mensagens');
       setMessages(data || []);
-    } catch (error) {
-      console.error('Erro ao carregar mensagens:', error);
-      toast.error('Erro ao carregar mensagens do chat');
+      
+      // Scroll para o final após carregar
+      setTimeout(() => scrollToBottom(), 100);
+    } catch (error: any) {
+      console.error('❌ Erro ao carregar mensagens:', error);
+      toast.error(error.message || 'Erro ao carregar mensagens do chat');
     } finally {
       setLoading(false);
     }
@@ -302,21 +336,55 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
         }
       }
 
-      const { error } = await supabase.from('live_chat_messages').insert({
+      const messageText = newMessage.trim();
+      
+      // Atualização otimista: adicionar mensagem ao estado local imediatamente
+      const optimisticMessage: ChatMessage = {
+        id: `temp-${Date.now()}-${Math.random()}`,
         stream_id: streamId,
         user_id: user.id,
         user_name: userName,
-        message: newMessage.trim(),
+        message: messageText,
         is_admin: isAdmin || false,
         is_system: false,
-      });
-
-      if (error) throw error;
-
+        pinned_link: null,
+        is_pinned: false,
+        created_at: new Date().toISOString(),
+      };
+      
+      setMessages((prev) => [...prev, optimisticMessage]);
       setNewMessage('');
-    } catch (error) {
+      scrollToBottom();
+
+      // Enviar mensagem para o banco
+      const { data, error } = await supabase
+        .from('live_chat_messages')
+        .insert({
+          stream_id: streamId,
+          user_id: user.id,
+          user_name: userName,
+          message: messageText,
+          is_admin: isAdmin || false,
+          is_system: false,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        // Remover mensagem otimista em caso de erro
+        setMessages((prev) => prev.filter((msg) => msg.id !== optimisticMessage.id));
+        throw error;
+      }
+
+      // Substituir mensagem otimista pela mensagem real do banco
+      if (data) {
+        setMessages((prev) =>
+          prev.map((msg) => (msg.id === optimisticMessage.id ? data : msg))
+        );
+      }
+    } catch (error: any) {
       console.error('Erro ao enviar mensagem:', error);
-      toast.error('Erro ao enviar mensagem');
+      toast.error(error.message || 'Erro ao enviar mensagem');
     }
   };
 
