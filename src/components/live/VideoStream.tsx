@@ -929,16 +929,14 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               remoteAudioTrack.setVolume(100); // Volume máximo
             }
             
-            // Garantir que não está mutado
+            // Verificar estado do áudio (read-only para tracks remotos)
+            // Não podemos controlar muted/enabled em tracks remotos - isso é controlado pelo remetente (OBS)
             if (remoteAudioTrack.muted) {
-              console.log('⚠️ Áudio está mutado, desmutando...');
-              await remoteAudioTrack.setMuted(false);
+              console.log('⚠️ Áudio remoto está mutado no remetente (OBS). Não é possível desmutar remotamente.');
             }
 
-            // Garantir que está habilitado
-            if (!remoteAudioTrack.enabled) {
-              console.log('⚠️ Áudio está desabilitado, habilitando...');
-              await remoteAudioTrack.setEnabled(true);
+            if (remoteAudioTrack.enabled === false) {
+              console.log('⚠️ Áudio remoto está desabilitado no remetente. Tentando reproduzir mesmo assim...');
             }
             
             // Reproduzir o áudio
