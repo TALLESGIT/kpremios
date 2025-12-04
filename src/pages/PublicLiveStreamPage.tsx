@@ -656,13 +656,13 @@ const PublicLiveStreamPage: React.FC = () => {
               />
               
               {/* Botão de Chat em Fullscreen (Mobile) - Estilo YouTube - Canto superior direito */}
-              {isFullscreen && isMobile && (
+              {isFullscreen && isMobile && stream.is_active && (
                 <motion.button
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   onClick={() => setIsChatOpen(!isChatOpen)}
-                  className="absolute top-4 right-4 z-50 bg-black/60 backdrop-blur-md text-white p-3 rounded-full hover:bg-black/80 transition-colors shadow-lg"
+                  className="absolute top-4 right-4 z-[60] bg-black/60 backdrop-blur-md text-white p-3 rounded-full hover:bg-black/80 transition-colors shadow-lg"
                   aria-label={isChatOpen ? "Fechar chat" : "Abrir chat"}
                   title={isChatOpen ? "Fechar chat" : "Abrir chat"}
                 >
