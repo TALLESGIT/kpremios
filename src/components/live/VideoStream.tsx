@@ -821,6 +821,88 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     };
   }, [role, appId, channelName, token, uid, isActive, isStreaming]);
 
+  // Função para reproduzir áudio remoto
+  const playRemoteAudio = async (remoteAudioTrack: any) => {
+    try {
+      console.log('🔊 Iniciando reprodução de áudio remoto...', {
+        trackId: remoteAudioTrack.getTrackId?.() || 'N/A',
+        enabled: remoteAudioTrack.enabled,
+        muted: remoteAudioTrack.muted
+      });
+
+      // Garantir que o áudio está habilitado e não mutado
+      if (remoteAudioTrack.setVolume && typeof remoteAudioTrack.setVolume === 'function') {
+        try {
+          remoteAudioTrack.setVolume(100); // Volume máximo
+          console.log('🔊 Volume do áudio remoto ajustado para 100%');
+        } catch (volError) {
+          console.warn('⚠️ Não foi possível ajustar volume:', volError);
+        }
+      }
+      
+      // Verificar estado do áudio (read-only para tracks remotos)
+      // Não podemos controlar muted/enabled em tracks remotos - isso é controlado pelo remetente (OBS)
+      if (remoteAudioTrack.muted) {
+        console.warn('⚠️ Áudio remoto está mutado no remetente (OBS). Verifique se o áudio está habilitado no OBS.');
+      }
+
+      if (remoteAudioTrack.enabled === false) {
+        console.warn('⚠️ Áudio remoto está desabilitado no remetente. Tentando reproduzir mesmo assim...');
+      }
+      
+      // Reproduzir o áudio
+      try {
+        await remoteAudioTrack.play();
+        console.log('✅ Áudio remoto reproduzido com sucesso', {
+          trackId: remoteAudioTrack.getTrackId?.() || 'N/A',
+          enabled: remoteAudioTrack.enabled,
+          muted: remoteAudioTrack.muted
+        });
+        toast.success('Áudio ativado!');
+      } catch (playError: any) {
+        console.error('❌ Erro ao reproduzir áudio:', playError);
+        // Se o erro for de autoplay bloqueado, não mostrar erro - o botão já está visível
+        if (playError.name !== 'NotAllowedError' && playError.name !== 'NotSupportedError') {
+          throw playError;
+        }
+      }
+
+      // Escutar mudanças no estado do áudio (quando OBS muta/desmuta)
+      if (remoteAudioTrack.on && typeof remoteAudioTrack.on === 'function') {
+        remoteAudioTrack.on('track-ended', () => {
+          console.log('⚠️ Áudio remoto foi encerrado');
+          setHasAudioAvailable(false);
+        });
+      }
+    } catch (error: any) {
+      console.error('❌ Erro ao reproduzir áudio remoto:', error);
+      // Não mostrar toast de erro se for erro de autoplay - o botão já está visível
+      if (error.name !== 'NotAllowedError' && error.name !== 'NotSupportedError') {
+        toast.error('Erro ao reproduzir áudio: ' + (error.message || 'Erro desconhecido'));
+      }
+      throw error;
+    }
+  };
+
+  // Função para ativar áudio manualmente (chamada pelo botão)
+  const handleActivateAudio = async () => {
+    if (!remoteAudioTrackRef.current) {
+      toast.error('Áudio não disponível ainda. Aguarde...');
+      return;
+    }
+
+    try {
+      setAudioActivated(true);
+      await playRemoteAudio(remoteAudioTrackRef.current);
+    } catch (error: any) {
+      console.error('❌ Erro ao ativar áudio:', error);
+      setAudioActivated(false); // Resetar se falhar
+      if (error.name !== 'NotAllowedError' && error.name !== 'NotSupportedError') {
+        toast.error('Erro ao ativar áudio. Tente novamente.');
+      }
+    }
+  };
+
   const handleUserPublished = async (
     user: AgoraRTC.IAgoraRTCRemoteUser,
     mediaType: 'audio' | 'video'
