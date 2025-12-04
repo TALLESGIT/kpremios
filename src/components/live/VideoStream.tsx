@@ -911,8 +911,58 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       if (mediaType === 'audio') {
         const remoteAudioTrack = user.audioTrack;
         if (remoteAudioTrack) {
-          await remoteAudioTrack.play();
-          console.log('Áudio remoto reproduzido com sucesso');
+          try {
+            // Garantir que o áudio está habilitado e não mutado
+            if (remoteAudioTrack.setVolume) {
+              remoteAudioTrack.setVolume(100); // Volume máximo
+            }
+            
+            // Reproduzir o áudio
+            await remoteAudioTrack.play();
+            console.log('✅ Áudio remoto reproduzido com sucesso', {
+              trackId: remoteAudioTrack.getTrackId(),
+              enabled: remoteAudioTrack.enabled,
+              muted: remoteAudioTrack.muted,
+              isPlaying: remoteAudioTrack.isPlaying || false
+            });
+
+            // Escutar mudanças no estado do áudio (quando OBS muta/desmuta)
+            remoteAudioTrack.on('track-ended', () => {
+              console.log('⚠️ Áudio remoto foi encerrado');
+            });
+
+            // Verificar periodicamente se o áudio ainda está ativo
+            const checkAudioState = setInterval(() => {
+              if (remoteAudioTrack && remoteAudioTrack.isPlaying !== undefined) {
+                if (!remoteAudioTrack.isPlaying && remoteAudioTrack.enabled) {
+                  console.log('🔄 Áudio parou de tocar, tentando reproduzir novamente...');
+                  remoteAudioTrack.play().catch(err => {
+                    console.error('Erro ao reproduzir áudio novamente:', err);
+                  });
+                }
+              }
+            }, 2000);
+
+            // Limpar intervalo quando o track for removido
+            remoteAudioTrack.on('track-ended', () => {
+              clearInterval(checkAudioState);
+            });
+          } catch (error: any) {
+            console.error('❌ Erro ao reproduzir áudio remoto:', error);
+            // Tentar novamente após um delay
+            setTimeout(async () => {
+              try {
+                if (user.audioTrack) {
+                  await user.audioTrack.play();
+                  console.log('✅ Áudio remoto reproduzido após retry');
+                }
+              } catch (retryError) {
+                console.error('❌ Erro ao reproduzir áudio após retry:', retryError);
+              }
+            }, 1000);
+          }
+        } else {
+          console.warn('⚠️ Track de áudio remoto não encontrado');
         }
       }
     } catch (error: any) {
@@ -937,6 +987,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           setIsStreaming(false);
         }
       }
+    }
+    
+    if (mediaType === 'audio') {
+      console.log('🔇 Áudio remoto foi removido (possivelmente mutado pelo OBS)');
+      // Quando o áudio é removido, pode ser que o OBS mutou
+      // O Agora SDK vai publicar novamente quando o OBS desmutar
     }
   };
 
