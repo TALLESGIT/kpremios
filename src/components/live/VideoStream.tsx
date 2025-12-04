@@ -1591,12 +1591,23 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         }
       }
 
+      // Parar áudio do desktop se estiver ativo
+      if (desktopAudioStreamRef.current) {
+        try {
+          desktopAudioStreamRef.current.getTracks().forEach(track => track.stop());
+        } catch (err) {
+          console.error('Erro ao parar stream de áudio do desktop:', err);
+        }
+        desktopAudioStreamRef.current = null;
+      }
+
       // Resetar estados
       setIsStreaming(false);
       setIsMuted(false);
       setIsVideoOff(false);
       setHasRemoteUsers(false);
       setShowAudioControls(false);
+      setIsCapturingDesktopAudio(false);
       
       // Parar todos os MediaStreams que possam estar ativos
       // Isso garante que a câmera seja completamente desligada
