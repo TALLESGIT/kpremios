@@ -105,6 +105,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const reconnectTimeoutRef = useRef<number | null>(null);
   const maxReconnectAttempts = 6;
   const lastChannelInfoRef = useRef<{ channelName: string; appId: string; token: string | null; uid: number | null } | null>(null);
+  const [showAudioControls, setShowAudioControls] = useState(false);
 
   const clientRef = useRef<AgoraRTC.IAgoraRTCClient | null>(null);
   const localVideoTrackRef = useRef<AgoraRTC.ILocalVideoTrack | null>(null);
@@ -2067,52 +2068,94 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             </div>
           )}
 
-          {/* Controles de Volume (Host) - Apenas quando está transmitindo */}
+          {/* Botão para mostrar/ocultar controles de volume (Host) - Centro da tela */}
           {role === 'host' && isStreaming && (
-            <div className="absolute bottom-4 left-4 right-4 md:left-auto md:right-4 md:bottom-4 z-50 bg-black/70 backdrop-blur-md rounded-lg p-4 max-w-md">
-              <h3 className="text-white text-sm font-semibold mb-3 flex items-center gap-2">
-                <Volume2 className="w-4 h-4" />
-                Controles de Áudio
-              </h3>
-              
-              {/* Volume do Áudio da Câmera */}
-              {localAudioTrackRef.current && (
-                <div className="mb-3">
-                  <label className="text-white text-xs mb-1 block">
-                    Áudio da Câmera: {cameraAudioVolume}%
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={cameraAudioVolume}
-                    onChange={(e) => handleCameraAudioVolumeChange(Number(e.target.value))}
-                    className="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                  />
+            <>
+              {/* Botão flutuante no centro para abrir controles */}
+              {!showAudioControls && (
+                <button
+                  onClick={() => setShowAudioControls(true)}
+                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-black/60 backdrop-blur-md text-white p-4 rounded-full hover:bg-black/80 transition-colors shadow-lg"
+                  aria-label="Abrir controles de áudio"
+                  title="Clique para ajustar volumes"
+                >
+                  <Volume2 className="w-6 h-6" />
+                </button>
+              )}
+
+              {/* Painel de Controles de Volume - Centro da tela, oculto por padrão */}
+              {showAudioControls && (
+                <div 
+                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-black/80 backdrop-blur-md rounded-lg p-6 max-w-md w-11/12 md:w-96 shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-white text-lg font-semibold flex items-center gap-2">
+                      <Volume2 className="w-5 h-5" />
+                      Controles de Áudio
+                    </h3>
+                    <button
+                      onClick={() => setShowAudioControls(false)}
+                      className="text-white hover:text-slate-300 transition-colors"
+                      aria-label="Fechar controles"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  
+                  {/* Volume do Áudio da Câmera */}
+                  {localAudioTrackRef.current && (
+                    <div className="mb-4">
+                      <label className="text-white text-sm mb-2 block">
+                        Áudio da Câmera: {cameraAudioVolume}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={cameraAudioVolume}
+                        onChange={(e) => handleCameraAudioVolumeChange(Number(e.target.value))}
+                        className="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                      />
+                    </div>
+                  )}
+                  
+                  {/* Volume do Áudio da Tela Compartilhada */}
+                  {screenAudioTrackRef.current ? (
+                    <div>
+                      <label className="text-white text-sm mb-2 block">
+                        Áudio da Tela Compartilhada: {screenAudioVolume}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={screenAudioVolume}
+                        onChange={(e) => handleScreenAudioVolumeChange(Number(e.target.value))}
+                        className="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-green-500"
+                      />
+                    </div>
+                  ) : (
+                    <div className="text-slate-400 text-xs">
+                      <p>Áudio da tela compartilhada não disponível.</p>
+                      <p className="mt-1 text-xs">Configure no OBS Studio para capturar áudio da tela.</p>
+                    </div>
+                  )}
+                  
+                  {!localAudioTrackRef.current && !screenAudioTrackRef.current && (
+                    <p className="text-slate-400 text-xs">Nenhum áudio ativo</p>
+                  )}
                 </div>
               )}
-              
-              {/* Volume do Áudio da Tela Compartilhada */}
-              {screenAudioTrackRef.current && (
-                <div>
-                  <label className="text-white text-xs mb-1 block">
-                    Áudio da Tela Compartilhada: {screenAudioVolume}%
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={screenAudioVolume}
-                    onChange={(e) => handleScreenAudioVolumeChange(Number(e.target.value))}
-                    className="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-green-500"
-                  />
-                </div>
+
+              {/* Overlay para fechar controles ao clicar fora */}
+              {showAudioControls && (
+                <div
+                  className="absolute inset-0 z-40 bg-black/20"
+                  onClick={() => setShowAudioControls(false)}
+                />
               )}
-              
-              {!localAudioTrackRef.current && !screenAudioTrackRef.current && (
-                <p className="text-slate-400 text-xs">Nenhum áudio ativo</p>
-              )}
-            </div>
+            </>
           )}
         </div>
       </MobileVideoPlayer>
