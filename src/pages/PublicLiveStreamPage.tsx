@@ -87,6 +87,7 @@ const PublicLiveStreamPage: React.FC = () => {
       const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
                     window.innerWidth <= 768;
       setIsMobile(mobile);
+      console.log('📱 Detecção mobile:', { mobile, userAgent: navigator.userAgent, width: window.innerWidth });
     };
     
     checkMobile();
@@ -98,12 +99,20 @@ const PublicLiveStreamPage: React.FC = () => {
   // Detectar fullscreen
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const isFullscreenNow = !!(document.fullscreenElement || 
+                                 (document as any).webkitFullscreenElement ||
+                                 (document as any).mozFullScreenElement ||
+                                 (document as any).msFullscreenElement);
+      setIsFullscreen(isFullscreenNow);
+      console.log('🖥️ Fullscreen mudou:', { isFullscreen: isFullscreenNow, isMobile });
       // Fechar chat quando sair do fullscreen
-      if (!document.fullscreenElement) {
+      if (!isFullscreenNow) {
         setIsChatOpen(false);
       }
     };
+
+    // Verificar estado inicial
+    handleFullscreenChange();
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
@@ -116,7 +125,7 @@ const PublicLiveStreamPage: React.FC = () => {
       document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
       document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
     };
-  }, []);
+  }, [isMobile]);
 
 
   // Track viewer após stream ser carregado (apenas se estiver ativo)
@@ -656,15 +665,19 @@ const PublicLiveStreamPage: React.FC = () => {
               />
               
               {/* Botão de Chat em Fullscreen (Mobile) - Estilo YouTube - Canto superior direito */}
-              {isFullscreen && isMobile && stream.is_active && (
+              {isFullscreen && isMobile && stream && stream.is_active && (
                 <motion.button
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
-                  onClick={() => setIsChatOpen(!isChatOpen)}
+                  onClick={() => {
+                    console.log('💬 Botão de chat clicado:', { isChatOpen, isFullscreen, isMobile });
+                    setIsChatOpen(!isChatOpen);
+                  }}
                   className="absolute top-4 right-4 z-[60] bg-black/60 backdrop-blur-md text-white p-3 rounded-full hover:bg-black/80 transition-colors shadow-lg"
                   aria-label={isChatOpen ? "Fechar chat" : "Abrir chat"}
                   title={isChatOpen ? "Fechar chat" : "Abrir chat"}
+                  style={{ display: 'block' }}
                 >
                   {isChatOpen ? (
                     <X className="w-5 h-5" />
