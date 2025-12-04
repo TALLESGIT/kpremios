@@ -48,6 +48,40 @@ const containsLink = (text: string): boolean => {
   return linkPatterns.some(pattern => pattern.test(text));
 };
 
+// Função para extrair primeiro nome
+const getFirstName = (fullName: string): string => {
+  if (!fullName) return '';
+  return fullName.trim().split(' ')[0];
+};
+
+// Função para formatar nome exibido (primeiro nome ou primeiro + sobrenome se houver duplicata)
+const formatDisplayName = (fullName: string, allMessages: ChatMessage[]): string => {
+  if (!fullName) return 'Usuário';
+  
+  const firstName = getFirstName(fullName);
+  const nameParts = fullName.trim().split(' ').filter(part => part.length > 0);
+  
+  // Se tiver apenas uma palavra, retorna ela
+  if (nameParts.length === 1) {
+    return firstName;
+  }
+  
+  // Verificar se há outros usuários com o mesmo primeiro nome no chat
+  const usersWithSameFirstName = allMessages
+    .filter(msg => getFirstName(msg.user_name) === firstName)
+    .map(msg => msg.user_name)
+    .filter((name, index, self) => self.indexOf(name) === index); // Remover duplicatas
+  
+  // Se houver mais de um usuário com o mesmo primeiro nome, mostrar primeiro + sobrenome
+  if (usersWithSameFirstName.length > 1) {
+    // Retornar primeiro nome + segundo nome (sobrenome)
+    return `${firstName} ${nameParts[1] || ''}`.trim();
+  }
+  
+  // Se não houver duplicata, mostrar apenas o primeiro nome
+  return firstName;
+};
+
 const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
