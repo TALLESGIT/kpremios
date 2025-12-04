@@ -108,6 +108,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const [showAudioControls, setShowAudioControls] = useState(false);
   const [isCapturingDesktopAudio, setIsCapturingDesktopAudio] = useState(false);
   const desktopAudioStreamRef = useRef<MediaStream | null>(null);
+  const [audioActivated, setAudioActivated] = useState(false); // Se o usuário ativou o áudio manualmente
+  const [hasAudioAvailable, setHasAudioAvailable] = useState(false); // Se há áudio disponível para reproduzir
+  const remoteAudioTrackRef = useRef<any>(null); // Ref para o track de áudio remoto
+  const [audioActivated, setAudioActivated] = useState(false); // Se o usuário ativou o áudio manualmente
+  const [hasAudioAvailable, setHasAudioAvailable] = useState(false); // Se há áudio disponível para reproduzir
+  const remoteAudioTrackRef = useRef<any>(null); // Ref para o track de áudio remoto
 
   const clientRef = useRef<AgoraRTC.IAgoraRTCClient | null>(null);
   const localVideoTrackRef = useRef<AgoraRTC.ILocalVideoTrack | null>(null);
@@ -947,58 +953,24 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       if (mediaType === 'audio') {
         const remoteAudioTrack = user.audioTrack;
         if (remoteAudioTrack) {
-          try {
-            console.log('🔊 Iniciando reprodução de áudio remoto...', {
-              trackId: remoteAudioTrack.getTrackId(),
-              enabled: remoteAudioTrack.enabled,
-              muted: remoteAudioTrack.muted
-            });
-
-            // Garantir que o áudio está habilitado e não mutado
-            if (remoteAudioTrack.setVolume) {
-              remoteAudioTrack.setVolume(100); // Volume máximo
+          // Salvar referência do track de áudio
+          remoteAudioTrackRef.current = remoteAudioTrack;
+          setHasAudioAvailable(true);
+          
+          // Se o áudio já foi ativado pelo usuário, tentar reproduzir automaticamente
+          if (audioActivated) {
+            try {
+              await playRemoteAudio(remoteAudioTrack);
+            } catch (error) {
+              console.error('❌ Erro ao reproduzir áudio após ativação:', error);
             }
-            
-            // Verificar estado do áudio (read-only para tracks remotos)
-            // Não podemos controlar muted/enabled em tracks remotos - isso é controlado pelo remetente (OBS)
-            if (remoteAudioTrack.muted) {
-              console.log('⚠️ Áudio remoto está mutado no remetente (OBS). Não é possível desmutar remotamente.');
-            }
-
-            if (remoteAudioTrack.enabled === false) {
-              console.log('⚠️ Áudio remoto está desabilitado no remetente. Tentando reproduzir mesmo assim...');
-            }
-            
-            // Reproduzir o áudio
-            await remoteAudioTrack.play();
-            console.log('✅ Áudio remoto reproduzido com sucesso', {
-              trackId: remoteAudioTrack.getTrackId(),
-              enabled: remoteAudioTrack.enabled,
-              muted: remoteAudioTrack.muted
-            });
-
-            // Escutar mudanças no estado do áudio (quando OBS muta/desmuta)
-            remoteAudioTrack.on('track-ended', () => {
-              console.log('⚠️ Áudio remoto foi encerrado');
-            });
-          } catch (error: any) {
-            console.error('❌ Erro ao reproduzir áudio remoto:', error);
-            // Tentar novamente após um delay
-            setTimeout(async () => {
-              try {
-                if (user.audioTrack) {
-                  // Não podemos controlar muted/enabled em tracks remotos
-                  // Apenas tentar reproduzir novamente
-                  await user.audioTrack.play();
-                  console.log('✅ Áudio remoto reproduzido após retry');
-                }
-              } catch (retryError) {
-                console.error('❌ Erro ao reproduzir áudio após retry:', retryError);
-              }
-            }, 1000);
+          } else {
+            // Áudio disponível mas não ativado - mostrar botão para o usuário
+            console.log('🔊 Áudio disponível! Aguardando ativação do usuário...');
           }
         } else {
           console.warn('⚠️ Track de áudio remoto não encontrado');
+          setHasAudioAvailable(false);
         }
       }
     } catch (error: any) {
@@ -2260,6 +2232,20 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                   </div>
                 ) : null;
               })()}
+
+              {/* Botão para ativar áudio (Audience) - Aparece quando há áudio disponível mas não foi ativado */}
+              {hasAudioAvailable && !audioActivated && (
+                <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
+                  <button
+                    onClick={handleActivateAudio}
+                    className="pointer-events-auto bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg flex items-center gap-2 transition-colors"
+                    aria-label="Ativar áudio"
+                  >
+                    <Volume2 className="w-5 h-5" />
+                    Ativar Áudio
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
