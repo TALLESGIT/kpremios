@@ -376,25 +376,26 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
                 message.is_admin ? 'bg-amber-500/10 border-l-2 border-amber-500' : ''
               } ${message.is_system ? 'bg-blue-500/10 border-l-2 border-blue-500' : ''} p-2 rounded`}
             >
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span
-                    className={`font-medium text-sm ${
+                    className={`font-medium text-sm truncate max-w-[200px] sm:max-w-[300px] ${
                       message.is_admin
                         ? 'text-amber-400'
                         : message.is_system
                         ? 'text-blue-400'
                         : 'text-white'
                     }`}
+                    title={message.user_name}
                   >
                     {message.user_name}
                     {message.is_admin && (
-                      <span className="ml-1 text-xs bg-amber-500 text-white px-1.5 py-0.5 rounded">
+                      <span className="ml-1 text-xs bg-amber-500 text-white px-1.5 py-0.5 rounded whitespace-nowrap">
                         ADMIN
                       </span>
                     )}
                   </span>
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-slate-400 whitespace-nowrap flex-shrink-0">
                     {formatTime(message.created_at)}
                   </span>
                 </div>
