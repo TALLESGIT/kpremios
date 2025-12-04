@@ -18,6 +18,17 @@ interface LiveStream {
   created_at: string;
 }
 
+// Função para gerar slug personalizado a partir do título
+const generateSlugFromTitle = (title: string): string => {
+  return title
+    .toLowerCase()
+    .normalize('NFD') // Remove acentos
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacríticos
+    .replace(/[^a-z0-9\sx]/g, '') // Remove caracteres especiais, mantém letras, números, espaços e 'x'
+    .replace(/\s+/g, '') // Remove espaços
+    .trim();
+};
+
 const AdminLiveStreamPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -28,6 +39,7 @@ const AdminLiveStreamPage: React.FC = () => {
   const [newStreamDescription, setNewStreamDescription] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [shouldStartStream, setShouldStartStream] = useState(false);
+  const [previewLink, setPreviewLink] = useState('');
   const [showClearDataConfirm, setShowClearDataConfirm] = useState(false);
   const [previousStreamId, setPreviousStreamId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -107,7 +119,43 @@ const AdminLiveStreamPage: React.FC = () => {
         }
       }
 
-      const channelName = `stream_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Gerar channel_name personalizado baseado no título
+      let titleSlug = generateSlugFromTitle(newStreamTitle.trim());
+      
+      // Se o slug estiver vazio, usar um padrão
+      if (!titleSlug) {
+        titleSlug = `stream_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      } else {
+        // Verificar se já existe um channel_name com esse slug
+        const { data: existingStreams } = await supabase
+          .from('live_streams')
+          .select('channel_name')
+          .eq('channel_name', titleSlug)
+          .limit(1);
+        
+        // Se já existir, adicionar um sufixo numérico
+        if (existingStreams && existingStreams.length > 0) {
+          let counter = 1;
+          let newSlug = `${titleSlug}${counter}`;
+          
+          while (true) {
+            const { data: checkStreams } = await supabase
+              .from('live_streams')
+              .select('channel_name')
+              .eq('channel_name', newSlug)
+              .limit(1);
+            
+            if (!checkStreams || checkStreams.length === 0) {
+              titleSlug = newSlug;
+              break;
+            }
+            counter++;
+            newSlug = `${titleSlug}${counter}`;
+          }
+        }
+      }
+      
+      const channelName = titleSlug;
 
       const { data, error } = await supabase
         .from('live_streams')
@@ -126,6 +174,7 @@ const AdminLiveStreamPage: React.FC = () => {
       toast.success('Transmissão criada com sucesso!');
       setNewStreamTitle('');
       setNewStreamDescription('');
+      setPreviewLink('');
       setIsCreating(false);
       setShowClearDataConfirm(false);
       setPreviousStreamId(null);
@@ -292,10 +341,24 @@ const AdminLiveStreamPage: React.FC = () => {
                 <input
                   type="text"
                   value={newStreamTitle}
-                  onChange={(e) => setNewStreamTitle(e.target.value)}
-                  placeholder="Ex: Sorteio ao Vivo R$ 10.000"
+                  onChange={(e) => {
+                    setNewStreamTitle(e.target.value);
+                    // Atualizar preview do link em tempo real
+                    const slug = generateSlugFromTitle(e.target.value);
+                    if (slug) {
+                      setPreviewLink(`${window.location.origin}/live/${slug}`);
+                    } else {
+                      setPreviewLink('');
+                    }
+                  }}
+                  placeholder="Ex: Cruzeiro x Santos"
                   className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-amber-500 focus:outline-none"
                 />
+                {previewLink && (
+                  <p className="mt-2 text-xs text-slate-400">
+                    Link: <span className="text-amber-400 font-mono">{previewLink}</span>
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -321,6 +384,7 @@ const AdminLiveStreamPage: React.FC = () => {
                     setIsCreating(false);
                     setNewStreamTitle('');
                     setNewStreamDescription('');
+                    setPreviewLink('');
                   }}
                   className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors"
                 >
