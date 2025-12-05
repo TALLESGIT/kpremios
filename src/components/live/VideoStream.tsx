@@ -1919,15 +1919,60 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   };
 
   const switchMicrophone = async (deviceId: string) => {
-    if (localAudioTrackRef.current && role === 'host') {
-      try {
-        await localAudioTrackRef.current.setDevice(deviceId);
-        setSelectedMicrophone(deviceId);
-        toast.success('Microfone alterado');
-      } catch (error) {
-        console.error('Erro ao trocar microfone:', error);
-        toast.error('Erro ao trocar microfone');
+    if (!clientRef.current || role !== 'host') {
+      toast.error('Apenas o host pode trocar o microfone');
+      return;
+    }
+
+    try {
+      // 1. PARA e REMOVE a track antiga
+      if (localAudioTrackRef.current) {
+        console.log('🛑 Removendo track de áudio antiga...');
+        await clientRef.current.unpublish(localAudioTrackRef.current);
+        localAudioTrackRef.current.stop();
+        localAudioTrackRef.current.close();
+        localAudioTrackRef.current = null;
       }
+
+      // 2. CRIA a nova track usando o novo dispositivo
+      const newTrack = await AgoraRTC.createMicrophoneAudioTrack({
+        microphoneId: deviceId,
+      });
+
+      console.log('🎤 Novo microfone selecionado:', {
+        deviceId: deviceId,
+        trackId: newTrack.getTrackId(),
+        enabled: newTrack.enabled,
+        muted: newTrack.muted
+      });
+
+      // Garantir que o track está habilitado e não mutado
+      if (!newTrack.enabled) {
+        await newTrack.setEnabled(true);
+      }
+      
+      if (newTrack.muted) {
+        await newTrack.setMuted(false);
+      }
+      
+      // Aplicar volume inicial
+      if (newTrack.setVolume) {
+        newTrack.setVolume(cameraAudioVolume);
+      }
+
+      // 3. PUBLICA a nova track
+      await clientRef.current.publish(newTrack);
+      console.log('✅ Nova track de áudio publicada com sucesso!');
+
+      // 4. Atualiza o ref e estado
+      localAudioTrackRef.current = newTrack;
+      setSelectedMicrophone(deviceId);
+      setIsMuted(false);
+
+      toast.success('Microfone alterado com sucesso!');
+    } catch (error: any) {
+      console.error('❌ Erro ao trocar microfone:', error);
+      toast.error('Erro ao trocar microfone: ' + (error.message || 'Erro desconhecido'));
     }
   };
 
