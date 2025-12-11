@@ -1023,8 +1023,48 @@ export default function ZKViewer({
           height: '100%', 
           position: 'relative',
           overflow: 'hidden',
+          cursor: 'pointer',
         }}
         data-viewer-container="true"
+        onDoubleClick={async () => {
+          // Duplo clique para tela cheia (desktop e mobile)
+          try {
+            const element = containerRef.current;
+            if (!element) return;
+            
+            const isFullscreen = !!(document.fullscreenElement || 
+                                   (document as any).webkitFullscreenElement ||
+                                   (document as any).mozFullScreenElement ||
+                                   (document as any).msFullscreenElement);
+            
+            if (isFullscreen) {
+              // Sair do fullscreen
+              if (document.exitFullscreen) {
+                await document.exitFullscreen();
+              } else if ((document as any).webkitExitFullscreen) {
+                await (document as any).webkitExitFullscreen();
+              } else if ((document as any).mozCancelFullScreen) {
+                await (document as any).mozCancelFullScreen();
+              } else if ((document as any).msExitFullscreen) {
+                await (document as any).msExitFullscreen();
+              }
+            } else {
+              // Entrar em fullscreen
+              if (element.requestFullscreen) {
+                await element.requestFullscreen();
+              } else if ((element as any).webkitRequestFullscreen) {
+                await (element as any).webkitRequestFullscreen();
+              } else if ((element as any).mozRequestFullScreen) {
+                await (element as any).mozRequestFullScreen();
+              } else if ((element as any).msRequestFullscreen) {
+                await (element as any).msRequestFullscreen();
+              }
+            }
+          } catch (err: any) {
+            console.warn('ZKViewer: Erro ao alternar fullscreen:', err);
+          }
+        }}
+        title="Duplo clique para tela cheia"
       />
 
       {/* Estado: conectando */}

@@ -656,7 +656,8 @@ const PublicLiveStreamPage: React.FC = () => {
               <ZKViewer channel="ZkPremios" />
               
               {/* Botão de Chat em Fullscreen (Mobile) - Estilo YouTube - Canto superior direito */}
-              {isFullscreen && isMobile && stream && stream.is_active && (
+              {/* CORREÇÃO: Mostrar botão de chat mesmo quando não está em fullscreen no mobile */}
+              {isMobile && stream && stream.is_active && (
                 <motion.button
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -680,8 +681,9 @@ const PublicLiveStreamPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Chat - Ocupa 4 colunas (Desktop) ou Overlay (Mobile Fullscreen) */}
-          {isFullscreen && isMobile ? (
+          {/* Chat - Ocupa 4 colunas (Desktop) ou Overlay (Mobile) */}
+          {/* CORREÇÃO: Chat overlay no mobile mesmo sem fullscreen para melhor UX */}
+          {isMobile ? (
             /* Chat Overlay em Fullscreen (Mobile) - Estilo YouTube */
             <AnimatePresence>
               {isChatOpen && (
