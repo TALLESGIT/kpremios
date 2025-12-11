@@ -25,9 +25,12 @@ const ModeratorManager: React.FC<ModeratorManagerProps> = ({ streamId }) => {
   const [searchEmail, setSearchEmail] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [participatingUsers, setParticipatingUsers] = useState<any[]>([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
 
   useEffect(() => {
     loadModerators();
+    loadParticipatingUsers();
   }, [streamId]);
 
   const loadModerators = async () => {
@@ -110,6 +113,7 @@ const ModeratorManager: React.FC<ModeratorManagerProps> = ({ streamId }) => {
       setSearchEmail('');
       setSearchResults([]);
       loadModerators();
+      loadParticipatingUsers(); // Recarregar lista de participantes
     } catch (error: any) {
       console.error('Erro ao adicionar moderador:', error);
       if (error.code === '23505') {
@@ -117,6 +121,89 @@ const ModeratorManager: React.FC<ModeratorManagerProps> = ({ streamId }) => {
       } else {
         toast.error('Erro ao adicionar moderador');
       }
+    }
+  };
+
+  const loadParticipatingUsers = async () => {
+    try {
+      setLoadingParticipants(true);
+      
+      // Buscar usuários que estão visualizando (viewer_sessions ativas)
+      const { data: viewersData, error: viewersError } = await supabase
+        .from('viewer_sessions')
+        .select(`
+          user_id,
+          users:user_id (
+            id,
+            name,
+            email
+          )
+        `)
+        .eq('stream_id', streamId)
+        .eq('is_active', true)
+        .not('user_id', 'is', null);
+
+      // Buscar usuários que enviaram mensagens no chat
+      const { data: chatUsersData, error: chatError } = await supabase
+        .from('live_chat_messages')
+        .select(`
+          user_id,
+          users:user_id (
+            id,
+            name,
+            email
+          )
+        `)
+        .eq('stream_id', streamId)
+        .not('user_id', 'is', null);
+
+      if (viewersError) console.error('Erro ao buscar viewers:', viewersError);
+      if (chatError) console.error('Erro ao buscar usuários do chat:', chatError);
+
+      // Combinar e remover duplicatas
+      const allUsers = new Map<string, any>();
+      
+      // Adicionar usuários das sessões de visualização
+      if (viewersData) {
+        viewersData.forEach((item: any) => {
+          if (item.user_id && item.users) {
+            allUsers.set(item.user_id, {
+              id: item.users.id,
+              name: item.users.name || 'Usuário',
+              email: item.users.email || '',
+              source: 'viewer'
+            });
+          }
+        });
+      }
+
+      // Adicionar usuários do chat
+      if (chatUsersData) {
+        chatUsersData.forEach((item: any) => {
+          if (item.user_id && item.users) {
+            if (!allUsers.has(item.user_id)) {
+              allUsers.set(item.user_id, {
+                id: item.users.id,
+                name: item.users.name || 'Usuário',
+                email: item.users.email || '',
+                source: 'chat'
+              });
+            }
+          }
+        });
+      }
+
+      // Converter Map para Array e filtrar usuários que já são moderadores
+      const moderatorIds = moderators.map(m => m.user_id);
+      const participants = Array.from(allUsers.values())
+        .filter((u: any) => !moderatorIds.includes(u.id))
+        .sort((a: any, b: any) => a.name.localeCompare(b.name));
+
+      setParticipatingUsers(participants);
+    } catch (error: any) {
+      console.error('Erro ao carregar usuários participantes:', error);
+    } finally {
+      setLoadingParticipants(false);
     }
   };
 
@@ -133,6 +220,7 @@ const ModeratorManager: React.FC<ModeratorManagerProps> = ({ streamId }) => {
 
       toast.success('Moderador removido com sucesso!');
       loadModerators();
+      loadParticipatingUsers(); // Recarregar lista de participantes
     } catch (error: any) {
       console.error('Erro ao remover moderador:', error);
       toast.error('Erro ao remover moderador');
@@ -154,10 +242,47 @@ const ModeratorManager: React.FC<ModeratorManagerProps> = ({ streamId }) => {
         Gerenciar Moderadores
       </h3>
 
-      {/* Adicionar Moderador */}
+      {/* Usuários Participantes */}
+      <div className="mb-6 p-4 bg-slate-800 rounded-lg border border-slate-700">
+        <label className="block text-sm font-medium text-slate-300 mb-3">
+          Usuários Participantes da Transmissão
+        </label>
+        {loadingParticipants ? (
+          <div className="text-center py-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-amber-400 mx-auto"></div>
+          </div>
+        ) : participatingUsers.length > 0 ? (
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {participatingUsers.map((participant) => (
+              <div
+                key={participant.id}
+                className="flex items-center justify-between p-3 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors"
+              >
+                <div className="flex-1">
+                  <p className="text-white font-medium text-sm">{participant.name}</p>
+                  <p className="text-slate-400 text-xs">{participant.email}</p>
+                </div>
+                <button
+                  onClick={() => addModerator(participant.id)}
+                  className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded text-sm transition-all flex items-center gap-1.5 font-medium"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Tornar Moderador
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-slate-400 text-sm text-center py-4">
+            Nenhum usuário participando ainda
+          </p>
+        )}
+      </div>
+
+      {/* Adicionar Moderador (Busca por Email) */}
       <div className="mb-6 p-4 bg-slate-800 rounded-lg border border-slate-700">
         <label className="block text-sm font-medium text-slate-300 mb-2">
-          Adicionar Moderador
+          Buscar Usuário por Email
         </label>
         <div className="flex gap-2 mb-2">
           <div className="flex-1 relative">

@@ -653,15 +653,22 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       joiningRef.current = true;
 
       try {
-        console.log('Audience: Fazendo join no canal:', channelName);
+        console.log('🔌 Audience: Fazendo join no canal:', {
+          appId: appId ? `${appId.substring(0, 8)}...` : 'NÃO CONFIGURADO',
+          channelName,
+          token: token ? 'Configurado' : 'Não configurado',
+          uid: uid || null
+        });
         
         // Fazer join no canal
-        await clientRef.current.join(
+        const joinedUid = await clientRef.current.join(
           appId,
           channelName,
           token,
           uid || null
         );
+        
+        console.log('✅ Audience: Conectado ao canal com sucesso! UID:', joinedUid);
 
         if (!isMounted) {
           console.log('Audience: Componente desmontado durante join, saindo do canal');
@@ -703,13 +710,32 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               });
               
               // Se o usuário já tem vídeo publicado, fazer subscribe
-              if (remoteUser.hasVideo && remoteUser.videoTrack) {
+              if (remoteUser.hasVideo) {
+                if (remoteUser.videoTrack) {
                 console.log('📹 Vídeo já está publicado, fazendo subscribe...');
                 handleUserPublished(remoteUser, 'video').catch(err => {
                   console.error('Erro ao fazer subscribe do vídeo:', err);
                 });
-              } else if (remoteUser.hasVideo) {
-                console.log('⚠️ Usuário tem hasVideo=true mas videoTrack é null, aguardando evento user-published...');
+                } else {
+                  console.log('⚠️ Usuário tem hasVideo=true mas videoTrack é null, tentando subscribe mesmo assim...');
+                  // Tentar fazer subscribe mesmo sem videoTrack - o Agora pode criar o track depois
+                  clientRef.current.subscribe(remoteUser, 'video').then(() => {
+                    console.log('✅ Subscribe de vídeo realizado, aguardando track...');
+                    // Verificar novamente após um delay
+                    setTimeout(() => {
+                      if (remoteUser.videoTrack) {
+                        console.log('✅ Track de vídeo apareceu após subscribe!');
+                        handleUserPublished(remoteUser, 'video').catch(err => {
+                          console.error('Erro ao reproduzir vídeo após subscribe:', err);
+                        });
+                      }
+                    }, 1000);
+                  }).catch(err => {
+                    console.error('Erro ao fazer subscribe de vídeo:', err);
+                  });
+                }
+              } else {
+                console.log('ℹ️ Usuário remoto não tem vídeo ainda (hasVideo=false)');
               }
               
               // Se o usuário já tem áudio publicado, fazer subscribe
@@ -908,9 +934,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       console.log('🎥 EVENTO: Usuário publicou stream:', { 
         uid: user.uid, 
         mediaType,
-        hasVideo: !!user.videoTrack,
-        hasAudio: !!user.audioTrack,
-        role: role
+        hasVideo: user.hasVideo,
+        hasAudio: user.hasAudio,
+        videoTrack: !!user.videoTrack,
+        audioTrack: !!user.audioTrack,
+        role: role,
+        connectionState: clientRef.current?.connectionState
       });
       
       if (!clientRef.current) {
@@ -918,8 +947,23 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         return;
       }
       
+      // Verificar se já está subscrito
+      const remoteUser = clientRef.current.remoteUsers.find((u: any) => u.uid === user.uid);
+      if (remoteUser && mediaType === 'video' && remoteUser.videoTrack) {
+        console.log('ℹ️ Já está subscrito ao vídeo deste usuário, tentando reproduzir diretamente...');
+      } else {
+        try {
       await clientRef.current.subscribe(user, mediaType);
       console.log('✅ Subscribe realizado com sucesso para:', mediaType);
+        } catch (subscribeError: any) {
+          console.error('❌ Erro ao fazer subscribe:', subscribeError);
+          // Se o erro for que já está subscrito, continuar
+          if (!subscribeError.message?.includes('already subscribed') && !subscribeError.message?.includes('already')) {
+            throw subscribeError;
+          }
+          console.log('ℹ️ Já estava subscrito, continuando...');
+        }
+      }
 
       if (mediaType === 'video') {
         const remoteVideoTrack = user.videoTrack;
@@ -1099,13 +1143,39 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     }
     
     // Se o usuário já tem tracks publicados, tentar fazer subscribe
-    if (user.hasVideo && user.videoTrack) {
+    if (user.hasVideo) {
+      if (user.videoTrack) {
       console.log('📹 Usuário já tem vídeo publicado ao entrar, fazendo subscribe...');
       handleUserPublished(user, 'video').catch(err => {
         console.error('Erro ao fazer subscribe do vídeo já publicado:', err);
       });
-    } else if (user.hasVideo) {
-      console.log('⏳ Usuário tem hasVideo=true mas videoTrack ainda não está disponível, aguardando user-published...');
+      } else {
+        console.log('⏳ Usuário tem hasVideo=true mas videoTrack ainda não está disponível, tentando subscribe mesmo assim...');
+        // Tentar fazer subscribe mesmo sem videoTrack - o Agora pode criar o track depois
+        if (clientRef.current) {
+          clientRef.current.subscribe(user, 'video').then(() => {
+            console.log('✅ Subscribe de vídeo realizado, aguardando track aparecer...');
+            // Verificar periodicamente se o track apareceu
+            let attempts = 0;
+            const checkTrack = setInterval(() => {
+              attempts++;
+              const updatedUser = clientRef.current?.remoteUsers.find((u: any) => u.uid === user.uid);
+              if (updatedUser?.videoTrack) {
+                console.log('✅ Track de vídeo apareceu após subscribe!');
+                clearInterval(checkTrack);
+                handleUserPublished(updatedUser, 'video').catch(err => {
+                  console.error('Erro ao reproduzir vídeo após track aparecer:', err);
+                });
+              } else if (attempts >= 10) {
+                console.warn('⚠️ Track de vídeo não apareceu após 10 tentativas');
+                clearInterval(checkTrack);
+              }
+            }, 500);
+          }).catch(err => {
+            console.error('Erro ao fazer subscribe de vídeo:', err);
+          });
+        }
+      }
     }
     
     if (user.hasAudio) {

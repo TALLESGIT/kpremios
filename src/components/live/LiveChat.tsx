@@ -112,6 +112,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isModerator, setIsModerator] = useState(false);
+  const [moderatorIds, setModeratorIds] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -164,9 +165,12 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
     loadPinnedMessage();
   }, [streamId]);
 
-  // Verificar se o usuário é moderador
+  // Verificar se o usuário é moderador e carregar lista de moderadores
   useEffect(() => {
-    checkModeratorStatus();
+    if (streamId) {
+      checkModeratorStatus();
+      loadModeratorIds();
+    }
   }, [streamId, user]);
 
   const checkModeratorStatus = async () => {
@@ -192,6 +196,22 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
     } catch (error) {
       console.error('Erro ao verificar moderador:', error);
       setIsModerator(isAdmin); // Fallback: se for admin, é moderador
+    }
+  };
+
+  const loadModeratorIds = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('stream_moderators')
+        .select('user_id')
+        .eq('stream_id', streamId);
+
+      if (error) throw error;
+
+      const ids = new Set<string>((data || []).map((m: any) => m.user_id));
+      setModeratorIds(ids);
+    } catch (error) {
+      console.error('Erro ao carregar IDs de moderadores:', error);
     }
   };
 
@@ -564,12 +584,20 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
             <p className="text-sm mt-2">Seja o primeiro a comentar!</p>
           </div>
         ) : (
-          messages.map((message) => (
+          messages.map((message) => {
+            const isMessageModerator = message.user_id && moderatorIds.has(message.user_id);
+            return (
             <div
               key={message.id}
               className={`flex gap-2 group ${
-                message.is_admin ? 'bg-amber-500/10 border-l-2 border-amber-500' : ''
-              } ${message.is_system ? 'bg-blue-500/10 border-l-2 border-blue-500' : ''} p-2 rounded`}
+                message.is_admin 
+                  ? 'bg-amber-500/10 border-l-2 border-amber-500' 
+                  : isMessageModerator
+                  ? 'bg-purple-500/10 border-l-2 border-purple-500'
+                  : message.is_system 
+                  ? 'bg-blue-500/10 border-l-2 border-blue-500' 
+                  : ''
+              } p-2 rounded transition-colors`}
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -577,6 +605,8 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
                     className={`font-medium text-sm truncate max-w-[200px] sm:max-w-[300px] ${
                       message.is_admin
                         ? 'text-amber-400'
+                        : isMessageModerator
+                        ? 'text-purple-400'
                         : message.is_system
                         ? 'text-blue-400'
                         : 'text-white'
@@ -585,8 +615,13 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
                   >
                     {formatDisplayName(message.user_name, messages)}
                     {message.is_admin && (
-                      <span className="ml-1 text-xs bg-amber-500 text-white px-1.5 py-0.5 rounded whitespace-nowrap">
+                      <span className="ml-1 text-xs bg-amber-500 text-white px-1.5 py-0.5 rounded whitespace-nowrap font-semibold">
                         ADMIN
+                      </span>
+                    )}
+                    {isMessageModerator && !message.is_admin && (
+                      <span className="ml-1 text-xs bg-gradient-to-r from-purple-500 to-purple-600 text-white px-1.5 py-0.5 rounded whitespace-nowrap font-semibold shadow-sm">
+                        MOD
                       </span>
                     )}
                   </span>
@@ -619,7 +654,8 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
                 </button>
               )}
             </div>
-          ))
+            );
+          })
         )}
         <div ref={messagesEndRef} />
       </div>

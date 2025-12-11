@@ -4,10 +4,10 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, Plus, Video, Trash2, Play, Square } from 'lucide-react';
-import VideoStream from '../components/live/VideoStream';
 import LiveChat from '../components/live/LiveChat';
 import AdminLivePanel from '../components/live/AdminLivePanel';
 import ModeratorManager from '../components/live/ModeratorManager';
+import ZKViewer from '../components/ZKViewer';
 
 interface LiveStream {
   id: string;
@@ -39,7 +39,6 @@ const AdminLiveStreamPage: React.FC = () => {
   const [newStreamTitle, setNewStreamTitle] = useState('');
   const [newStreamDescription, setNewStreamDescription] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [shouldStartStream, setShouldStartStream] = useState(false);
   const [previewLink, setPreviewLink] = useState('');
   const [showClearDataConfirm, setShowClearDataConfirm] = useState(false);
   const [previousStreamId, setPreviousStreamId] = useState<string | null>(null);
@@ -216,10 +215,31 @@ const AdminLiveStreamPage: React.FC = () => {
   const startStream = async () => {
     if (!selectedStream) return;
 
-    // Sinalizar que o stream deve ser iniciado
-    // O VideoStream vai detectar shouldStartStream=true e iniciar automaticamente
-    console.log('🎬 Botão "Iniciar Transmissão" clicado - VideoStream iniciará o stream do Agora');
-    setShouldStartStream(true);
+    try {
+      // Atualizar banco de dados para marcar a transmissão como ativa
+      // IMPORTANTE: O ZK Studio Pro é quem realmente inicia a transmissão via Agora.io
+      // O site apenas recebe o stream como "audience" (espectador)
+      const { data: updatedStream, error } = await supabase
+        .from('live_streams')
+        .update({ is_active: true })
+        .eq('id', selectedStream.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Atualizar o estado local do stream selecionado
+      if (updatedStream) {
+        setSelectedStream(updatedStream);
+      }
+
+      setIsStreaming(true);
+      toast.success('Transmissão ativa! O ZK Studio Pro deve estar transmitindo no canal: ' + selectedStream.channel_name);
+      console.log('✅ Transmissão marcada como ativa. Canal:', selectedStream.channel_name);
+    } catch (error: any) {
+      console.error('Erro ao atualizar transmissão:', error);
+      toast.error(error.message || 'Erro ao atualizar transmissão');
+    }
   };
 
   const stopStream = async () => {
@@ -261,7 +281,6 @@ const AdminLiveStreamPage: React.FC = () => {
       }
 
       setIsStreaming(false);
-      setShouldStartStream(false); // Resetar flag
       toast.success('Transmissão encerrada');
       await loadStreams();
     } catch (error) {
@@ -545,43 +564,8 @@ const AdminLiveStreamPage: React.FC = () => {
               {/* Vídeo - Ocupa 2/3 da largura */}
               <div className="lg:col-span-2">
                 <div className="bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9', maxWidth: '100%' }}>
-                  <VideoStream
-                    channelName={selectedStream.channel_name}
-                    role="host"
-                    startStreaming={shouldStartStream}
-                    isActive={selectedStream.is_active}
-                    onStreamReady={async () => {
-                      console.log('🎬 VideoStream está pronto, atualizando banco de dados...');
-                      // Atualizar banco apenas quando o stream estiver realmente pronto
-                      if (!isStreaming) {
-                        try {
-                          const { data: updatedStream, error } = await supabase
-                            .from('live_streams')
-                            .update({ is_active: true })
-                            .eq('id', selectedStream.id)
-                            .select()
-                            .single();
-                          if (error) throw error;
-                          
-                          // Atualizar o estado local do stream selecionado
-                          if (updatedStream) {
-                            setSelectedStream(updatedStream);
-                          }
-                          
-                          setIsStreaming(true);
-                          setShouldStartStream(false); // Resetar flag
-                          toast.success('Transmissão iniciada!');
-                        } catch (error) {
-                          console.error('Erro ao atualizar banco:', error);
-                        }
-                      }
-                    }}
-                    onStreamError={(error) => {
-                      console.error('❌ Erro no VideoStream:', error);
-                      toast.error(error.message || 'Erro no stream');
-                      setShouldStartStream(false); // Resetar flag em caso de erro
-                    }}
-                  />
+                  {/* Sempre mostra o ZKViewer com canal fixo "ZkPremios" */}
+                  <ZKViewer key="zkpremios-fixed" channel="ZkPremios" />
                 </div>
               </div>
 

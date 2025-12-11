@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, Eye, Share2, MessageSquare, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import VideoStream from '../components/live/VideoStream';
+import ZKViewer from '../components/ZKViewer';
 import LiveChat from '../components/live/LiveChat';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
@@ -652,17 +652,8 @@ const PublicLiveStreamPage: React.FC = () => {
               className="bg-black rounded-lg overflow-hidden relative" 
               style={{ aspectRatio: '16/9' }}
             >
-              <VideoStream
-                channelName={stream.channel_name}
-                role="audience"
-                isActive={stream.is_active}
-                onStreamError={(error) => {
-                  console.error('Erro no stream:', error);
-                  if (stream.is_active) {
-                    toast.error('Erro ao conectar ao stream. Tente atualizar a página.');
-                  }
-                }}
-              />
+              {/* Sempre usa canal fixo "ZkPremios" para conectar ao ZK Studio Pro */}
+              <ZKViewer channel="ZkPremios" />
               
               {/* Botão de Chat em Fullscreen (Mobile) - Estilo YouTube - Canto superior direito */}
               {isFullscreen && isMobile && stream && stream.is_active && (

@@ -47,10 +47,9 @@ export const isFullscreen = (): boolean => {
 
 export const lockLandscape = async (): Promise<void> => {
   try {
-    if (screen.orientation && screen.orientation.lock) {
-      await screen.orientation.lock('landscape');
-    } else if ((screen as any).orientation && (screen as any).orientation.lock) {
-      await (screen as any).orientation.lock('landscape');
+    const orientation = (screen as any).orientation || (screen as any).mozOrientation || (screen as any).msOrientation;
+    if (orientation && typeof orientation.lock === 'function') {
+      await orientation.lock('landscape');
     }
   } catch (err) {
     // Alguns navegadores não permitem lock de orientação
