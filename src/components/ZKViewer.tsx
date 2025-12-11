@@ -543,14 +543,19 @@ export default function ZKViewer({
   const playAudioTrack = async (track: any) => {
     try {
       console.log('ZKViewer: Iniciando reprodução de áudio...', {
-        trackId: track.getTrackId?.() || 'N/A',
-        trackLabel: track.getTrackLabel?.() || 'N/A',
-        isPlaying: track.isPlaying?.() || false
+        trackId: typeof track.getTrackId === 'function' ? track.getTrackId() : 'N/A',
+        trackLabel: typeof track.getTrackLabel === 'function' ? track.getTrackLabel() : 'N/A',
+        isPlaying: typeof track.isPlaying === 'function' ? track.isPlaying() : 'N/A'
       });
       
       // CORREÇÃO DO DELAY: Configurar volume primeiro (síncrono, sem await)
-      track.setVolume(100);
-      console.log('ZKViewer: Volume configurado para 100%');
+      // CORREÇÃO: Aumentar volume para máximo para evitar AUDIO_OUTPUT_LEVEL_TOO_LOW
+      try {
+        track.setVolume(100);
+        console.log('ZKViewer: Volume configurado para 100%');
+      } catch (volErr) {
+        console.warn('ZKViewer: Erro ao configurar volume:', volErr);
+      }
       
       // CORREÇÃO DO DELAY: Reproduzir IMEDIATAMENTE sem esperar configurações
       // Quanto mais rápido iniciar a reprodução, menor o delay
@@ -568,9 +573,14 @@ export default function ZKViewer({
       await playPromise;
       console.log('ZKViewer: Promise de play() resolvida');
       
-      // Verificar se está realmente tocando
-      const isPlaying = track.isPlaying?.() || false;
-      console.log('ZKViewer: Status de reprodução:', { isPlaying });
+      // Verificar se está realmente tocando (se o método existir)
+      let isPlaying = false;
+      if (typeof track.isPlaying === 'function') {
+        isPlaying = track.isPlaying();
+        console.log('ZKViewer: Status de reprodução:', { isPlaying });
+      } else {
+        console.log('ZKViewer: Método isPlaying não disponível na track');
+      }
       
       // CORREÇÃO DO DELAY: Tentar acessar elemento interno para otimizações
       try {
@@ -805,7 +815,9 @@ export default function ZKViewer({
               uid: user.uid,
               trackId: (user.audioTrack as any).getTrackId?.() || 'N/A',
               trackLabel: (user.audioTrack as any).getTrackLabel?.() || 'N/A',
-              trackEnabled: (user.audioTrack as any).isPlaying?.() || 'N/A'
+              trackEnabled: typeof (user.audioTrack as any).isPlaying === 'function' 
+                ? (user.audioTrack as any).isPlaying() 
+                : 'N/A'
             });
             
             currentAudioTrackRef.current = user.audioTrack;
@@ -889,18 +901,37 @@ export default function ZKViewer({
               }
             }
             if (u.hasAudio) {
+              console.log('ZKViewer: Usuário remoto tem áudio, fazendo subscribe...', {
+                uid: u.uid,
+                hasAudio: u.hasAudio,
+                hasAudioTrack: !!u.audioTrack
+              });
+              
               try {
                 await client.subscribe(u, 'audio');
+                console.log('ZKViewer: Subscribe de áudio realizado com sucesso para user:', u.uid);
+                
                 if (u.audioTrack) {
+                  console.log('ZKViewer: ✅ Track de áudio disponível após subscribe:', {
+                    uid: u.uid,
+                    trackId: (u.audioTrack as any).getTrackId?.() || 'N/A'
+                  });
+                  
                   currentAudioTrackRef.current = u.audioTrack;
                   // CORREÇÃO DO DELAY: Reproduzir áudio imediatamente sem await
-                  playAudioTrack(u.audioTrack).catch(err => {
-                    console.warn('ZKViewer: Erro ao reproduzir áudio existente:', err);
+                  playAudioTrack(u.audioTrack).then(() => {
+                    console.log('ZKViewer: ✅ Áudio de usuário remoto iniciado com sucesso');
+                  }).catch(err => {
+                    console.error('ZKViewer: ❌ Erro ao reproduzir áudio existente:', err);
                   });
+                } else {
+                  console.warn('ZKViewer: ⚠️ Subscribe realizado mas u.audioTrack não existe');
                 }
               } catch (err) {
-                console.error('ZKViewer: erro ao dar subscribe em áudio existente:', err);
+                console.error('ZKViewer: ❌ Erro ao dar subscribe em áudio existente:', err);
               }
+            } else {
+              console.log('ZKViewer: Usuário remoto não tem áudio:', { uid: u.uid, hasAudio: u.hasAudio });
             }
           }
         } else {
