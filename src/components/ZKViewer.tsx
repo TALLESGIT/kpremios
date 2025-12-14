@@ -972,11 +972,16 @@ export default function ZKViewer({
         let errorMessage = 'Erro ao conectar ao canal';
         
         if (err?.code === 4096 || err?.message?.includes('CAN_NOT_GET_GATEWAY_SERVER')) {
-          errorMessage = 'Não foi possível conectar ao servidor do Agora.io. Verifique:\n' +
-            '1. Se o App ID está correto no arquivo .env\n' +
-            '2. Se o projeto Agora.io está ativo no dashboard\n' +
-            '3. Se há problemas de rede/firewall\n' +
-            '4. Se o token (se usado) está válido e não expirado';
+          const appIdDisplay = agoraAppId ? `${agoraAppId.substring(0, 8)}...` : 'NÃO CONFIGURADO';
+          errorMessage = '❌ Erro: Projeto Agora.io inativo ou suspenso\n\n' +
+            `App ID usado: ${appIdDisplay}\n\n` +
+            '🔧 SOLUÇÕES:\n\n' +
+            '1. Acesse o dashboard: https://console.agora.io/\n' +
+            '2. Verifique se o projeto está ATIVO (não suspenso)\n' +
+            '3. Verifique se o App ID está correto\n' +
+            '4. Se o projeto estiver suspenso, reative-o no dashboard\n' +
+            '5. Verifique se há problemas de rede/firewall bloqueando conexões\n\n' +
+            '💡 Dica: O erro "no active status" geralmente significa que o projeto foi desabilitado ou a conta está com problemas.';
         } else if (err?.code === 17 || err?.message?.includes('JOIN_CHANNEL_REJECTED')) {
           errorMessage = 'Conexão rejeitada. Verifique se o App ID e Token estão corretos.';
         } else if (err?.code === 2 || err?.message?.includes('INVALID_APP_ID')) {

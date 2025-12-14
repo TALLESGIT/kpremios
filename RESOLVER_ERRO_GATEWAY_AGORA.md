@@ -3,12 +3,56 @@
 ## ❌ **Erro que você está vendo:**
 
 ```
+AgoraRTCError CAN_NOT_GET_GATEWAY_SERVER: no active status
+```
+
+ou
+
+```
 AgoraRTCError CAN_NOT_GET_GATEWAY_SERVER: dynamic use static key
 ```
 
 ## 🎯 **O que significa:**
 
-O projeto no Agora.io está configurado para usar **token dinâmico**, mas você está tentando usar apenas o **App ID** (sem token).
+### **Erro "no active status":**
+O projeto no Agora.io está **inativo, suspenso ou desabilitado**. Isso pode acontecer quando:
+- A conta do Agora.io está com problemas
+- O projeto foi desabilitado manualmente
+- A conta atingiu limites de uso
+- Há problemas de pagamento (se for conta paga)
+
+### **Erro "dynamic use static key":**
+O projeto está configurado para usar **token dinâmico**, mas você está tentando usar apenas o **App ID** (sem token).
+
+---
+
+## 🚨 **SOLUÇÃO PRIORITÁRIA: Verificar Status do Projeto (Para erro "no active status")**
+
+### **Passo a Passo:**
+
+1. **Acesse o Dashboard do Agora.io:**
+   - Vá em: https://console.agora.io/
+   - Faça login
+
+2. **Vá em "Projects" → Selecione seu projeto**
+
+3. **Verifique o Status do Projeto:**
+   - Procure por indicadores de status (Ativo, Inativo, Suspenso)
+   - Verifique se há avisos ou notificações
+
+4. **Se o projeto estiver SUSPENSO ou INATIVO:**
+   - Clique em "Edit" ou "Settings"
+   - Procure por "Reactivate" ou "Enable Project"
+   - Siga as instruções para reativar
+
+5. **Verifique a Conta:**
+   - Vá em "Account" ou "Billing"
+   - Verifique se há problemas de pagamento ou limites atingidos
+   - Se necessário, entre em contato com o suporte do Agora.io
+
+6. **Se não conseguir reativar:**
+   - Crie um novo projeto (veja SOLUÇÃO 3 abaixo)
+   - Use o novo App ID no arquivo `.env`
 
 ---
 
