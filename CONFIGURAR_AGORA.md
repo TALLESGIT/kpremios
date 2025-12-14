@@ -44,11 +44,11 @@ Isso instalará o `agora-rtc-sdk-ng` automaticamente.
 2. Adicione:
 
 ```env
-VITE_AGORA_APP_ID=85e4678fde454a80b3445015f9ae6d75
+VITE_AGORA_APP_ID=07680cf8bae7400ca2d8bc06a3b77df5
 VITE_AGORA_TOKEN=seu-token-aqui
 ```
 
-**App ID Configurado:** `85e4678fde454a80b3445015f9ae6d75`
+**App ID Configurado:** `07680cf8bae7400ca2d8bc06a3b77df5`
 
 **Nota:** Para desenvolvimento/testes, você pode usar apenas o `APP_ID`. O `TOKEN` é necessário apenas para produção.
 
@@ -79,10 +79,10 @@ No dashboard do Agora, você pode gerar tokens temporários para testes.
 
 ## ✅ **Verificar se Está Funcionando:**
 
-1. **App ID já configurado:** `85e4678fde454a80b3445015f9ae6d75`
+1. **App ID já configurado:** `07680cf8bae7400ca2d8bc06a3b77df5`
 2. Adicione no arquivo `.env`:
    ```env
-   VITE_AGORA_APP_ID=85e4678fde454a80b3445015f9ae6d75
+   VITE_AGORA_APP_ID=07680cf8bae7400ca2d8bc06a3b77df5
    ```
 3. Reinicie o servidor (`npm run dev`)
 4. Acesse `/admin/live-stream`

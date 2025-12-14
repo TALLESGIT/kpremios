@@ -7,7 +7,7 @@
 Antes de fazer deploy, certifique-se de que seu `.env` local está configurado:
 
 ```env
-VITE_AGORA_APP_ID=85e4678fde454a80b3445015f9ae6d75
+VITE_AGORA_APP_ID=07680cf8bae7400ca2d8bc06a3b77df5
 VITE_SUPABASE_URL=https://bukigyhhgrtgryklabjg.supabase.co
 VITE_SUPABASE_ANON_KEY=sua-chave-aqui
 # VITE_AGORA_TOKEN= (opcional - apenas se usar token)
@@ -47,7 +47,7 @@ Adicione **UMA POR VEZ** clicando em **"Add New"**:
 #### **✅ Variável 1: Agora App ID**
 ```
 Name: VITE_AGORA_APP_ID
-Value: 85e4678fde454a80b3445015f9ae6d75
+Value: 07680cf8bae7400ca2d8bc06a3b77df5
 Environment: Production, Preview, Development (marque todos)
 ```
 
@@ -85,7 +85,7 @@ Environment: Production, Preview, Development (marque todos)
 │                                                  │
 │  ┌──────────────────────────────────────────┐  │
 │  │ Name: VITE_AGORA_APP_ID                   │  │
-│  │ Value: 85e4678fde454a80b3445015f9ae6d75   │  │
+│  │ Value: 07680cf8bae7400ca2d8bc06a3b77df5   │  │
 │  │ ☑ Production  ☑ Preview  ☑ Development  │  │
 │  │ [Save] [Cancel]                           │  │
 │  └──────────────────────────────────────────┘  │
@@ -182,7 +182,7 @@ Dashboard → Seu Projeto → Settings → Environment Variables
 1. **Acesse:** https://vercel.com/dashboard
 2. **Vá em:** Settings → Environment Variables
 3. **Adicione:**
-   - `VITE_AGORA_APP_ID` = `85e4678fde454a80b3445015f9ae6d75`
+   - `VITE_AGORA_APP_ID` = `07680cf8bae7400ca2d8bc06a3b77df5`
    - `VITE_SUPABASE_URL` = `https://bukigyhhgrtgryklabjg.supabase.co`
    - `VITE_SUPABASE_ANON_KEY` = (sua chave)
 4. **Marque:** Production, Preview, Development
