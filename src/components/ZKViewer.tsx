@@ -704,6 +704,22 @@ export default function ZKViewer({
 
     const init = async () => {
       try {
+        // Validação do App ID antes de tentar conectar
+        if (!agoraAppId || agoraAppId.trim() === '' || agoraAppId.length < 20) {
+          const errorMsg = 'App ID do Agora.io não configurado ou inválido. Verifique a variável VITE_AGORA_APP_ID no arquivo .env';
+          console.error('ZKViewer:', errorMsg);
+          setError(errorMsg);
+          setIsConnected(false);
+          return;
+        }
+
+        console.log('ZKViewer: Iniciando conexão...', {
+          appId: agoraAppId.substring(0, 8) + '...', // Mostrar apenas parte do App ID por segurança
+          channel,
+          hasToken: !!agoraToken,
+          timestamp: new Date().toISOString()
+        });
+
         // CORREÇÃO DO DELAY: Role de audiência com baixa latência máxima
         // Level 1 = Baixa latência (recomendado para transmissões ao vivo)
         await client.setClientRole('audience', { level: 1 });
@@ -721,14 +737,23 @@ export default function ZKViewer({
         }
 
         // Eventos básicos
-        client.on('connection-state-change', (curState: string) => {
-          console.log('ZKViewer: connection-state-change ->', curState);
+        client.on('connection-state-change', (curState: string, prevState: string, reason?: string) => {
+          console.log('ZKViewer: connection-state-change', { 
+            curState, 
+            prevState,
+            reason: reason || 'N/A'
+          });
           if (curState === 'CONNECTED') {
             setIsConnected(true);
+            setError(null);
           }
           if (curState === 'DISCONNECTED' || curState === 'FAILED') {
             setIsConnected(false);
             setHasStream(false);
+            if (curState === 'FAILED' && reason) {
+              // Não definir erro aqui, pois o erro já foi capturado no catch
+              console.error('ZKViewer: Conexão falhou:', reason);
+            }
           }
         });
 
@@ -942,7 +967,27 @@ export default function ZKViewer({
       } catch (err: any) {
         console.error('ZKViewer: erro no init:', err);
         if (!isMounted) return;
-        setError(err?.message || 'Erro ao conectar ao canal');
+        
+        // Tratamento específico de erros do Agora.io
+        let errorMessage = 'Erro ao conectar ao canal';
+        
+        if (err?.code === 4096 || err?.message?.includes('CAN_NOT_GET_GATEWAY_SERVER')) {
+          errorMessage = 'Não foi possível conectar ao servidor do Agora.io. Verifique:\n' +
+            '1. Se o App ID está correto no arquivo .env\n' +
+            '2. Se o projeto Agora.io está ativo no dashboard\n' +
+            '3. Se há problemas de rede/firewall\n' +
+            '4. Se o token (se usado) está válido e não expirado';
+        } else if (err?.code === 17 || err?.message?.includes('JOIN_CHANNEL_REJECTED')) {
+          errorMessage = 'Conexão rejeitada. Verifique se o App ID e Token estão corretos.';
+        } else if (err?.code === 2 || err?.message?.includes('INVALID_APP_ID')) {
+          errorMessage = 'App ID inválido. Verifique a variável VITE_AGORA_APP_ID no arquivo .env';
+        } else if (err?.code === 109 || err?.message?.includes('INVALID_TOKEN')) {
+          errorMessage = 'Token inválido ou expirado. Gere um novo token no dashboard do Agora.io ou configure o projeto para usar apenas App ID.';
+        } else if (err?.message) {
+          errorMessage = err.message;
+        }
+        
+        setError(errorMessage);
         setIsConnected(false);
       }
     };
@@ -1187,7 +1232,7 @@ export default function ZKViewer({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-          textAlign: 'center',
+          textAlign: 'left',
             color: 'white',
             padding: 20,
           zIndex: 10,
@@ -1199,13 +1244,27 @@ export default function ZKViewer({
             style={{
               backgroundColor: 'rgba(127,29,29,0.9)',
               borderRadius: 10,
-              padding: '16px 20px',
-              maxWidth: 380,
+              padding: '20px 24px',
+              maxWidth: 500,
               border: '1px solid rgba(248,113,113,0.6)',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.6)',
             }}
           >
-            <div style={{ marginBottom: 8, fontSize: 18 }}>❌ Erro</div>
-            <div style={{ fontSize: 14 }}>{error}</div>
+            <div style={{ marginBottom: 12, fontSize: 18, fontWeight: 600 }}>
+              ❌ Erro de Conexão
+            </div>
+            <div 
+              style={{ 
+                fontSize: 13, 
+                lineHeight: 1.6,
+                whiteSpace: 'pre-line' // Permite quebras de linha
+              }}
+            >
+              {error}
+            </div>
+            <div style={{ marginTop: 16, fontSize: 12, opacity: 0.8 }}>
+              💡 Dica: Verifique o console do navegador (F12) para mais detalhes
+            </div>
           </div>
         </div>
       )}
