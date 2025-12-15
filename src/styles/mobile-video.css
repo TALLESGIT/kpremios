@@ -1,0 +1,137 @@
+/* Estilos específicos para vídeo mobile */
+
+/* Container de vídeo mobile */
+.mobile-video-container {
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Fullscreen mobile - proporção 16:9 mantida */
+@media (max-width: 768px) {
+  .mobile-video-container:fullscreen {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  .mobile-video-container:fullscreen > * {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 100% !important;
+    aspect-ratio: 16/9 !important;
+    object-fit: contain !important;
+    border-radius: 0 !important;
+  }
+  
+  /* Garantir que o vídeo dentro do ZKViewer mantenha proporção */
+  .mobile-video-container:fullscreen video {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 100vh !important;
+    object-fit: contain !important;
+    background: black !important;
+  }
+}
+
+/* Orientação paisagem em mobile */
+@media (orientation: landscape) and (max-width: 768px) {
+  .mobile-video-container:fullscreen > * {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+  }
+  
+  .mobile-video-container:fullscreen video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+  }
+}
+
+/* Orientação retrato em mobile */
+@media (orientation: portrait) and (max-width: 768px) {
+  .mobile-video-container:fullscreen > * {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 56.25vw !important; /* 16:9 aspect ratio */
+    object-fit: contain !important;
+  }
+  
+  .mobile-video-container:fullscreen video {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 56.25vw !important; /* 16:9 aspect ratio */
+    object-fit: contain !important;
+  }
+}
+
+/* Botão de chat transparente */
+.mobile-chat-button {
+  background: rgba(0, 0, 0, 0.3) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  transition: all 0.2s ease !important;
+}
+
+.mobile-chat-button:hover {
+  background: rgba(0, 0, 0, 0.5) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Animações suaves para transições */
+.video-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Garantir que elementos não interfiram com o vídeo */
+.mobile-video-container:fullscreen .video-overlay {
+  pointer-events: none;
+}
+
+.mobile-video-container:fullscreen .video-overlay button {
+  pointer-events: auto;
+}
+
+/* Prevenir zoom indesejado em iOS */
+@media (max-width: 768px) {
+  .mobile-video-container {
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+}
+
+/* Garantir que o vídeo seja sempre visível */
+.mobile-video-container video {
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: block !important;
+}
+
+/* Melhorar performance em mobile */
+.mobile-video-container {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Indicador de swipe */
+.swipe-indicator {
+  animation: swipe-pulse 2s ease-in-out infinite;
+}
+
+@keyframes swipe-pulse {
+  0%, 100% {
+    opacity: 0.6;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(-2px);
+  }
+}

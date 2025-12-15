@@ -29,6 +29,8 @@ const PublicLiveStreamPage: React.FC = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  const [showStreamContent, setShowStreamContent] = useState(false);
   const [sessionId] = useState(() => {
     // Tentar recuperar sessionId do localStorage para manter a mesma sessão entre recarregamentos
     const storageKey = `live_session_${channelName}`;
@@ -132,9 +134,13 @@ const PublicLiveStreamPage: React.FC = () => {
   useEffect(() => {
     if (stream && channelName && stream.is_active) {
       trackViewer();
+      // Mostrar conteúdo apenas quando transmissão estiver ativa
+      setShowStreamContent(true);
     } else if (stream && !stream.is_active) {
       // Se a transmissão não está ativa, encerrar sessão se existir
       endViewerSession();
+      // Ocultar conteúdo quando transmissão não estiver ativa
+      setShowStreamContent(false);
     }
   }, [stream, channelName]);
 
@@ -565,6 +571,38 @@ const PublicLiveStreamPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col overflow-x-hidden">
+      {/* Estilos específicos para mobile */}
+      <style jsx>{`
+        .mobile-video-container {
+          touch-action: pan-y;
+        }
+        
+        @media (max-width: 768px) {
+          .mobile-video-container:fullscreen {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background: black !important;
+          }
+          
+          .mobile-video-container:fullscreen > * {
+            width: 100% !important;
+            height: auto !important;
+            max-height: 100% !important;
+            aspect-ratio: 16/9 !important;
+            object-fit: contain !important;
+          }
+        }
+        
+        @media (orientation: landscape) and (max-width: 768px) {
+          .mobile-video-container:fullscreen > * {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain !important;
+          }
+        }
+      `}</style>
+      
       <Header />
 
       {/* Conteúdo Principal */}
@@ -643,40 +681,117 @@ const PublicLiveStreamPage: React.FC = () => {
           </div>
         )}
 
-        {/* Layout Principal - 16:9 */}
+        {/* Layout Principal - 16:9 com melhorias mobile */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 relative">
           {/* Vídeo - Ocupa 8 colunas */}
           <div className="lg:col-span-8 relative">
             <div 
               ref={videoContainerRef}
-              className="bg-black rounded-lg overflow-hidden relative" 
-              style={{ aspectRatio: '16/9' }}
+              className={`bg-black rounded-lg overflow-hidden relative ${
+                isMobile ? 'mobile-video-container' : ''
+              }`}
+              style={{ 
+                aspectRatio: '16/9',
+                // Garantir que em mobile fullscreen mantenha proporção
+                ...(isMobile && isFullscreen ? {
+                  width: '100vw',
+                  height: '100vh',
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  zIndex: 9999,
+                  borderRadius: 0
+                } : {})
+              }}
+              onDoubleClick={() => {
+                // Duplo clique para fullscreen
+                if (!document.fullscreenElement) {
+                  videoContainerRef.current?.requestFullscreen?.();
+                } else {
+                  document.exitFullscreen?.();
+                }
+              }}
+              onTouchStart={(e) => {
+                if (!isMobile) return;
+                const touch = e.touches[0];
+                setTouchStart({ x: touch.clientX, y: touch.clientY });
+              }}
+              onTouchEnd={(e) => {
+                if (!isMobile || !touchStart) return;
+                
+                const touch = e.changedTouches[0];
+                const deltaY = touchStart.y - touch.clientY;
+                const deltaX = Math.abs(touchStart.x - touch.clientX);
+                
+                // Swipe vertical com pelo menos 50px de movimento e pouco movimento horizontal
+                if (Math.abs(deltaY) > 50 && deltaX < 100) {
+                  if (deltaY > 0 && !isFullscreen) {
+                    // Swipe up - entrar em fullscreen
+                    videoContainerRef.current?.requestFullscreen?.();
+                  } else if (deltaY < 0 && isFullscreen) {
+                    // Swipe down - sair do fullscreen
+                    document.exitFullscreen?.();
+                  }
+                }
+                
+                setTouchStart(null);
+              }}
             >
               {/* Sempre usa canal fixo "ZkPremios" para conectar ao ZK Studio Pro */}
-              <ZKViewer channel="ZkPremios" />
+              {/* CORREÇÃO: Só mostrar conteúdo quando transmissão estiver ativa */}
+              {showStreamContent ? (
+                <ZKViewer channel="ZkPremios" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
+                  <div className="text-center p-6">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-slate-700 rounded-full flex items-center justify-center">
+                      <div className="w-6 h-6 bg-slate-500 rounded-full"></div>
+                    </div>
+                    <h3 className="text-white text-lg font-semibold mb-2">Transmissão em Preparação</h3>
+                    <p className="text-slate-400 text-sm">
+                      Aguarde o início da transmissão ao vivo
+                    </p>
+                  </div>
+                </div>
+              )}
               
-              {/* Botão de Chat em Fullscreen (Mobile) - Estilo YouTube - Canto superior direito */}
-              {/* CORREÇÃO: Mostrar botão de chat mesmo quando não está em fullscreen no mobile */}
+              {/* Botão de Chat Transparente (Mobile) - Melhor UX */}
               {isMobile && stream && stream.is_active && (
                 <motion.button
                   initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
+                  animate={{ opacity: 0.7, scale: 1 }}
+                  whileHover={{ opacity: 1 }}
+                  whileTap={{ scale: 0.95 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   onClick={() => {
                     console.log('💬 Botão de chat clicado:', { isChatOpen, isFullscreen, isMobile });
                     setIsChatOpen(!isChatOpen);
                   }}
-                  className="absolute top-4 right-4 z-[60] bg-black/60 backdrop-blur-md text-white p-3 rounded-full hover:bg-black/80 transition-colors shadow-lg"
+                  className="absolute top-4 right-4 z-[60] mobile-chat-button text-white p-2.5 rounded-full shadow-lg"
                   aria-label={isChatOpen ? "Fechar chat" : "Abrir chat"}
                   title={isChatOpen ? "Fechar chat" : "Abrir chat"}
-                  style={{ display: 'block' }}
                 >
                   {isChatOpen ? (
-                    <X className="w-5 h-5" />
+                    <X className="w-4 h-4" />
                   ) : (
-                    <MessageSquare className="w-5 h-5" />
+                    <MessageSquare className="w-4 h-4" />
                   )}
                 </motion.button>
+              )}
+
+              {/* Indicador de Swipe para Fullscreen (Mobile) */}
+              {isMobile && !isFullscreen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 0.6, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none"
+                >
+                  <div className="bg-black/40 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-2 swipe-indicator">
+                    <span>↕️</span>
+                    <span>Deslize para expandir</span>
+                  </div>
+                </motion.div>
               )}
             </div>
           </div>

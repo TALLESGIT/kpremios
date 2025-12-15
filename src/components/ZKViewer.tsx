@@ -37,7 +37,7 @@ export default function ZKViewer({
         max-height: 100% !important;
         min-width: 100% !important;
         min-height: 100% !important;
-        object-fit: cover !important;
+        object-fit: contain !important;
         position: absolute !important;
         top: 0 !important;
         left: 0 !important;
@@ -106,9 +106,17 @@ export default function ZKViewer({
       if (videoEl) {
         videoEl.id = 'zk-viewer-video-element';
         
-        // Forçar o vídeo a ocupar 100% do container usando apenas porcentagens
-        // Não usar dimensões fixas em pixels, apenas porcentagens e inset
-        // Aplicar estilos agressivos para garantir visibilidade e cobertura total
+        // CORREÇÃO MOBILE: Usar object-fit: contain para manter proporção 16:9
+        // Detectar se é mobile para aplicar configurações específicas
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        const isFullscreen = !!(document.fullscreenElement || 
+                               (document as any).webkitFullscreenElement ||
+                               (document as any).mozFullScreenElement ||
+                               (document as any).msFullscreenElement);
+        
+        // Aplicar object-fit baseado no contexto
+        const objectFit = (isMobile && isFullscreen) ? 'contain' : 'cover';
+        
         videoEl.style.cssText = `
           width: 100% !important;
           height: 100% !important;
@@ -116,7 +124,7 @@ export default function ZKViewer({
           min-height: 100% !important;
           max-width: 100% !important;
           max-height: 100% !important;
-          object-fit: cover !important;
+          object-fit: ${objectFit} !important;
           margin: 0 !important;
           padding: 0 !important;
           position: absolute !important;
@@ -129,7 +137,7 @@ export default function ZKViewer({
           display: block !important;
           visibility: visible !important;
           opacity: 1 !important;
-          background: transparent !important;
+          background: black !important;
           pointer-events: auto !important;
           transform: translateZ(0) !important;
           will-change: transform !important;
@@ -548,19 +556,32 @@ export default function ZKViewer({
         isPlaying: typeof track.isPlaying === 'function' ? track.isPlaying() : 'N/A'
       });
       
-      // CORREÇÃO DO DELAY: Configurar volume primeiro (síncrono, sem await)
-      // CORREÇÃO: Aumentar volume para máximo para evitar AUDIO_OUTPUT_LEVEL_TOO_LOW
-      try {
-        track.setVolume(100);
-        console.log('ZKViewer: Volume configurado para 100%');
-      } catch (volErr) {
-        console.warn('ZKViewer: Erro ao configurar volume:', volErr);
-      }
-      
-      // CORREÇÃO DO DELAY: Reproduzir IMEDIATAMENTE sem esperar configurações
-      // Quanto mais rápido iniciar a reprodução, menor o delay
-      const playPromise = track.play();
-      console.log('ZKViewer: Chamada track.play() realizada');
+        // CORREÇÃO DO DELAY: Configurar volume primeiro (síncrono, sem await)
+        // CORREÇÃO: Aumentar volume para máximo para evitar AUDIO_OUTPUT_LEVEL_TOO_LOW
+        try {
+          track.setVolume(100);
+          console.log('ZKViewer: Volume configurado para 100%');
+        } catch (volErr) {
+          console.warn('ZKViewer: Erro ao configurar volume:', volErr);
+        }
+        
+        // CORREÇÃO DO DELAY: Reproduzir IMEDIATAMENTE sem esperar configurações
+        // Configurar para baixa latência antes de reproduzir
+        try {
+          // Tentar configurar buffer mínimo se disponível
+          if (typeof (track as any).setAudioBufferDelay === 'function') {
+            (track as any).setAudioBufferDelay(0);
+          }
+          if (typeof (track as any).setLatencyMode === 'function') {
+            (track as any).setLatencyMode('ultra_low');
+          }
+        } catch (configErr) {
+          console.log('ZKViewer: Configurações de latência não disponíveis');
+        }
+        
+        // Quanto mais rápido iniciar a reprodução, menor o delay
+        const playPromise = track.play();
+        console.log('ZKViewer: Chamada track.play() realizada com configurações de baixa latência');
       
       // CORREÇÃO DO DELAY: Tentar configurar dispositivo em paralelo (não bloquear)
       if (track.setPlaybackDevice) {

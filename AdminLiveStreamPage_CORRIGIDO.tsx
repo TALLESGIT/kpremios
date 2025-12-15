@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, Plus, Video, Trash2, Play, Square } from 'lucide-react';
+import VideoStream from '../components/live/VideoStream';
 import LiveChat from '../components/live/LiveChat';
 import AdminLivePanel from '../components/live/AdminLivePanel';
 import ModeratorManager from '../components/live/ModeratorManager';
@@ -217,8 +218,7 @@ const AdminLiveStreamPage: React.FC = () => {
 
     try {
       // Atualizar banco de dados para marcar a transmissão como ativa
-      // IMPORTANTE: O ZK Studio Pro é quem realmente inicia a transmissão via Agora.io
-      // O site apenas recebe o stream como "audience" (espectador)
+      // O ZK Studio Pro é quem realmente inicia a transmissão via Agora.io
       const { data: updatedStream, error } = await supabase
         .from('live_streams')
         .update({ is_active: true })
@@ -234,8 +234,8 @@ const AdminLiveStreamPage: React.FC = () => {
       }
 
       setIsStreaming(true);
-      toast.success('Transmissão ativa! O ZK Studio Pro deve estar transmitindo no canal: ' + selectedStream.channel_name);
-      console.log('✅ Transmissão marcada como ativa. Canal:', selectedStream.channel_name);
+      toast.success('Transmissão marcada como ativa! Certifique-se de que o ZK Studio Pro está transmitindo.');
+      console.log('✅ Transmissão marcada como ativa. O ZK Studio Pro deve iniciar a transmissão via Agora.io.');
     } catch (error: any) {
       console.error('Erro ao atualizar transmissão:', error);
       toast.error(error.message || 'Erro ao atualizar transmissão');
@@ -563,50 +563,16 @@ const AdminLiveStreamPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Vídeo - Ocupa 2/3 da largura */}
               <div className="lg:col-span-2">
-                <div 
-                  className="bg-black rounded-lg overflow-hidden relative" 
-                  style={{ aspectRatio: '16/9', maxWidth: '100%' }}
-                  onDoubleClick={() => {
-                    // Duplo clique para fullscreen no admin também
-                    const element = document.querySelector('.bg-black.rounded-lg') as HTMLElement;
-                    if (!document.fullscreenElement) {
-                      element?.requestFullscreen?.();
-                    } else {
-                      document.exitFullscreen?.();
-                    }
-                  }}
-                >
-                  {/* Sempre mostra o ZKViewer com canal fixo "ZkPremios" */}
-                  {/* CORREÇÃO: Só mostrar conteúdo quando transmissão estiver ativa */}
-                  {selectedStream.is_active ? (
-                    <ZKViewer key="zkpremios-fixed" channel="ZkPremios" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
-                      <div className="text-center p-6">
-                        <div className="w-16 h-16 mx-auto mb-4 bg-slate-700 rounded-full flex items-center justify-center">
-                          <div className="w-6 h-6 bg-slate-500 rounded-full"></div>
-                        </div>
-                        <h3 className="text-white text-lg font-semibold mb-2">Transmissão Inativa</h3>
-                        <p className="text-slate-400 text-sm">
-                          Clique em "Iniciar Transmissão" para começar
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Badge de status */}
-                  <div className="absolute top-3 left-3 z-10">
-                    {selectedStream.is_active ? (
-                      <div className="bg-red-600/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
-                        AO VIVO
-                      </div>
-                    ) : (
-                      <div className="bg-slate-600/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-xs font-medium">
-                        INATIVA
-                      </div>
-                    )}
-                  </div>
+                <div className="bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9', maxWidth: '100%' }}>
+                  <VideoStream
+                    channelName={selectedStream.channel_name}
+                    role="audience"
+                    isActive={selectedStream.is_active}
+                    onStreamError={(error) => {
+                      console.error('❌ Erro no VideoStream:', error);
+                      toast.error(error.message || 'Erro no stream');
+                    }}
+                  />
                 </div>
               </div>
 
@@ -617,6 +583,16 @@ const AdminLiveStreamPage: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Preview da Transmissão (como os usuários veem) */}
+            {isStreaming && (
+              <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+                <h3 className="text-lg font-bold text-white mb-3">Preview (Como os usuários veem)</h3>
+                <div className="bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9', maxWidth: '100%' }}>
+                  <ZKViewer channel={selectedStream.channel_name} />
+                </div>
+              </div>
+            )}
 
             {/* Painel de Métricas e Gerenciamento */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
