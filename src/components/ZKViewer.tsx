@@ -556,16 +556,16 @@ export default function ZKViewer({
         isPlaying: typeof track.isPlaying === 'function' ? track.isPlaying() : 'N/A'
       });
       
-        // CORREÇÃO DO DELAY: Configurar volume primeiro (síncrono, sem await)
-        // CORREÇÃO: Aumentar volume para máximo para evitar AUDIO_OUTPUT_LEVEL_TOO_LOW
-        try {
-          track.setVolume(100);
-          console.log('ZKViewer: Volume configurado para 100%');
-        } catch (volErr) {
-          console.warn('ZKViewer: Erro ao configurar volume:', volErr);
-        }
-        
-        // CORREÇÃO DO DELAY: Reproduzir IMEDIATAMENTE sem esperar configurações
+      // CORREÇÃO DO DELAY: Configurar volume primeiro (síncrono, sem await)
+      // CORREÇÃO: Aumentar volume para máximo para evitar AUDIO_OUTPUT_LEVEL_TOO_LOW
+      try {
+        track.setVolume(100);
+        console.log('ZKViewer: Volume configurado para 100%');
+      } catch (volErr) {
+        console.warn('ZKViewer: Erro ao configurar volume:', volErr);
+      }
+      
+      // CORREÇÃO DO DELAY: Reproduzir IMEDIATAMENTE sem esperar configurações
         // Configurar para baixa latência antes de reproduzir
         try {
           // Tentar configurar buffer mínimo se disponível
@@ -579,8 +579,8 @@ export default function ZKViewer({
           console.log('ZKViewer: Configurações de latência não disponíveis');
         }
         
-        // Quanto mais rápido iniciar a reprodução, menor o delay
-        const playPromise = track.play();
+      // Quanto mais rápido iniciar a reprodução, menor o delay
+      const playPromise = track.play();
         console.log('ZKViewer: Chamada track.play() realizada com configurações de baixa latência');
       
       // CORREÇÃO DO DELAY: Tentar configurar dispositivo em paralelo (não bloquear)
