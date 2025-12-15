@@ -576,25 +576,10 @@ const AdminLiveStreamPage: React.FC = () => {
                     }
                   }}
                 >
-                  {/* Sempre mostra o ZKViewer com canal fixo "ZkPremios" */}
-                  {/* CORREÇÃO: Só mostrar conteúdo quando transmissão estiver ativa */}
-                  {selectedStream.is_active ? (
-                    <ZKViewer key="zkpremios-fixed" channel="ZkPremios" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
-                      <div className="text-center p-6">
-                        <div className="w-16 h-16 mx-auto mb-4 bg-slate-700 rounded-full flex items-center justify-center">
-                          <div className="w-6 h-6 bg-slate-500 rounded-full"></div>
-                        </div>
-                        <h3 className="text-white text-lg font-semibold mb-2">Transmissão Inativa</h3>
-                        <p className="text-slate-400 text-sm">
-                          Clique em "Iniciar Transmissão" para começar
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                  {/* ADMIN SEMPRE VÊ O CONTEÚDO - Para verificar antes de ir ao vivo */}
+                  <ZKViewer key="zkpremios-fixed" channel="ZkPremios" />
                   
-                  {/* Badge de status */}
+                  {/* Badge de status para admin */}
                   <div className="absolute top-3 left-3 z-10">
                     {selectedStream.is_active ? (
                       <div className="bg-red-600/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5">
@@ -602,8 +587,9 @@ const AdminLiveStreamPage: React.FC = () => {
                         AO VIVO
                       </div>
                     ) : (
-                      <div className="bg-slate-600/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-xs font-medium">
-                        INATIVA
+                      <div className="bg-amber-600/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                        PREVIEW (Usuários não veem)
                       </div>
                     )}
                   </div>
