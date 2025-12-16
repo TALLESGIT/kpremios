@@ -141,7 +141,7 @@ export default function ZKViewer({
     } catch (err: any) {
       // Autoplay bloqueado
       if (err.message?.includes('play') || err.message?.includes('interact')) {
-        setNeedsInteraction(true);
+      setNeedsInteraction(true);
         if (DEBUG) console.log('ZKViewer: ⚠️ Autoplay bloqueado, requer interação');
       } else {
         console.error('ZKViewer: Erro ao reproduzir vídeo:', err);
@@ -161,7 +161,7 @@ export default function ZKViewer({
       });
       
       // Volume máximo
-      track.setVolume(100);
+        track.setVolume(100);
       
       // Play direto
       await track.play();
@@ -192,7 +192,7 @@ export default function ZKViewer({
       }
       
       if (DEBUG) console.log('ZKViewer: ✅ Reprodução iniciada após interação');
-    } catch (err) {
+        } catch (err) {
       console.error('ZKViewer: Erro ao iniciar após interação:', err);
     }
   }, [hasVideo, hasAudio, playVideo, playAudio]);
@@ -215,19 +215,19 @@ export default function ZKViewer({
         
         // Criar cliente otimizado
         client = AgoraRTC.createClient({
-          mode: 'live',
+      mode: 'live', 
           codec: 'h264', // H.264 para hardware acceleration
-        });
-        clientRef.current = client;
+    });
+    clientRef.current = client;
 
         // Configurar role de audiência com baixa latência
         await client.setClientRole('audience', { level: 1 });
-
+        
         // Event listeners essenciais
         client.on('connection-state-change', (curState: string) => {
-          if (!mountedRef.current) return;
+          console.log('🔌 ZKViewer: Estado de conexão mudou:', curState);
           
-          if (DEBUG) console.log('ZKViewer: Estado de conexão:', curState);
+          if (!mountedRef.current) return;
           
           if (curState === 'CONNECTED') {
             setConnectionState('connected');
@@ -239,35 +239,65 @@ export default function ZKViewer({
           }
         });
 
-        client.on('user-published', async (user: any, mediaType: string) => {
-          if (!mountedRef.current) return;
+        client.on('user-joined', (user: any) => {
+          console.log('👤 ZKViewer: Usuário entrou no canal!', {
+              uid: user.uid, 
+            timestamp: new Date().toISOString()
+          });
+        });
+
+        client.on('user-published', async (user: any, mediaType: 'video' | 'audio') => {
+          console.log('📡 ZKViewer: USER-PUBLISHED EVENT!', {
+            uid: user.uid,
+            mediaType: mediaType,
+              hasVideo: user.hasVideo,
+            hasAudio: user.hasAudio,
+            mounted: mountedRef.current,
+            timestamp: new Date().toISOString()
+          });
+
+          if (!mountedRef.current) {
+            console.warn('⚠️ ZKViewer: Componente desmontado, ignorando user-published');
+            return;
+          }
 
           try {
-            console.log('📡 ZKViewer: USER-PUBLISHED EVENT!', {
-              uid: user.uid,
-              mediaType: mediaType,
-              hasVideo: user.hasVideo,
-              hasAudio: user.hasAudio,
-              timestamp: new Date().toISOString()
-            });
-            
             // Subscribe imediato
             console.log('🔄 ZKViewer: Fazendo subscribe em', mediaType, '...');
             await client.subscribe(user, mediaType);
             console.log('✅ ZKViewer: Subscribe realizado com sucesso!');
 
             // Play baseado no tipo
-            if (mediaType === 'video' && user.videoTrack) {
-              videoTrackRef.current = user.videoTrack;
-              await playVideo(user.videoTrack);
+            if (mediaType === 'video') {
+              const track = user.videoTrack;
+              if (track) {
+                console.log('🎬 ZKViewer: Track de vídeo recebido, iniciando playback...');
+                videoTrackRef.current = track;
+                await playVideo(track);
+                setHasVideo(true);
+                } else {
+                console.warn('⚠️ ZKViewer: user.videoTrack é null após subscribe');
+              }
             }
 
-            if (mediaType === 'audio' && user.audioTrack) {
-              audioTrackRef.current = user.audioTrack;
-              await playAudio(user.audioTrack);
+            if (mediaType === 'audio') {
+              const track = user.audioTrack;
+              if (track) {
+                console.log('🔊 ZKViewer: Track de áudio recebido, iniciando playback...');
+                audioTrackRef.current = track;
+                await playAudio(track);
+                setHasAudio(true);
+              } else {
+                console.warn('⚠️ ZKViewer: user.audioTrack é null após subscribe');
+              }
             }
-          } catch (err) {
-            console.error('ZKViewer: Erro ao processar stream:', err);
+          } catch (err: any) {
+            console.error('❌ ZKViewer: Erro ao processar stream:', {
+              error: err.message || err,
+              code: err.code,
+              mediaType: mediaType,
+              uid: user.uid
+            });
           }
         });
 
@@ -300,9 +330,9 @@ export default function ZKViewer({
           hasToken: !!agoraToken,
           timestamp: new Date().toISOString()
         });
-        
+
         await client.join(agoraAppId, channel, agoraToken, null);
-        
+
         console.log('✅ ZKViewer: Conectado ao canal com sucesso!', {
           channel: channel,
           connectionState: client.connectionState
@@ -313,7 +343,7 @@ export default function ZKViewer({
         console.log('👥 ZKViewer: Verificando usuários remotos...', {
           totalUsers: remoteUsers.length,
           users: remoteUsers.map((u: any) => ({
-            uid: u.uid,
+                uid: u.uid,
             hasVideo: u.hasVideo,
             hasAudio: u.hasAudio
           }))
@@ -369,7 +399,7 @@ export default function ZKViewer({
     <div className="zk-viewer-container">
       {/* Container de vídeo */}
       <div 
-        ref={containerRef}
+        ref={containerRef} 
         className="zk-video-container"
         onClick={needsInteraction ? handleUserInteraction : undefined}
         style={{ cursor: needsInteraction ? 'pointer' : 'default' }}
@@ -379,14 +409,14 @@ export default function ZKViewer({
       {connectionState === 'connecting' && (
         <div style={{
           position: 'absolute',
-          inset: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
           background: 'rgba(0, 0, 0, 0.8)',
           color: 'white',
-          zIndex: 10,
+            zIndex: 10,
         }}>
           <div style={{
             width: 40,
@@ -404,15 +434,15 @@ export default function ZKViewer({
 
       {connectionState === 'connected' && !hasVideo && !error && (
         <div style={{
-          position: 'absolute',
-          inset: 0,
-          display: 'flex',
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
+            alignItems: 'center',
+            justifyContent: 'center',
           background: 'rgba(0, 0, 0, 0.8)',
           color: '#fbbf24',
-          textAlign: 'center',
+              textAlign: 'center',
           padding: 20,
           zIndex: 10,
         }}>
@@ -427,10 +457,10 @@ export default function ZKViewer({
       {needsInteraction && (
         <div style={{
           position: 'absolute',
-          inset: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           background: 'rgba(0, 0, 0, 0.75)',
           zIndex: 20,
           cursor: 'pointer',
@@ -439,7 +469,7 @@ export default function ZKViewer({
             padding: '24px 32px',
             borderRadius: 12,
             background: 'rgba(15, 23, 42, 0.95)',
-            textAlign: 'center',
+          textAlign: 'center',
             color: 'white',
             maxWidth: 320,
             boxShadow: '0 10px 40px rgba(0, 0, 0, 0.6)',
@@ -458,14 +488,14 @@ export default function ZKViewer({
       {error && (
         <div style={{
           position: 'absolute',
-          inset: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           background: 'rgba(139, 0, 0, 0.9)',
-          color: 'white',
+            color: 'white',
           textAlign: 'center',
-          padding: 20,
+            padding: 20,
           zIndex: 10,
         }}>
           <div style={{ maxWidth: 500 }}>
