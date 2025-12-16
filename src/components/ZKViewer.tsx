@@ -46,12 +46,28 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
 
         client.on('connection-state-change', (state: string) => {
           if (!mounted) return;
-          console.log('🔌 ZKViewer: connection-state-change', state);
+          console.log('🔌 ZKViewer: connection-state-change', { 
+            state, 
+            timestamp: new Date().toISOString() 
+          });
           if (state === 'CONNECTED') setConnectionState('connected');
           if (state === 'DISCONNECTED') {
-            console.warn('⚠️ ZKViewer: Desconectado do Agora!');
+            console.warn('⚠️ ZKViewer: Desconectado do Agora!', {
+              timestamp: new Date().toISOString(),
+              possibleCauses: ['Token expirado', 'Timeout de inatividade', 'Limite de minutos']
+            });
             setIsLive(false);
           }
+        });
+
+        // Listener para erros de token
+        client.on('token-privilege-will-expire', () => {
+          console.warn('⚠️ ZKViewer: Token vai expirar em breve!');
+        });
+
+        client.on('token-privilege-did-expire', () => {
+          console.error('❌ ZKViewer: Token EXPIROU!');
+          setError('Token expirado - reconecte a transmissão');
         });
 
         client.on('user-published', async (user: any, mediaType: 'video' | 'audio') => {
@@ -114,9 +130,16 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
         });
 
         await client.setClientRole('audience');
-        console.log('🔌 ZKViewer: Conectando ao canal...', { channel });
+        console.log('🔌 ZKViewer: Conectando ao canal...', { 
+          channel, 
+          hasToken: !!agoraToken,
+          tokenPreview: agoraToken ? agoraToken.substring(0, 20) + '...' : 'null'
+        });
         await client.join(agoraAppId, channel, agoraToken, null);
-        console.log('✅ ZKViewer: Conectado ao canal!', { channel });
+        console.log('✅ ZKViewer: Conectado ao canal!', { 
+          channel,
+          connectionTime: new Date().toISOString()
+        });
       } catch (err) {
         console.error(err);
         setError('Erro ao conectar à transmissão');
