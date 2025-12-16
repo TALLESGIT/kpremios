@@ -581,8 +581,8 @@ const AdminLiveStreamPage: React.FC = () => {
                   
                   {/* Overlay de status apenas para indicar se está ao vivo ou não */}
                   {!selectedStream.is_active && (
-                    <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px] flex items-center justify-center pointer-events-none">
-                      <div className="bg-slate-800/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm font-medium border border-slate-600/50">
+                    <div className="absolute top-12 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
+                      <div className="bg-slate-800/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm font-medium border border-slate-600/50 shadow-lg">
                         📹 Preview - Não está ao vivo
                       </div>
                     </div>
