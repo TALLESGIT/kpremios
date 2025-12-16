@@ -83,7 +83,7 @@ const PublicLiveStreamPage: React.FC = () => {
     }
   }, [stream]);
 
-  // Detectar se é mobile
+  // Detectar se é mobile e orientação
   useEffect(() => {
     const checkMobile = () => {
       const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
@@ -92,11 +92,33 @@ const PublicLiveStreamPage: React.FC = () => {
       console.log('📱 Detecção mobile:', { mobile, userAgent: navigator.userAgent, width: window.innerWidth });
     };
     
+    const handleOrientationChange = () => {
+      if (!isMobile) return;
+      
+      // Aguardar um pouco para a orientação se estabilizar
+      setTimeout(() => {
+        const isLandscape = window.innerWidth > window.innerHeight;
+        console.log('🔄 Mudança de orientação:', { isLandscape, width: window.innerWidth, height: window.innerHeight });
+        
+        // Auto fullscreen em paisagem no mobile
+        if (isLandscape && !isFullscreen && videoContainerRef.current) {
+          console.log('🔄 Auto fullscreen ativado (paisagem)');
+          videoContainerRef.current.requestFullscreen?.();
+        }
+      }, 300);
+    };
+    
     checkMobile();
     window.addEventListener('resize', checkMobile);
+    window.addEventListener('orientationchange', handleOrientationChange);
+    window.addEventListener('resize', handleOrientationChange);
     
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      window.removeEventListener('resize', handleOrientationChange);
+    };
+  }, [isMobile, isFullscreen]);
 
   // Detectar fullscreen
   useEffect(() => {
@@ -755,28 +777,55 @@ const PublicLiveStreamPage: React.FC = () => {
                 </div>
               )}
               
-              {/* Botão de Chat Transparente (Mobile) - Melhor UX */}
+              {/* Botões Mobile - Chat e Fullscreen */}
               {isMobile && stream && stream.is_active && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 0.7, scale: 1 }}
-                  whileHover={{ opacity: 1 }}
-                  whileTap={{ scale: 0.95 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  onClick={() => {
-                    console.log('💬 Botão de chat clicado:', { isChatOpen, isFullscreen, isMobile });
-                    setIsChatOpen(!isChatOpen);
-                  }}
-                  className="absolute top-4 right-4 z-[60] mobile-chat-button text-white p-2.5 rounded-full shadow-lg"
-                  aria-label={isChatOpen ? "Fechar chat" : "Abrir chat"}
-                  title={isChatOpen ? "Fechar chat" : "Abrir chat"}
-                >
-                  {isChatOpen ? (
-                    <X className="w-4 h-4" />
-                  ) : (
-                    <MessageSquare className="w-4 h-4" />
+                <>
+                  {/* Botão de Chat Transparente */}
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 0.7, scale: 1 }}
+                    whileHover={{ opacity: 1 }}
+                    whileTap={{ scale: 0.95 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('💬 Botão de chat clicado:', { isChatOpen, isFullscreen, isMobile });
+                      setIsChatOpen(!isChatOpen);
+                    }}
+                    className="absolute top-4 right-4 z-[60] mobile-chat-button text-white p-2.5 rounded-full shadow-lg"
+                    aria-label={isChatOpen ? "Fechar chat" : "Abrir chat"}
+                    title={isChatOpen ? "Fechar chat" : "Abrir chat"}
+                  >
+                    {isChatOpen ? (
+                      <X className="w-4 h-4" />
+                    ) : (
+                      <MessageSquare className="w-4 h-4" />
+                    )}
+                  </motion.button>
+
+                  {/* Botão Fullscreen Transparente (Retrato) */}
+                  {!isFullscreen && window.innerHeight > window.innerWidth && (
+                    <motion.button
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 0.6, scale: 1 }}
+                      whileHover={{ opacity: 0.9 }}
+                      whileTap={{ scale: 0.95 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log('🔍 Botão fullscreen clicado');
+                        videoContainerRef.current?.requestFullscreen?.();
+                      }}
+                      className="absolute bottom-4 right-4 z-[60] mobile-chat-button text-white p-2.5 rounded-full shadow-lg"
+                      aria-label="Tela cheia"
+                      title="Tela cheia"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                      </svg>
+                    </motion.button>
                   )}
-                </motion.button>
+                </>
               )}
 
               {/* Indicador de Swipe para Fullscreen (Mobile) */}
@@ -797,28 +846,42 @@ const PublicLiveStreamPage: React.FC = () => {
           </div>
 
           {/* Chat - Ocupa 4 colunas (Desktop) ou Overlay (Mobile) */}
-          {/* CORREÇÃO: Chat overlay no mobile mesmo sem fullscreen para melhor UX */}
           {isMobile ? (
-            /* Chat Overlay em Fullscreen (Mobile) - Estilo YouTube */
+            /* Chat Overlay Mobile - Funciona em fullscreen e normal */
             <AnimatePresence>
               {isChatOpen && (
                 <>
-                  {/* Backdrop */}
+                  {/* Backdrop - z-index mais alto para fullscreen */}
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={() => setIsChatOpen(false)}
-                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998]"
+                    style={{ 
+                      position: 'fixed',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      zIndex: 9998
+                    }}
                   />
                   
-                  {/* Chat Panel - Desliza da direita */}
+                  {/* Chat Panel - z-index ainda mais alto */}
                   <motion.div
                     initial={{ x: '100%' }}
                     animate={{ x: 0 }}
                     exit={{ x: '100%' }}
                     transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                    className="fixed top-0 right-0 h-full w-[75%] max-w-sm bg-slate-900 z-50 shadow-2xl flex flex-col"
+                    className="fixed top-0 right-0 h-full w-[75%] max-w-sm bg-slate-900 shadow-2xl flex flex-col z-[9999]"
+                    style={{ 
+                      position: 'fixed',
+                      top: 0,
+                      right: 0,
+                      height: '100vh',
+                      zIndex: 9999
+                    }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     {/* Header do Chat */}
@@ -828,7 +891,10 @@ const PublicLiveStreamPage: React.FC = () => {
                         Chat ao Vivo
                       </h3>
                       <button
-                        onClick={() => setIsChatOpen(false)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsChatOpen(false);
+                        }}
                         className="text-slate-400 hover:text-white transition-colors p-1"
                         aria-label="Fechar chat"
                       >
@@ -845,7 +911,7 @@ const PublicLiveStreamPage: React.FC = () => {
               )}
             </AnimatePresence>
           ) : (
-            /* Chat Normal (Desktop ou Mobile não-fullscreen) */
+            /* Chat Normal (Desktop) */
             <div className="lg:col-span-4">
               <div style={{ minHeight: '600px' }}>
                 <LiveChat streamId={stream.id} isAdmin={false} />

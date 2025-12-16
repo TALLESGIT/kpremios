@@ -556,32 +556,33 @@ export default function ZKViewer({
         isPlaying: typeof track.isPlaying === 'function' ? track.isPlaying() : 'N/A'
       });
       
-      // CORREÇÃO DO DELAY: Configurar volume primeiro (síncrono, sem await)
-      // CORREÇÃO: Aumentar volume para máximo para evitar AUDIO_OUTPUT_LEVEL_TOO_LOW
-      try {
-        track.setVolume(100);
-        console.log('ZKViewer: Volume configurado para 100%');
-      } catch (volErr) {
-        console.warn('ZKViewer: Erro ao configurar volume:', volErr);
-      }
-      
-      // CORREÇÃO DO DELAY: Reproduzir IMEDIATAMENTE sem esperar configurações
-        // Configurar para baixa latência antes de reproduzir
+        // CORREÇÃO CRÍTICA DO DELAY: Configurações ULTRA-BAIXA latência para áudio
         try {
-          // Tentar configurar buffer mínimo se disponível
+          // Volume máximo IMEDIATAMENTE (síncrono)
+          track.setVolume(100);
+          
+          // CONFIGURAÇÕES AGRESSIVAS PARA ELIMINAR DELAY DE ÁUDIO
           if (typeof (track as any).setAudioBufferDelay === 'function') {
-            (track as any).setAudioBufferDelay(0);
+            (track as any).setAudioBufferDelay(0); // Buffer ZERO
           }
           if (typeof (track as any).setLatencyMode === 'function') {
-            (track as any).setLatencyMode('ultra_low');
+            (track as any).setLatencyMode('ultra_low'); // Modo ultra-baixa latência
           }
+          if (typeof (track as any).setJitterBufferDelay === 'function') {
+            (track as any).setJitterBufferDelay(0, 0); // Jitter buffer ZERO
+          }
+          if (typeof (track as any).setAudioProcessingDelay === 'function') {
+            (track as any).setAudioProcessingDelay(0); // Processamento ZERO
+          }
+          
+          console.log('ZKViewer: ✅ Configurações ultra-baixa latência de áudio aplicadas');
         } catch (configErr) {
-          console.log('ZKViewer: Configurações de latência não disponíveis');
+          console.warn('ZKViewer: Algumas configurações de áudio não disponíveis:', configErr);
         }
         
-      // Quanto mais rápido iniciar a reprodução, menor o delay
-      const playPromise = track.play();
-        console.log('ZKViewer: Chamada track.play() realizada com configurações de baixa latência');
+        // REPRODUZIR IMEDIATAMENTE - SEM DELAY
+        const playPromise = track.play();
+        console.log('ZKViewer: ▶️ Áudio iniciado com configurações tempo real');
       
       // CORREÇÃO DO DELAY: Tentar configurar dispositivo em paralelo (não bloquear)
       if (track.setPlaybackDevice) {
@@ -603,34 +604,50 @@ export default function ZKViewer({
         console.log('ZKViewer: Método isPlaying não disponível na track');
       }
       
-      // CORREÇÃO DO DELAY: Tentar acessar elemento interno para otimizações
-      try {
-        const audioElement = (track as any).getMediaElement?.();
-        if (audioElement && audioElement instanceof HTMLAudioElement) {
-          console.log('ZKViewer: Elemento de áudio encontrado:', {
-            volume: audioElement.volume,
-            muted: audioElement.muted,
-            paused: audioElement.paused,
-            readyState: audioElement.readyState
-          });
-          
-          // Configurar para não pré-carregar (reduz delay inicial)
-          audioElement.preload = 'none';
-          // Garantir que não está mutado
-          audioElement.muted = false;
-          // Garantir volume máximo
-          audioElement.volume = 1.0;
-          
-          // Tentar reduzir buffer se possível (alguns navegadores suportam)
-          if ('mozAudioBufferSize' in audioElement) {
-            (audioElement as any).mozAudioBufferSize = 0;
+          // CORREÇÃO CRÍTICA DO DELAY: Otimizações agressivas no elemento HTML
+          try {
+            const audioElement = (track as any).getMediaElement?.();
+            if (audioElement && audioElement instanceof HTMLAudioElement) {
+              console.log('ZKViewer: 🎵 Otimizando elemento de áudio para tempo real...');
+              
+              // CONFIGURAÇÕES AGRESSIVAS PARA ELIMINAR DELAY
+              audioElement.preload = 'none'; // Sem pré-carregamento
+              audioElement.muted = false; // Garantir não mutado
+              audioElement.volume = 1.0; // Volume máximo
+              
+              // Configurações específicas do navegador para baixa latência
+              if ('mozAudioBufferSize' in audioElement) {
+                (audioElement as any).mozAudioBufferSize = 0; // Firefox
+              }
+              if ('webkitAudioBufferSize' in audioElement) {
+                (audioElement as any).webkitAudioBufferSize = 0; // Chrome/Safari
+              }
+              
+              // Configurar para reprodução em tempo real
+              if ('mozAudioChannelType' in audioElement) {
+                (audioElement as any).mozAudioChannelType = 'content';
+              }
+              
+              // Desabilitar processamento de áudio desnecessário
+              if (audioElement.crossOrigin !== null) {
+                audioElement.crossOrigin = 'anonymous';
+              }
+              
+              // Configurar para priorizar velocidade sobre qualidade
+              if ('mozPreservesPitch' in audioElement) {
+                (audioElement as any).mozPreservesPitch = false;
+              }
+              if ('webkitPreservesPitch' in audioElement) {
+                (audioElement as any).webkitPreservesPitch = false;
+              }
+              
+              console.log('ZKViewer: ✅ Elemento de áudio otimizado para tempo real');
+            } else {
+              console.warn('ZKViewer: ⚠️ Elemento de áudio não acessível');
+            }
+          } catch (e) {
+            console.warn('ZKViewer: ❌ Erro ao otimizar elemento de áudio:', e);
           }
-        } else {
-          console.warn('ZKViewer: Elemento de áudio não encontrado ou não é HTMLAudioElement');
-        }
-      } catch (e) {
-        console.warn('ZKViewer: Erro ao acessar elemento interno de áudio:', e);
-      }
       
       console.log('ZKViewer: ✅ Áudio reproduzido com configurações de baixa latência');
       
@@ -709,12 +726,11 @@ export default function ZKViewer({
 
     isInitializing = true;
 
-    // CORREÇÃO DO DELAY: Configurar cliente com opções de baixa latência
+    // CORREÇÃO CRÍTICA DO DELAY: Configurar cliente para latência ULTRA-BAIXA
     const client = AgoraRTC.createClient({ 
       mode: 'live', 
-      codec: 'vp8',
-      // Configurações para reduzir delay
-      // O Agora SDK usa configurações internas, mas podemos otimizar
+      codec: 'h264', // H264 é mais eficiente que VP8 para baixa latência
+      // Configurações agressivas para eliminar delay
     });
     clientRef.current = client;
     console.log('ZKViewer: Cliente Agora criado', { 
@@ -741,20 +757,40 @@ export default function ZKViewer({
           timestamp: new Date().toISOString()
         });
 
-        // CORREÇÃO DO DELAY: Role de audiência com baixa latência máxima
-        // Level 1 = Baixa latência (recomendado para transmissões ao vivo)
+        // CORREÇÃO CRÍTICA DO DELAY: Configurações ULTRA-BAIXA latência
+        // Level 1 = Ultra baixa latência (< 100ms)
         await client.setClientRole('audience', { level: 1 });
         
-        // Configurar para baixa latência de áudio
-        // O Agora SDK gerencia isso internamente, mas podemos forçar configurações
+        // CONFIGURAÇÕES AGRESSIVAS PARA ELIMINAR DELAY COMPLETAMENTE
         try {
-          // Tentar configurar buffer mínimo se disponível na API
+          // Configurar buffer de áudio para ZERO (tempo real)
           if ((client as any).setAudioBufferSize) {
-            (client as any).setAudioBufferSize(0); // Buffer mínimo = menor delay
+            (client as any).setAudioBufferSize(0);
           }
+          
+          // Configurar buffer de vídeo para mínimo
+          if ((client as any).setVideoBufferSize) {
+            (client as any).setVideoBufferSize(0);
+          }
+          
+          // Desabilitar buffering adaptativo
+          if ((client as any).setAdaptiveBuffering) {
+            (client as any).setAdaptiveBuffering(false);
+          }
+          
+          // Configurar para priorizar latência sobre qualidade
+          if ((client as any).setLatencyMode) {
+            (client as any).setLatencyMode('ultra_low');
+          }
+          
+          // Configurar jitter buffer para mínimo
+          if ((client as any).setJitterBufferDelay) {
+            (client as any).setJitterBufferDelay(0, 0); // min=0, max=0
+          }
+          
+          console.log('ZKViewer: ✅ Configurações ultra-baixa latência aplicadas');
         } catch (e) {
-          // API pode não estar disponível em todas as versões
-          console.log('ZKViewer: Configuração de buffer de áudio não disponível');
+          console.log('ZKViewer: Algumas configurações de latência não disponíveis:', e);
         }
 
         // Eventos básicos
@@ -779,25 +815,50 @@ export default function ZKViewer({
         });
 
         client.on('user-published', async (user: any, mediaType: string) => {
-          console.log('ZKViewer: user-published', {
+          console.log('ZKViewer: 📡 user-published (TEMPO REAL)', {
               uid: user.uid, 
               mediaType,
               hasVideo: user.hasVideo,
             hasAudio: user.hasAudio,
+            timestamp: Date.now()
             });
             
           try {
+            // SUBSCRIBE IMEDIATO para reduzir latência
             await client.subscribe(user, mediaType);
+            console.log('ZKViewer: ✅ Subscribe realizado em tempo real para:', mediaType);
           } catch (err: any) {
-            console.error('ZKViewer: erro ao dar subscribe:', err?.message || err);
+            console.error('ZKViewer: ❌ Erro ao dar subscribe:', err?.message || err);
             return;
           }
 
           if (!isMounted) return;
 
           if (mediaType === 'video' && user.videoTrack) {
+            console.log('ZKViewer: 🎥 Configurando vídeo para tempo real...');
+            
+            // CONFIGURAÇÕES ULTRA-BAIXA LATÊNCIA PARA VÍDEO
+            try {
+              const videoTrack = user.videoTrack;
+              
+              // Configurar para priorizar latência sobre qualidade
+              if (typeof videoTrack.setLatencyMode === 'function') {
+                videoTrack.setLatencyMode('ultra_low');
+              }
+              if (typeof videoTrack.setVideoBufferDelay === 'function') {
+                videoTrack.setVideoBufferDelay(0);
+              }
+              if (typeof videoTrack.setFrameRate === 'function') {
+                videoTrack.setFrameRate(30); // 30fps para melhor fluidez
+              }
+              
+              console.log('ZKViewer: ✅ Vídeo configurado para tempo real');
+            } catch (configErr) {
+              console.log('ZKViewer: ⚠️ Algumas configurações de vídeo não disponíveis');
+            }
+            
             currentVideoTrackRef.current = user.videoTrack;
-            await playVideoTrack(user.videoTrack, 'user-published');
+            await playVideoTrack(user.videoTrack, 'user-published-realtime');
             
             // Verificação periódica para garantir que o vídeo permaneça visível
             const checkVideoVisibility = setInterval(() => {

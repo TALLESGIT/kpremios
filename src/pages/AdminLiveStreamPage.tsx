@@ -576,10 +576,19 @@ const AdminLiveStreamPage: React.FC = () => {
                     }
                   }}
                 >
-                  {/* ADMIN SEMPRE VÊ O CONTEÚDO - Para verificar antes de ir ao vivo */}
-                  <ZKViewer key="zkpremios-fixed" channel="ZkPremios" />
+                  {/* CORREÇÃO: Admin SEMPRE vê o conteúdo (para preview antes de ir ao vivo) */}
+                  <ZKViewer key="zkpremios-admin-preview" channel="ZkPremios" />
                   
-                  {/* Badge de status para admin */}
+                  {/* Overlay de status apenas para indicar se está ao vivo ou não */}
+                  {!selectedStream.is_active && (
+                    <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px] flex items-center justify-center pointer-events-none">
+                      <div className="bg-slate-800/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm font-medium border border-slate-600/50">
+                        📹 Preview - Não está ao vivo
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Badge de status */}
                   <div className="absolute top-3 left-3 z-10">
                     {selectedStream.is_active ? (
                       <div className="bg-red-600/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5">
@@ -587,9 +596,8 @@ const AdminLiveStreamPage: React.FC = () => {
                         AO VIVO
                       </div>
                     ) : (
-                      <div className="bg-amber-600/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
-                        PREVIEW (Usuários não veem)
+                      <div className="bg-slate-600/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-xs font-medium">
+                        INATIVA
                       </div>
                     )}
                   </div>
