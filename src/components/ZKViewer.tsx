@@ -433,13 +433,27 @@ export default function ZKViewer({
   });
   
   return (
-    <div className="zk-viewer-container">
+    <div className="zk-viewer-container" style={{
+      position: 'relative',
+      width: '100%',
+      height: '100%',
+      backgroundColor: 'black',
+      overflow: 'hidden',
+    }}>
       {/* Container de vídeo */}
       <div 
         ref={containerRef} 
         className="zk-video-container"
         onClick={needsInteraction ? handleUserInteraction : undefined}
-        style={{ cursor: needsInteraction ? 'pointer' : 'default' }}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          cursor: needsInteraction ? 'pointer' : 'default',
+          zIndex: 1,
+        }}
       />
 
       {/* Estados de UI */}
