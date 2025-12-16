@@ -125,13 +125,19 @@ export default function ZKViewer({
     if (!containerRef.current || !mountedRef.current) return;
 
     try {
+      console.log('🎬 ZKViewer: Iniciando reprodução de vídeo...', {
+        trackId: track.getTrackId(),
+        enabled: track.enabled,
+        muted: track.muted
+      });
+      
       // Play direto no container
       await track.play(containerRef.current);
       
       setHasVideo(true);
       setNeedsInteraction(false);
       
-      if (DEBUG) console.log('ZKViewer: ✅ Vídeo reproduzindo');
+      console.log('✅ ZKViewer: Vídeo reproduzindo com sucesso!');
     } catch (err: any) {
       // Autoplay bloqueado
       if (err.message?.includes('play') || err.message?.includes('interact')) {
@@ -148,6 +154,12 @@ export default function ZKViewer({
     if (!mountedRef.current) return;
 
     try {
+      console.log('🔊 ZKViewer: Iniciando reprodução de áudio...', {
+        trackId: track.getTrackId(),
+        enabled: track.enabled,
+        volume: track.getVolumeLevel()
+      });
+      
       // Volume máximo
       track.setVolume(100);
       
@@ -156,7 +168,7 @@ export default function ZKViewer({
       
       setHasAudio(true);
       
-      if (DEBUG) console.log('ZKViewer: ✅ Áudio reproduzindo');
+      console.log('✅ ZKViewer: Áudio reproduzindo com sucesso!');
     } catch (err) {
       console.warn('ZKViewer: Erro ao reproduzir áudio:', err);
     }
@@ -231,10 +243,18 @@ export default function ZKViewer({
           if (!mountedRef.current) return;
 
           try {
-            if (DEBUG) console.log('ZKViewer: 📡 user-published:', mediaType);
+            console.log('📡 ZKViewer: USER-PUBLISHED EVENT!', {
+              uid: user.uid,
+              mediaType: mediaType,
+              hasVideo: user.hasVideo,
+              hasAudio: user.hasAudio,
+              timestamp: new Date().toISOString()
+            });
             
             // Subscribe imediato
+            console.log('🔄 ZKViewer: Fazendo subscribe em', mediaType, '...');
             await client.subscribe(user, mediaType);
+            console.log('✅ ZKViewer: Subscribe realizado com sucesso!');
 
             // Play baseado no tipo
             if (mediaType === 'video' && user.videoTrack) {
@@ -274,12 +294,33 @@ export default function ZKViewer({
         });
 
         // Conectar ao canal
+        console.log('🔌 ZKViewer: Conectando ao canal...', {
+          appId: agoraAppId.substring(0, 8) + '...',
+          channel: channel,
+          hasToken: !!agoraToken,
+          timestamp: new Date().toISOString()
+        });
+        
         await client.join(agoraAppId, channel, agoraToken, null);
+        
+        console.log('✅ ZKViewer: Conectado ao canal com sucesso!', {
+          channel: channel,
+          connectionState: client.connectionState
+        });
 
         // Verificar se já há usuários no canal
         const remoteUsers = client.remoteUsers;
+        console.log('👥 ZKViewer: Verificando usuários remotos...', {
+          totalUsers: remoteUsers.length,
+          users: remoteUsers.map((u: any) => ({
+            uid: u.uid,
+            hasVideo: u.hasVideo,
+            hasAudio: u.hasAudio
+          }))
+        });
+        
         if (remoteUsers.length > 0) {
-          if (DEBUG) console.log('ZKViewer: Usuários remotos encontrados:', remoteUsers.length);
+          console.log('✅ ZKViewer: Usuários remotos encontrados:', remoteUsers.length);
           
           for (const user of remoteUsers) {
             if (user.hasVideo && user.videoTrack) {
