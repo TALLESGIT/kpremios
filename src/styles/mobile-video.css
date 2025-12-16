@@ -96,17 +96,67 @@
   }
 }
 
-/* Botão de chat transparente */
+/* Botão de chat transparente - SEMPRE VISÍVEL */
 .mobile-chat-button {
   background: rgba(0, 0, 0, 0.3) !important;
   backdrop-filter: blur(8px) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
   transition: all 0.2s ease !important;
+  position: fixed !important;
+  z-index: 9997 !important;
+  pointer-events: auto !important;
 }
 
 .mobile-chat-button:hover {
   background: rgba(0, 0, 0, 0.5) !important;
   border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Chat overlay em fullscreen - SEMPRE POR CIMA */
+body:fullscreen .fixed,
+body:-webkit-full-screen .fixed,
+body:-moz-full-screen .fixed,
+body:-ms-fullscreen .fixed {
+  position: fixed !important;
+  z-index: 9999 !important;
+}
+
+/* Garantir que backdrop e chat panel funcionem em fullscreen */
+.mobile-video-container:fullscreen ~ div[style*="z-index: 9998"],
+.mobile-video-container:fullscreen ~ div[style*="z-index: 9999"] {
+  position: fixed !important;
+  z-index: 99999 !important;
+}
+
+/* Chat overlay mobile - SEMPRE VISÍVEL EM FULLSCREEN */
+.chat-overlay-mobile {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  height: 100vh !important;
+  z-index: 2147483647 !important;
+  pointer-events: auto !important;
+}
+
+/* Garantir que o chat funcione em fullscreen - TODAS AS VARIAÇÕES */
+*:fullscreen .chat-overlay-mobile,
+*:-webkit-full-screen .chat-overlay-mobile,
+*:-moz-full-screen .chat-overlay-mobile,
+*:-ms-fullscreen .chat-overlay-mobile {
+  position: fixed !important;
+  z-index: 2147483647 !important;
+  pointer-events: auto !important;
+}
+
+/* Botão de chat em fullscreen */
+*:fullscreen .mobile-chat-button,
+*:-webkit-full-screen .mobile-chat-button,
+*:-moz-full-screen .mobile-chat-button,
+*:-ms-fullscreen .mobile-chat-button {
+  position: fixed !important;
+  z-index: 2147483646 !important;
+  pointer-events: auto !important;
 }
 
 /* Animações suaves para transições */
