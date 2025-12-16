@@ -137,7 +137,7 @@ export default function ZKViewer({
       setHasVideo(true);
       setNeedsInteraction(false);
       
-      console.log('✅ ZKViewer: Vídeo reproduzindo com sucesso!');
+      console.log('✅ ZKViewer: Vídeo reproduzindo com sucesso! hasVideo será true');
     } catch (err: any) {
       // Autoplay bloqueado
       if (err.message?.includes('play') || err.message?.includes('interact')) {
@@ -276,8 +276,8 @@ export default function ZKViewer({
                 console.log('🎬 ZKViewer: Track de vídeo recebido, iniciando playback...');
                 videoTrackRef.current = track;
                 await playVideo(track);
-                setHasVideo(true);
-                } else {
+                // setHasVideo é chamado dentro de playVideo
+              } else {
                 console.warn('⚠️ ZKViewer: user.videoTrack é null após subscribe');
               }
             }
@@ -288,7 +288,7 @@ export default function ZKViewer({
                 console.log('🔊 ZKViewer: Track de áudio recebido, iniciando playback...');
                 audioTrackRef.current = track;
                 await playAudio(track);
-                setHasAudio(true);
+                // setHasAudio é chamado dentro de playAudio
               } else {
                 console.warn('⚠️ ZKViewer: user.audioTrack é null após subscribe');
               }
@@ -410,6 +410,14 @@ export default function ZKViewer({
   }, [appId, channel, token]);
 
   // Render
+  console.log('🎨 ZKViewer: Renderizando...', {
+    connectionState,
+    hasVideo,
+    hasAudio,
+    needsInteraction,
+    error
+  });
+  
   return (
     <div className="zk-viewer-container">
       {/* Container de vídeo */}
