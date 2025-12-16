@@ -44,7 +44,12 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
 
         client.on('connection-state-change', (state: string) => {
           if (!mounted) return;
+          console.log('🔌 ZKViewer: connection-state-change', state);
           if (state === 'CONNECTED') setConnectionState('connected');
+          if (state === 'DISCONNECTED') {
+            console.warn('⚠️ ZKViewer: Desconectado do Agora!');
+            setIsLive(false);
+          }
         });
 
         client.on('user-published', async (user: any, mediaType: 'video' | 'audio') => {
@@ -85,10 +90,20 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
 
         client.on('user-unpublished', (user: any, mediaType: 'video' | 'audio') => {
           if (!mounted) return;
-          console.log('📴 ZKViewer: user-unpublished', { uid: user.uid, mediaType });
+          console.log('📴 ZKViewer: user-unpublished', { 
+            uid: user.uid, 
+            mediaType,
+            timestamp: new Date().toISOString()
+          });
           if (mediaType === 'video') {
             setIsLive(false);
             console.log('⚫ ZKViewer: isLive = FALSE');
+            
+            // Limpar referências
+            if (videoTrackRef.current) {
+              videoTrackRef.current.stop();
+              videoTrackRef.current = null;
+            }
           }
         });
 
