@@ -200,7 +200,7 @@ export default function ZKViewer({
   // Inicializar conexão
   useEffect(() => {
     mountedRef.current = true;
-
+    
     const agoraAppId = appId || import.meta.env.VITE_AGORA_APP_ID;
     const agoraToken = token ?? import.meta.env.VITE_AGORA_TOKEN ?? null;
 
@@ -208,6 +208,15 @@ export default function ZKViewer({
       setError('Configuração inválida: App ID ou canal não fornecido');
       return;
     }
+
+    // Proteção contra múltiplas instâncias
+    const instanceKey = `zkviewer_${channel}`;
+    if ((window as any)[instanceKey]) {
+      console.warn(`⚠️ ZKViewer: Já existe uma instância ativa para o canal "${channel}". Ignorando esta instância.`);
+      setError('Já existe uma conexão ativa para este canal');
+      return;
+    }
+    (window as any)[instanceKey] = true;
 
     let client: any;
 
@@ -393,6 +402,11 @@ export default function ZKViewer({
 
     return () => {
       mountedRef.current = false;
+      
+      // Limpar flag de instância
+      const instanceKey = `zkviewer_${channel}`;
+      delete (window as any)[instanceKey];
+      
       if (client) {
         client.leave().catch((e: any) => console.error('Failed to leave channel:', e));
         client.removeAllListeners();
