@@ -199,6 +199,8 @@ export default function ZKViewer({
 
   // Inicializar conexão
   useEffect(() => {
+    mountedRef.current = true;
+
     const agoraAppId = appId || import.meta.env.VITE_AGORA_APP_ID;
     const agoraToken = token ?? import.meta.env.VITE_AGORA_TOKEN ?? null;
 
@@ -390,9 +392,22 @@ export default function ZKViewer({
     init();
 
     return () => {
-      cleanup();
+      mountedRef.current = false;
+      if (client) {
+        client.leave().catch((e: any) => console.error('Failed to leave channel:', e));
+        client.removeAllListeners();
+      }
+      if (videoTrackRef.current) {
+        videoTrackRef.current.stop();
+        videoTrackRef.current = null;
+      }
+      if (audioTrackRef.current) {
+        audioTrackRef.current.stop();
+        audioTrackRef.current = null;
+      }
+      clientRef.current = null;
     };
-  }, [appId, channel, token, playVideo, playAudio, cleanup]);
+  }, [appId, channel, token]);
 
   // Render
   return (
