@@ -157,6 +157,33 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
         }} 
       />
 
+      {/* 🔴 INDICADOR DE STATUS AO VIVO - SEMPRE VISÍVEL */}
+      <div style={{
+        position: 'absolute',
+        top: '20px',
+        left: '20px',
+        zIndex: 3,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '8px 16px',
+        borderRadius: '8px',
+        backgroundColor: isLive ? 'rgba(220, 38, 38, 0.9)' : 'rgba(71, 85, 105, 0.9)',
+        color: 'white',
+        fontSize: '14px',
+        fontWeight: '600',
+        pointerEvents: 'none'
+      }}>
+        <div style={{
+          width: '8px',
+          height: '8px',
+          borderRadius: '50%',
+          backgroundColor: isLive ? '#fff' : '#94a3b8',
+          animation: isLive ? 'pulse 2s infinite' : 'none'
+        }} />
+        {isLive ? 'AO VIVO' : 'OFFLINE'}
+      </div>
+
       {/* ⏳ OVERLAY "AGUARDANDO" - SÓ APARECE QUANDO !isLive */}
       {!isLive && (
         <div style={{
@@ -175,9 +202,20 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
             textAlign: 'center'
           }}>
             ⏳ Aguardando transmissão...
+            <div style={{ fontSize: '14px', marginTop: '8px', opacity: 0.7 }}>
+              Certifique-se de que o ZK Studio está transmitindo
+            </div>
           </div>
         </div>
       )}
+
+      {/* Animação de pulse para o indicador AO VIVO */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `}</style>
     </div>
   );
 }
