@@ -8,7 +8,7 @@
   -webkit-touch-callout: none;
 }
 
-/* Fullscreen mobile - proporção 16:9 mantida */
+/* Fullscreen mobile - SEM CORTAR O VÍDEO */
 @media (max-width: 768px) {
   .mobile-video-container:fullscreen {
     display: flex !important;
@@ -17,28 +17,31 @@
     background: black !important;
     padding: 0 !important;
     margin: 0 !important;
+    overflow: hidden !important;
   }
   
   .mobile-video-container:fullscreen > * {
     width: 100% !important;
-    height: auto !important;
-    max-height: 100% !important;
-    aspect-ratio: 16/9 !important;
-    object-fit: contain !important;
+    height: 100% !important;
+    object-fit: contain !important; /* CONTAIN = NÃO CORTA */
     border-radius: 0 !important;
   }
   
-  /* Garantir que o vídeo dentro do ZKViewer mantenha proporção */
+  /* Garantir que o vídeo dentro do ZKViewer NÃO seja cortado */
   .mobile-video-container:fullscreen video {
     width: 100% !important;
-    height: auto !important;
-    max-height: 100vh !important;
-    object-fit: contain !important;
+    height: 100% !important;
+    object-fit: contain !important; /* CONTAIN = NÃO CORTA */
     background: black !important;
+  }
+  
+  /* Garantir que elementos do Agora SDK também usem contain */
+  .mobile-video-container:fullscreen div[style*="video"] {
+    object-fit: contain !important;
   }
 }
 
-/* Orientação paisagem em mobile */
+/* Orientação paisagem em mobile - CHAT VISÍVEL */
 @media (orientation: landscape) and (max-width: 768px) {
   .mobile-video-container:fullscreen > * {
     width: 100% !important;
@@ -50,6 +53,29 @@
     width: 100% !important;
     height: 100% !important;
     object-fit: contain !important;
+  }
+  
+  /* Garantir que o chat seja visível em fullscreen paisagem */
+  .mobile-video-container:fullscreen .chat-overlay {
+    position: fixed !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 320px !important;
+    max-width: 40vw !important;
+    z-index: 9999 !important;
+    background: rgba(0, 0, 0, 0.9) !important;
+    backdrop-filter: blur(10px) !important;
+    pointer-events: auto !important;
+  }
+  
+  /* Botão de chat em fullscreen paisagem */
+  .mobile-video-container:fullscreen .chat-button {
+    position: fixed !important;
+    bottom: 20px !important;
+    right: 20px !important;
+    z-index: 9998 !important;
+    pointer-events: auto !important;
   }
 }
 

@@ -576,31 +576,8 @@ const AdminLiveStreamPage: React.FC = () => {
                     }
                   }}
                 >
-                  {/* CORREÇÃO: Admin SEMPRE vê o conteúdo (para preview antes de ir ao vivo) */}
+                  {/* Admin SEMPRE vê o conteúdo (para preview antes de ir ao vivo) */}
                   <ZKViewer key="zkpremios-admin-preview" channel="ZkPremios" />
-                  
-                  {/* Overlay de status apenas para indicar se está ao vivo ou não */}
-                  {!selectedStream.is_active && (
-                    <div className="absolute top-12 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
-                      <div className="bg-slate-800/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm font-medium border border-slate-600/50 shadow-lg">
-                        📹 Preview - Não está ao vivo
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Badge de status */}
-                  <div className="absolute top-3 left-3 z-10">
-                    {selectedStream.is_active ? (
-                      <div className="bg-red-600/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
-                        AO VIVO
-                      </div>
-                    ) : (
-                      <div className="bg-slate-600/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-xs font-medium">
-                        INATIVA
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
 

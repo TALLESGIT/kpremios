@@ -186,55 +186,37 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
         }} 
       />
 
-      {/* 🔴 INDICADOR DE STATUS AO VIVO - SEMPRE VISÍVEL */}
-      <div style={{
-        position: 'absolute',
-        top: '20px',
-        left: '20px',
-        zIndex: 3,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-        pointerEvents: 'none'
-      }}>
-        {/* Badge principal */}
+      {/* 🔴 INDICADOR AO VIVO - SIMPLES E DISCRETO */}
+      {isLive && (
         <div style={{
+          position: 'absolute',
+          top: '16px',
+          left: '16px',
+          zIndex: 3,
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
-          padding: '8px 16px',
-          borderRadius: '8px',
-          backgroundColor: isLive ? 'rgba(220, 38, 38, 0.9)' : 'rgba(71, 85, 105, 0.9)',
+          padding: '6px 12px',
+          borderRadius: '6px',
+          backgroundColor: 'rgba(220, 38, 38, 0.95)',
           color: 'white',
-          fontSize: '14px',
-          fontWeight: '600'
+          fontSize: '12px',
+          fontWeight: '600',
+          pointerEvents: 'none',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
         }}>
           <div style={{
-            width: '8px',
-            height: '8px',
+            width: '6px',
+            height: '6px',
             borderRadius: '50%',
-            backgroundColor: isLive ? '#fff' : '#94a3b8',
-            animation: isLive ? 'pulse 2s infinite' : 'none'
+            backgroundColor: '#fff',
+            animation: 'pulse 2s infinite'
           }} />
-          {isLive ? 'AO VIVO' : 'OFFLINE'}
+          AO VIVO
         </div>
+      )}
 
-        {/* Contador de reconexões (se > 0) */}
-        {reconnectCount > 0 && (
-          <div style={{
-            padding: '6px 12px',
-            borderRadius: '6px',
-            backgroundColor: 'rgba(251, 191, 36, 0.9)',
-            color: 'white',
-            fontSize: '12px',
-            fontWeight: '500'
-          }}>
-            ⚠️ Reconexões: {reconnectCount}
-          </div>
-        )}
-      </div>
-
-      {/* ⏳ OVERLAY "AGUARDANDO" - SÓ APARECE QUANDO !isLive */}
+      {/* ⏳ OVERLAY "AGUARDANDO" - SIMPLES E LIMPO */}
       {!isLive && (
         <div style={{
           position: 'absolute',
@@ -244,35 +226,15 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
           alignItems: 'center',
           justifyContent: 'center',
           pointerEvents: 'none',
-          backgroundColor: 'rgba(0, 0, 0, 0.7)'
+          backgroundColor: 'rgba(0, 0, 0, 0.85)'
         }}>
           <div style={{
             color: 'white',
-            fontSize: '18px',
+            fontSize: '16px',
             textAlign: 'center',
-            maxWidth: '500px',
-            padding: '20px'
+            opacity: 0.9
           }}>
-            {reconnectCount > 0 ? (
-              <>
-                🔄 Reconectando...
-                <div style={{ fontSize: '14px', marginTop: '12px', opacity: 0.8 }}>
-                  A transmissão está instável. Possíveis causas:
-                </div>
-                <div style={{ fontSize: '13px', marginTop: '8px', opacity: 0.7, textAlign: 'left' }}>
-                  • Bitrate muito baixo no ZK Studio<br />
-                  • Slideshow de imagens causando reconexões<br />
-                  • Conexão de internet instável
-                </div>
-              </>
-            ) : (
-              <>
-                ⏳ Aguardando transmissão...
-                <div style={{ fontSize: '14px', marginTop: '8px', opacity: 0.7 }}>
-                  Certifique-se de que o ZK Studio está transmitindo
-                </div>
-              </>
-            )}
+            ⏳ Aguardando transmissão...
           </div>
         </div>
       )}
