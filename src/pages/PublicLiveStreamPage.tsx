@@ -156,6 +156,13 @@ const PublicLiveStreamPage: React.FC = () => {
     }
   }, [isMobile, isFullscreen, isLandscape]);
 
+  // Quando o chat estiver DOCKED (lado a lado), SEMPRE usar "sem cortes"
+  useEffect(() => {
+    if (isDockedChat) {
+      setVideoFitMode('contain');
+    }
+  }, [isDockedChat]);
+
   // Auto-hide dos botões (mobile): mostra por um instante e depois some
   useEffect(() => {
     if (!isMobile) {
@@ -847,27 +854,55 @@ const PublicLiveStreamPage: React.FC = () => {
                 className="zk-video-stage"
                 style={
                   isDockedChat
-                    ? { position: 'relative', flex: 1, height: '100%', minWidth: 0 }
+                    ? { position: 'relative', flex: 1, height: '100%', minWidth: 0, background: 'black' }
                     : { position: 'absolute', inset: 0 }
                 }
               >
-                {/* Sempre usa canal fixo "ZkPremios" para conectar ao ZK Studio Pro */}
-                {/* CORREÇÃO: Só mostrar conteúdo quando transmissão estiver ativa */}
-                {showStreamContent ? (
-                  <ZKViewer channel="ZkPremios" fitMode={effectiveVideoFitMode} />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
-                    <div className="text-center p-6">
-                      <div className="w-16 h-16 mx-auto mb-4 bg-slate-700 rounded-full flex items-center justify-center">
-                        <div className="w-6 h-6 bg-slate-500 rounded-full"></div>
+                <div
+                  className="zk-video-frame"
+                  style={
+                    isDockedChat
+                      ? {
+                          position: 'absolute',
+                          inset: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: 'black',
+                        }
+                      : { position: 'absolute', inset: 0 }
+                  }
+                >
+                  <div
+                    style={
+                      isDockedChat
+                        ? {
+                            position: 'relative',
+                            width: '100%',
+                            height: '100%',
+                            maxWidth: '100%',
+                            maxHeight: '100%',
+                          }
+                        : { position: 'absolute', inset: 0 }
+                    }
+                  >
+                    {/* Sempre usa canal fixo "ZkPremios" para conectar ao ZK Studio Pro */}
+                    {/* CORREÇÃO: Só mostrar conteúdo quando transmissão estiver ativa */}
+                    {showStreamContent ? (
+                      <ZKViewer channel="ZkPremios" fitMode={effectiveVideoFitMode} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
+                        <div className="text-center p-6">
+                          <div className="w-16 h-16 mx-auto mb-4 bg-slate-700 rounded-full flex items-center justify-center">
+                            <div className="w-6 h-6 bg-slate-500 rounded-full"></div>
+                          </div>
+                          <h3 className="text-white text-lg font-semibold mb-2">Transmissão em Preparação</h3>
+                          <p className="text-slate-400 text-sm">Aguarde o início da transmissão ao vivo</p>
+                        </div>
                       </div>
-                      <h3 className="text-white text-lg font-semibold mb-2">Transmissão em Preparação</h3>
-                      <p className="text-slate-400 text-sm">
-                        Aguarde o início da transmissão ao vivo
-                      </p>
-                    </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
 
               {/* Painel DOCKED (YouTube) - fullscreen paisagem + chat aberto */}
@@ -881,7 +916,7 @@ const PublicLiveStreamPage: React.FC = () => {
                     className="bg-slate-900 shadow-2xl flex flex-col chat-overlay-mobile"
                     style={{
                       position: 'relative',
-                      width: 'min(45vw, 380px)',
+                      width: 'clamp(260px, 35vw, 340px)',
                       height: '100%',
                       zIndex: 2147483647,
                       pointerEvents: 'auto',
