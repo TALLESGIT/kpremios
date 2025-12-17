@@ -15,6 +15,7 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
   const bgRef = useRef<HTMLDivElement | null>(null);
   const fgRef = useRef<HTMLDivElement | null>(null);
   const bgVideoElRef = useRef<HTMLVideoElement | null>(null);
+  const bgTrackRef = useRef<MediaStreamTrack | null>(null);
 
   const [isLive, setIsLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +63,7 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
       videoObserver.observe(containerRef.current, {
         childList: true,
         subtree: true,
-        attributes: true,
+          attributes: true,
         attributeFilter: ['style']
       });
     }
@@ -178,43 +179,81 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
                 try {
                   const remoteStats = await client.getRemoteVideoStats();
                   console.log('📊 Estatísticas de vídeo:', remoteStats);
-                } catch (e) {
+      } catch (e) {
                   console.warn('⚠️ Não foi possível obter estatísticas:', e);
                 }
                 
-                // Background blur (preenche a tela sem cortar o vídeo principal)
-                try {
-                  const mst = user.videoTrack.getMediaStreamTrack?.();
-                  if (mst && bgRef.current) {
-                    const bgVideo = document.createElement('video');
-                    bgVideo.autoplay = true;
-                    bgVideo.muted = true;
-                    (bgVideo as any).playsInline = true;
-                    bgVideo.setAttribute('playsinline', 'true');
-                    bgVideo.setAttribute('webkit-playsinline', 'true');
-                    bgVideo.srcObject = new MediaStream([mst]);
-                    bgVideo.style.width = '100%';
-                    bgVideo.style.height = '100%';
-                    bgVideo.style.objectFit = 'cover';
-                    bgVideo.style.objectPosition = 'center';
-                    bgVideo.style.filter = 'blur(18px) brightness(0.75) saturate(1.2)';
-                    bgVideo.style.transform = 'scale(1.2)';
-                    bgVideo.style.position = 'absolute';
-                    bgVideo.style.inset = '0';
-
-                    bgRef.current.innerHTML = '';
-                    bgRef.current.appendChild(bgVideo);
-                    bgVideoElRef.current = bgVideo;
-                    // Em mobile, autoplay funciona porque é muted
-                    bgVideo.play?.().catch(() => {});
-                  }
-                } catch (e) {
-                  console.warn('⚠️ ZKViewer: Falha ao criar background blur', e);
-                }
-
                 // Foreground (sem cortes)
                 await user.videoTrack.play(fgRef.current!);
                 console.log('✅ ZKViewer: Vídeo reproduzindo!');
+
+                // Background blur: criar a partir do vídeo foreground (mais confiável)
+                const attachBgFromFg = () => {
+                  if (!bgRef.current || !fgRef.current) return false;
+
+                  const fgVideo = fgRef.current.querySelector('video') as HTMLVideoElement | null;
+                  const srcObj = fgVideo?.srcObject;
+                  if (!(srcObj instanceof MediaStream)) return false;
+
+                  const fgTrack = srcObj.getVideoTracks?.()?.[0];
+                  if (!fgTrack) return false;
+
+                  // limpar bg anterior
+                  if (bgTrackRef.current) {
+                    try { bgTrackRef.current.stop(); } catch { /* ignore */ }
+                    bgTrackRef.current = null;
+                  }
+                  if (bgVideoElRef.current) {
+                    try {
+                      bgVideoElRef.current.pause?.();
+                      (bgVideoElRef.current as any).srcObject = null;
+                    } catch { /* ignore */ }
+                    bgVideoElRef.current.remove();
+                    bgVideoElRef.current = null;
+                  }
+
+                  const cloned = fgTrack.clone();
+                  bgTrackRef.current = cloned;
+
+                  const bgStream = new MediaStream([cloned]);
+                  const bgVideo = document.createElement('video');
+                  bgVideo.autoplay = true;
+                  bgVideo.muted = true;
+                  (bgVideo as any).playsInline = true;
+                  bgVideo.setAttribute('playsinline', 'true');
+                  bgVideo.setAttribute('webkit-playsinline', 'true');
+                  bgVideo.srcObject = bgStream;
+
+                  bgVideo.style.width = '100%';
+                  bgVideo.style.height = '100%';
+                  bgVideo.style.objectFit = 'cover';
+                  bgVideo.style.objectPosition = 'center';
+                  bgVideo.style.filter = 'blur(18px) brightness(0.75) saturate(1.2)';
+                  bgVideo.style.transform = 'scale(1.2)';
+                  bgVideo.style.position = 'absolute';
+                  bgVideo.style.inset = '0';
+
+                  bgRef.current.innerHTML = '';
+                  bgRef.current.appendChild(bgVideo);
+                  bgVideoElRef.current = bgVideo;
+                  bgVideo.play?.().catch(() => {});
+                  return true;
+                };
+
+                // tentar algumas vezes (o <video> do Agora pode demorar a aparecer)
+                let tries = 0;
+                const maxTries = 10;
+                const tick = () => {
+                  if (!mounted) return;
+                  tries += 1;
+                  if (attachBgFromFg()) return;
+                  if (tries < maxTries) {
+                    requestAnimationFrame(tick);
+                  } else {
+                    console.warn('⚠️ ZKViewer: Não foi possível anexar background blur (sem vídeo foreground)');
+                  }
+                };
+                requestAnimationFrame(tick);
             }
           }
 
@@ -232,8 +271,8 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
         client.on('user-unpublished', (user: any, mediaType: 'video' | 'audio') => {
           if (!mounted) return;
           console.log('📴 ZKViewer: user-unpublished', { 
-            uid: user.uid, 
-            mediaType,
+              uid: user.uid, 
+              mediaType,
             timestamp: new Date().toISOString()
           });
           if (mediaType === 'video') {
@@ -249,6 +288,10 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
             }
 
             // Limpar background
+            if (bgTrackRef.current) {
+              try { bgTrackRef.current.stop(); } catch { /* ignore */ }
+              bgTrackRef.current = null;
+            }
             if (bgVideoElRef.current) {
               try {
                 bgVideoElRef.current.pause?.();
@@ -293,6 +336,19 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
         clientRef.current.leave();
         clientRef.current = null;
       }
+
+      if (bgTrackRef.current) {
+        try { bgTrackRef.current.stop(); } catch { /* ignore */ }
+        bgTrackRef.current = null;
+      }
+      if (bgVideoElRef.current) {
+        try {
+          bgVideoElRef.current.pause?.();
+          (bgVideoElRef.current as any).srcObject = null;
+        } catch { /* ignore */ }
+        bgVideoElRef.current.remove();
+        bgVideoElRef.current = null;
+      }
     };
   }, []);
 
@@ -315,11 +371,11 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
       <div
         ref={bgRef}
         className="zk-video-bg"
-        style={{
+        style={{ 
           position: 'absolute',
           inset: 0,
-          width: '100%',
-          height: '100%',
+          width: '100%', 
+          height: '100%', 
           zIndex: 0,
           backgroundColor: 'black',
         }}
@@ -329,9 +385,9 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
       <div
         ref={fgRef}
         className="zk-video-fg"
-        style={{
+          style={{
           position: 'absolute',
-          inset: 0,
+            inset: 0,
           width: '100%',
           height: '100%',
           zIndex: 1,
@@ -342,7 +398,7 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
       {/* 🔴 INDICADOR AO VIVO - SIMPLES E DISCRETO */}
       {isLive && (
         <div style={{
-          position: 'absolute',
+            position: 'absolute',
           top: '16px',
           left: '16px',
           zIndex: 3,
@@ -352,7 +408,7 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
           padding: '6px 12px',
           borderRadius: '6px',
           backgroundColor: 'rgba(220, 38, 38, 0.95)',
-          color: 'white',
+              color: 'white',
           fontSize: '12px',
           fontWeight: '600',
             pointerEvents: 'none',

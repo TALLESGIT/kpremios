@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, Eye, Share2, MessageSquare, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 import ZKViewer from '../components/ZKViewer';
 import LiveChat from '../components/live/LiveChat';
 import Header from '../components/shared/Header';
@@ -22,6 +23,7 @@ interface LiveStream {
 const PublicLiveStreamPage: React.FC = () => {
   const { channelName } = useParams<{ channelName: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [stream, setStream] = useState<LiveStream | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewerCount, setViewerCount] = useState(0);
@@ -163,8 +165,17 @@ const PublicLiveStreamPage: React.FC = () => {
       endViewerSession();
       // Ocultar conteúdo quando transmissão não estiver ativa
       setShowStreamContent(false);
+      // Garantir que o chat feche automaticamente quando encerrar
+      setIsChatOpen(false);
     }
   }, [stream, channelName]);
+
+  // Se o stream ficar inativo por polling/subscription, fechar chat imediatamente
+  useEffect(() => {
+    if (!stream?.is_active && isChatOpen) {
+      setIsChatOpen(false);
+    }
+  }, [stream?.is_active, isChatOpen]);
 
   // Heartbeat e atualização do contador (apenas se estiver ativo)
   useEffect(() => {
@@ -272,6 +283,8 @@ const PublicLiveStreamPage: React.FC = () => {
           .from('viewer_sessions')
           .update({ 
             is_active: true,
+            // Se o usuário fizer login depois, anexar o user_id na sessão
+            user_id: user?.id ?? null,
             last_heartbeat: new Date().toISOString(),
             ended_at: null,
             started_at: existingSession.ended_at ? new Date().toISOString() : undefined
@@ -290,6 +303,7 @@ const PublicLiveStreamPage: React.FC = () => {
           stream_id: stream.id,
           session_id: sessionId,
           is_active: true,
+          user_id: user?.id ?? null,
           user_agent: navigator.userAgent,
           last_heartbeat: new Date().toISOString(),
         }).select();
@@ -939,12 +953,20 @@ const PublicLiveStreamPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Chat - Desktop */}
-          {!isMobile ? (
+          {/* Chat - Desktop (apenas quando estiver AO VIVO) */}
+          {!isMobile && stream?.is_active ? (
             /* Chat Normal (Desktop) */
             <div className="lg:col-span-4">
               <div style={{ minHeight: '600px' }}>
                 <LiveChat streamId={stream.id} isAdmin={false} />
+              </div>
+            </div>
+          ) : !isMobile ? (
+            <div className="lg:col-span-4">
+              <div className="min-h-[200px] bg-slate-900 rounded-lg border border-slate-700 flex items-center justify-center p-6 text-center">
+                <div className="text-slate-300 text-sm">
+                  Chat disponível apenas durante a transmissão ao vivo.
+                </div>
               </div>
             </div>
           ) : null}
