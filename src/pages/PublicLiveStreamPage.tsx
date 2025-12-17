@@ -788,11 +788,27 @@ const PublicLiveStreamPage: React.FC = () => {
                     whileTap={{ scale: 0.95 }}
                     exit={{ opacity: 0, scale: 0.8 }}
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
-                      console.log('💬 Botão de chat clicado:', { isChatOpen, isFullscreen, isMobile });
+                      console.log('💬 Botão de chat clicado:', { 
+                        isChatOpen, 
+                        isFullscreen, 
+                        isMobile,
+                        willOpen: !isChatOpen,
+                        timestamp: new Date().toISOString()
+                      });
                       setIsChatOpen(!isChatOpen);
+                      console.log('💬 Estado do chat após clique:', !isChatOpen);
                     }}
-                    className="absolute top-4 right-4 z-[60] mobile-chat-button text-white p-2.5 rounded-full shadow-lg"
+                    className="absolute top-4 right-4 mobile-chat-button text-white p-2.5 rounded-full shadow-lg"
+                    style={{
+                      position: 'fixed',
+                      top: '16px',
+                      right: '16px',
+                      zIndex: 2147483646,
+                      pointerEvents: 'auto',
+                      touchAction: 'auto'
+                    }}
                     aria-label={isChatOpen ? "Fechar chat" : "Abrir chat"}
                     title={isChatOpen ? "Fechar chat" : "Abrir chat"}
                   >
@@ -849,7 +865,14 @@ const PublicLiveStreamPage: React.FC = () => {
           {isMobile ? (
             /* Chat Overlay Mobile - Funciona em fullscreen e normal */
             <AnimatePresence>
-              {isChatOpen && (
+              {isChatOpen && (() => {
+                console.log('🎨 Renderizando chat overlay:', { 
+                  isChatOpen, 
+                  isFullscreen, 
+                  isMobile,
+                  timestamp: new Date().toISOString()
+                });
+                return (
                 <>
                   {/* Backdrop - z-index mais alto para fullscreen */}
                   <motion.div
@@ -912,7 +935,8 @@ const PublicLiveStreamPage: React.FC = () => {
                     </div>
                   </motion.div>
                 </>
-              )}
+                );
+              })()}
             </AnimatePresence>
           ) : (
             /* Chat Normal (Desktop) */
