@@ -410,36 +410,6 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain' }:
         }}
       />
 
-      {/* 🔴 INDICADOR AO VIVO - SIMPLES E DISCRETO */}
-      {isLive && (
-        <div style={{
-            position: 'absolute',
-          top: '16px',
-          left: '16px',
-          zIndex: 3,
-            display: 'flex',
-            alignItems: 'center',
-          gap: '8px',
-          padding: '6px 12px',
-          borderRadius: '6px',
-          backgroundColor: 'rgba(220, 38, 38, 0.95)',
-              color: 'white',
-          fontSize: '12px',
-          fontWeight: '600',
-            pointerEvents: 'none',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
-        }}>
-          <div style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            backgroundColor: '#fff',
-            animation: 'pulse 2s infinite'
-          }} />
-          AO VIVO
-        </div>
-      )}
-
       {/* ⏳ OVERLAY "AGUARDANDO" - SIMPLES E LIMPO */}
       {!isLive && (
         <div style={{
@@ -463,13 +433,7 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain' }:
         </div>
       )}
 
-      {/* Animação de pulse para o indicador AO VIVO */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-      `}</style>
+      {/* (badge AO VIVO removido a pedido) */}
     </div>
   );
 }

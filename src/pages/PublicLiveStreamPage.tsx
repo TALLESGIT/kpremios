@@ -32,6 +32,8 @@ const PublicLiveStreamPage: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
   const [videoFitMode, setVideoFitMode] = useState<'contain' | 'cover'>('contain');
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const controlsHideTimerRef = useRef<number | null>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [showStreamContent, setShowStreamContent] = useState(false);
@@ -129,6 +131,21 @@ const PublicLiveStreamPage: React.FC = () => {
   const isDockedChat = isMobile && isFullscreen && isLandscape && isChatOpen;
   const effectiveVideoFitMode: 'contain' | 'cover' = isDockedChat ? 'contain' : videoFitMode;
 
+  const scheduleHideControls = (delayMs: number) => {
+    if (controlsHideTimerRef.current) {
+      window.clearTimeout(controlsHideTimerRef.current);
+      controlsHideTimerRef.current = null;
+    }
+    controlsHideTimerRef.current = window.setTimeout(() => {
+      setControlsVisible(false);
+    }, delayMs);
+  };
+
+  const showControlsTemporarily = (delayMs: number = 2500) => {
+    setControlsVisible(true);
+    scheduleHideControls(delayMs);
+  };
+
   // comportamento estilo YouTube: em fullscreen paisagem, padrão é "Preencher (zoom)"
   useEffect(() => {
     if (isMobile && isFullscreen && isLandscape) {
@@ -138,6 +155,29 @@ const PublicLiveStreamPage: React.FC = () => {
       setVideoFitMode('contain');
     }
   }, [isMobile, isFullscreen, isLandscape]);
+
+  // Auto-hide dos botões (mobile): mostra por um instante e depois some
+  useEffect(() => {
+    if (!isMobile) {
+      setControlsVisible(true);
+      return;
+    }
+    // Só faz sentido quando há stream ativo (botões existem)
+    if (stream?.is_active) {
+      // Ao entrar em fullscreen/rotacionar, mostra e esconde
+      showControlsTemporarily(isFullscreen ? 2000 : 2500);
+    } else {
+      setControlsVisible(false);
+    }
+
+    return () => {
+      if (controlsHideTimerRef.current) {
+        window.clearTimeout(controlsHideTimerRef.current);
+        controlsHideTimerRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile, isFullscreen, isLandscape, stream?.is_active]);
 
   // Detectar fullscreen
   useEffect(() => {
@@ -759,6 +799,12 @@ const PublicLiveStreamPage: React.FC = () => {
                   alignItems: isDockedChat ? 'stretch' : undefined
                 } : {})
               }}
+              onClick={() => {
+                // Toque/click na tela: mostrar controles e depois esconder (estilo YouTube)
+                if (isMobile && stream?.is_active) {
+                  showControlsTemporarily(2500);
+                }
+              }}
               onDoubleClick={() => {
                 // Duplo clique para fullscreen
                 if (!document.fullscreenElement) {
@@ -769,6 +815,9 @@ const PublicLiveStreamPage: React.FC = () => {
               }}
               onTouchStart={(e) => {
                 if (!isMobile) return;
+                if (stream?.is_active) {
+                  showControlsTemporarily(2500);
+                }
                 const touch = e.touches[0];
                 setTouchStart({ x: touch.clientX, y: touch.clientY });
               }}
@@ -866,9 +915,17 @@ const PublicLiveStreamPage: React.FC = () => {
               {/* Botões Mobile - Chat e Fullscreen */}
               {isMobile && stream && stream.is_active && (
                 <>
-                  {/* Botão "Zoom/Preencher" (estilo YouTube) - só faz sentido fora do docked chat */}
-                  {isFullscreen && isLandscape && !isDockedChat && (
-                    <motion.button
+                  {/* Wrapper de controles: some e aparece por toque */}
+                  <div
+                    style={{
+                      opacity: controlsVisible ? 1 : 0,
+                      transition: 'opacity 200ms ease',
+                      pointerEvents: controlsVisible ? 'auto' : 'none',
+                    }}
+                  >
+                    {/* Botão "Zoom/Preencher" (estilo YouTube) - só faz sentido fora do docked chat */}
+                    {isFullscreen && isLandscape && !isDockedChat && (
+                      <motion.button
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 0.65, scale: 1 }}
                       whileHover={{ opacity: 0.95 }}
@@ -889,13 +946,13 @@ const PublicLiveStreamPage: React.FC = () => {
                       }}
                       aria-label={videoFitMode === 'cover' ? 'Sem cortar' : 'Preencher tela'}
                       title={videoFitMode === 'cover' ? 'Sem cortar' : 'Preencher tela'}
-                    >
-                      {/* ícone simples */}
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
-                      </svg>
-                    </motion.button>
-                  )}
+                      >
+                        {/* ícone simples */}
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
+                        </svg>
+                      </motion.button>
+                    )}
 
                   {/* Botão de Chat Transparente */}
                   <motion.button
@@ -975,6 +1032,7 @@ const PublicLiveStreamPage: React.FC = () => {
                       </svg>
                     </motion.button>
                   )}
+                  </div>
 
                   {/* Chat Overlay (modo overlay) - não usar quando estiver DOCKED */}
                   <AnimatePresence>
