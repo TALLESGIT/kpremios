@@ -65,6 +65,10 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
           mode: 'live',
           codec: 'h264',
         });
+        
+        // Configurar para ALTA QUALIDADE
+        client.setStreamFallbackOption(0, 0); // Desabilitar fallback de qualidade
+        console.log('🎨 Configurado para alta qualidade (sem fallback)');
 
         clientRef.current = client;
 
@@ -94,6 +98,28 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
           setError('Token expirado - reconecte a transmissão');
         });
 
+        // Listener para monitorar qualidade do stream
+        client.on('stream-type-changed', (uid: number, streamType: number) => {
+          console.log('📊 Qualidade do stream mudou:', {
+            uid,
+            streamType: streamType === 0 ? 'ALTA' : 'BAIXA',
+            timestamp: new Date().toISOString()
+          });
+          if (streamType === 1) {
+            console.warn('⚠️ ATENÇÃO: Stream mudou para BAIXA qualidade!');
+          }
+        });
+
+        // Listener para problemas de rede
+        client.on('network-quality', (stats: any) => {
+          if (stats.downlinkNetworkQuality > 3) {
+            console.warn('⚠️ Qualidade de rede RUIM:', {
+              downlink: stats.downlinkNetworkQuality,
+              uplink: stats.uplinkNetworkQuality
+            });
+          }
+        });
+
         client.on('user-published', async (user: any, mediaType: 'video' | 'audio') => {
           if (!mounted) return;
 
@@ -110,10 +136,23 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
 
               if (user.videoTrack) {
                 videoTrackRef.current = user.videoTrack;
+                
+                // Log de qualidade do vídeo
+                const stats = user.videoTrack.getStats();
                 console.log('🎥 ZKViewer: Reproduzindo vídeo...', {
                   trackId: user.videoTrack.getTrackId(),
                   enabled: user.videoTrack.enabled,
+                  stats: stats
                 });
+                
+                // Tentar obter estatísticas de recepção
+                try {
+                  const remoteStats = await client.getRemoteVideoStats();
+                  console.log('📊 Estatísticas de vídeo:', remoteStats);
+                } catch (e) {
+                  console.warn('⚠️ Não foi possível obter estatísticas:', e);
+                }
+                
                 await user.videoTrack.play(containerRef.current!);
                 console.log('✅ ZKViewer: Vídeo reproduzindo!');
               }
