@@ -16,14 +16,37 @@
     <!-- Eruda: Console de debug para mobile -->
     <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
     <script>
-      // Inicializar Eruda apenas em mobile ou quando ?debug=true na URL
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      const hasDebugParam = window.location.search.includes('debug=true');
-      
-      if (isMobile || hasDebugParam) {
+      // Inicializar Eruda SEMPRE (para debug)
+      try {
         eruda.init();
         console.log('🔧 Eruda Debug Console ativado!');
         console.log('📱 Dispositivo:', navigator.userAgent);
+        console.log('📏 Viewport:', window.innerWidth, 'x', window.innerHeight);
+        
+        // Adicionar botão de teste visível
+        setTimeout(() => {
+          const testBtn = document.createElement('div');
+          testBtn.style.cssText = `
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: red;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            z-index: 999999;
+            font-size: 12px;
+            pointer-events: auto;
+          `;
+          testBtn.textContent = '🔧 Debug';
+          testBtn.onclick = () => {
+            alert('Eruda está funcionando! Toque no ícone verde no canto inferior direito.');
+          };
+          document.body.appendChild(testBtn);
+        }, 2000);
+      } catch (e) {
+        console.error('Erro ao inicializar Eruda:', e);
+        alert('Erro ao carregar console de debug');
       }
     </script>
     

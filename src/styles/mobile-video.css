@@ -35,6 +35,7 @@
     max-width: 100% !important;
     max-height: 100% !important;
     object-fit: contain !important; /* CONTAIN = NÃO CORTA */
+    object-position: center !important;
     background: black !important;
   }
   
@@ -44,6 +45,20 @@
   .mobile-video-container:fullscreen [class*="video"],
   .mobile-video-container:fullscreen [id*="video"] {
     object-fit: contain !important;
+    object-position: center !important;
+  }
+  
+  /* FORÇAR contain em elementos inline do Agora SDK */
+  .mobile-video-container:fullscreen video[style*="object-fit"],
+  .mobile-video-container:fullscreen div[style*="object-fit"] {
+    object-fit: contain !important;
+  }
+  
+  /* Remover qualquer transform que possa estar cortando */
+  .mobile-video-container:fullscreen video,
+  .mobile-video-container:fullscreen video * {
+    transform: none !important;
+    transform-origin: center !important;
   }
 }
 

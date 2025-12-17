@@ -22,6 +22,30 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
   useEffect(() => {
     let mounted = true;
 
+    // Observer para forçar object-fit: contain em vídeos do Agora
+    const videoObserver = new MutationObserver(() => {
+      if (containerRef.current) {
+        const videos = containerRef.current.querySelectorAll('video');
+        videos.forEach((video: HTMLVideoElement) => {
+          if (video.style.objectFit !== 'contain') {
+            video.style.objectFit = 'contain';
+            video.style.objectPosition = 'center';
+            console.log('🎥 Forçando object-fit: contain no vídeo');
+          }
+        });
+      }
+    });
+
+    // Observar mudanças no container
+    if (containerRef.current) {
+      videoObserver.observe(containerRef.current, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style']
+      });
+    }
+
     const init = async () => {
       try {
         if (clientRef.current) return;
@@ -150,6 +174,7 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
 
     return () => {
       mounted = false;
+      videoObserver.disconnect();
 
       videoTrackRef.current?.stop();
       audioTrackRef.current?.stop();
