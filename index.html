@@ -12,6 +12,32 @@
   </head>
   <body>
     <div id="root"></div>
+
+    <!-- Canonical host (evita perder login entre www e não-www) -->
+    <script>
+      (function () {
+        try {
+          var host = window.location.hostname;
+          var isProdHost = host === 'itallozkpremios.com.br' || host === 'www.itallozkpremios.com.br';
+          if (!isProdHost) return;
+
+          // Escolha UM domínio canônico para manter o localStorage do login sempre no mesmo lugar
+          var canonicalHost = 'www.itallozkpremios.com.br';
+          if (host !== canonicalHost) {
+            var newUrl =
+              window.location.protocol +
+              '//' +
+              canonicalHost +
+              window.location.pathname +
+              window.location.search +
+              window.location.hash;
+            window.location.replace(newUrl);
+          }
+        } catch (e) {
+          // não bloquear o app
+        }
+      })();
+    </script>
     
     <!-- Eruda: Console de debug para mobile -->
     <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
