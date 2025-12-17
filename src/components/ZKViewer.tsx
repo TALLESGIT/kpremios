@@ -5,9 +5,10 @@ interface ZKViewerProps {
   appId?: string;
   channel: string;
   token?: string | null;
+  fitMode?: 'contain' | 'cover';
 }
 
-export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
+export default function ZKViewer({ appId, channel, token, fitMode = 'contain' }: ZKViewerProps) {
   const clientRef = useRef<any>(null);
   const videoTrackRef = useRef<any>(null);
   const audioTrackRef = useRef<any>(null);
@@ -16,10 +17,23 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
   const fgRef = useRef<HTMLDivElement | null>(null);
   const bgVideoElRef = useRef<HTMLVideoElement | null>(null);
   const bgTrackRef = useRef<MediaStreamTrack | null>(null);
+  const fitModeRef = useRef<'contain' | 'cover'>(fitMode);
 
   const [isLive, setIsLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reconnectCount, setReconnectCount] = useState(0);
+
+  // manter o valor atual do fitMode acessível dentro do MutationObserver sem recriar o client
+  useEffect(() => {
+    fitModeRef.current = fitMode;
+    if (containerRef.current) {
+      const fgVideos = containerRef.current.querySelectorAll<HTMLVideoElement>('.zk-video-fg video');
+      fgVideos.forEach((v) => {
+        v.style.objectFit = fitMode;
+        v.style.objectPosition = 'center';
+      });
+    }
+  }, [fitMode]);
 
   useEffect(() => {
     let mounted = true;
@@ -31,8 +45,9 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
       if (containerRef.current) {
         const fgVideos = containerRef.current.querySelectorAll<HTMLVideoElement>('.zk-video-fg video');
         fgVideos.forEach((video) => {
-          if (video.style.objectFit !== 'contain') {
-            video.style.objectFit = 'contain';
+          const desired = fitModeRef.current;
+          if (video.style.objectFit !== desired) {
+            video.style.objectFit = desired;
           }
           if (video.style.objectPosition !== 'center') {
             video.style.objectPosition = 'center';

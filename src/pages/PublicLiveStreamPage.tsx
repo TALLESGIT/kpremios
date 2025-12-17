@@ -31,6 +31,7 @@ const PublicLiveStreamPage: React.FC = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
+  const [videoFitMode, setVideoFitMode] = useState<'contain' | 'cover'>('contain');
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [showStreamContent, setShowStreamContent] = useState(false);
@@ -126,6 +127,17 @@ const PublicLiveStreamPage: React.FC = () => {
   }, [isMobile, isFullscreen]);
 
   const isDockedChat = isMobile && isFullscreen && isLandscape && isChatOpen;
+  const effectiveVideoFitMode: 'contain' | 'cover' = isDockedChat ? 'contain' : videoFitMode;
+
+  // comportamento estilo YouTube: em fullscreen paisagem, padrão é "Preencher (zoom)"
+  useEffect(() => {
+    if (isMobile && isFullscreen && isLandscape) {
+      setVideoFitMode('cover');
+    }
+    if (!isFullscreen) {
+      setVideoFitMode('contain');
+    }
+  }, [isMobile, isFullscreen, isLandscape]);
 
   // Detectar fullscreen
   useEffect(() => {
@@ -793,7 +805,7 @@ const PublicLiveStreamPage: React.FC = () => {
                 {/* Sempre usa canal fixo "ZkPremios" para conectar ao ZK Studio Pro */}
                 {/* CORREÇÃO: Só mostrar conteúdo quando transmissão estiver ativa */}
                 {showStreamContent ? (
-                  <ZKViewer channel="ZkPremios" />
+                  <ZKViewer channel="ZkPremios" fitMode={effectiveVideoFitMode} />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
                     <div className="text-center p-6">
@@ -854,6 +866,37 @@ const PublicLiveStreamPage: React.FC = () => {
               {/* Botões Mobile - Chat e Fullscreen */}
               {isMobile && stream && stream.is_active && (
                 <>
+                  {/* Botão "Zoom/Preencher" (estilo YouTube) - só faz sentido fora do docked chat */}
+                  {isFullscreen && isLandscape && !isDockedChat && (
+                    <motion.button
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 0.65, scale: 1 }}
+                      whileHover={{ opacity: 0.95 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setVideoFitMode((prev) => (prev === 'cover' ? 'contain' : 'cover'));
+                      }}
+                      className="absolute top-4 left-4 mobile-chat-button text-white p-2.5 rounded-full shadow-lg"
+                      style={{
+                        position: 'fixed',
+                        top: '16px',
+                        left: '16px',
+                        zIndex: 2147483646,
+                        pointerEvents: 'auto',
+                        touchAction: 'auto',
+                      }}
+                      aria-label={videoFitMode === 'cover' ? 'Sem cortar' : 'Preencher tela'}
+                      title={videoFitMode === 'cover' ? 'Sem cortar' : 'Preencher tela'}
+                    >
+                      {/* ícone simples */}
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
+                      </svg>
+                    </motion.button>
+                  )}
+
                   {/* Botão de Chat Transparente */}
                   <motion.button
                     initial={{ opacity: 0, scale: 0.8 }}
