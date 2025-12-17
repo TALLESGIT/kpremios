@@ -30,6 +30,7 @@ const PublicLiveStreamPage: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [showStreamContent, setShowStreamContent] = useState(false);
@@ -91,6 +92,7 @@ const PublicLiveStreamPage: React.FC = () => {
       const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
                     window.innerWidth <= 768;
       setIsMobile(mobile);
+      setIsLandscape(window.innerWidth > window.innerHeight);
       console.log('📱 Detecção mobile:', { mobile, userAgent: navigator.userAgent, width: window.innerWidth });
     };
     
@@ -100,6 +102,7 @@ const PublicLiveStreamPage: React.FC = () => {
       // Aguardar um pouco para a orientação se estabilizar
       setTimeout(() => {
         const isLandscape = window.innerWidth > window.innerHeight;
+        setIsLandscape(isLandscape);
         console.log('🔄 Mudança de orientação:', { isLandscape, width: window.innerWidth, height: window.innerHeight });
         
         // Auto fullscreen em paisagem no mobile
@@ -121,6 +124,8 @@ const PublicLiveStreamPage: React.FC = () => {
       window.removeEventListener('resize', handleOrientationChange);
     };
   }, [isMobile, isFullscreen]);
+
+  const isDockedChat = isMobile && isFullscreen && isLandscape && isChatOpen;
 
   // Detectar fullscreen
   useEffect(() => {
@@ -727,7 +732,7 @@ const PublicLiveStreamPage: React.FC = () => {
                 isMobile ? 'mobile-video-container' : ''
               }`}
               style={{ 
-                aspectRatio: '16/9',
+                aspectRatio: (isMobile && isFullscreen) ? undefined : '16/9',
                 // Garantir que em mobile fullscreen mantenha proporção
                 ...(isMobile && isFullscreen ? {
                   width: '100vw',
@@ -736,7 +741,10 @@ const PublicLiveStreamPage: React.FC = () => {
                   top: 0,
                   left: 0,
                   zIndex: 9999,
-                  borderRadius: 0
+                  borderRadius: 0,
+                  display: isDockedChat ? 'flex' : 'block',
+                  flexDirection: isDockedChat ? 'row' : undefined,
+                  alignItems: isDockedChat ? 'stretch' : undefined
                 } : {})
               }}
               onDoubleClick={() => {
@@ -773,23 +781,75 @@ const PublicLiveStreamPage: React.FC = () => {
                 setTouchStart(null);
               }}
             >
-              {/* Sempre usa canal fixo "ZkPremios" para conectar ao ZK Studio Pro */}
-              {/* CORREÇÃO: Só mostrar conteúdo quando transmissão estiver ativa */}
-              {showStreamContent ? (
-                <ZKViewer channel="ZkPremios" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
-                  <div className="text-center p-6">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-slate-700 rounded-full flex items-center justify-center">
-                      <div className="w-6 h-6 bg-slate-500 rounded-full"></div>
+              {/* Área do vídeo (em docked chat, ocupa apenas a parte esquerda) */}
+              <div
+                className="zk-video-stage"
+                style={
+                  isDockedChat
+                    ? { position: 'relative', flex: 1, height: '100%', minWidth: 0 }
+                    : { position: 'absolute', inset: 0 }
+                }
+              >
+                {/* Sempre usa canal fixo "ZkPremios" para conectar ao ZK Studio Pro */}
+                {/* CORREÇÃO: Só mostrar conteúdo quando transmissão estiver ativa */}
+                {showStreamContent ? (
+                  <ZKViewer channel="ZkPremios" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
+                    <div className="text-center p-6">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-slate-700 rounded-full flex items-center justify-center">
+                        <div className="w-6 h-6 bg-slate-500 rounded-full"></div>
+                      </div>
+                      <h3 className="text-white text-lg font-semibold mb-2">Transmissão em Preparação</h3>
+                      <p className="text-slate-400 text-sm">
+                        Aguarde o início da transmissão ao vivo
+                      </p>
                     </div>
-                    <h3 className="text-white text-lg font-semibold mb-2">Transmissão em Preparação</h3>
-                    <p className="text-slate-400 text-sm">
-                      Aguarde o início da transmissão ao vivo
-                    </p>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+
+              {/* Painel DOCKED (YouTube) - fullscreen paisagem + chat aberto */}
+              <AnimatePresence>
+                {isDockedChat && stream && stream.is_active && (
+                  <motion.div
+                    initial={{ x: '100%' }}
+                    animate={{ x: 0 }}
+                    exit={{ x: '100%' }}
+                    transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                    className="bg-slate-900 shadow-2xl flex flex-col chat-overlay-mobile"
+                    style={{
+                      position: 'relative',
+                      width: 'min(45vw, 380px)',
+                      height: '100%',
+                      zIndex: 2147483647,
+                      pointerEvents: 'auto',
+                      borderLeft: '1px solid rgba(148, 163, 184, 0.25)'
+                    }}
+                  >
+                    <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-800">
+                      <h3 className="text-white font-semibold flex items-center gap-2">
+                        <MessageSquare className="w-5 h-5" />
+                        Chat ao Vivo
+                      </h3>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsChatOpen(false);
+                        }}
+                        className="text-slate-400 hover:text-white transition-colors p-1"
+                        aria-label="Fechar chat"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <div className="flex-1 overflow-hidden">
+                      <LiveChat streamId={stream.id} isAdmin={false} />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               
               {/* Botões Mobile - Chat e Fullscreen */}
               {isMobile && stream && stream.is_active && (
@@ -873,9 +933,9 @@ const PublicLiveStreamPage: React.FC = () => {
                     </motion.button>
                   )}
 
-                  {/* Chat Overlay Mobile - PRECISA SER FILHO DO ELEMENTO FULLSCREEN */}
+                  {/* Chat Overlay (modo overlay) - não usar quando estiver DOCKED */}
                   <AnimatePresence>
-                    {isChatOpen && (
+                    {isChatOpen && !isDockedChat && (
                       <>
                         {/* Backdrop */}
                         <motion.div

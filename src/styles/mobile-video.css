@@ -52,15 +52,15 @@
     object-position: center !important;
   }
   
-  /* FORÇAR contain em elementos inline do Agora SDK */
-  .mobile-video-container:fullscreen video[style*="object-fit"],
-  .mobile-video-container:fullscreen div[style*="object-fit"] {
+  /* FORÇAR contain apenas no FOREGROUND (não mexer no background desfocado) */
+  .mobile-video-container:fullscreen .zk-video-fg video[style*="object-fit"],
+  .mobile-video-container:fullscreen .zk-video-fg div[style*="object-fit"] {
     object-fit: contain !important;
   }
   
-  /* Remover qualquer transform que possa estar cortando */
-  .mobile-video-container:fullscreen video,
-  .mobile-video-container:fullscreen video * {
+  /* Remover transform apenas no FOREGROUND (background precisa do scale p/ preencher) */
+  .mobile-video-container:fullscreen .zk-video-fg video,
+  .mobile-video-container:fullscreen .zk-video-fg video * {
     transform: none !important;
     transform-origin: center !important;
   }
