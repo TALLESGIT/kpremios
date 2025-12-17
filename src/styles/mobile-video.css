@@ -19,27 +19,28 @@
     margin: 0 !important;
     overflow: hidden !important;
   }
-  
-  .mobile-video-container:fullscreen > *,
-  .mobile-video-container:fullscreen > * > *,
-  .mobile-video-container:fullscreen > * > * > * {
-    object-fit: contain !important; /* CONTAIN = NÃO CORTA */
-  }
-  
-  /* Garantir que o vídeo dentro do ZKViewer cubra toda a tela */
-  .mobile-video-container:fullscreen video,
-  .mobile-video-container:fullscreen video[style],
-  .mobile-video-container:fullscreen div[style*="video"] video {
-    width: 100vw !important;
-    height: 100vh !important;
-    max-width: none !important;
-    max-height: none !important;
-    object-fit: cover !important; /* COVER = COBRE TODA A TELA, pode cortar bordas */
+
+  /*
+    IMPORTANTE:
+    - Em fullscreen, NÃO podemos forçar object-fit em tudo, senão quebramos a camada de fundo desfocada.
+    - O player (`ZKViewer`) vai renderizar 2 camadas:
+      - `.zk-video-bg video` = cover (preenche a tela com blur)
+      - `.zk-video-fg video` = contain (não corta o conteúdo)
+  */
+
+  .mobile-video-container:fullscreen .zk-video-fg video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
     object-position: center !important;
     background: black !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
+  }
+
+  .mobile-video-container:fullscreen .zk-video-bg video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center !important;
   }
   
   /* Forçar contain em TODOS os elementos de vídeo do Agora SDK */
@@ -67,19 +68,10 @@
 
 /* Orientação paisagem em mobile - CHAT VISÍVEL */
 @media (orientation: landscape) and (max-width: 768px) {
-  .mobile-video-container:fullscreen > * {
-    width: 100vw !important;
-    height: 100vh !important;
-    object-fit: cover !important;
-  }
-  
-  .mobile-video-container:fullscreen video {
-    width: 100vw !important;
-    height: 100vh !important;
-    object-fit: cover !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
+  .mobile-video-container:fullscreen .zk-video-fg,
+  .mobile-video-container:fullscreen .zk-video-bg {
+    width: 100% !important;
+    height: 100% !important;
   }
   
   /* Garantir que o chat seja visível em fullscreen paisagem */
@@ -108,17 +100,9 @@
 
 /* Orientação retrato em mobile */
 @media (orientation: portrait) and (max-width: 768px) {
-  .mobile-video-container:fullscreen > * {
+  .mobile-video-container:fullscreen .zk-video-fg video {
     width: 100% !important;
-    height: auto !important;
-    max-height: 56.25vw !important; /* 16:9 aspect ratio */
-    object-fit: contain !important;
-  }
-  
-  .mobile-video-container:fullscreen video {
-    width: 100% !important;
-    height: auto !important;
-    max-height: 56.25vw !important; /* 16:9 aspect ratio */
+    height: 100% !important;
     object-fit: contain !important;
   }
 }

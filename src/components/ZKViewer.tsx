@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 
 interface ZKViewerProps {
-  appId: string;
+  appId?: string;
   channel: string;
   token?: string | null;
 }
@@ -12,25 +12,46 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
   const videoTrackRef = useRef<any>(null);
   const audioTrackRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const bgRef = useRef<HTMLDivElement | null>(null);
+  const fgRef = useRef<HTMLDivElement | null>(null);
+  const bgVideoElRef = useRef<HTMLVideoElement | null>(null);
 
-  const [connectionState, setConnectionState] = useState<'idle' | 'connecting' | 'connected'>('idle');
   const [isLive, setIsLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reconnectCount, setReconnectCount] = useState(0);
-  const [lastDisconnectTime, setLastDisconnectTime] = useState<number | null>(null);
 
   useEffect(() => {
     let mounted = true;
 
-    // Observer para forçar object-fit: contain em vídeos do Agora
+    // Observer para forçar estilos corretos:
+    // - Foreground: contain (não corta)
+    // - Background: cover + blur (preenche sem barras pretas)
     const videoObserver = new MutationObserver(() => {
       if (containerRef.current) {
-        const videos = containerRef.current.querySelectorAll('video');
-        videos.forEach((video: HTMLVideoElement) => {
+        const fgVideos = containerRef.current.querySelectorAll<HTMLVideoElement>('.zk-video-fg video');
+        fgVideos.forEach((video) => {
           if (video.style.objectFit !== 'contain') {
             video.style.objectFit = 'contain';
+          }
+          if (video.style.objectPosition !== 'center') {
             video.style.objectPosition = 'center';
-            console.log('🎥 Forçando object-fit: contain no vídeo');
+          }
+        });
+
+        const bgVideos = containerRef.current.querySelectorAll<HTMLVideoElement>('.zk-video-bg video');
+        bgVideos.forEach((video) => {
+          if (video.style.objectFit !== 'cover') {
+            video.style.objectFit = 'cover';
+          }
+          if (video.style.objectPosition !== 'center') {
+            video.style.objectPosition = 'center';
+          }
+          // filtro/blur no background
+          if (!video.style.filter) {
+            video.style.filter = 'blur(18px) brightness(0.75) saturate(1.2)';
+          }
+          if (!video.style.transform) {
+            video.style.transform = 'scale(1.2)';
           }
         });
       }
@@ -59,16 +80,10 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
           return;
         }
 
-        setConnectionState('connecting');
-
         const client = AgoraRTC.createClient({
           mode: 'live',
           codec: 'h264',
         });
-        
-        // Configurar para ALTA QUALIDADE
-        client.setStreamFallbackOption(0, 0); // Desabilitar fallback de qualidade
-        console.log('🎨 Configurado para alta qualidade (sem fallback)');
 
         clientRef.current = client;
 
@@ -78,7 +93,6 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
             state, 
             timestamp: new Date().toISOString() 
           });
-          if (state === 'CONNECTED') setConnectionState('connected');
           if (state === 'DISCONNECTED') {
             console.warn('⚠️ ZKViewer: Desconectado do Agora!', {
               timestamp: new Date().toISOString(),
@@ -124,7 +138,7 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
           if (!mounted) return;
 
           console.log('🎬 ZKViewer: user-published', { uid: user.uid, mediaType });
-
+            
           try {
             await client.subscribe(user, mediaType);
             console.log('✅ ZKViewer: Subscribe realizado com sucesso', mediaType);
@@ -136,6 +150,21 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
 
               if (user.videoTrack) {
                 videoTrackRef.current = user.videoTrack;
+
+                // Tentar forçar stream HIGH (se dual-stream estiver ativo no broadcaster)
+                try {
+                  await client.setRemoteVideoStreamType?.(user.uid, 0);
+                  console.log('🎚️ ZKViewer: Forçando stream HIGH para uid', user.uid);
+                } catch (e) {
+                  console.warn('⚠️ ZKViewer: Não foi possível forçar stream HIGH', e);
+                }
+
+                // Tentar desabilitar fallback automático para LOW/AUDIO (aplica no uid remoto)
+                try {
+                  client.setStreamFallbackOption?.(user.uid, 0);
+                } catch {
+                  // ignore
+                }
                 
                 // Log de qualidade do vídeo
                 const stats = user.videoTrack.getStats();
@@ -153,12 +182,43 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
                   console.warn('⚠️ Não foi possível obter estatísticas:', e);
                 }
                 
-                await user.videoTrack.play(containerRef.current!);
-                console.log('✅ ZKViewer: Vídeo reproduzindo!');
-              }
-            }
+                // Background blur (preenche a tela sem cortar o vídeo principal)
+                try {
+                  const mst = user.videoTrack.getMediaStreamTrack?.();
+                  if (mst && bgRef.current) {
+                    const bgVideo = document.createElement('video');
+                    bgVideo.autoplay = true;
+                    bgVideo.muted = true;
+                    (bgVideo as any).playsInline = true;
+                    bgVideo.setAttribute('playsinline', 'true');
+                    bgVideo.setAttribute('webkit-playsinline', 'true');
+                    bgVideo.srcObject = new MediaStream([mst]);
+                    bgVideo.style.width = '100%';
+                    bgVideo.style.height = '100%';
+                    bgVideo.style.objectFit = 'cover';
+                    bgVideo.style.objectPosition = 'center';
+                    bgVideo.style.filter = 'blur(18px) brightness(0.75) saturate(1.2)';
+                    bgVideo.style.transform = 'scale(1.2)';
+                    bgVideo.style.position = 'absolute';
+                    bgVideo.style.inset = '0';
 
-            if (mediaType === 'audio' && user.audioTrack) {
+                    bgRef.current.innerHTML = '';
+                    bgRef.current.appendChild(bgVideo);
+                    bgVideoElRef.current = bgVideo;
+                    // Em mobile, autoplay funciona porque é muted
+                    bgVideo.play?.().catch(() => {});
+                  }
+                } catch (e) {
+                  console.warn('⚠️ ZKViewer: Falha ao criar background blur', e);
+                }
+
+                // Foreground (sem cortes)
+                await user.videoTrack.play(fgRef.current!);
+                console.log('✅ ZKViewer: Vídeo reproduzindo!');
+            }
+          }
+
+          if (mediaType === 'audio' && user.audioTrack) {
               audioTrackRef.current = user.audioTrack;
               console.log('🔊 ZKViewer: Reproduzindo áudio...');
               await user.audioTrack.play();
@@ -171,7 +231,6 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
 
         client.on('user-unpublished', (user: any, mediaType: 'video' | 'audio') => {
           if (!mounted) return;
-          const now = Date.now();
           console.log('📴 ZKViewer: user-unpublished', { 
             uid: user.uid, 
             mediaType,
@@ -179,7 +238,6 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
           });
           if (mediaType === 'video') {
             setIsLive(false);
-            setLastDisconnectTime(now);
             setReconnectCount(prev => prev + 1);
             console.log('⚫ ZKViewer: isLive = FALSE');
             console.warn('⚠️ ZKViewer: Reconexão #' + (reconnectCount + 1));
@@ -189,12 +247,24 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
               videoTrackRef.current.stop();
               videoTrackRef.current = null;
             }
+
+            // Limpar background
+            if (bgVideoElRef.current) {
+              try {
+                bgVideoElRef.current.pause?.();
+                (bgVideoElRef.current as any).srcObject = null;
+              } catch {
+                // ignore
+              }
+              bgVideoElRef.current.remove();
+              bgVideoElRef.current = null;
+            }
           }
         });
 
         await client.setClientRole('audience');
         console.log('🔌 ZKViewer: Conectando ao canal...', { 
-          channel, 
+          channel,
           hasToken: !!agoraToken,
           tokenPreview: agoraToken ? agoraToken.substring(0, 20) + '...' : 'null'
         });
@@ -203,7 +273,7 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
           channel,
           connectionTime: new Date().toISOString()
         });
-      } catch (err) {
+              } catch (err) {
         console.error(err);
         setError('Erro ao conectar à transmissão');
       }
@@ -231,23 +301,42 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
   }
 
   return (
-    <div style={{ 
-      position: 'relative',
-      width: '100%', 
-      height: '100%', 
-      backgroundColor: 'black'
-    }}>
-      {/* 🎥 CONTAINER DO VÍDEO - SEMPRE VISÍVEL */}
-      <div 
-        ref={containerRef} 
-        style={{ 
+    <div
+      ref={containerRef}
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'black',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Background (blur) */}
+      <div
+        ref={bgRef}
+        className="zk-video-bg"
+        style={{
           position: 'absolute',
           inset: 0,
-          width: '100%', 
+          width: '100%',
           height: '100%',
+          zIndex: 0,
           backgroundColor: 'black',
-          zIndex: 1
-        }} 
+        }}
+      />
+
+      {/* Foreground (conteúdo real, sem cortes) */}
+      <div
+        ref={fgRef}
+        className="zk-video-fg"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          zIndex: 1,
+          backgroundColor: 'transparent',
+        }}
       />
 
       {/* 🔴 INDICADOR AO VIVO - SIMPLES E DISCRETO */}
@@ -257,8 +346,8 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
           top: '16px',
           left: '16px',
           zIndex: 3,
-          display: 'flex',
-          alignItems: 'center',
+            display: 'flex',
+            alignItems: 'center',
           gap: '8px',
           padding: '6px 12px',
           borderRadius: '6px',
@@ -266,7 +355,7 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
           color: 'white',
           fontSize: '12px',
           fontWeight: '600',
-          pointerEvents: 'none',
+            pointerEvents: 'none',
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
         }}>
           <div style={{
@@ -284,12 +373,12 @@ export default function ZKViewer({ appId, channel, token }: ZKViewerProps) {
       {!isLive && (
         <div style={{
           position: 'absolute',
-          inset: 0,
+            inset: 0,
           zIndex: 2,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
           backgroundColor: 'rgba(0, 0, 0, 0.85)'
         }}>
           <div style={{
