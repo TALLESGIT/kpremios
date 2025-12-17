@@ -52,6 +52,12 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain' }:
           if (video.style.objectPosition !== 'center') {
             video.style.objectPosition = 'center';
           }
+          // Garantir que o vídeo ocupe todo o container (evita ficar "pequeno" no topo no retrato)
+          if (video.style.width !== '100%') video.style.width = '100%';
+          if (video.style.height !== '100%') video.style.height = '100%';
+          if (video.style.position !== 'absolute') video.style.position = 'absolute';
+          if (video.style.inset !== '0px') (video.style as any).inset = '0';
+          if (video.style.display !== 'block') video.style.display = 'block';
         });
 
         const bgVideos = containerRef.current.querySelectorAll<HTMLVideoElement>('.zk-video-bg video');

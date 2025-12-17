@@ -788,7 +788,7 @@ const PublicLiveStreamPage: React.FC = () => {
                 // Garantir que em mobile fullscreen mantenha proporção
                 ...(isMobile && isFullscreen ? {
                   width: '100vw',
-                  height: '100vh',
+                  height: '100dvh',
                   position: 'fixed',
                   top: 0,
                   left: 0,
