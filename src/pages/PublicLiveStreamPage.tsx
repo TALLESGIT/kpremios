@@ -576,12 +576,28 @@ const PublicLiveStreamPage: React.FC = () => {
         },
         (payload) => {
           const updated = payload.new as LiveStream;
+          const wasActive = stream?.is_active;
+          const isNowInactive = !updated.is_active;
+          
           console.log('📡 Stream atualizado via subscription:', { 
             is_active: updated.is_active, 
             viewer_count: updated.viewer_count,
-            old_is_active: stream?.is_active,
+            old_is_active: wasActive,
+            wasActive,
+            isNowInactive,
             payload: payload
           });
+          
+          // Se o stream foi ENCERRADO (mudou de ativo para inativo), ação IMEDIATA
+          if (wasActive && isNowInactive) {
+            console.log('🛑 TRANSMISSÃO ENCERRADA - Desconectando imediatamente!');
+            // Ocultar conteúdo IMEDIATAMENTE
+            setShowStreamContent(false);
+            // Fechar chat
+            setIsChatOpen(false);
+            // Encerrar sessão de viewer
+            endViewerSession();
+          }
           
           // Forçar atualização do estado
           setStream((prev) => {
@@ -609,7 +625,7 @@ const PublicLiveStreamPage: React.FC = () => {
       )
       .subscribe();
 
-    // Polling como fallback para garantir que o estado seja atualizado
+    // Polling como fallback para garantir que o estado seja atualizado (mais rápido quando inativo)
     const pollInterval = setInterval(async () => {
       try {
         const { data, error } = await supabase
@@ -619,12 +635,23 @@ const PublicLiveStreamPage: React.FC = () => {
           .single();
 
         if (!error && data) {
+          const wasActive = stream?.is_active;
+          const isNowInactive = !data.is_active;
+          
           setStream((prev) => {
             if (prev && prev.is_active !== data.is_active) {
               console.log('🔄 Estado do stream mudou via polling:', { 
                 old: prev.is_active, 
                 new: data.is_active 
               });
+              
+              // Se foi encerrado, ação imediata
+              if (wasActive && isNowInactive) {
+                console.log('🛑 TRANSMISSÃO ENCERRADA (via polling) - Desconectando imediatamente!');
+                setShowStreamContent(false);
+                setIsChatOpen(false);
+                endViewerSession();
+              }
             }
             return data;
           });
@@ -633,7 +660,7 @@ const PublicLiveStreamPage: React.FC = () => {
       } catch (error) {
         console.error('Erro ao fazer polling do stream:', error);
       }
-    }, 5000); // Verificar a cada 5 segundos
+    }, stream?.is_active ? 5000 : 1000); // Polling MUITO rápido quando inativo (1s) para detectar encerramento IMEDIATAMENTE
 
     return () => {
       console.log('🔕 Removendo subscription do stream:', stream.id);

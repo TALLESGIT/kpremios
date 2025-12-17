@@ -262,7 +262,8 @@ const AdminLiveStreamPage: React.FC = () => {
         p_stream_id: selectedStream.id
       });
 
-      // Atualizar viewer_count para 0
+      // Atualizar viewer_count para 0 e marcar como inativo
+      // IMPORTANTE: Usar .select() para garantir que o Supabase propague a mudança via Realtime imediatamente
       const { data: updatedStream, error: updateError } = await supabase
         .from('live_streams')
         .update({ 
@@ -275,13 +276,18 @@ const AdminLiveStreamPage: React.FC = () => {
 
       if (updateError) {
         console.error('Erro ao atualizar stream:', updateError);
-      } else if (updatedStream) {
+        toast.error('Erro ao encerrar transmissão');
+        return;
+      }
+
+      if (updatedStream) {
         // Atualizar o estado local do stream selecionado
         setSelectedStream(updatedStream);
+        console.log('🛑 Transmissão encerrada - Todos os viewers serão notificados imediatamente via Realtime');
       }
 
       setIsStreaming(false);
-      toast.success('Transmissão encerrada');
+      toast.success('Transmissão encerrada - Todos os viewers serão desconectados');
       await loadStreams();
     } catch (error) {
       console.error('Erro ao encerrar transmissão:', error);
