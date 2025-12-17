@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
@@ -880,81 +881,93 @@ const PublicLiveStreamPage: React.FC = () => {
 
           {/* Chat - Ocupa 4 colunas (Desktop) ou Overlay (Mobile) */}
           {isMobile ? (
-            /* Chat Overlay Mobile - Funciona em fullscreen e normal */
-            <AnimatePresence>
-              {isChatOpen && (() => {
-                console.log('🎨 Renderizando chat overlay:', { 
-                  isChatOpen, 
-                  isFullscreen, 
-                  isMobile,
-                  timestamp: new Date().toISOString()
-                });
-                return (
-                <>
-                  {/* Backdrop - z-index mais alto para fullscreen */}
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onClick={() => setIsChatOpen(false)}
-                    className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-                    style={{ 
-                      position: 'fixed !important' as any,
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      zIndex: 2147483646, // Máximo z-index - 1
-                      pointerEvents: 'auto'
-                    }}
-                  />
-                  
-                  {/* Chat Panel - z-index MÁXIMO para fullscreen */}
-                  <motion.div
-                    initial={{ x: '100%' }}
-                    animate={{ x: 0 }}
-                    exit={{ x: '100%' }}
-                    transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                    className="fixed top-0 right-0 h-full w-[75%] max-w-sm bg-slate-900 shadow-2xl flex flex-col chat-overlay-mobile"
-                    style={{ 
-                      position: 'fixed !important' as any,
-                      top: 0,
-                      right: 0,
-                      height: '100vh',
-                      width: '75%',
-                      maxWidth: '400px',
-                      zIndex: 2147483647, // Máximo z-index possível
-                      pointerEvents: 'auto'
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {/* Header do Chat */}
-                    <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-800">
-                      <h3 className="text-white font-semibold flex items-center gap-2">
-                        <MessageSquare className="w-5 h-5" />
-                        Chat ao Vivo
-                      </h3>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsChatOpen(false);
-                        }}
-                        className="text-slate-400 hover:text-white transition-colors p-1"
-                        aria-label="Fechar chat"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-                    
-                    {/* Chat Content */}
-                    <div className="flex-1 overflow-hidden">
-                      <LiveChat streamId={stream.id} isAdmin={false} />
-                    </div>
-                  </motion.div>
-                </>
-                );
-              })()}
-            </AnimatePresence>
+            /* Chat Overlay Mobile - Renderizado via Portal para funcionar em fullscreen */
+            <>
+              {isChatOpen && createPortal(
+                <AnimatePresence>
+                  {(() => {
+                    console.log('🎨 Renderizando chat overlay via Portal:', { 
+                      isChatOpen, 
+                      isFullscreen, 
+                      isMobile,
+                      timestamp: new Date().toISOString()
+                    });
+                    return (
+                      <>
+                        {/* Backdrop - z-index mais alto para fullscreen */}
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          onClick={() => {
+                            console.log('🔙 Backdrop clicado - fechando chat');
+                            setIsChatOpen(false);
+                          }}
+                          className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+                          style={{ 
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            zIndex: 2147483646,
+                            pointerEvents: 'auto'
+                          }}
+                        />
+                        
+                        {/* Chat Panel - z-index MÁXIMO para fullscreen */}
+                        <motion.div
+                          initial={{ x: '100%' }}
+                          animate={{ x: 0 }}
+                          exit={{ x: '100%' }}
+                          transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                          className="fixed top-0 right-0 h-full w-[75%] max-w-sm bg-slate-900 shadow-2xl flex flex-col chat-overlay-mobile"
+                          style={{ 
+                            position: 'fixed',
+                            top: 0,
+                            right: 0,
+                            height: '100vh',
+                            width: '75%',
+                            maxWidth: '400px',
+                            zIndex: 2147483647,
+                            pointerEvents: 'auto'
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            console.log('📱 Chat panel clicado - mantendo aberto');
+                          }}
+                        >
+                          {/* Header do Chat */}
+                          <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-800">
+                            <h3 className="text-white font-semibold flex items-center gap-2">
+                              <MessageSquare className="w-5 h-5" />
+                              Chat ao Vivo
+                            </h3>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                console.log('❌ Botão X clicado - fechando chat');
+                                setIsChatOpen(false);
+                              }}
+                              className="text-slate-400 hover:text-white transition-colors p-1"
+                              aria-label="Fechar chat"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+                          
+                          {/* Chat Content */}
+                          <div className="flex-1 overflow-hidden">
+                            <LiveChat streamId={stream.id} isAdmin={false} />
+                          </div>
+                        </motion.div>
+                      </>
+                    );
+                  })()}
+                </AnimatePresence>,
+                document.body
+              )}
+            </>
           ) : (
             /* Chat Normal (Desktop) */
             <div className="lg:col-span-4">
