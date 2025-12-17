@@ -577,7 +577,8 @@ const AdminLiveStreamPage: React.FC = () => {
                   }}
                 >
                   {/* Admin SEMPRE vê o conteúdo (para preview antes de ir ao vivo) */}
-                  <ZKViewer key="zkpremios-admin-preview" channel="ZkPremios" />
+                  {/* MUTAR ÁUDIO: Admin já tem áudio local do ZK Studio, não precisa ouvir o áudio do site (evita duplicação/delay) */}
+                  <ZKViewer key="zkpremios-admin-preview" channel="ZkPremios" muteAudio={true} />
                 </div>
               </div>
 

@@ -6,9 +6,10 @@ interface ZKViewerProps {
   channel: string;
   token?: string | null;
   fitMode?: 'contain' | 'cover';
+  muteAudio?: boolean; // Para admin: mutar áudio para evitar duplicação (áudio local do ZK Studio + áudio do site)
 }
 
-export default function ZKViewer({ appId, channel, token, fitMode = 'contain' }: ZKViewerProps) {
+export default function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio = false }: ZKViewerProps) {
   const clientRef = useRef<any>(null);
   const videoTrackRef = useRef<any>(null);
   const audioTrackRef = useRef<any>(null);
@@ -280,9 +281,15 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain' }:
 
           if (mediaType === 'audio' && user.audioTrack) {
               audioTrackRef.current = user.audioTrack;
-              console.log('🔊 ZKViewer: Reproduzindo áudio...');
-              await user.audioTrack.play();
-              console.log('✅ ZKViewer: Áudio reproduzindo!');
+              if (muteAudio) {
+                // Admin: mutar imediatamente para evitar duplicação (áudio local do ZK Studio + áudio do site com delay)
+                user.audioTrack.setVolume(0);
+                console.log('🔇 ZKViewer: Áudio mutado (modo admin - evita duplicação)');
+              } else {
+                console.log('🔊 ZKViewer: Reproduzindo áudio...');
+                await user.audioTrack.play();
+                console.log('✅ ZKViewer: Áudio reproduzindo!');
+              }
             }
           } catch (err) {
             console.error('❌ ZKViewer: Erro ao processar stream:', err);
