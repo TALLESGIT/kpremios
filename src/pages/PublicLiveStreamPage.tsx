@@ -790,15 +790,32 @@ const PublicLiveStreamPage: React.FC = () => {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
+                      
+                      const newState = !isChatOpen;
                       console.log('💬 Botão de chat clicado:', { 
                         isChatOpen, 
                         isFullscreen, 
                         isMobile,
-                        willOpen: !isChatOpen,
+                        willOpen: newState,
                         timestamp: new Date().toISOString()
                       });
-                      setIsChatOpen(!isChatOpen);
-                      console.log('💬 Estado do chat após clique:', !isChatOpen);
+                      
+                      // Feedback visual temporário
+                      const button = e.currentTarget as HTMLButtonElement;
+                      button.style.backgroundColor = 'rgba(34, 197, 94, 0.8)';
+                      setTimeout(() => {
+                        button.style.backgroundColor = '';
+                      }, 300);
+                      
+                      setIsChatOpen(newState);
+                      console.log('💬 Estado do chat após clique:', newState);
+                      
+                      // Alerta visual para debug (remover depois)
+                      if (newState) {
+                        console.log('✅ Chat DEVE estar abrindo agora!');
+                      } else {
+                        console.log('❌ Chat DEVE estar fechando agora!');
+                      }
                     }}
                     className="absolute top-4 right-4 mobile-chat-button text-white p-2.5 rounded-full shadow-lg"
                     style={{

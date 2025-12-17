@@ -12,6 +12,21 @@
   </head>
   <body>
     <div id="root"></div>
+    
+    <!-- Eruda: Console de debug para mobile -->
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>
+      // Inicializar Eruda apenas em mobile ou quando ?debug=true na URL
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const hasDebugParam = window.location.search.includes('debug=true');
+      
+      if (isMobile || hasDebugParam) {
+        eruda.init();
+        console.log('🔧 Eruda Debug Console ativado!');
+        console.log('📱 Dispositivo:', navigator.userAgent);
+      }
+    </script>
+    
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
