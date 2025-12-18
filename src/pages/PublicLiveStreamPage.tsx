@@ -1019,18 +1019,24 @@ const PublicLiveStreamPage: React.FC = () => {
               )}
 
               {/* Painel DOCKED (YouTube) - fullscreen paisagem + chat aberto */}
-              <AnimatePresence>
+              <AnimatePresence mode="wait">
                 {isDockedChat && stream && stream.is_active && (
                   <motion.div
-                    initial={{ x: '100%' }}
-                    animate={{ x: 0 }}
-                    exit={{ x: '100%' }}
-                    transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                    initial={{ width: 0, opacity: 0 }}
+                    animate={{ 
+                      width: 'clamp(280px, 35vw, 380px)', 
+                      opacity: 1,
+                      transition: { duration: 0.3, ease: 'easeOut' }
+                    }}
+                    exit={{ 
+                      width: 0, 
+                      opacity: 0,
+                      transition: { duration: 0.25, ease: 'easeIn' }
+                    }}
                     className="bg-slate-900 shadow-2xl flex flex-col"
                     style={{
                       // IMPORTANTE: position relative para participar do flexbox
                       position: 'relative',
-                      width: 'clamp(280px, 35vw, 380px)',
                       minWidth: '280px',
                       maxWidth: '380px',
                       height: '100%',
@@ -1040,11 +1046,12 @@ const PublicLiveStreamPage: React.FC = () => {
                       borderLeft: '1px solid rgba(148, 163, 184, 0.25)',
                       background: 'rgba(15, 23, 42, 0.98)',
                       backdropFilter: 'blur(10px)',
-                      transition: 'width 0.3s ease',
+                      overflow: 'hidden',
                       // Garantir que não use position fixed quando docked
                       top: 'auto',
                       right: 'auto',
-                      bottom: 'auto'
+                      bottom: 'auto',
+                      left: 'auto'
                     }}
                   >
                     <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-800">
