@@ -79,13 +79,13 @@ function Header() {
 
   return (
     <>
-      <header className="bg-slate-900/95 backdrop-blur-md shadow-2xl sticky top-0 z-50 border-b border-amber-400/20">
+      <header className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 shadow-2xl sticky top-0 z-50 border-b-2 border-blue-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex-shrink-0 flex items-center group" onClick={closeMenu}>
             <ZKLogo size="md" className="group-hover:scale-105 transition-transform duration-300" />
-            <span className="ml-3 text-xl font-black bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
+            <span className="ml-3 text-xl font-black text-yellow-300">
               ZK Premios
             </span>
           </Link>
@@ -96,8 +96,8 @@ function Header() {
               to={currentAppUser?.is_admin ? "/admin/dashboard" : "/"}
               className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
                 (currentAppUser?.is_admin ? location.pathname === '/admin/dashboard' : location.pathname === '/')
-                  ? 'text-amber-100 bg-amber-500/20 backdrop-blur-sm shadow-lg' 
-                  : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                  ? 'text-white bg-white/20 backdrop-blur-sm shadow-lg border-2 border-yellow-300' 
+                  : 'text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm'
               }`}
             >
               Início
@@ -106,8 +106,8 @@ function Header() {
               to="/winners"
               className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
                 location.pathname === '/winners' 
-                  ? 'text-amber-100 bg-amber-500/20 backdrop-blur-sm shadow-lg' 
-                  : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                  ? 'text-white bg-white/20 backdrop-blur-sm shadow-lg border-2 border-yellow-300' 
+                  : 'text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm'
               }`}
             >
               Ganhadores
@@ -138,7 +138,7 @@ function Header() {
                   className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 relative ${
                     location.pathname === '/admin/approvals' 
                       ? 'text-green-100 bg-green-500/20 backdrop-blur-sm shadow-lg' 
-                      : 'text-slate-300 hover:text-green-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                      : 'text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm'
                   }`}
                 >
                   Aprovações
@@ -154,7 +154,7 @@ function Header() {
                   className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
                     location.pathname === '/admin/raffles' 
                       ? 'text-purple-100 bg-purple-500/20 backdrop-blur-sm shadow-lg' 
-                      : 'text-slate-300 hover:text-purple-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                      : 'text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm'
                   }`}
                 >
                   Sorteios
@@ -164,7 +164,7 @@ function Header() {
                   className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
                     location.pathname.startsWith('/admin/live-games') 
                       ? 'text-red-100 bg-red-500/20 backdrop-blur-sm shadow-lg' 
-                      : 'text-slate-300 hover:text-red-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                      : 'text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm'
                   }`}
                 >
                   Lives Admin
@@ -174,7 +174,7 @@ function Header() {
                   className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
                     location.pathname.startsWith('/admin/live-stream') 
                       ? 'text-cyan-100 bg-cyan-500/20 backdrop-blur-sm shadow-lg' 
-                      : 'text-slate-300 hover:text-cyan-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                      : 'text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm'
                   }`}
                 >
                   Transmitir Live
@@ -189,8 +189,8 @@ function Header() {
                 to="/my-numbers"
                 className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
                   location.pathname === '/my-numbers' 
-                    ? 'text-amber-100 bg-amber-500/20 backdrop-blur-sm shadow-lg' 
-                    : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                    ? 'text-white bg-white/20 backdrop-blur-sm shadow-lg border-2 border-yellow-300' 
+                    : 'text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm'
                 }`}
               >
                 Meus Números
@@ -202,13 +202,13 @@ function Header() {
               <>
                 <Link
                   to="/login"
-                  className="px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 backdrop-blur-sm"
+                  className="px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm border-2 border-white/30"
                 >
                   Entrar
                 </Link>
                 <Link
                   to="/register"
-                  className="px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg hover:shadow-amber-500/25"
+                  className="px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg hover:shadow-orange-500/25 border-2 border-white/30"
                 >
                   Cadastrar
                 </Link>
@@ -219,7 +219,7 @@ function Header() {
             {currentAppUser && (
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 text-red-300 hover:text-red-100 hover:bg-red-500/20 backdrop-blur-sm border border-red-500/30 flex items-center gap-2"
+                className="px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm border-2 border-white/30 flex items-center gap-2"
               >
                 <LogOut className="h-4 w-4" />
                 Sair
@@ -230,7 +230,7 @@ function Header() {
           {/* Mobile menu button */}
           <button
             onClick={toggleMenu}
-            className="md:hidden inline-flex items-center justify-center p-2 rounded-xl text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 backdrop-blur-sm transition-all duration-300"
+            className="md:hidden inline-flex items-center justify-center p-2 rounded-xl text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm transition-all duration-300"
             aria-expanded="false"
           >
             <span className="sr-only">Abrir menu</span>
@@ -255,20 +255,20 @@ function Header() {
           }`} />
           
           {/* Slide-out Menu */}
-          <div className={`absolute right-0 top-0 h-full w-80 max-w-sm bg-black shadow-2xl border-l border-amber-400/60 transform transition-all duration-300 ease-out ${
+          <div className={`absolute right-0 top-0 h-full w-80 max-w-sm bg-gradient-to-b from-blue-600 to-blue-700 shadow-2xl border-l-2 border-yellow-300 transform transition-all duration-300 ease-out ${
             isMenuOpen ? 'translate-x-0 opacity-100 scale-100' : 'translate-x-full opacity-0 scale-95'
           }`}>
             {/* Menu Header */}
-            <div className="flex items-center justify-center p-6 border-b border-amber-400/80 relative">
+            <div className="flex items-center justify-center p-6 border-b-2 border-yellow-300 relative">
               <div className="flex items-center">
                 <ZKLogo size="sm" className="mr-3" />
-                <span className="text-lg font-black bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
+                <span className="text-lg font-black text-yellow-300">
                   ZK Premios
                 </span>
               </div>
               <button
                 onClick={closeMenu}
-                className="absolute right-4 p-2 rounded-xl text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 transition-all duration-300"
+                className="absolute right-4 p-2 rounded-xl text-white hover:text-yellow-300 hover:bg-white/10 transition-all duration-300"
               >
                 <X className="h-6 w-6" />
               </button>
@@ -280,12 +280,12 @@ function Header() {
                 to={currentAppUser?.is_admin ? "/admin/dashboard" : "/"}
                 className={`flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 ${
                   (currentAppUser?.is_admin ? location.pathname === '/admin/dashboard' : location.pathname === '/')
-                    ? 'text-amber-100 bg-amber-500/20 backdrop-blur-sm shadow-lg'
-                    : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                    ? 'text-white bg-white/20 backdrop-blur-sm shadow-lg border-2 border-yellow-300'
+                    : 'text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm'
                 }`}
                 onClick={closeMenu}
               >
-                <span className="w-8 h-8 bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg flex items-center justify-center mr-3 text-slate-900 font-black">
+                <span className="w-8 h-8 bg-gradient-to-r from-yellow-300 to-yellow-400 rounded-lg flex items-center justify-center mr-3 text-blue-600 font-black">
                   🏠
                 </span>
                 Início
@@ -295,12 +295,12 @@ function Header() {
                 to="/winners"
                 className={`flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 ${
                   location.pathname === '/winners'
-                    ? 'text-amber-100 bg-amber-500/20 backdrop-blur-sm shadow-lg'
-                    : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                    ? 'text-white bg-white/20 backdrop-blur-sm shadow-lg border-2 border-yellow-300'
+                    : 'text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm'
                 }`}
                 onClick={closeMenu}
               >
-                <span className="w-8 h-8 bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg flex items-center justify-center mr-3 text-slate-900 font-black">
+                <span className="w-8 h-8 bg-gradient-to-r from-yellow-300 to-yellow-400 rounded-lg flex items-center justify-center mr-3 text-blue-600 font-black">
                   🏆
                 </span>
                 Ganhadores
@@ -317,7 +317,7 @@ function Header() {
                   }`}
                   onClick={closeMenu}
                 >
-                  <span className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center mr-3 text-slate-900 font-black">
+                  <span className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center mr-3 text-blue-600 font-black">
                     🎮
                   </span>
                   Lives
@@ -331,11 +331,11 @@ function Header() {
                   className={`flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 ${
                     location.pathname === '/my-numbers'
                       ? 'text-amber-100 bg-amber-500/20 backdrop-blur-sm shadow-lg'
-                      : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                      : 'text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm'
                   }`}
                   onClick={closeMenu}
                 >
-                  <span className="w-8 h-8 bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg flex items-center justify-center mr-3 text-slate-900 font-black">
+                  <span className="w-8 h-8 bg-gradient-to-r from-yellow-300 to-yellow-400 rounded-lg flex items-center justify-center mr-3 text-blue-600 font-black">
                     🔢
                   </span>
                   Meus Números
@@ -348,11 +348,11 @@ function Header() {
                   className={`flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 ${
                     location.pathname === '/admin/approvals'
                       ? 'text-amber-100 bg-amber-500/20 backdrop-blur-sm shadow-lg'
-                      : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                      : 'text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm'
                   }`}
                   onClick={closeMenu}
                 >
-                  <span className="w-8 h-8 bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg flex items-center justify-center mr-3 text-slate-900 font-black">
+                  <span className="w-8 h-8 bg-gradient-to-r from-yellow-300 to-yellow-400 rounded-lg flex items-center justify-center mr-3 text-blue-600 font-black">
                     ⚡
                   </span>
                   Aprovações
@@ -372,11 +372,11 @@ function Header() {
                     className={`flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 ${
                       location.pathname === '/admin/raffles'
                         ? 'text-amber-100 bg-amber-500/20 backdrop-blur-sm shadow-lg'
-                        : 'text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                        : 'text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm'
                     }`}
                     onClick={closeMenu}
                   >
-                    <span className="w-8 h-8 bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg flex items-center justify-center mr-3 text-slate-900 font-black">
+                    <span className="w-8 h-8 bg-gradient-to-r from-yellow-300 to-yellow-400 rounded-lg flex items-center justify-center mr-3 text-blue-600 font-black">
                       🎯
                     </span>
                     Sorteios
@@ -386,7 +386,7 @@ function Header() {
                     className={`flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 ${
                       location.pathname.startsWith('/admin/live-games')
                         ? 'text-red-100 bg-red-500/20 backdrop-blur-sm shadow-lg'
-                        : 'text-slate-300 hover:text-red-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                        : 'text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm'
                     }`}
                     onClick={closeMenu}
                   >
@@ -400,7 +400,7 @@ function Header() {
                     className={`flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 ${
                       location.pathname.startsWith('/admin/live-stream')
                         ? 'text-cyan-100 bg-cyan-500/20 backdrop-blur-sm shadow-lg'
-                        : 'text-slate-300 hover:text-cyan-400 hover:bg-slate-800/50 backdrop-blur-sm'
+                        : 'text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm'
                     }`}
                     onClick={closeMenu}
                   >
@@ -418,17 +418,17 @@ function Header() {
                 <>
                   <Link
                     to="/login"
-                    className="flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 text-slate-300 hover:text-amber-400 hover:bg-slate-800/50 backdrop-blur-sm"
+                    className="flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm"
                     onClick={closeMenu}
                   >
-                    <span className="w-8 h-8 bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg flex items-center justify-center mr-3 text-slate-900 font-black">
+                    <span className="w-8 h-8 bg-gradient-to-r from-yellow-300 to-yellow-400 rounded-lg flex items-center justify-center mr-3 text-blue-600 font-black">
                       🔑
                     </span>
                     Entrar
                   </Link>
                   <Link
                     to="/register"
-                    className="flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg hover:shadow-amber-500/25"
+                    className="flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 bg-gradient-to-r from-yellow-300 to-yellow-400 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg hover:shadow-amber-500/25"
                     onClick={closeMenu}
                   >
                     <span className="w-8 h-8 bg-gradient-to-r from-amber-600 to-amber-700 rounded-lg flex items-center justify-center mr-3 text-white font-black">
@@ -443,7 +443,7 @@ function Header() {
               {currentAppUser && (
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 text-red-300 hover:text-red-100 hover:bg-red-500/20 backdrop-blur-sm border border-red-500/30"
+                  className="w-full flex items-center px-4 py-4 rounded-xl text-base font-bold transition-all duration-300 text-white hover:text-yellow-300 hover:bg-white/10 backdrop-blur-sm border-2 border-white/30"
                 >
                   <span className="w-8 h-8 bg-gradient-to-r from-red-500 to-red-600 rounded-lg flex items-center justify-center mr-3 text-white">
                     <LogOut className="h-4 w-4" />

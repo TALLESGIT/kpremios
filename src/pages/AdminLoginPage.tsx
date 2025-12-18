@@ -48,15 +48,15 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <Header />
-      <main className="flex-grow flex items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+      <main className="flex-grow flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6">
         <div className="max-w-md w-full">
-          <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="bg-white rounded-2xl shadow-xl border-2 border-blue-200 p-6 sm:p-8">
             <div className="flex justify-center mb-6">
               <ZKLogo size="lg" />
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 text-center mb-8">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-blue-600 text-center mb-8">
               Acesso Administrativo
             </h2>
             {error === 'Credenciais inválidas' && (
@@ -89,7 +89,7 @@ export default function AdminLoginPage() {
                   type="email"
                   required
                   autoComplete="email"
-                  className="appearance-none rounded-lg relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200"
+                  className="appearance-none rounded-lg relative block w-full px-4 py-3 border-2 border-blue-200 placeholder-blue-400 text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                   placeholder="Digite seu email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -143,7 +143,7 @@ export default function AdminLoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200"
+                className="group relative w-full flex justify-center py-3 px-4 border-2 border-blue-600 text-sm font-bold rounded-lg text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-lg"
               >
                 <span className="absolute left-0 inset-y-0 flex items-center pl-3">
                   <LogIn className="h-5 w-5 text-primary-dark group-hover:text-primary" aria-hidden="true" />
@@ -155,7 +155,7 @@ export default function AdminLoginPage() {
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600">
                 Não tem uma conta de admin?{' '}
-                <a href="/admin/register" className="text-primary hover:text-primary-dark font-medium">
+                <a href="/admin/register" className="text-blue-600 hover:text-blue-700 font-bold">
                   Cadastre-se aqui
                 </a>
               </p>
