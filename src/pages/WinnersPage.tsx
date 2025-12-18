@@ -8,31 +8,33 @@ function WinnersPage() {
   const drawResults = getDrawResults();
 
   return (
-    <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-8">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <Header />
-      <main className="flex-grow bg-gradient-to-br from-slate-50 to-slate-100">
+      <main className="flex-grow w-full">
         {/* Hero Section */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 py-8 sm:py-12 lg:py-16">
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 text-center">
-            <Trophy className="h-12 w-12 sm:h-16 sm:w-16 text-yellow-400 mx-auto mb-3 sm:mb-4" />
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-3 sm:mb-4">
-              Ganhadores ZK Premios
+        <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 py-8 sm:py-12 lg:py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <Trophy className="h-12 w-12 sm:h-16 sm:w-16 text-yellow-300 mx-auto mb-3 sm:mb-4" />
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-white mb-3 sm:mb-4" style={{
+              textShadow: '2px 2px 0px rgba(251, 191, 36, 0.8)'
+            }}>
+              GANHADORES ZK PREMIOS
             </h1>
-            <p className="text-base sm:text-lg lg:text-xl text-gray-300 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg lg:text-xl text-blue-100 max-w-2xl mx-auto">
               Confira todos os sortudos que já foram contemplados em nossos sorteios
             </p>
           </div>
         </div>
 
         {/* Winners List */}
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-8 sm:py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           {drawResults.length === 0 ? (
             <div className="text-center py-8 sm:py-12 lg:py-16">
-              <Trophy className="h-16 w-16 sm:h-20 sm:w-20 lg:h-24 lg:w-24 text-gray-300 mx-auto mb-4 sm:mb-6" />
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-600 mb-3 sm:mb-4">
+              <Trophy className="h-16 w-16 sm:h-20 sm:w-20 lg:h-24 lg:w-24 text-blue-300 mx-auto mb-4 sm:mb-6" />
+              <h2 className="text-xl sm:text-2xl font-bold text-blue-600 mb-3 sm:mb-4">
                 Ainda não temos ganhadores
               </h2>
-              <p className="text-gray-500 max-w-md mx-auto text-sm sm:text-base">
+              <p className="text-blue-500 max-w-md mx-auto text-sm sm:text-base">
                 Os primeiros sorteios ainda não foram realizados. 
                 Seja um dos primeiros a participar!
               </p>
@@ -44,12 +46,12 @@ function WinnersPage() {
                 return (
                   <div
                     key={result.id}
-                    className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                    className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                   >
-                    <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 p-3 sm:p-4">
+                    <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-3 sm:p-4">
                       <div className="flex items-center justify-between">
-                        <Trophy className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
-                        <span className="text-white font-bold text-sm sm:text-lg">
+                        <Trophy className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-300" />
+                        <span className="text-white font-black text-sm sm:text-lg">
                           #{index + 1}º Lugar
                         </span>
                       </div>
@@ -71,7 +73,7 @@ function WinnersPage() {
                           <Hash className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                           <div>
                             <p className="text-xs sm:text-sm text-gray-500">Número Sorteado</p>
-                            <p className="font-bold text-xl sm:text-2xl text-primary">
+                            <p className="font-black text-xl sm:text-2xl text-blue-600">
                               {result.winning_number}
                             </p>
                           </div>

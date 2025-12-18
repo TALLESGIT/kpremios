@@ -143,30 +143,28 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
   }
 
   return (
-    <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-8">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <Header />
-      <main className="flex-grow bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <main className="flex-grow w-full">
         {/* Hero Section */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 py-12 sm:py-16 lg:py-20 relative overflow-hidden">
-          {/* Geometric Background Pattern */}
-          <div className="absolute inset-0 opacity-5">
-            <div className="absolute inset-0" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23F59E0B' fill-opacity='0.1'%3E%3Cpath d='M0 0h40v40H0V0zm40 40h40v40H40V40z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            }} />
+        <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 py-12 sm:py-16 lg:py-20 relative overflow-hidden">
+          {/* Efeito de luz/brilho */}
+          <div className="absolute inset-0 opacity-20">
+            <div className="absolute top-0 left-1/4 w-96 h-96 bg-white rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-yellow-300 rounded-full blur-3xl"></div>
           </div>
           
-          {/* Geometric Accent Lines */}
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500"></div>
-          <div className="absolute bottom-0 right-0 w-1 h-full bg-gradient-to-b from-amber-500 via-amber-400 to-amber-500"></div>
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="text-center">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-2xl shadow-amber-500/25">
-                <Hash className="h-8 w-8 sm:h-10 sm:w-10 text-slate-900" />
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-2xl">
+                <Hash className="h-8 w-8 sm:h-10 sm:w-10 text-blue-600" />
               </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-4 sm:mb-6 tracking-tight">
-                Meus Números
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-black text-white mb-4 sm:mb-6 tracking-tight" style={{
+                textShadow: '2px 2px 0px rgba(251, 191, 36, 0.8)'
+              }}>
+                MEUS NÚMEROS
               </h1>
-              <p className="text-base sm:text-lg lg:text-xl text-slate-300 max-w-2xl mx-auto font-medium leading-relaxed px-2 sm:px-0">
+              <p className="text-base sm:text-lg lg:text-xl text-blue-100 max-w-2xl mx-auto font-medium leading-relaxed px-2 sm:px-0">
                 Confira seus números selecionados e acompanhe sua participação
               </p>
             </div>
@@ -275,13 +273,13 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-            <div className="bg-gradient-to-br from-amber-500/10 to-amber-600/10 rounded-2xl p-4 sm:p-6 border border-amber-400/30 backdrop-blur-sm shadow-lg">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4 sm:p-6 border-2 border-blue-300 backdrop-blur-sm shadow-lg">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-amber-200 text-sm font-bold">Números Ativos</p>
                   <p className="text-2xl sm:text-3xl lg:text-4xl font-black text-amber-400">{totalNumbers}</p>
                 </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl flex items-center justify-center">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center">
                   <Hash className="h-5 w-5 sm:h-6 sm:w-6 text-slate-900" />
                 </div>
               </div>
@@ -293,7 +291,7 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
               </p>
             </div>
             
-            <div className="bg-gradient-to-br from-slate-800/50 to-slate-700/50 rounded-2xl p-4 sm:p-6 border border-slate-600/30 backdrop-blur-sm shadow-lg">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 border-2 border-blue-200 shadow-lg">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-slate-300 text-sm font-bold">Chances de Ganhar</p>
@@ -301,7 +299,7 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                     {totalParticipants > 0 ? ((totalNumbers / totalParticipants) * 100).toFixed(1) : '0'}%
                   </p>
                 </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-slate-600 to-slate-700 rounded-xl flex items-center justify-center">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-400 to-blue-500 rounded-xl flex items-center justify-center">
                   <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-slate-300" />
                 </div>
               </div>
@@ -329,7 +327,7 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
           {/* Main Number Card */}
           <div className="bg-gradient-to-r from-slate-800/50 to-slate-700/50 rounded-3xl shadow-2xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 text-white backdrop-blur-sm border border-amber-400/20">
             <div className="text-center">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-2xl shadow-amber-500/25">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-2xl shadow-amber-500/25">
                 <Hash className="h-6 w-6 sm:h-8 sm:w-8 text-slate-900" />
               </div>
               <h3 className="text-xl sm:text-2xl lg:text-3xl font-black mb-3 sm:mb-4 text-amber-100">Seu Número da Sorte</h3>
@@ -435,12 +433,12 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
               </div>
 
               {/* Bottom Accent */}
-              <div className="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-r from-amber-300 via-amber-400 to-amber-300"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-300 via-blue-400 to-blue-300"></div>
             </div>
           ) : (
-            <div className="bg-slate-800/50 rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 border-l-4 border-amber-500 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 border-l-4 border-blue-600">
               <div className="flex items-start space-x-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center flex-shrink-0">
                   <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-slate-900" />
                 </div>
                 <div className="flex-1">
@@ -462,7 +460,7 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
 
           {/* Requests History - Simplificado */}
           {requestsHistory.length > 0 && (
-            <div className="bg-slate-800/50 rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 backdrop-blur-sm border border-slate-600/30">
+            <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 border-2 border-blue-200">
               <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-amber-100 mb-6 sm:mb-8">
                 Histórico de Solicitações
               </h3>
@@ -490,7 +488,7 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                           </p>
                           {/* Informações do sorteio */}
                           {request.raffle && (
-                            <div className="mt-2 p-2 bg-slate-700/30 rounded-lg">
+                            <div className="mt-2 p-2 bg-blue-50 rounded-lg">
                               <p className="text-amber-300 text-sm font-medium">
                                 Sorteio: {request.raffle.title}
                               </p>
@@ -522,7 +520,7 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                         <p className="text-emerald-300 text-sm font-medium mb-3">
                           Números atribuídos ({request.assigned_numbers.length} números):
                         </p>
-                        <div className="bg-slate-700/30 rounded-lg p-4">
+                        <div className="bg-blue-50 rounded-lg p-4">
                           {/* Container com scroll - apenas no desktop */}
                           <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-emerald-500 scrollbar-track-slate-600">
                             <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2">
@@ -562,7 +560,7 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
             </h2>
             <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
               <div className="flex items-center space-x-3 sm:space-x-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl flex items-center justify-center">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center">
                   <User className="h-4 w-4 sm:h-5 sm:w-5 text-slate-900" />
                 </div>
                 <div>
@@ -574,7 +572,7 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
               </div>
               
               <div className="flex items-center space-x-3 sm:space-x-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-slate-600 to-slate-700 rounded-xl flex items-center justify-center">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-400 to-blue-500 rounded-xl flex items-center justify-center">
                   <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-slate-300" />
                 </div>
                 <div>

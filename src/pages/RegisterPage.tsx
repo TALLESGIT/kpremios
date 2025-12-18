@@ -219,20 +219,20 @@ const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-8">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <Header />
       
-      <main className="flex-grow flex items-center justify-center py-12">
+      <main className="flex-grow flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6">
         <div className="w-full max-w-md">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl mb-4">
-              <span className="text-2xl font-bold text-white">ZK</span>
+            <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl mb-4 shadow-lg">
+              <span className="text-2xl sm:text-3xl font-black text-white">ZK</span>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-blue-600 mb-2">
               {isLoginMode ? 'Faça seu login' : 'Crie sua conta'}
             </h1>
-            <p className="text-gray-600">
+            <p className="text-blue-600 text-sm sm:text-base">
               {isLoginMode 
                 ? 'Entre com seu email e senha para acessar sua conta' 
                 : 'Junte-se ao ZK Prêmios e comece a ganhar!'
@@ -241,7 +241,7 @@ const RegisterPage: React.FC = () => {
           </div>
 
           {/* Formulário */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
+          <div className="bg-white rounded-2xl shadow-xl border-2 border-blue-200 p-6 sm:p-8">
             <form onSubmit={isLoginMode ? handleLogin : handleRegister} className="space-y-5">
               {isLoginMode && (
                 <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg">
@@ -280,7 +280,7 @@ const RegisterPage: React.FC = () => {
                       type="text"
                       value={formData.name}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                      className="w-full pl-10 pr-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       placeholder="Seu nome completo"
                       required
                     />
@@ -302,13 +302,13 @@ const RegisterPage: React.FC = () => {
                     type="email"
                     value={formData.email}
                     onChange={handleEmailChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                    className="w-full pl-10 pr-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                     placeholder="seu@email.com"
                     required
                   />
                   {checkingEmail && (
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-500"></div>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
                     </div>
                   )}
                 </div>
@@ -329,7 +329,7 @@ const RegisterPage: React.FC = () => {
                       type="tel"
                       value={formData.phone}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                      className="w-full pl-10 pr-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       placeholder="(31) 99999-9999"
                     />
                   </div>
@@ -350,7 +350,7 @@ const RegisterPage: React.FC = () => {
                     type="password"
                     value={formData.password}
                     onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                    className="w-full pl-10 pr-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                     placeholder="Mínimo 6 caracteres"
                     required
                   />
@@ -372,7 +372,7 @@ const RegisterPage: React.FC = () => {
                       type="password"
                       value={formData.confirmPassword}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                      className="w-full pl-10 pr-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       placeholder="Digite a senha novamente"
                       required
                     />
@@ -383,7 +383,7 @@ const RegisterPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading || checkingEmail}
-                className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 mt-6"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 mt-6"
               >
                 {loading ? (
                   <>
@@ -413,7 +413,7 @@ const RegisterPage: React.FC = () => {
                       setIsLoginMode(false);
                       setError('');
                     }}
-                    className="text-amber-600 hover:text-amber-700 font-semibold transition-colors duration-200"
+                    className="text-blue-600 hover:text-blue-700 font-semibold transition-colors duration-200"
                   >
                     Cadastre-se aqui
                   </button>
@@ -426,7 +426,7 @@ const RegisterPage: React.FC = () => {
                       setIsLoginMode(true);
                       setError('');
                     }}
-                    className="text-amber-600 hover:text-amber-700 font-semibold transition-colors duration-200"
+                    className="text-blue-600 hover:text-blue-700 font-semibold transition-colors duration-200"
                   >
                     Faça login aqui
                   </button>

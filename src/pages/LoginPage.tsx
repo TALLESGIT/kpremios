@@ -126,22 +126,22 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-8">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <Header />
       
-      <main className="flex-grow flex items-center justify-center py-12">
+      <main className="flex-grow flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6">
         <div className="w-full max-w-md">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl mb-4">
-              <span className="text-2xl font-bold text-white">ZK</span>
+            <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl mb-4 shadow-lg">
+              <span className="text-2xl sm:text-3xl font-black text-white">ZK</span>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Bem-vindo de volta!</h1>
-            <p className="text-gray-600">Entre na sua conta para continuar</p>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-blue-600 mb-2">Bem-vindo de volta!</h1>
+            <p className="text-blue-600 text-sm sm:text-base">Entre na sua conta para continuar</p>
           </div>
 
           {/* Formulário */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
+          <div className="bg-white rounded-2xl shadow-xl border-2 border-blue-200 p-6 sm:p-8">
             <form onSubmit={handleLogin} className="space-y-6">
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
@@ -166,7 +166,7 @@ const LoginPage: React.FC = () => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                    className="w-full pl-10 pr-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                     placeholder="seu@email.com"
                     required
                   />
@@ -186,7 +186,7 @@ const LoginPage: React.FC = () => {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                    className="w-full pl-10 pr-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                     placeholder="••••••••"
                     required
                   />
@@ -196,7 +196,7 @@ const LoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
               >
                 {loading ? (
                   <>
@@ -217,7 +217,7 @@ const LoginPage: React.FC = () => {
                 Não tem uma conta?{' '}
                 <Link 
                   to="/register" 
-                  className="text-amber-600 hover:text-amber-700 font-semibold transition-colors duration-200"
+                  className="text-blue-600 hover:text-blue-700 font-bold transition-colors duration-200"
                 >
                   Cadastre-se aqui
                 </Link>
@@ -227,26 +227,26 @@ const LoginPage: React.FC = () => {
 
           {/* Features */}
           <div className="mt-8 grid grid-cols-1 gap-4">
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+            <div className="bg-gradient-to-r from-blue-100 to-blue-200 rounded-xl p-4 border-2 border-blue-300">
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">🎯</span>
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-md">
+                  <span className="text-white text-lg">🎯</span>
                 </div>
                 <div>
-                  <p className="text-blue-900 font-semibold text-sm">Sorteios Exclusivos</p>
-                  <p className="text-blue-700 text-xs">Participe de sorteios únicos</p>
+                  <p className="text-blue-900 font-bold text-sm sm:text-base">Sorteios Exclusivos</p>
+                  <p className="text-blue-700 text-xs sm:text-sm">Participe de sorteios únicos</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+            <div className="bg-gradient-to-r from-blue-100 to-blue-200 rounded-xl p-4 border-2 border-blue-300">
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">🎮</span>
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-md">
+                  <span className="text-white text-lg">🎮</span>
                 </div>
                 <div>
-                  <p className="text-green-900 font-semibold text-sm">Sorteios ao Vivo</p>
-                  <p className="text-green-700 text-xs">Jogue o Resta Um em tempo real</p>
+                  <p className="text-blue-900 font-bold text-sm sm:text-base">Sorteios ao Vivo</p>
+                  <p className="text-blue-700 text-xs sm:text-sm">Jogue o Resta Um em tempo real</p>
                 </div>
               </div>
             </div>

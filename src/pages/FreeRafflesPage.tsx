@@ -131,12 +131,12 @@ const FreeRafflesPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full">
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
         <Header />
-        <main className="flex-grow bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <main className="flex-grow flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-amber-500/30 border-t-amber-500 mx-auto mb-4"></div>
-            <p className="text-amber-200 font-medium text-lg">Carregando sorteios...</p>
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mx-auto mb-4"></div>
+            <p className="text-blue-600 font-bold text-lg">Carregando sorteios...</p>
           </div>
         </main>
         <Footer />
@@ -147,46 +147,44 @@ const FreeRafflesPage: React.FC = () => {
   const filteredRaffles = getFilteredRaffles();
 
   return (
-    <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <Header />
-      <main className="flex-grow bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <main className="flex-grow w-full">
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 py-6 sm:py-8 lg:py-12 relative overflow-hidden">
-          <div className="absolute inset-0 opacity-5">
-            <div className="absolute inset-0" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23F59E0B' fill-opacity='0.1'%3E%3Cpath d='M0 0h40v40H0V0zm40 40h40v40H40V40z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            }} />
+        <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 py-8 sm:py-12 lg:py-16 relative overflow-hidden">
+          <div className="absolute inset-0 opacity-20">
+            <div className="absolute top-0 left-1/4 w-96 h-96 bg-white rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-yellow-300 rounded-full blur-3xl"></div>
           </div>
           
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500"></div>
-          <div className="absolute bottom-0 right-0 w-1 h-full bg-gradient-to-b from-amber-500 via-amber-400 to-amber-500"></div>
-          
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 relative z-10">
-            <div className="flex items-center justify-between">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-4 mb-4">
                   <button
                     onClick={() => navigate(-1)}
-                    className="w-10 h-10 bg-slate-700/50 hover:bg-slate-700/70 rounded-xl flex items-center justify-center transition-colors duration-200"
+                    className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition-colors duration-200"
                   >
-                    <ArrowLeft className="h-5 w-5 text-slate-300" />
+                    <ArrowLeft className="h-5 w-5 text-white" />
                   </button>
-                  <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center">
-                    <Gift className="h-6 w-6 text-white" />
+                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg">
+                    <Gift className="h-6 w-6 text-blue-600" />
                   </div>
                 </div>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-2 sm:mb-4 tracking-tight">
-                  Sorteios Gratuitos
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-white mb-2 sm:mb-4 tracking-tight" style={{
+                  textShadow: '2px 2px 0px rgba(251, 191, 36, 0.8)'
+                }}>
+                  SORTEIOS GRATUITOS
                 </h1>
-                <p className="text-slate-300 text-sm sm:text-base lg:text-lg font-medium">
+                <p className="text-blue-100 text-sm sm:text-base lg:text-lg font-medium">
                   Participe de sorteios gratuitos e ganhe prêmios incríveis!
                 </p>
               </div>
               
               <div className="hidden sm:block">
-                <div className="text-right">
-                  <div className="text-2xl sm:text-3xl font-black text-amber-400">{filteredRaffles.length}</div>
-                  <div className="text-xs text-amber-300 font-medium">sorteios disponíveis</div>
+                <div className="text-right bg-white/20 backdrop-blur-sm rounded-2xl p-4 border-2 border-white/30">
+                  <div className="text-2xl sm:text-3xl font-black text-white">{filteredRaffles.length}</div>
+                  <div className="text-xs text-blue-100 font-bold">sorteios disponíveis</div>
                 </div>
               </div>
             </div>
@@ -208,8 +206,8 @@ const FreeRafflesPage: React.FC = () => {
                   onClick={() => setFilter(key as any)}
                   className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl font-bold text-sm transition-all duration-200 flex items-center gap-2 ${
                     filter === key
-                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/25'
-                      : 'bg-slate-700/50 hover:bg-slate-700/70 text-slate-300 border border-slate-600/30'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25'
+                      : 'bg-white hover:bg-blue-50 text-blue-600 border-2 border-blue-200'
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -222,16 +220,16 @@ const FreeRafflesPage: React.FC = () => {
           {/* Lista de Sorteios */}
           {filteredRaffles.length === 0 ? (
             <div className="text-center py-8 sm:py-16">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-800/50 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6">
-                <Gift className="h-8 w-8 sm:h-10 sm:w-10 text-slate-400" />
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 border-2 border-blue-300">
+                <Gift className="h-8 w-8 sm:h-10 sm:w-10 text-blue-600" />
               </div>
-              <h3 className="text-xl sm:text-2xl font-black text-white mb-2 sm:mb-4">
+              <h3 className="text-xl sm:text-2xl font-black text-blue-600 mb-2 sm:mb-4">
                 {filter === 'all' ? 'Nenhum sorteio disponível' : 
                  filter === 'active' ? 'Nenhum sorteio ativo' :
                  filter === 'upcoming' ? 'Nenhum sorteio em breve' :
                  'Nenhum sorteio finalizado'}
               </h3>
-              <p className="text-slate-400 text-base sm:text-lg px-4 mb-6">
+              <p className="text-blue-500 text-base sm:text-lg px-4 mb-6">
                 {filter === 'all' ? 'Não há sorteios gratuitos no momento.' :
                  filter === 'active' ? 'Não há sorteios ativos no momento.' :
                  filter === 'upcoming' ? 'Não há sorteios programados.' :
@@ -268,7 +266,7 @@ const FreeRafflesPage: React.FC = () => {
               {filter !== 'all' && (
                 <button
                   onClick={() => setFilter('all')}
-                  className="mt-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold py-2 px-6 rounded-xl transition-all duration-200"
+                  className="mt-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-2 px-6 rounded-xl transition-all duration-200 shadow-lg"
                 >
                   Ver Todos
                 </button>
@@ -283,26 +281,26 @@ const FreeRafflesPage: React.FC = () => {
                 return (
                   <div
                     key={raffle.id}
-                    className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-slate-600/30 backdrop-blur-sm hover:border-amber-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-500/10"
+                    className="group bg-white overflow-hidden shadow-xl rounded-3xl border-2 border-blue-200 hover:border-blue-400 transition-all duration-500 hover:shadow-2xl"
                   >
                     {/* Header */}
-                    <div className="bg-gradient-to-r from-slate-700/50 to-slate-800/50 p-4 sm:p-6 border-b border-slate-600/30">
+                    <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 sm:p-6">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl flex items-center justify-center">
-                            <Gift className="h-5 w-5 text-white" />
+                          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-md">
+                            <Gift className="h-5 w-5 text-blue-600" />
                           </div>
                           <div>
                             <h3 className="text-lg sm:text-xl font-black text-white">{raffle.title}</h3>
-                            <p className="text-slate-300 text-sm">Sorteio Gratuito</p>
+                            <p className="text-blue-100 text-sm">Sorteio Gratuito</p>
                           </div>
                         </div>
-                        <div className={`px-3 py-1 rounded-full text-xs font-bold border ${status.color}`}>
+                        <div className={`px-3 py-1 rounded-full text-xs font-bold border bg-white/20 backdrop-blur-sm ${status.color}`}>
                           {status.text}
                         </div>
                       </div>
                       
-                      <p className="text-slate-300 text-sm leading-relaxed">
+                      <p className="text-blue-100 text-sm leading-relaxed">
                         {raffle.description}
                       </p>
                     </div>
@@ -311,28 +309,28 @@ const FreeRafflesPage: React.FC = () => {
                     <div className="p-4 sm:p-6">
                       <div className="space-y-4">
                         {/* Prêmio */}
-                        <div className="bg-gradient-to-r from-amber-500/10 to-amber-600/10 rounded-xl p-4 border border-amber-400/20">
+                        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border-2 border-blue-300">
                           <div className="flex items-center gap-3 mb-2">
-                            <Trophy className="h-5 w-5 text-amber-400" />
-                            <span className="font-bold text-amber-200">Prêmio</span>
+                            <Trophy className="h-5 w-5 text-blue-600" />
+                            <span className="font-bold text-blue-600">Prêmio</span>
                           </div>
-                          <p className="text-white font-bold text-lg">{raffle.prize}</p>
+                          <p className="text-blue-600 font-black text-lg">{raffle.prize}</p>
                         </div>
 
                         {/* Participantes */}
                         <div>
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
-                              <Users className="h-4 w-4 text-slate-400" />
-                              <span className="text-slate-300 text-sm font-medium">Participantes</span>
+                              <Users className="h-4 w-4 text-blue-600" />
+                              <span className="text-blue-600 text-sm font-semibold">Participantes</span>
                             </div>
-                            <span className="text-white font-bold text-sm">
+                            <span className="text-blue-600 font-bold text-sm">
                               {raffle.current_participants} / {raffle.max_participants}
                             </span>
                           </div>
-                          <div className="w-full bg-slate-700/50 rounded-full h-2">
+                          <div className="w-full bg-blue-100 rounded-full h-2">
                             <div 
-                              className="bg-gradient-to-r from-amber-500 to-amber-600 h-2 rounded-full transition-all duration-500"
+                              className="bg-gradient-to-r from-blue-600 to-blue-700 h-2 rounded-full transition-all duration-500"
                               style={{ width: `${progressPercentage}%` }}
                             />
                           </div>
@@ -342,19 +340,19 @@ const FreeRafflesPage: React.FC = () => {
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
-                              <Calendar className="h-4 w-4 text-slate-400" />
-                              <span className="text-slate-400 font-medium">Início</span>
+                              <Calendar className="h-4 w-4 text-blue-600" />
+                              <span className="text-blue-600 font-semibold">Início</span>
                             </div>
-                            <p className="text-white font-bold">
+                            <p className="text-blue-600 font-bold">
                               {new Date(raffle.start_date).toLocaleDateString('pt-BR')}
                             </p>
                           </div>
                           <div>
                             <div className="flex items-center gap-2 mb-1">
-                              <Calendar className="h-4 w-4 text-slate-400" />
-                              <span className="text-slate-400 font-medium">Fim</span>
+                              <Calendar className="h-4 w-4 text-blue-600" />
+                              <span className="text-blue-600 font-semibold">Fim</span>
                             </div>
-                            <p className="text-white font-bold">
+                            <p className="text-blue-600 font-bold">
                               {new Date(raffle.end_date).toLocaleDateString('pt-BR')}
                             </p>
                           </div>
@@ -372,12 +370,12 @@ const FreeRafflesPage: React.FC = () => {
                             Participar Agora
                           </button>
                         ) : status.status === 'upcoming' ? (
-                          <button disabled className="w-full bg-slate-700/50 text-slate-500 font-bold py-3 px-4 rounded-xl cursor-not-allowed flex items-center justify-center gap-2">
+                          <button disabled className="w-full bg-blue-100 text-blue-400 font-bold py-3 px-4 rounded-xl cursor-not-allowed flex items-center justify-center gap-2 border-2 border-blue-200">
                             <Clock className="h-4 w-4" />
                             Em Breve
                           </button>
                         ) : (
-                          <button disabled className="w-full bg-slate-700/50 text-slate-500 font-bold py-3 px-4 rounded-xl cursor-not-allowed flex items-center justify-center gap-2">
+                          <button disabled className="w-full bg-blue-100 text-blue-400 font-bold py-3 px-4 rounded-xl cursor-not-allowed flex items-center justify-center gap-2 border-2 border-blue-200">
                             <Trophy className="h-4 w-4" />
                             Finalizado
                           </button>
