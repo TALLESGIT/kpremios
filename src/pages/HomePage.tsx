@@ -2,29 +2,32 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import RaffleBanner from '../components/user/RaffleBanner';
 import NumberSelection from '../components/user/NumberSelection';
 import RegistrationForm from '../components/user/RegistrationForm';
 import SuccessModal from '../components/shared/SuccessModal';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
+import { ChevronDown, Play } from 'lucide-react';
 
 function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { currentUser, selectFreeNumber, numbers, loadNumbers } = useData();
+  const { currentUser, selectFreeNumber, numbers } = useData();
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successNumber, setSuccessNumber] = useState<number | null>(null);
   const [hasActiveRaffle, setHasActiveRaffle] = useState(false);
+  const [activeRafflesCount, setActiveRafflesCount] = useState(0);
+  const [winnersCount, setWinnersCount] = useState(0);
   
   // Verificar se o usuário está logado
   const isLoggedIn = user && currentUser;
 
-  // Verificar se há sorteios ativos
+  // Verificar se há sorteios ativos e carregar dados
   useEffect(() => {
     checkActiveRaffles();
+    loadWinnersCount();
   }, []);
 
   const checkActiveRaffles = async () => {
@@ -32,16 +35,32 @@ function HomePage() {
       const { data, error } = await supabase
         .from('raffles')
         .select('id')
-        .eq('is_active', true)
-        .limit(1);
+        .eq('is_active', true);
 
-      if (!error && data && data.length > 0) {
-        setHasActiveRaffle(true);
+      if (!error && data) {
+        setHasActiveRaffle(data.length > 0);
+        setActiveRafflesCount(data.length);
       } else {
         setHasActiveRaffle(false);
+        setActiveRafflesCount(0);
       }
     } catch (error) {
       setHasActiveRaffle(false);
+      setActiveRafflesCount(0);
+    }
+  };
+
+  const loadWinnersCount = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('draw_results')
+        .select('id', { count: 'exact' });
+
+      if (!error && data !== null) {
+        setWinnersCount(data.length || 0);
+      }
+    } catch (error) {
+      setWinnersCount(0);
     }
   };
 
@@ -52,7 +71,6 @@ function HomePage() {
 
   const handleNumberSelection = async (number: number) => {
     if (isLoggedIn) {
-      // Para usuários logados, selecionar número gratuito diretamente
       const success = await selectFreeNumber(number);
       if (success) {
         setSelectedNumber(number);
@@ -60,7 +78,6 @@ function HomePage() {
         setShowSuccess(true);
       }
     } else {
-      // Para usuários não logados, apenas definir o número selecionado
       setSelectedNumber(number);
     }
   };
@@ -71,197 +88,219 @@ function HomePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-8">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <Header />
-      <main className="flex-grow">
-        {/* Live Games Section */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white text-xl font-bold">🎮</span>
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Sorteios ao Vivo</h2>
-                <p className="text-gray-600 text-sm">Participe das nossas lives com sorteios em tempo real!</p>
-              </div>
-            </div>
-            {!isLoggedIn ? (
-              <Link
-                to="/login"
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 text-sm"
-              >
-                Participar
-              </Link>
-            ) : (
-              <Link
-                to="/live-games"
-                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 text-sm"
-              >
-                Jogar Agora
-              </Link>
-            )}
+      
+      <main className="flex-grow w-full">
+        {/* Banner Principal - PRÊMIOS DO CRUZEIRÃO */}
+        <div className="relative w-full bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 overflow-hidden">
+          {/* Efeito de luz/brilho */}
+          <div className="absolute inset-0 opacity-20">
+            <div className="absolute top-0 left-1/4 w-96 h-96 bg-white rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-yellow-300 rounded-full blur-3xl"></div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm">⚡</span>
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+              {/* Texto Principal */}
+              <div className="lg:col-span-7 text-center lg:text-left">
+                <div className="flex items-center justify-center lg:justify-start gap-2 mb-4">
+                  <span className="text-yellow-300 text-xl sm:text-2xl">⭐</span>
+                  <span className="text-yellow-300 text-xl sm:text-2xl">⭐</span>
+                  <span className="text-yellow-300 text-xl sm:text-2xl">⭐</span>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Resta Um</h3>
-                  <p className="text-gray-600 text-sm">Escolha seu número e sobreviva até o final!</p>
-                </div>
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black text-white mb-4 sm:mb-6 leading-tight" style={{
+                  textShadow: '3px 3px 0px rgba(251, 191, 36, 0.8), -1px -1px 0px rgba(251, 191, 36, 0.8)',
+                  WebkitTextStroke: '2px rgba(251, 191, 36, 0.9)'
+                }}>
+                  PRÊMIOS DO CRUZEIRÃO
+                </h1>
               </div>
-            </div>
-            
-            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm">🎯</span>
+              
+              {/* Prêmios Visuais */}
+              <div className="lg:col-span-5 relative">
+                <div className="flex flex-wrap justify-center lg:justify-end items-center gap-4 sm:gap-6">
+                  {/* Moedas */}
+                  <div className="text-5xl sm:text-6xl lg:text-7xl">🪙</div>
+                  {/* Camisa */}
+                  <div className="text-5xl sm:text-6xl lg:text-7xl">👕</div>
+                  {/* PS5 */}
+                  <div className="text-5xl sm:text-6xl lg:text-7xl">🎮</div>
+                  {/* Controle */}
+                  <div className="text-5xl sm:text-6xl lg:text-7xl">🎮</div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Eliminação Automática</h3>
-                  <p className="text-gray-600 text-sm">Um participante eliminado a cada minuto!</p>
+                
+                {/* Espaço para Banner (Desktop) */}
+                <div className="hidden lg:block mt-6 bg-white border-2 border-blue-400 rounded-lg p-4 text-center">
+                  <p className="text-blue-600 font-semibold text-sm">ESPAÇO PARA SEU BANNER</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <RaffleBanner />
-        
-        {/* Mostrar formulário de cadastro apenas se o usuário não estiver logado E houver sorteios ativos */}
-        {!isLoggedIn && hasActiveRaffle && (
-          <>
-            <NumberSelection onSelectNumber={handleNumberSelection} selectedNumber={selectedNumber} />
-            <RegistrationForm selectedNumber={selectedNumber} onSuccess={handleRegistrationSuccess} />
-          </>
-        )}
-
-        {/* Card de Sorteios Gratuitos quando não há sorteios ativos */}
-        {!isLoggedIn && !hasActiveRaffle && (
-          <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl mx-2 sm:mx-4 lg:mx-8 mb-4 sm:mb-6 lg:mb-8 shadow-2xl">
-            {/* Background Pattern */}
-            <div className="absolute inset-0 opacity-5">
-              <div className="absolute inset-0" style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23F59E0B' fill-opacity='0.3'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-              }} />
+        {/* Espaços Publicitários - Mobile primeiro, depois Desktop */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Banner 1 */}
+            <div className="bg-gradient-to-r from-blue-100 to-blue-200 rounded-xl p-4 sm:p-6 border-2 border-blue-300 text-center">
+              <p className="text-blue-700 font-bold text-sm sm:text-base mb-1">SEU ANÚNCIO AQUI</p>
+              <p className="text-blue-600 text-xs sm:text-sm">Publicidade</p>
             </div>
+            
+            {/* Banner 2 */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-4 sm:p-6 border-2 border-blue-500 text-center">
+              <p className="text-white font-bold text-sm sm:text-base">ESPAÇO PUBLICITÁRIO</p>
+            </div>
+          </div>
+        </div>
 
-            {/* Content */}
-            <div className="relative z-10 p-6 sm:p-8 lg:p-12">
-              <div className="max-w-4xl mx-auto text-center">
-                {/* Icon */}
-                <div className="w-20 h-20 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <span className="text-white text-3xl">🎁</span>
+        {/* Seção LIVES PREMIADAS */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <Link 
+            to={isLoggedIn ? "/live-games" : "/login"}
+            className="block w-full bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-6 sm:p-8 shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 transform hover:scale-[1.02]"
+          >
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4 sm:gap-6">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                  <Play className="w-8 h-8 sm:w-10 sm:h-10 text-white ml-1" fill="white" />
                 </div>
-
-                {/* Title */}
-                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-4 leading-tight">
-                  Sorteios Gratuitos
-                </h2>
-
-                {/* Subtitle */}
-                <p className="text-xl text-amber-200 font-semibold mb-6">
-                  Em breve, prêmios incríveis esperando por você!
-                </p>
-
-                {/* Description */}
-                <p className="text-lg text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed">
-                  Nossos sorteios gratuitos estão temporariamente pausados para manutenção. 
-                  Fique atento às nossas redes sociais para ser o primeiro a saber quando voltarem!
-                </p>
-
-                {/* Status Card */}
-                <div className="bg-slate-800/60 backdrop-blur-sm rounded-2xl p-6 border border-slate-600/30 mb-8 max-w-md mx-auto">
-                  <div className="flex items-center justify-center gap-3 mb-3">
-                    <div className="w-3 h-3 bg-amber-500 rounded-full animate-pulse"></div>
-                    <span className="text-amber-200 font-bold text-lg">Status dos Sorteios</span>
-                  </div>
-                  <p className="text-slate-300 text-sm">
-                    Temporariamente indisponíveis para melhorias no sistema
-                  </p>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link
-                    to="/live-raffle"
-                    className="group inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all duration-300 shadow-2xl hover:shadow-blue-500/25 transform hover:-translate-y-1 hover:scale-105"
-                  >
-                    <span className="text-lg">🎮 Participar de Sorteios ao Vivo</span>
-                    <svg className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                  </Link>
-                  <Link
-                    to="/register"
-                    className="group inline-flex items-center px-8 py-4 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold rounded-xl hover:from-amber-600 hover:to-amber-700 transition-all duration-300 shadow-2xl hover:shadow-amber-500/25 transform hover:-translate-y-1 hover:scale-105"
-                  >
-                    <span className="text-lg">📝 Criar Conta Gratuita</span>
-                    <svg className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                  </Link>
-                </div>
-
-                {/* Bottom Info */}
-                <div className="mt-8 pt-6 border-t border-slate-700/50">
-                  <p className="text-slate-400 text-sm">
-                    💡 <strong className="text-amber-300">Dica:</strong> Cadastre-se agora e seja notificado automaticamente quando os sorteios voltarem!
+                <div>
+                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-2">
+                    LIVES PREMIADAS
+                  </h2>
+                  <p className="text-blue-100 text-sm sm:text-base lg:text-lg font-semibold">
+                    ASSISTA E GANHE!
                   </p>
                 </div>
               </div>
             </div>
+          </Link>
+        </div>
 
-            {/* Bottom Accent */}
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500"></div>
+        {/* Cards Interativos */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {/* Card 1: SORTEIOS ATIVOS */}
+            <Link
+              to={hasActiveRaffle ? "/free-raffles" : "#"}
+              className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+            >
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 sm:p-5">
+                <h3 className="text-white font-bold text-lg sm:text-xl text-center">
+                  SORTEIOS ATIVOS
+                </h3>
+              </div>
+              <div className="p-6 sm:p-8 text-center">
+                <ChevronDown className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-blue-600 mb-4" />
+                <div className="mb-4">
+                  <p className="text-2xl sm:text-3xl font-black text-blue-600 mb-2">
+                    {activeRafflesCount}
+                  </p>
+                  <p className="text-gray-600 text-sm">sorteio{activeRafflesCount !== 1 ? 's' : ''} disponível{activeRafflesCount !== 1 ? 'eis' : ''}</p>
+                </div>
+                <button className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 text-sm sm:text-base">
+                  PARTICIPE
+                </button>
+              </div>
+            </Link>
+
+            {/* Card 2: ÚLTIMOS GANHADORES */}
+            <Link
+              to="/winners"
+              className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+            >
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 sm:p-5">
+                <h3 className="text-white font-bold text-lg sm:text-xl text-center">
+                  ÚLTIMOS GANHADORES
+                </h3>
+              </div>
+              <div className="p-6 sm:p-8 text-center">
+                <ChevronDown className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-blue-600 mb-4" />
+                <div className="mb-4">
+                  <p className="text-2xl sm:text-3xl font-black text-blue-600 mb-2">
+                    {winnersCount}
+                  </p>
+                  <p className="text-gray-600 text-sm">ganhador{winnersCount !== 1 ? 'es' : ''} registrado{winnersCount !== 1 ? 's' : ''}</p>
+                </div>
+                <button className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 text-sm sm:text-base">
+                  VER GANHADORES
+                </button>
+              </div>
+            </Link>
+
+            {/* Card 3: TABELA DO CRUZEIRO */}
+            <div className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 sm:p-5">
+                <h3 className="text-white font-bold text-lg sm:text-xl text-center">
+                  TABELA DO CRUZEIRO
+                </h3>
+              </div>
+              <div className="p-6 sm:p-8 text-center">
+                <ChevronDown className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-blue-600 mb-4" />
+                <div className="mb-4">
+                  <p className="text-2xl sm:text-3xl font-black text-blue-600 mb-2">
+                    🏆
+                  </p>
+                  <p className="text-gray-600 text-sm">Classificação</p>
+                </div>
+                <button className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 text-sm sm:text-base">
+                  ACOMPANHE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Banner Inferior Publicitário */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8">
+          <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 rounded-2xl p-6 sm:p-8 lg:p-12 text-center shadow-2xl">
+            <h3 className="text-white font-black text-2xl sm:text-3xl lg:text-4xl mb-2">
+              SEU BANNER AQUI
+            </h3>
+            <p className="text-blue-100 text-sm sm:text-base lg:text-lg">
+              ESPAÇO PUBLICITÁRIO
+            </p>
+          </div>
+        </div>
+
+        {/* Conteúdo Funcional - Mantido para não perder funcionalidades */}
+        {!isLoggedIn && hasActiveRaffle && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 sm:p-8">
+              <NumberSelection 
+                onSelectNumber={handleNumberSelection} 
+                selectedNumber={selectedNumber} 
+              />
+              <div className="mt-6">
+                <RegistrationForm 
+                  selectedNumber={selectedNumber} 
+                  onSuccess={handleRegistrationSuccess} 
+                />
+              </div>
+            </div>
           </div>
         )}
-        
+
         {/* Conteúdo para usuários logados */}
         {isLoggedIn && (
-          <>
-            {/* Seção de boas-vindas */}
-            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-8">
-              <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl mb-4">
-                  <span className="text-2xl font-bold text-white">🎉</span>
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Bem-vindo de volta, {currentUser?.name}!</h2>
-                <p className="text-gray-600 mb-6">Você já está logado e pode participar dos nossos sorteios ao vivo.</p>
-                
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                to="/live-raffle"
-                    className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
-                  >
-                    🎮 Participar de Sorteios ao Vivo
-                  </Link>
-                  <Link
-                    to="/my-numbers"
-                    className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
-                  >
-                    🔢 Ver Meus Números
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            {/* Visualização dos números para usuários logados */}
-            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 sm:p-8 mb-6">
               <div className="text-center mb-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">🎯 Selecionar Número Gratuito</h3>
-                <p className="text-gray-600">Escolha seu número gratuito para participar dos sorteios</p>
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
+                  🎯 Selecionar Número Gratuito
+                </h3>
+                <p className="text-gray-600 text-sm sm:text-base">
+                  Escolha seu número gratuito para participar dos sorteios
+                </p>
               </div>
               <NumberSelection 
                 onSelectNumber={handleNumberSelection} 
                 selectedNumber={selectedNumber} 
               />
             </div>
-          </>
+          </div>
         )}
       </main>
       
