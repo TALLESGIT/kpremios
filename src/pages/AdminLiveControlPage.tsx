@@ -719,24 +719,23 @@ Obrigado por participar! 🎉`;
               </div>
             </motion.div>
           )}
+
+          {/* Notificações de Eliminação */}
+          {recentEliminations.map((elimination, index) => (
+            <EliminationNotification
+              key={`${elimination.lucky_number}-${elimination.eliminated_at}-${index}`}
+              participant={elimination}
+              onClose={() => {
+                setRecentEliminations(prev => 
+                  prev.filter((_, i) => i !== index)
+                );
+              }}
+            />
+          ))}
         </div>
       </main>
       
       <Footer />
-
-        {/* Notificações de Eliminação */}
-        {recentEliminations.map((elimination, index) => (
-          <EliminationNotification
-            key={`${elimination.lucky_number}-${elimination.eliminated_at}-${index}`}
-            participant={elimination}
-            onClose={() => {
-              setRecentEliminations(prev => 
-                prev.filter((_, i) => i !== index)
-              );
-            }}
-          />
-        ))}
-      </div>
     </div>
   );
 };
