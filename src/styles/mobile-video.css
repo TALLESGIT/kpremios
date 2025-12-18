@@ -202,6 +202,17 @@ body:-ms-fullscreen .fixed {
 }
 
 /* Chat overlay mobile - SEMPRE VISÍVEL EM FULLSCREEN */
+/* EXCEÇÃO: quando está dentro de .docked-chat-active, usa position relative */
+.mobile-video-container:fullscreen.docked-chat-active .chat-overlay-mobile,
+.mobile-video-container:fullscreen.docked-chat-active .bg-slate-900.flex.flex-col {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  height: 100% !important;
+  z-index: 1 !important;
+}
+
 .chat-overlay-mobile {
   position: fixed !important;
   top: 0 !important;

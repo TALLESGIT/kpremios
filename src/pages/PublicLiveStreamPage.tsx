@@ -131,6 +131,16 @@ const PublicLiveStreamPage: React.FC = () => {
   const isDockedChat = isMobile && isFullscreen && isLandscape && isChatOpen;
   const effectiveVideoFitMode: 'contain' | 'cover' = isDockedChat ? 'contain' : videoFitMode;
 
+  // Debug: log quando isDockedChat muda
+  useEffect(() => {
+    console.log('🔍 isDockedChat:', isDockedChat, {
+      isMobile,
+      isFullscreen,
+      isLandscape,
+      isChatOpen
+    });
+  }, [isDockedChat, isMobile, isFullscreen, isLandscape, isChatOpen]);
+
   // Adicionar classe CSS no body quando estiver em paisagem (para CSS aplicar estilos)
   useEffect(() => {
     if (isLandscape) {
@@ -832,7 +842,6 @@ const PublicLiveStreamPage: React.FC = () => {
               style={{ 
                 aspectRatio: (isMobile && isFullscreen) ? undefined : '16/9',
                 // Garantir que em mobile fullscreen mantenha proporção
-                // NOTA: display e flexDirection são controlados pelo CSS via classe docked-chat-active
                 ...(isMobile && isFullscreen ? {
                   width: '100vw',
                   height: '100dvh',
@@ -841,7 +850,11 @@ const PublicLiveStreamPage: React.FC = () => {
                   left: 0,
                   zIndex: 9999,
                   borderRadius: 0,
-                  overflow: 'hidden'
+                  overflow: 'hidden',
+                  // FORÇAR flexbox quando chat está docked
+                  display: isDockedChat ? 'flex' : 'block',
+                  flexDirection: isDockedChat ? 'row' : undefined,
+                  alignItems: isDockedChat ? 'stretch' : undefined
                 } : {})
               }}
               onClick={() => {
@@ -934,8 +947,8 @@ const PublicLiveStreamPage: React.FC = () => {
                           }
                         : { position: 'absolute', inset: 0 }
                     }
-                  >
-                    {/* Sempre usa canal fixo "ZkPremios" para conectar ao ZK Studio Pro */}
+            >
+              {/* Sempre usa canal fixo "ZkPremios" para conectar ao ZK Studio Pro */}
                     {/* CORREÇÃO: Só mostrar conteúdo quando transmissão estiver ativa */}
                     {/* IMPORTANTE: enabled={stream?.is_active} garante desconexão IMEDIATA quando admin encerrar no site */}
                     {showStreamContent ? (
@@ -967,8 +980,9 @@ const PublicLiveStreamPage: React.FC = () => {
                     animate={{ x: 0 }}
                     exit={{ x: '100%' }}
                     transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                    className="bg-slate-900 shadow-2xl flex flex-col chat-overlay-mobile"
+                    className="bg-slate-900 shadow-2xl flex flex-col"
                     style={{
+                      // IMPORTANTE: position relative para participar do flexbox
                       position: 'relative',
                       width: 'clamp(280px, 35vw, 380px)',
                       minWidth: '280px',
@@ -980,7 +994,11 @@ const PublicLiveStreamPage: React.FC = () => {
                       borderLeft: '1px solid rgba(148, 163, 184, 0.25)',
                       background: 'rgba(15, 23, 42, 0.98)',
                       backdropFilter: 'blur(10px)',
-                      transition: 'width 0.3s ease'
+                      transition: 'width 0.3s ease',
+                      // Garantir que não use position fixed quando docked
+                      top: 'auto',
+                      right: 'auto',
+                      bottom: 'auto'
                     }}
                   >
                     <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-800">
@@ -1020,8 +1038,8 @@ const PublicLiveStreamPage: React.FC = () => {
                   >
                     {/* Botão "Zoom/Preencher" (estilo YouTube) - só faz sentido fora do docked chat */}
                     {isFullscreen && isLandscape && !isDockedChat && (
-                      <motion.button
-                      initial={{ opacity: 0, scale: 0.8 }}
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 0.65, scale: 1 }}
                       whileHover={{ opacity: 0.95 }}
                       whileTap={{ scale: 0.95 }}
@@ -1055,7 +1073,7 @@ const PublicLiveStreamPage: React.FC = () => {
                     animate={{ opacity: 0.7, scale: 1 }}
                     whileHover={{ opacity: 1 }}
                     whileTap={{ scale: 0.95 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -1095,10 +1113,10 @@ const PublicLiveStreamPage: React.FC = () => {
                       pointerEvents: 'auto',
                       touchAction: 'auto'
                     }}
-                    aria-label={isChatOpen ? "Fechar chat" : "Abrir chat"}
-                    title={isChatOpen ? "Fechar chat" : "Abrir chat"}
-                  >
-                    {isChatOpen ? (
+                  aria-label={isChatOpen ? "Fechar chat" : "Abrir chat"}
+                  title={isChatOpen ? "Fechar chat" : "Abrir chat"}
+                >
+                  {isChatOpen ? (
                       <X className="w-4 h-4" />
                     ) : (
                       <MessageSquare className="w-4 h-4" />
@@ -1125,19 +1143,19 @@ const PublicLiveStreamPage: React.FC = () => {
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                       </svg>
-                    </motion.button>
-                  )}
-                  </div>
+                </motion.button>
+              )}
+          </div>
 
                   {/* Chat Overlay (modo overlay) - não usar quando estiver DOCKED */}
-                  <AnimatePresence>
+            <AnimatePresence>
                     {isChatOpen && !isDockedChat && (
-                      <>
-                        {/* Backdrop */}
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
+                <>
+                  {/* Backdrop */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                           onClick={() => {
                             console.log('🔙 Backdrop clicado - fechando chat (mobile)');
                             setIsChatOpen(false);
@@ -1150,11 +1168,11 @@ const PublicLiveStreamPage: React.FC = () => {
                         />
 
                         {/* Painel do Chat */}
-                        <motion.div
-                          initial={{ x: '100%' }}
-                          animate={{ x: 0 }}
-                          exit={{ x: '100%' }}
-                          transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                  <motion.div
+                    initial={{ x: '100%' }}
+                    animate={{ x: 0 }}
+                    exit={{ x: '100%' }}
+                    transition={{ type: 'spring', damping: 30, stiffness: 300 }}
                           className="absolute top-0 right-0 h-full w-[75%] max-w-sm bg-slate-900 shadow-2xl flex flex-col chat-overlay-mobile"
                           style={{
                             height: '100%',
@@ -1165,30 +1183,30 @@ const PublicLiveStreamPage: React.FC = () => {
                             e.stopPropagation();
                           }}
                         >
-                          <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-800">
-                            <h3 className="text-white font-semibold flex items-center gap-2">
-                              <MessageSquare className="w-5 h-5" />
-                              Chat ao Vivo
-                            </h3>
-                            <button
+                    <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-800">
+                      <h3 className="text-white font-semibold flex items-center gap-2">
+                        <MessageSquare className="w-5 h-5" />
+                        Chat ao Vivo
+                      </h3>
+                      <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setIsChatOpen(false);
                               }}
-                              className="text-slate-400 hover:text-white transition-colors p-1"
-                              aria-label="Fechar chat"
-                            >
-                              <X className="w-5 h-5" />
-                            </button>
-                          </div>
-
-                          <div className="flex-1 overflow-hidden">
-                            <LiveChat streamId={stream.id} isAdmin={false} />
-                          </div>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
+                        className="text-slate-400 hover:text-white transition-colors p-1"
+                        aria-label="Fechar chat"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                    
+                    <div className="flex-1 overflow-hidden">
+                      <LiveChat streamId={stream.id} isAdmin={false} />
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
                 </>
               )}
 
