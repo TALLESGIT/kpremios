@@ -708,7 +708,7 @@ export default function AdminDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-8">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <Header />
       
       {/* Notificação em tempo real */}
@@ -716,23 +716,23 @@ export default function AdminDashboardPage() {
         <div className="fixed top-20 right-4 z-50 animate-slide-in-right">
           <div className={`px-6 py-4 rounded-lg shadow-lg border-l-4 ${
             realtimeNotification.type === 'success' 
-              ? 'bg-green-900/90 border-green-400 text-green-100' 
+              ? 'bg-green-50 border-green-500 text-green-800' 
               : realtimeNotification.type === 'warning'
-              ? 'bg-yellow-900/90 border-yellow-400 text-yellow-100'
-              : 'bg-blue-900/90 border-blue-400 text-blue-100'
+              ? 'bg-yellow-50 border-yellow-500 text-yellow-800'
+              : 'bg-blue-50 border-blue-500 text-blue-800'
           }`}>
             <div className="flex items-center space-x-3">
               <div className="flex-shrink-0">
                 {realtimeNotification.type === 'success' ? (
-                  <CheckCircle className="h-5 w-5 text-green-400" />
+                  <CheckCircle className="h-5 w-5 text-green-600" />
                 ) : realtimeNotification.type === 'warning' ? (
-                  <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                  <AlertTriangle className="h-5 w-5 text-yellow-600" />
                 ) : (
-                  <MessageSquare className="h-5 w-5 text-blue-400" />
+                  <MessageSquare className="h-5 w-5 text-blue-600" />
                 )}
               </div>
               <div>
-                <p className="font-medium">{realtimeNotification.message}</p>
+                <p className="font-bold">{realtimeNotification.message}</p>
                 <p className="text-sm opacity-75">Atualização em tempo real</p>
               </div>
             </div>
@@ -740,24 +740,20 @@ export default function AdminDashboardPage() {
         </div>
       )}
       
-      <main className="flex-grow bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <main className="flex-grow w-full">
         {/* Modern Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 py-6 sm:py-8 lg:py-12 relative overflow-hidden">
-          {/* Geometric Background Pattern */}
-          <div className="absolute inset-0 opacity-5">
-            <div className="absolute inset-0" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23F59E0B' fill-opacity='0.1'%3E%3Cpath d='M0 0h40v40H0V0zm40 40h40v40H40V40z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            }} />
-              </div>
+        <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 py-8 sm:py-12 lg:py-16 relative overflow-hidden">
+          <div className="absolute inset-0 opacity-20">
+            <div className="absolute top-0 left-1/4 w-96 h-96 bg-white rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-yellow-300 rounded-full blur-3xl"></div>
+          </div>
           
-          {/* Geometric Accent Lines */}
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500"></div>
-          <div className="absolute bottom-0 right-0 w-1 h-full bg-gradient-to-b from-amber-500 via-amber-400 to-amber-500"></div>
-          
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 relative z-10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-white mb-2 sm:mb-4 tracking-tight">Painel Administrativo</h1>
-              <p className="text-slate-300 text-sm sm:text-base lg:text-lg xl:text-xl font-medium">Gerencie o sistema de sorteios ZK Premios</p>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-white mb-2 sm:mb-4 tracking-tight" style={{
+                textShadow: '2px 2px 0px rgba(251, 191, 36, 0.8)'
+              }}>PAINEL ADMINISTRATIVO</h1>
+              <p className="text-blue-100 text-sm sm:text-base lg:text-lg xl:text-xl font-medium">Gerencie o sistema de sorteios ZK Premios</p>
             </div>
           </div>
         </div>
@@ -766,7 +762,7 @@ export default function AdminDashboardPage() {
 
           {/* Enhanced Stats Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 -mt-4 sm:-mt-6 lg:-mt-8 mb-6 sm:mb-8 lg:mb-12">
-            <div className="bg-slate-800/50 overflow-hidden shadow-2xl rounded-2xl border border-slate-600/30 backdrop-blur-sm">
+            <div className="bg-white overflow-hidden shadow-xl rounded-2xl border-2 border-blue-200">
               <div className="p-3 sm:p-4 lg:p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
@@ -776,10 +772,10 @@ export default function AdminDashboardPage() {
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-bold text-slate-300 truncate">
+                      <dt className="text-sm font-bold text-blue-600 truncate">
                         Total de Participantes
                       </dt>
-                      <dd className="text-xl sm:text-2xl lg:text-3xl font-black text-white">
+                      <dd className="text-xl sm:text-2xl lg:text-3xl font-black text-blue-600">
                         {takenNumbersCount}
                       </dd>
                     </dl>
@@ -794,7 +790,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            <div className="bg-slate-800/50 overflow-hidden shadow-2xl rounded-2xl border border-slate-600/30 backdrop-blur-sm">
+            <div className="bg-white overflow-hidden shadow-xl rounded-2xl border-2 border-blue-200">
               <div className="p-3 sm:p-4 lg:p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
@@ -804,17 +800,17 @@ export default function AdminDashboardPage() {
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-bold text-slate-300 truncate">
+                      <dt className="text-sm font-bold text-blue-600 truncate">
                         Números Disponíveis
                       </dt>
-                      <dd className="text-xl sm:text-2xl lg:text-3xl font-black text-white">
+                      <dd className="text-xl sm:text-2xl lg:text-3xl font-black text-blue-600">
                         {availableNumbersCount}
                       </dd>
                     </dl>
                   </div>
                 </div>
                 <div className="mt-4">
-                  <div className="w-full bg-slate-700 rounded-full h-3">
+                  <div className="w-full bg-blue-100 rounded-full h-3">
                     <div 
                       className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-3 rounded-full shadow-lg" 
                       style={{ width: `${availableNumbersCount > 0 ? (availableNumbersCount / 1000) * 100 : 0}%` }}
@@ -824,7 +820,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            <div className="bg-slate-800/50 overflow-hidden shadow-2xl rounded-2xl border border-slate-600/30 backdrop-blur-sm">
+            <div className="bg-white overflow-hidden shadow-xl rounded-2xl border-2 border-blue-200">
               <div className="p-3 sm:p-4 lg:p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
@@ -834,17 +830,17 @@ export default function AdminDashboardPage() {
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-bold text-slate-300 truncate">
+                      <dt className="text-sm font-bold text-blue-600 truncate">
                         Números Selecionados
                       </dt>
-                      <dd className="text-xl sm:text-2xl lg:text-3xl font-black text-white">
+                      <dd className="text-xl sm:text-2xl lg:text-3xl font-black text-blue-600">
                         {takenNumbersCount}
                       </dd>
                     </dl>
                   </div>
                 </div>
                 <div className="mt-4">
-                  <div className="w-full bg-slate-700 rounded-full h-3">
+                  <div className="w-full bg-blue-100 rounded-full h-3">
                     <div 
                       className="bg-gradient-to-r from-amber-500 to-amber-600 h-3 rounded-full shadow-lg" 
                       style={{ width: `${(takenNumbersCount / totalRaffleNumbers) * 100}%` }}
@@ -854,7 +850,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            <div className="bg-slate-800/50 overflow-hidden shadow-2xl rounded-2xl border border-slate-600/30 backdrop-blur-sm">
+            <div className="bg-white overflow-hidden shadow-xl rounded-2xl border-2 border-blue-200">
               <div className="p-3 sm:p-4 lg:p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
@@ -864,10 +860,10 @@ export default function AdminDashboardPage() {
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-bold text-slate-300 truncate">
+                      <dt className="text-sm font-bold text-blue-600 truncate">
                         Taxa de Conversão
                       </dt>
-                      <dd className="text-xl sm:text-2xl lg:text-3xl font-black text-white">
+                      <dd className="text-xl sm:text-2xl lg:text-3xl font-black text-blue-600">
                         {takenNumbersCount > 0 ? ((takenNumbersCount / totalRaffleNumbers) * 100).toFixed(1) : '0'}%
                       </dd>
                     </dl>
@@ -886,7 +882,7 @@ export default function AdminDashboardPage() {
           {/* Enhanced Action Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8 lg:mb-12">
             {/* Aprovações Card */}
-            <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-green-400/20 backdrop-blur-sm hover:border-green-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-green-500/10">
+            <div className="group bg-gradient-to-br from-white to-blue-50 overflow-hidden shadow-2xl rounded-3xl border border-green-400/20 backdrop-blur-sm hover:border-green-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-green-500/10">
               <div className="bg-gradient-to-r from-green-500/10 to-green-600/10 p-4 sm:p-6 lg:p-8 border-b border-green-400/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
@@ -905,7 +901,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
               <div className="p-4 sm:p-6 lg:p-8">
-                <p className="text-slate-300 mb-6 leading-relaxed font-medium text-sm">
+                <p className="text-blue-600 mb-6 leading-relaxed font-medium text-sm">
                   Gerencie solicitações de números extras dos usuários. 
                   Aprove ou rejeite com base nos comprovantes de pagamento.
                 </p>
@@ -920,7 +916,7 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* Usuários Card */}
-            <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-blue-400/20 backdrop-blur-sm hover:border-blue-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/10">
+            <div className="group bg-gradient-to-br from-white to-blue-50 overflow-hidden shadow-2xl rounded-3xl border border-blue-400/20 backdrop-blur-sm hover:border-blue-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/10">
               <div className="bg-gradient-to-r from-blue-500/10 to-blue-600/10 p-4 sm:p-6 lg:p-8 border-b border-blue-400/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
@@ -935,7 +931,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
               <div className="p-4 sm:p-6 lg:p-8">
-                <p className="text-slate-300 mb-6 leading-relaxed font-medium text-sm">
+                <p className="text-blue-600 mb-6 leading-relaxed font-medium text-sm">
                   Visualize e gerencie todos os usuários cadastrados no sistema. 
                   Veja estatísticas, dados de contato e histórico de participações.
                 </p>
@@ -952,7 +948,7 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* Sorteios Card */}
-            <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-purple-400/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-purple-500/10">
+            <div className="group bg-gradient-to-br from-white to-blue-50 overflow-hidden shadow-2xl rounded-3xl border border-purple-400/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-purple-500/10">
               <div className="bg-gradient-to-r from-purple-500/10 to-purple-600/10 p-4 sm:p-6 lg:p-8 border-b border-purple-400/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
@@ -971,7 +967,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
               <div className="p-4 sm:p-6 lg:p-8">
-                <p className="text-slate-300 mb-6 leading-relaxed font-medium text-sm">
+                <p className="text-blue-600 mb-6 leading-relaxed font-medium text-sm">
                   Crie e gerencie sorteios personalizados. Configure prêmios, 
                   datas e regras específicas para cada campanha.
                 </p>
@@ -995,7 +991,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-amber-400/20 backdrop-blur-sm hover:border-amber-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-500/10">
+            <div className="group bg-gradient-to-br from-white to-blue-50 overflow-hidden shadow-2xl rounded-3xl border border-amber-400/20 backdrop-blur-sm hover:border-amber-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-500/10">
               {/* Header com gradiente */}
               <div className="bg-gradient-to-r from-amber-500/10 to-amber-600/10 p-4 sm:p-6 lg:p-8 border-b border-amber-400/20">
                 <div className="flex items-center justify-between">
@@ -1017,7 +1013,7 @@ export default function AdminDashboardPage() {
 
               {/* Conteúdo */}
               <div className="p-4 sm:p-6 lg:p-8">
-                <p className="text-slate-300 mb-6 leading-relaxed font-medium text-sm">
+                <p className="text-blue-600 mb-6 leading-relaxed font-medium text-sm">
                   Execute um sorteio automático entre todos os números selecionados. 
                   O sistema escolherá aleatoriamente um ganhador e registrará o resultado.
                 </p>
@@ -1025,8 +1021,8 @@ export default function AdminDashboardPage() {
                 {/* Status Badge */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center">
-                    <div className={`w-3 h-3 rounded-full mr-3 ${takenNumbersCount > 0 ? 'bg-emerald-500' : 'bg-slate-500'}`}></div>
-                    <span className="text-sm font-bold text-slate-300">
+                    <div className={`w-3 h-3 rounded-full mr-3 ${takenNumbersCount > 0 ? 'bg-emerald-500' : 'bg-blue-300'}`}></div>
+                    <span className="text-sm font-bold text-blue-600">
                       {takenNumbersCount > 0 ? 'Pronto para sorteio' : 'Aguardando participantes'}
                     </span>
                   </div>
@@ -1041,7 +1037,7 @@ export default function AdminDashboardPage() {
                   className={`w-full py-4 px-6 rounded-2xl font-black transition-all duration-300 flex items-center justify-center gap-3 group ${
                     takenNumbersCount > 0
                       ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700 shadow-2xl hover:shadow-amber-500/25 transform hover:-translate-y-1 hover:scale-105'
-                      : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                      : 'bg-blue-100 text-slate-500 cursor-not-allowed'
                   }`}
                 >
                   <Trophy className="h-5 w-5 group-hover:rotate-12 transition-transform duration-300" />
@@ -1050,7 +1046,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-red-400/20 backdrop-blur-sm hover:border-red-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-red-500/10">
+            <div className="group bg-gradient-to-br from-white to-blue-50 overflow-hidden shadow-2xl rounded-3xl border border-red-400/20 backdrop-blur-sm hover:border-red-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-red-500/10">
               {/* Header com gradiente */}
               <div className="bg-gradient-to-r from-red-500/10 to-red-600/10 p-4 sm:p-6 lg:p-8 border-b border-red-400/20">
                 <div className="flex items-center justify-between">
@@ -1072,7 +1068,7 @@ export default function AdminDashboardPage() {
 
               {/* Conteúdo */}
               <div className="p-4 sm:p-6 lg:p-8">
-                <p className="text-slate-300 mb-6 leading-relaxed font-medium text-sm">
+                <p className="text-blue-600 mb-6 leading-relaxed font-medium text-sm">
                   Remove todos os registros de usuários normais, números selecionados e 
                   histórico de sorteios. <span className="text-amber-300 font-bold">Usuários admin são preservados.</span> 
                   Restaura o sistema ao estado inicial.
@@ -1082,7 +1078,7 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center">
                     <div className="w-3 h-3 rounded-full mr-3 bg-red-500 animate-pulse"></div>
-                    <span className="text-sm font-bold text-slate-300">Ação irreversível</span>
+                    <span className="text-sm font-bold text-blue-600">Ação irreversível</span>
                   </div>
                   <div className="bg-gradient-to-r from-red-500/20 to-red-600/20 border border-red-400/30 rounded-lg px-3 py-1">
                     <span className="text-xs font-bold text-red-200">Extrema cautela</span>
@@ -1099,7 +1095,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-blue-400/20 backdrop-blur-sm hover:border-blue-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/10">
+            <div className="group bg-gradient-to-br from-white to-blue-50 overflow-hidden shadow-2xl rounded-3xl border border-blue-400/20 backdrop-blur-sm hover:border-blue-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/10">
               {/* Header com gradiente */}
               <div className="bg-gradient-to-r from-blue-500/10 to-blue-600/10 p-4 sm:p-6 lg:p-8 border-b border-blue-400/20">
                 <div className="flex items-center justify-between">
@@ -1121,7 +1117,7 @@ export default function AdminDashboardPage() {
 
               {/* Conteúdo */}
               <div className="p-4 sm:p-6 lg:p-8">
-                <p className="text-slate-300 mb-6 leading-relaxed font-medium text-sm">
+                <p className="text-blue-600 mb-6 leading-relaxed font-medium text-sm">
                   Libera todos os números selecionados, mantendo os usuários cadastrados. 
                   Útil para limpar seleções após exclusão de usuários.
                 </p>
@@ -1130,7 +1126,7 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center">
                     <div className="w-3 h-3 rounded-full mr-3 bg-blue-500"></div>
-                    <span className="text-sm font-bold text-slate-300">Mantém usuários</span>
+                    <span className="text-sm font-bold text-blue-600">Mantém usuários</span>
                   </div>
                   <div className="bg-gradient-to-r from-blue-500/20 to-blue-600/20 border border-blue-400/30 rounded-lg px-3 py-1">
                     <span className="text-xs font-bold text-blue-200">Seguro</span>
@@ -1147,7 +1143,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-purple-400/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-purple-500/10">
+            <div className="group bg-gradient-to-br from-white to-blue-50 overflow-hidden shadow-2xl rounded-3xl border border-purple-400/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-purple-500/10">
               {/* Header com gradiente */}
               <div className="bg-gradient-to-r from-purple-500/10 to-purple-600/10 p-4 sm:p-6 lg:p-8 border-b border-purple-400/20">
                 <div className="flex items-center justify-between">
@@ -1169,7 +1165,7 @@ export default function AdminDashboardPage() {
 
               {/* Conteúdo */}
               <div className="p-4 sm:p-6 lg:p-8">
-                <p className="text-slate-300 mb-6 leading-relaxed font-medium text-sm">
+                <p className="text-blue-600 mb-6 leading-relaxed font-medium text-sm">
                   Remove automaticamente todas as solicitações de números extras de sorteios finalizados. 
                   <span className="text-purple-300 font-bold"> Ação executada automaticamente após cada sorteio.</span>
                 </p>
@@ -1178,7 +1174,7 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center">
                     <div className="w-3 h-3 rounded-full mr-3 bg-purple-500 animate-pulse"></div>
-                    <span className="text-sm font-bold text-slate-300">Limpeza automática ativa</span>
+                    <span className="text-sm font-bold text-blue-600">Limpeza automática ativa</span>
                   </div>
                   <div className="bg-gradient-to-r from-purple-500/20 to-purple-600/20 border border-purple-400/30 rounded-lg px-3 py-1">
                     <span className="text-xs font-bold text-purple-200">Profissional</span>
@@ -1196,7 +1192,7 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* Transmitir Live */}
-            <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-red-400/20 backdrop-blur-sm hover:border-red-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-red-500/10">
+            <div className="group bg-gradient-to-br from-white to-blue-50 overflow-hidden shadow-2xl rounded-3xl border border-red-400/20 backdrop-blur-sm hover:border-red-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-red-500/10">
               {/* Header com gradiente */}
               <div className="bg-gradient-to-r from-red-500/10 to-red-600/10 p-4 sm:p-6 lg:p-8 border-b border-red-400/20">
                 <div className="flex items-center justify-between">
@@ -1218,7 +1214,7 @@ export default function AdminDashboardPage() {
 
               {/* Conteúdo */}
               <div className="p-4 sm:p-6 lg:p-8">
-                <p className="text-slate-300 mb-6 leading-relaxed font-medium text-sm">
+                <p className="text-blue-600 mb-6 leading-relaxed font-medium text-sm">
                   Crie e gerencie transmissões ao vivo com integração OBS Studio e Agora.io. 
                   Transmita para seus usuários com chat em tempo real e painel de controle profissional.
                 </p>
@@ -1227,7 +1223,7 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center">
                     <div className="w-3 h-3 rounded-full mr-3 bg-red-500 animate-pulse"></div>
-                    <span className="text-sm font-bold text-slate-300">Sistema completo</span>
+                    <span className="text-sm font-bold text-blue-600">Sistema completo</span>
                   </div>
                   <div className="bg-gradient-to-r from-red-500/20 to-red-600/20 border border-red-400/30 rounded-lg px-3 py-1">
                     <span className="text-xs font-bold text-red-200">Profissional</span>
@@ -1245,7 +1241,7 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* Controle "Resta Um" */}
-            <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-orange-400/20 backdrop-blur-sm hover:border-orange-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-orange-500/10">
+            <div className="group bg-gradient-to-br from-white to-blue-50 overflow-hidden shadow-2xl rounded-3xl border border-orange-400/20 backdrop-blur-sm hover:border-orange-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-orange-500/10">
               {/* Header com gradiente */}
               <div className="bg-gradient-to-r from-orange-500/10 to-orange-600/10 p-4 sm:p-6 lg:p-8 border-b border-orange-400/20">
                 <div className="flex items-center justify-between">
@@ -1275,7 +1271,7 @@ export default function AdminDashboardPage() {
 
               {/* Conteúdo */}
               <div className="p-4 sm:p-6 lg:p-8">
-                <p className="text-slate-300 mb-6 leading-relaxed font-medium text-sm">
+                <p className="text-blue-600 mb-6 leading-relaxed font-medium text-sm">
                   Sistema de sorteio manual onde você pode fechar o jogo e eliminar números um por um até restar apenas o vencedor.
                   <span className="text-orange-300 font-bold"> Controle total do processo de eliminação.</span>
                 </p>
@@ -1290,7 +1286,7 @@ export default function AdminDashboardPage() {
                       className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
                         gameStatus === 'open'
                           ? 'bg-green-600 text-white cursor-not-allowed'
-                          : 'bg-slate-700 text-slate-300 hover:bg-green-600 hover:text-white'
+                          : 'bg-blue-100 text-blue-600 hover:bg-green-600 hover:text-white'
                       }`}
                     >
                       🔓 Abrir Jogo
@@ -1301,7 +1297,7 @@ export default function AdminDashboardPage() {
                       className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
                         gameStatus === 'closed'
                           ? 'bg-red-600 text-white cursor-not-allowed'
-                          : 'bg-slate-700 text-slate-300 hover:bg-red-600 hover:text-white'
+                          : 'bg-blue-100 text-blue-600 hover:bg-red-600 hover:text-white'
                       }`}
                     >
                       🔒 Fechar Jogo
@@ -1320,7 +1316,7 @@ export default function AdminDashboardPage() {
                     <h4 className="text-white font-semibold mb-3">Sorteio Manual</h4>
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-sm text-slate-300 mb-2">
+                        <label className="block text-sm text-blue-600 mb-2">
                           Número para eliminar (1-{totalRaffleNumbers})
                         </label>
                         <input
@@ -1329,7 +1325,7 @@ export default function AdminDashboardPage() {
                           onChange={(e) => setManualDrawNumber(e.target.value)}
                           min="1"
                           max={totalRaffleNumbers}
-                          className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          className="w-full px-3 py-2 bg-blue-100 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
                           placeholder="Digite o número sorteado"
                         />
                       </div>
@@ -1365,7 +1361,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            <div className="group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border border-emerald-400/20 backdrop-blur-sm hover:border-emerald-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-emerald-500/10">
+            <div className="group bg-gradient-to-br from-white to-blue-50 overflow-hidden shadow-2xl rounded-3xl border border-emerald-400/20 backdrop-blur-sm hover:border-emerald-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-emerald-500/10">
               {/* Header com gradiente */}
               <div className="bg-gradient-to-r from-emerald-500/10 to-emerald-600/10 p-4 sm:p-6 lg:p-8 border-b border-emerald-400/20">
                 <div className="flex items-center justify-between">
@@ -1387,7 +1383,7 @@ export default function AdminDashboardPage() {
 
               {/* Conteúdo */}
               <div className="p-4 sm:p-6 lg:p-8">
-                <p className="text-slate-300 mb-6 leading-relaxed font-medium text-sm">
+                <p className="text-blue-600 mb-6 leading-relaxed font-medium text-sm">
                   Libera números que foram selecionados por usuários que foram excluídos. 
                   Esses números voltam a ficar disponíveis para seleção.
                 </p>
@@ -1396,7 +1392,7 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center">
                     <div className="w-3 h-3 rounded-full mr-3 bg-emerald-500"></div>
-                    <span className="text-sm font-bold text-slate-300">Limpeza automática</span>
+                    <span className="text-sm font-bold text-blue-600">Limpeza automática</span>
                   </div>
                   <div className="bg-gradient-to-r from-emerald-500/20 to-emerald-600/20 border border-emerald-400/30 rounded-lg px-3 py-1">
                     <span className="text-xs font-bold text-emerald-200">Seguro</span>
@@ -1432,7 +1428,7 @@ export default function AdminDashboardPage() {
                       <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-white mb-2 sm:mb-3">
                         Confirmar Reset
                       </h3>
-                      <p className="text-slate-300 leading-relaxed font-medium text-sm sm:text-base">
+                      <p className="text-blue-600 leading-relaxed font-medium text-sm sm:text-base">
                         Esta ação irá remover permanentemente todos os dados do sistema:
                       </p>
                       <ul className="mt-3 sm:mt-4 text-xs sm:text-sm text-slate-400 list-disc list-inside space-y-1 sm:space-y-2 font-medium">
@@ -1453,7 +1449,7 @@ export default function AdminDashboardPage() {
                     </button>
                     <button
                       type="button"
-                      className="flex-1 sm:flex-none sm:w-auto inline-flex justify-center rounded-xl px-4 sm:px-6 py-2 sm:py-3 border border-slate-600 bg-slate-700 text-slate-300 font-bold hover:bg-slate-600 transition-all duration-300 text-sm sm:text-base"
+                      className="flex-1 sm:flex-none sm:w-auto inline-flex justify-center rounded-xl px-4 sm:px-6 py-2 sm:py-3 border border-slate-600 bg-blue-100 text-blue-600 font-bold hover:bg-slate-600 transition-all duration-300 text-sm sm:text-base"
                       onClick={() => setShowResetConfirm(false)}
                     >
                       Cancelar
@@ -1550,7 +1546,7 @@ export default function AdminDashboardPage() {
                       {countdown}
                     </div>
                     
-                    <p className="text-slate-300 text-lg font-medium">
+                    <p className="text-blue-600 text-lg font-medium">
                       Selecionando ganhador...
                     </p>
                   </div>
@@ -1599,17 +1595,17 @@ export default function AdminDashboardPage() {
                       <p className="text-2xl font-bold text-white mb-2">
                         {winnerData.name}
                       </p>
-                      <p className="text-slate-300 text-lg">
+                      <p className="text-blue-600 text-lg">
                         Parabéns! Você foi o ganhador do sorteio!
                       </p>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                      <div className="bg-slate-700/30 rounded-xl p-4">
+                      <div className="bg-blue-100/30 rounded-xl p-4">
                         <p className="text-slate-400 text-sm font-medium mb-1">Email</p>
                         <p className="text-white font-bold">{winnerData.email}</p>
                       </div>
-                      <div className="bg-slate-700/30 rounded-xl p-4">
+                      <div className="bg-blue-100/30 rounded-xl p-4">
                         <p className="text-slate-400 text-sm font-medium mb-1">WhatsApp</p>
                         <p className="text-white font-bold">{winnerData.whatsapp}</p>
                       </div>
@@ -1621,7 +1617,7 @@ export default function AdminDashboardPage() {
                           setShowDrawResult(false);
                           setWinnerData(null);
                         }}
-                        className="px-6 py-3 bg-slate-700/50 hover:bg-slate-700/70 text-slate-300 font-bold rounded-xl transition-all duration-200 border border-slate-600/30"
+                        className="px-6 py-3 bg-blue-100/50 hover:bg-blue-100/70 text-blue-600 font-bold rounded-xl transition-all duration-200 border border-slate-600/30"
                       >
                         Fechar
                       </button>
