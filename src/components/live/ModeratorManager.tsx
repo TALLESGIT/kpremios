@@ -128,31 +128,80 @@ const ModeratorManager: React.FC<ModeratorManagerProps> = ({ streamId }) => {
     try {
       setLoadingParticipants(true);
       
-      // Buscar TODOS os usuários cadastrados no sistema
-      const { data: allUsersData, error: usersError } = await supabase
-        .from('users')
-        .select('id, name, email')
-        .order('name', { ascending: true });
+      // Buscar usuários que estão visualizando (viewer_sessions ativas)
+      const { data: viewersData, error: viewersError } = await supabase
+        .from('viewer_sessions')
+        .select(`
+          user_id,
+          users:user_id (
+            id,
+            name,
+            email
+          )
+        `)
+        .eq('stream_id', streamId)
+        .eq('is_active', true)
+        .not('user_id', 'is', null);
 
-      if (usersError) {
-        console.error('Erro ao buscar usuários:', usersError);
-        throw usersError;
+      // Buscar usuários que enviaram mensagens no chat
+      const { data: chatUsersData, error: chatError } = await supabase
+        .from('live_chat_messages')
+        .select(`
+          user_id,
+          users:user_id (
+            id,
+            name,
+            email
+          )
+        `)
+        .eq('stream_id', streamId)
+        .not('user_id', 'is', null);
+
+      if (viewersError) console.error('Erro ao buscar viewers:', viewersError);
+      if (chatError) console.error('Erro ao buscar usuários do chat:', chatError);
+
+      // Combinar e remover duplicatas
+      const allUsers = new Map<string, any>();
+      
+      // Adicionar usuários das sessões de visualização
+      if (viewersData) {
+        viewersData.forEach((item: any) => {
+          if (item.user_id && item.users) {
+            allUsers.set(item.user_id, {
+              id: item.users.id,
+              name: item.users.name || 'Usuário',
+              email: item.users.email || '',
+              source: 'viewer'
+            });
+          }
+        });
       }
 
-      // Filtrar usuários que já são moderadores
+      // Adicionar usuários do chat
+      if (chatUsersData) {
+        chatUsersData.forEach((item: any) => {
+          if (item.user_id && item.users) {
+            if (!allUsers.has(item.user_id)) {
+              allUsers.set(item.user_id, {
+                id: item.users.id,
+                name: item.users.name || 'Usuário',
+                email: item.users.email || '',
+                source: 'chat'
+              });
+            }
+          }
+        });
+      }
+
+      // Converter Map para Array e filtrar usuários que já são moderadores
       const moderatorIds = moderators.map(m => m.user_id);
-      const participants = (allUsersData || [])
+      const participants = Array.from(allUsers.values())
         .filter((u: any) => !moderatorIds.includes(u.id))
-        .map((u: any) => ({
-          id: u.id,
-          name: u.name || 'Usuário',
-          email: u.email || '',
-        }));
+        .sort((a: any, b: any) => a.name.localeCompare(b.name));
 
       setParticipatingUsers(participants);
     } catch (error: any) {
       console.error('Erro ao carregar usuários participantes:', error);
-      toast.error('Erro ao carregar usuários');
     } finally {
       setLoadingParticipants(false);
     }
