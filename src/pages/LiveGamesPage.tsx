@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
@@ -199,7 +200,7 @@ export default function LiveGamesPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'waiting': return 'bg-yellow-500';
+      case 'waiting': return 'bg-yellow-400';
       case 'active': return 'bg-green-500';
       case 'finished': return 'bg-blue-500';
       case 'cancelled': return 'bg-red-500';
@@ -226,45 +227,55 @@ export default function LiveGamesPage() {
     switch (game.status) {
       case 'waiting':
         return game.current_participants < game.max_participants ? (
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => handleJoinGame(game)}
-            className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 text-sm sm:text-base"
+            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 text-sm sm:text-base shadow-lg shadow-blue-500/25"
           >
             <Play className="w-4 h-4" />
             <span className="hidden sm:inline">Participar</span>
             <span className="sm:hidden">Entrar</span>
-          </button>
+          </motion.button>
         ) : (
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => navigate(`/live-games/${game.id}`)}
-            className="bg-slate-600 hover:bg-slate-700 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-bold transition-colors flex items-center gap-2 text-sm sm:text-base"
+            className="bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 text-sm sm:text-base shadow-lg"
           >
             <Eye className="w-4 h-4" />
             <span className="hidden sm:inline">Assistir</span>
             <span className="sm:hidden">Ver</span>
-          </button>
+          </motion.button>
         );
       case 'active':
         return (
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            animate={{ scale: [1, 1.05, 1] }}
+            transition={{ duration: 2, repeat: Infinity }}
             onClick={() => navigate(`/live-games/${game.id}`)}
-            className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-bold transition-colors flex items-center gap-2 animate-pulse text-sm sm:text-base"
+            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 text-sm sm:text-base shadow-lg shadow-red-500/25"
           >
             <Eye className="w-4 h-4" />
             <span className="hidden sm:inline">Ao Vivo</span>
             <span className="sm:hidden">Live</span>
-          </button>
+          </motion.button>
         );
       case 'finished':
         return (
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => navigate(`/live-games/${game.id}`)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-bold transition-colors flex items-center gap-2 text-sm sm:text-base"
+            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 text-sm sm:text-base shadow-lg"
           >
             <Trophy className="w-4 h-4" />
             <span className="hidden sm:inline">Ver Resultado</span>
             <span className="sm:hidden">Resultado</span>
-          </button>
+          </motion.button>
         );
       default:
         return null;
@@ -275,8 +286,15 @@ export default function LiveGamesPage() {
     return (
       <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-8">
         <Header />
-        <div className="flex-grow bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-          <div className="text-white text-xl">Carregando...</div>
+        <div className="flex-grow bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center"
+          >
+            <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-blue-600 font-semibold">Carregando...</p>
+          </motion.div>
         </div>
         <Footer />
       </div>
@@ -284,89 +302,135 @@ export default function LiveGamesPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-8">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <Header />
       
-      <main className="flex-grow bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <main className="flex-grow w-full">
         {/* Hero Section */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 py-8 sm:py-12 lg:py-16 relative overflow-hidden">
-          {/* Geometric Background Pattern */}
-          <div className="absolute inset-0 opacity-5">
-            <div className="absolute inset-0" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23F59E0B' fill-opacity='0.1'%3E%3Cpath d='M0 0h40v40H0V0zm40 40h40v40H40V40z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            }} />
+        <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 py-8 sm:py-12 lg:py-16 relative overflow-hidden">
+          {/* Animated background elements */}
+          <div className="absolute inset-0 opacity-20">
+            <motion.div
+              className="absolute top-0 left-1/4 w-96 h-96 bg-white rounded-full blur-3xl"
+              animate={{
+                scale: [1, 1.2, 1],
+                opacity: [0.3, 0.5, 0.3],
+              }}
+              transition={{
+                duration: 4,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            />
+            <motion.div
+              className="absolute bottom-0 right-1/4 w-96 h-96 bg-yellow-300 rounded-full blur-3xl"
+              animate={{
+                scale: [1.2, 1, 1.2],
+                opacity: [0.3, 0.5, 0.3],
+              }}
+              transition={{
+                duration: 4,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 1
+              }}
+            />
           </div>
           
-          {/* Geometric Accent Lines */}
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500"></div>
-          <div className="absolute bottom-0 right-0 w-1 h-full bg-gradient-to-b from-amber-500 via-amber-400 to-amber-500"></div>
-          
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-            <div className="text-center">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-2xl shadow-amber-500/25">
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="text-center"
+            >
+              <motion.div
+                className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-2xl"
+                whileHover={{ scale: 1.1, rotate: 5 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
                 <Gamepad2 className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
-              </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-4 sm:mb-6 tracking-tight">
+              </motion.div>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-black text-white mb-4 sm:mb-6 tracking-tight" style={{
+                textShadow: '3px 3px 0px rgba(251, 191, 36, 0.8)',
+              }}>
                 Lives - Resta Um
               </h1>
-              <p className="text-lg sm:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
+              <p className="text-lg sm:text-xl text-blue-100 max-w-2xl mx-auto leading-relaxed">
                 Participe das brincadeiras ao vivo e concorra a prêmios!
               </p>
-            </div>
+            </motion.div>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-8">
-
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Filtros */}
-          <div className="flex justify-center mb-8">
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-1 flex flex-wrap gap-1 max-w-full">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="flex justify-center mb-8"
+          >
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-1 flex flex-wrap gap-1 max-w-full shadow-lg border-2 border-blue-200">
               {[
                 { key: 'all', label: 'Todas' },
                 { key: 'waiting', label: 'Aguardando' },
                 { key: 'active', label: 'Ao Vivo' },
                 { key: 'finished', label: 'Finalizadas' }
               ].map(({ key, label }) => (
-                <button
+                <motion.button
                   key={key}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => setFilter(key as any)}
-                  className={`px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${
+                  className={`px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-bold transition-all duration-200 text-sm sm:text-base ${
                     filter === key
-                      ? 'bg-amber-600 text-white shadow-lg'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
+                      : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
                   }`}
                 >
                   {label}
-                </button>
+                </motion.button>
               ))}
             </div>
-          </div>
+          </motion.div>
 
           {/* Lista de jogos */}
           <div className="space-y-4 sm:space-y-6">
             {filteredGames.length === 0 ? (
-              <div className="text-center py-12">
-                <Gamepad2 className="w-12 h-12 sm:w-16 sm:h-16 text-slate-600 mx-auto mb-4" />
-                <h3 className="text-lg sm:text-xl font-semibold text-slate-400 mb-2">Nenhum jogo encontrado</h3>
-                <p className="text-sm sm:text-base text-slate-500">Não há jogos disponíveis no momento.</p>
-              </div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-12"
+              >
+                <Gamepad2 className="w-12 h-12 sm:w-16 sm:h-16 text-blue-400 mx-auto mb-4" />
+                <h3 className="text-lg sm:text-xl font-semibold text-blue-600 mb-2">Nenhum jogo encontrado</h3>
+                <p className="text-sm sm:text-base text-blue-500">Não há jogos disponíveis no momento.</p>
+              </motion.div>
             ) : (
-              filteredGames.map((game) => (
-                <div key={game.id} className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-4 sm:p-6 hover:border-amber-500/50 transition-all duration-300">
+              filteredGames.map((game, index) => (
+                <motion.div
+                  key={game.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-4 sm:p-6 hover:border-blue-400 hover:shadow-xl transition-all duration-300"
+                >
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                     {/* Informações do jogo */}
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg flex items-center justify-center">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
                           <Hash className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                         </div>
                         <div>
-                          <h3 className="text-lg sm:text-xl font-bold text-white">{game.title}</h3>
+                          <h3 className="text-lg sm:text-xl font-bold text-gray-900">{game.title}</h3>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(game.status)}`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-bold text-white ${getStatusColor(game.status)}`}>
                               {getStatusText(game.status)}
                             </span>
-                            <span className="text-slate-400 text-xs sm:text-sm">
+                            <span className="text-gray-500 text-xs sm:text-sm">
                               {new Date(game.created_at).toLocaleDateString('pt-BR')}
                             </span>
                           </div>
@@ -374,23 +438,25 @@ export default function LiveGamesPage() {
                       </div>
                       
                       {game.description && (
-                        <p className="text-slate-300 mb-4 text-sm sm:text-base">{game.description}</p>
+                        <p className="text-gray-600 mb-4 text-sm sm:text-base">{game.description}</p>
                       )}
                       
                       {/* Barra de progresso de participantes */}
                       <div className="mb-4">
                         <div className="flex justify-between items-center mb-2">
-                          <span className="text-xs sm:text-sm text-slate-400">Participantes</span>
-                          <span className="text-xs sm:text-sm text-slate-300">
+                          <span className="text-xs sm:text-sm text-gray-600 font-semibold">Participantes</span>
+                          <span className="text-xs sm:text-sm text-gray-700 font-bold">
                             {game.current_participants || 0} / {game.max_participants}
                           </span>
                         </div>
-                        <div className="w-full bg-slate-700 rounded-full h-2">
-                          <div 
-                            className="bg-gradient-to-r from-amber-500 to-amber-600 h-2 rounded-full transition-all duration-300"
-                            style={{ 
+                        <div className="w-full bg-blue-100 rounded-full h-3">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ 
                               width: `${Math.min(((game.current_participants || 0) / game.max_participants) * 100, 100)}%` 
                             }}
+                            transition={{ duration: 0.5 }}
+                            className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full shadow-lg"
                           />
                         </div>
                       </div>
@@ -401,37 +467,66 @@ export default function LiveGamesPage() {
                       {getActionButton(game)}
                     </div>
                   </div>
-                </div>
+                </motion.div>
               ))
             )}
         </div>
 
           {/* Estatísticas das lives */}
           {games.length > 0 && (
-            <div className="mt-8 sm:mt-12 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 sm:p-6 text-center border border-slate-700">
-                <div className="text-2xl sm:text-3xl font-bold text-white mb-2">{games.length}</div>
-                <div className="text-slate-400 text-xs sm:text-sm">Total de Lives</div>
-              </div>
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 sm:p-6 text-center border border-slate-700">
-                <div className="text-2xl sm:text-3xl font-bold text-yellow-400 mb-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="mt-8 sm:mt-12 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4"
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.5 }}
+                whileHover={{ scale: 1.05, y: -5 }}
+                className="bg-white rounded-2xl p-4 sm:p-6 text-center border-2 border-blue-200 shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <div className="text-2xl sm:text-3xl font-black text-blue-600 mb-2">{games.length}</div>
+                <div className="text-gray-600 text-xs sm:text-sm font-semibold">Total de Lives</div>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.6 }}
+                whileHover={{ scale: 1.05, y: -5 }}
+                className="bg-white rounded-2xl p-4 sm:p-6 text-center border-2 border-yellow-200 shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <div className="text-2xl sm:text-3xl font-black text-yellow-600 mb-2">
                   {games.filter(g => g.status === 'waiting').length}
                 </div>
-                <div className="text-slate-400 text-xs sm:text-sm">Aguardando</div>
-              </div>
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 sm:p-6 text-center border border-slate-700">
-                <div className="text-2xl sm:text-3xl font-bold text-green-400 mb-2">
+                <div className="text-gray-600 text-xs sm:text-sm font-semibold">Aguardando</div>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.7 }}
+                whileHover={{ scale: 1.05, y: -5 }}
+                className="bg-white rounded-2xl p-4 sm:p-6 text-center border-2 border-green-200 shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <div className="text-2xl sm:text-3xl font-black text-green-600 mb-2">
                   {games.filter(g => g.status === 'active').length}
                 </div>
-                <div className="text-slate-400 text-xs sm:text-sm">Ao Vivo</div>
-              </div>
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 sm:p-6 text-center border border-slate-700">
-                <div className="text-2xl sm:text-3xl font-bold text-red-400 mb-2">
+                <div className="text-gray-600 text-xs sm:text-sm font-semibold">Ao Vivo</div>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.8 }}
+                whileHover={{ scale: 1.05, y: -5 }}
+                className="bg-white rounded-2xl p-4 sm:p-6 text-center border-2 border-red-200 shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <div className="text-2xl sm:text-3xl font-black text-red-600 mb-2">
                   {games.filter(g => g.status === 'finished').length}
                 </div>
-                <div className="text-slate-400 text-xs sm:text-sm">Finalizadas</div>
-              </div>
-            </div>
+                <div className="text-gray-600 text-xs sm:text-sm font-semibold">Finalizadas</div>
+              </motion.div>
+            </motion.div>
           )}
         </div>
       </main>
@@ -440,27 +535,41 @@ export default function LiveGamesPage() {
 
       {/* Modal de Seleção de Números */}
       {showJoinModal && selectedGame && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={() => setShowJoinModal(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl p-6 w-full max-w-md border-2 border-blue-200 shadow-2xl"
+          >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white">Escolha seu Número da Sorte</h3>
-              <button
+              <h3 className="text-xl font-black text-gray-900">Escolha seu Número da Sorte</h3>
+              <motion.button
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => setShowJoinModal(false)}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <ArrowLeft className="w-6 h-6" />
-              </button>
+              </motion.button>
             </div>
 
             <div className="mb-6">
-              <h4 className="text-lg font-semibold text-white mb-2">{selectedGame.title}</h4>
-              <p className="text-slate-300 text-sm mb-4">
+              <h4 className="text-lg font-bold text-blue-600 mb-2">{selectedGame.title}</h4>
+              <p className="text-gray-600 text-sm mb-4">
                 Escolha um número de 1 a {selectedGame.max_participants} para participar do jogo.
               </p>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Número da Sorte (1-{selectedGame.max_participants})
                   </label>
                   <input
@@ -469,7 +578,7 @@ export default function LiveGamesPage() {
                     max={selectedGame.max_participants}
                     value={luckyNumber}
                     onChange={(e) => setLuckyNumber(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-blue-50 border-2 border-blue-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     placeholder="Digite seu número"
                   />
                 </div>
@@ -477,14 +586,14 @@ export default function LiveGamesPage() {
                 {/* Números já escolhidos */}
                 {participants.length > 0 && (
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Números já escolhidos:
                     </label>
                     <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto no-scrollbar">
                       {participants.map((participant) => (
                         <span
                           key={participant.id}
-                          className="px-2 py-1 bg-red-600/20 text-red-400 rounded text-sm border border-red-600/30"
+                          className="px-2 py-1 bg-red-100 text-red-600 rounded-lg text-sm border-2 border-red-200 font-semibold"
                         >
                           {participant.lucky_number}
                         </span>
@@ -496,22 +605,26 @@ export default function LiveGamesPage() {
             </div>
 
             <div className="flex gap-3">
-              <button
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setShowJoinModal(false)}
-                className="flex-1 px-4 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
+                className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
               >
                 Cancelar
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={joinGame}
                 disabled={joining || !luckyNumber}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:from-amber-600 hover:to-amber-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-bold shadow-lg"
               >
                 {joining ? 'Participando...' : 'Participar'}
-              </button>
+              </motion.button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );

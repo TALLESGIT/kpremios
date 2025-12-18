@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
@@ -400,10 +401,10 @@ export default function AdminApprovalsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'text-yellow-400 bg-yellow-400/20 border-yellow-400/30';
-      case 'approved': return 'text-emerald-400 bg-emerald-400/20 border-emerald-400/30';
-      case 'rejected': return 'text-red-400 bg-red-400/20 border-red-400/30';
-      default: return 'text-slate-400 bg-slate-400/20 border-slate-400/30';
+      case 'pending': return 'text-yellow-700 bg-yellow-100 border-2 border-yellow-300';
+      case 'approved': return 'text-green-700 bg-green-100 border-2 border-green-300';
+      case 'rejected': return 'text-red-700 bg-red-100 border-2 border-red-300';
+      default: return 'text-gray-700 bg-gray-100 border-2 border-gray-300';
     }
   };
 
@@ -420,13 +421,17 @@ export default function AdminApprovalsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full">
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
         <Header />
-        <main className="flex-grow bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-amber-500/30 border-t-amber-500 mx-auto mb-4"></div>
-            <p className="text-amber-200 font-medium text-lg">Carregando solicitações...</p>
-          </div>
+        <main className="flex-grow flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center"
+          >
+            <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-blue-600 font-semibold">Carregando solicitações...</p>
+          </motion.div>
         </main>
         <Footer />
       </div>
@@ -434,47 +439,69 @@ export default function AdminApprovalsPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <Header />
-      <main className="flex-grow bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <main className="flex-grow w-full">
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 py-6 sm:py-8 lg:py-12 relative overflow-hidden">
-          <div className="absolute inset-0 opacity-5">
-            <div className="absolute inset-0" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23F59E0B' fill-opacity='0.1'%3E%3Cpath d='M0 0h40v40H0V0zm40 40h40v40H40V40z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            }} />
+        <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 py-6 sm:py-8 lg:py-12 relative overflow-hidden">
+          {/* Animated background elements */}
+          <div className="absolute inset-0 opacity-20">
+            <motion.div
+              className="absolute top-0 left-1/4 w-96 h-96 bg-white rounded-full blur-3xl"
+              animate={{
+                scale: [1, 1.2, 1],
+                opacity: [0.3, 0.5, 0.3],
+              }}
+              transition={{
+                duration: 4,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            />
           </div>
           
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500"></div>
-          <div className="absolute bottom-0 right-0 w-1 h-full bg-gradient-to-b from-amber-500 via-amber-400 to-amber-500"></div>
-          
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 relative z-10">
-            <div className="text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-2 sm:mb-4 tracking-tight">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center sm:text-left"
+            >
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-2 sm:mb-4 tracking-tight" style={{
+                textShadow: '3px 3px 0px rgba(251, 191, 36, 0.8)',
+              }}>
                 Aprovações
               </h1>
-              <p className="text-slate-300 text-sm sm:text-base lg:text-lg font-medium">
+              <p className="text-blue-100 text-sm sm:text-base lg:text-lg font-semibold">
                 Gerencie solicitações de números extras
               </p>
               {pendingCount > 0 && (
-                <div className="mt-3 sm:mt-4 inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-red-500/20 border border-red-400/30">
-                  <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-red-400 mr-1 sm:mr-2" />
-                  <span className="text-red-200 font-bold text-xs sm:text-sm">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="mt-3 sm:mt-4 inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-red-100 border-2 border-red-300"
+                >
+                  <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-red-600 mr-1 sm:mr-2" />
+                  <span className="text-red-700 font-black text-xs sm:text-sm">
                     {pendingCount} solicitação{pendingCount > 1 ? 'ões' : ''} pendente{pendingCount > 1 ? 's' : ''}
                   </span>
-                </div>
+                </motion.div>
               )}
-            </div>
+            </motion.div>
           </div>
         </div>
 
         {/* Controles de Filtro e Busca */}
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 mb-6 sm:mb-8">
-          <div className="bg-slate-800/50 rounded-2xl shadow-2xl p-4 sm:p-6 backdrop-blur-sm border border-slate-600/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 sm:mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border-2 border-blue-200"
+          >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Busca */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Buscar por nome ou email
                 </label>
                 <input
@@ -482,19 +509,19 @@ export default function AdminApprovalsPage() {
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
                   placeholder="Digite nome ou email..."
-                  className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/30 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50"
+                  className="w-full px-4 py-2 bg-blue-50 border-2 border-blue-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                 />
               </div>
 
               {/* Filtro por Status */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Filtrar por status
                 </label>
                 <select
                   value={statusFilter}
                   onChange={(e) => handleStatusFilter(e.target.value)}
-                  className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50"
+                  className="w-full px-4 py-2 bg-blue-50 border-2 border-blue-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                 >
                   <option value="all">Todos ({requests.length})</option>
                   <option value="pending">Pendentes ({requests.filter(r => r.status === 'pending').length})</option>
@@ -505,48 +532,53 @@ export default function AdminApprovalsPage() {
 
               {/* Estatísticas */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Estatísticas
                 </label>
-                <div className="text-slate-400 text-sm">
+                <div className="text-gray-600 text-sm font-semibold">
                   <p>Mostrando {paginatedRequests.length} de {filteredRequests.length} solicitações</p>
                   <p>Página {currentPage} de {totalPages}</p>
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
 
         {/* Lista de Solicitações */}
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-        </div>
-
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
           {filteredRequests.length === 0 ? (
-            <div className="text-center py-8 sm:py-16">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-800/50 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6">
-                <Clock className="h-8 w-8 sm:h-10 sm:w-10 text-slate-400" />
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-8 sm:py-16"
+            >
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                <Clock className="h-8 w-8 sm:h-10 sm:w-10 text-blue-600" />
               </div>
-              <h3 className="text-xl sm:text-2xl font-black text-white mb-2 sm:mb-4">
+              <h3 className="text-xl sm:text-2xl font-black text-gray-900 mb-2 sm:mb-4">
                 {searchTerm || statusFilter !== 'all' ? 'Nenhuma solicitação encontrada' : 'Nenhuma solicitação'}
               </h3>
-              <p className="text-slate-400 text-base sm:text-lg px-4">
+              <p className="text-gray-600 text-base sm:text-lg px-4 font-semibold">
                 {searchTerm || statusFilter !== 'all' 
                   ? 'Tente ajustar os filtros de busca ou status.' 
                   : 'Não há solicitações de números extras no momento.'
                 }
               </p>
-            </div>
+            </motion.div>
           ) : (
             <>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
-                {paginatedRequests.map((request) => (
-                <div
+                {paginatedRequests.map((request, index) => (
+                <motion.div
                   key={request.id}
-                  className={`group bg-gradient-to-br from-slate-800/60 to-slate-900/60 overflow-hidden shadow-2xl rounded-3xl border backdrop-blur-sm hover:border-amber-400/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-500/10 cursor-pointer ${
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ scale: 1.02, y: -5 }}
+                  className={`group bg-white overflow-hidden shadow-lg rounded-2xl border-2 cursor-pointer transition-all duration-300 ${
                     request.payment_proof_url 
-                      ? 'border-emerald-500/30 hover:border-emerald-400/50' 
-                      : 'border-amber-500/30 hover:border-amber-400/50'
+                      ? 'border-green-300 hover:border-green-400 hover:shadow-xl' 
+                      : 'border-yellow-300 hover:border-yellow-400 hover:shadow-xl'
                   }`}
                   onClick={() => {
                     setSelectedRequest(request);
@@ -554,34 +586,34 @@ export default function AdminApprovalsPage() {
                   }}
                 >
                   {/* Header */}
-                  <div className="bg-gradient-to-r from-slate-700/50 to-slate-800/50 p-3 sm:p-6 border-b border-slate-600/30 relative">
+                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-3 sm:p-6 border-b-2 border-blue-300 relative">
                     {/* Badge de Comprovante - posicionado no canto superior direito, responsivo */}
                     {request.payment_proof_url ? (
-                      <div className="absolute top-2 sm:top-3 right-2 sm:right-3 bg-emerald-500/20 border border-emerald-400/30 rounded-full px-1.5 sm:px-2 py-0.5 sm:py-1 flex items-center gap-1 z-10">
-                        <Image className="h-3 w-3 text-emerald-400" />
-                        <span className="text-emerald-400 text-xs font-bold hidden sm:inline">Comprovante</span>
-                        <span className="text-emerald-400 text-xs font-bold sm:hidden">Comp</span>
+                      <div className="absolute top-2 sm:top-3 right-2 sm:right-3 bg-green-100 border-2 border-green-300 rounded-full px-1.5 sm:px-2 py-0.5 sm:py-1 flex items-center gap-1 z-10">
+                        <Image className="h-3 w-3 text-green-700" />
+                        <span className="text-green-700 text-xs font-black hidden sm:inline">Comprovante</span>
+                        <span className="text-green-700 text-xs font-black sm:hidden">Comp</span>
                       </div>
                     ) : (
-                      <div className="absolute top-2 sm:top-3 right-2 sm:right-3 bg-amber-500/20 border border-amber-400/30 rounded-full px-1.5 sm:px-2 py-0.5 sm:py-1 flex items-center gap-1 z-10">
-                        <FileText className="h-3 w-3 text-amber-400" />
-                        <span className="text-amber-400 text-xs font-bold hidden sm:inline">Sem Comprovante</span>
-                        <span className="text-amber-400 text-xs font-bold sm:hidden">Sem</span>
+                      <div className="absolute top-2 sm:top-3 right-2 sm:right-3 bg-yellow-100 border-2 border-yellow-300 rounded-full px-1.5 sm:px-2 py-0.5 sm:py-1 flex items-center gap-1 z-10">
+                        <FileText className="h-3 w-3 text-yellow-700" />
+                        <span className="text-yellow-700 text-xs font-black hidden sm:inline">Sem Comprovante</span>
+                        <span className="text-yellow-700 text-xs font-black sm:hidden">Sem</span>
                       </div>
                     )}
                     
                     <div className="flex items-center justify-between pr-16 sm:pr-20">
                       <div className="flex items-center min-w-0 flex-1">
-                        <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
+                        <div className="w-8 h-8 sm:w-12 sm:h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
                           <User className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <h3 className="text-sm sm:text-lg font-black text-white truncate">{request.user_name}</h3>
-                          <p className="text-slate-300 text-xs sm:text-sm truncate">{request.user_email}</p>
+                          <p className="text-blue-100 text-xs sm:text-sm truncate">{request.user_email}</p>
                         </div>
                       </div>
                       {/* Badge de Status - posicionado abaixo do badge de comprovante, menor no mobile */}
-                      <div className={`absolute top-10 sm:top-12 right-2 sm:right-3 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-bold border flex-shrink-0 ${getStatusColor(request.status)}`}>
+                      <div className={`absolute top-10 sm:top-12 right-2 sm:right-3 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-bold flex-shrink-0 ${getStatusColor(request.status)}`}>
                         <span className="hidden sm:inline">{getStatusText(request.status)}</span>
                         <span className="sm:hidden">
                           {request.status === 'pending' ? 'Pend' : 
@@ -593,44 +625,44 @@ export default function AdminApprovalsPage() {
                   </div>
 
                   {/* Conteúdo */}
-                  <div className="p-3 sm:p-6">
+                  <div className="p-3 sm:p-6 bg-white">
                     <div className="space-y-3 sm:space-y-4">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center text-slate-300">
+                        <div className="flex items-center text-gray-600">
                           <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                          <span className="text-xs sm:text-sm font-medium">Valor:</span>
+                          <span className="text-xs sm:text-sm font-semibold">Valor:</span>
                         </div>
-                        <span className="text-white font-bold text-sm sm:text-base">R$ {request.payment_amount.toFixed(2)}</span>
+                        <span className="text-gray-900 font-black text-sm sm:text-base">R$ {request.payment_amount.toFixed(2)}</span>
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center text-slate-300">
+                        <div className="flex items-center text-gray-600">
                           <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                          <span className="text-xs sm:text-sm font-medium">Solicitado:</span>
+                          <span className="text-xs sm:text-sm font-semibold">Solicitado:</span>
                         </div>
-                        <span className="text-white font-bold text-xs sm:text-sm">
+                        <span className="text-gray-900 font-bold text-xs sm:text-sm">
                           {new Date(request.created_at).toLocaleDateString('pt-BR')}
                         </span>
                       </div>
 
                       {request.extra_numbers && request.extra_numbers.length > 0 && (
                         <div className="space-y-3">
-                          <div className="flex items-center text-slate-300">
+                          <div className="flex items-center text-gray-600">
                             <Hash className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                            <span className="text-xs sm:text-sm font-medium">Números Extras:</span>
+                            <span className="text-xs sm:text-sm font-semibold">Números Extras:</span>
                           </div>
                           
                           {/* Faixas de números */}
                           <div className="space-y-2">
                             {Object.entries(organizeNumbersInRanges(request.extra_numbers)).map(([range, numbers]) => (
-                              <div key={range} className="bg-slate-700/30 rounded-lg p-3">
+                              <div key={range} className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3">
                                 <div className="flex items-center justify-between mb-2">
-                                  <span className="text-amber-400 font-bold text-sm">{range}</span>
-                                  <span className="text-slate-400 text-xs">{numbers.length} números</span>
+                                  <span className="text-blue-700 font-black text-sm">{range}</span>
+                                  <span className="text-gray-600 text-xs font-semibold">{numbers.length} números</span>
                                 </div>
                                 <div className="flex flex-wrap gap-1">
                                   {numbers.map((num, index) => (
-                                    <span key={index} className="bg-amber-500/20 text-amber-200 px-2 py-1 rounded text-xs font-bold">
+                                    <span key={index} className="bg-blue-500 text-white px-2 py-1 rounded-lg text-xs font-bold">
                                       {num}
                                     </span>
                                   ))}
@@ -643,34 +675,36 @@ export default function AdminApprovalsPage() {
 
                       {/* Comprovante de Pagamento */}
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center text-slate-300">
+                        <div className="flex items-center text-gray-600">
                           <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                          <span className="text-xs sm:text-sm font-medium">Comprovante:</span>
+                          <span className="text-xs sm:text-sm font-semibold">Comprovante:</span>
                         </div>
                         <div className="flex items-center gap-2">
                           {request.payment_proof_url ? (
                             <>
                               <div className="flex items-center gap-1">
-                                <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-                                <span className="text-emerald-400 text-xs sm:text-sm font-medium">Enviado</span>
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span className="text-green-700 text-xs sm:text-sm font-semibold">Enviado</span>
                               </div>
-                              <button
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setSelectedProofUrl(request.payment_proof_url!);
                                   setSelectedProofRequest(request);
                                   setShowProofModal(true);
                                 }}
-                                className="bg-gradient-to-r from-blue-500/20 to-blue-600/20 hover:from-blue-500/30 hover:to-blue-600/30 text-blue-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 border border-blue-400/30"
+                                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 border-2 border-blue-300 shadow-lg"
                               >
                                 <Image className="h-3 w-3" />
                                 Visualizar
-                              </button>
+                              </motion.button>
                             </>
                           ) : (
                             <div className="flex items-center gap-1">
-                              <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                              <span className="text-red-400 text-xs sm:text-sm font-medium">Não enviado</span>
+                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                              <span className="text-red-700 text-xs sm:text-sm font-semibold">Não enviado</span>
                             </div>
                           )}
                         </div>
@@ -679,72 +713,86 @@ export default function AdminApprovalsPage() {
 
                     {request.status === 'pending' && (
                       <div className="mt-4 sm:mt-6 flex gap-2 sm:gap-3">
-                        <button
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleApprove(request.id);
                           }}
-                          className={`flex-1 font-bold py-2 sm:py-3 px-3 sm:px-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm ${
+                          className={`flex-1 font-black py-2 sm:py-3 px-3 sm:px-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm shadow-lg ${
                             !request.payment_proof_url
-                              ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white'
-                              : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white'
+                              ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white'
+                              : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white'
                           }`}
                         >
                           <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                           {!request.payment_proof_url ? 'Aprovar (Sem Comprovante)' : 'Aprovar'}
-                        </button>
-                        <button
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleReject(request.id);
                           }}
-                          className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold py-2 sm:py-3 px-3 sm:px-4 rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-300 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm"
+                          className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white font-black py-2 sm:py-3 px-3 sm:px-4 rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-300 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm shadow-lg"
                         >
                           <XCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                           Rejeitar
-                        </button>
+                        </motion.button>
                       </div>
                     )}
                   </div>
-                </div>
+                </motion.div>
               ))}
               </div>
 
               {/* Paginação */}
               {totalPages > 1 && (
-                <div className="mt-8 flex justify-center">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="mt-8 flex justify-center"
+                >
                   <div className="flex items-center space-x-2">
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
-                      className="px-3 py-2 bg-slate-700/50 text-slate-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600/50 transition-colors"
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 transition-colors font-semibold"
                     >
                       Anterior
-                    </button>
+                    </motion.button>
                     
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                      <button
+                      <motion.button
                         key={page}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
                         onClick={() => handlePageChange(page)}
-                        className={`px-3 py-2 rounded-lg transition-colors ${
+                        className={`px-3 py-2 rounded-lg transition-colors font-bold ${
                           currentPage === page
-                            ? 'bg-amber-500 text-white'
-                            : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
+                            ? 'bg-blue-500 text-white shadow-lg'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                         }`}
                       >
                         {page}
-                      </button>
+                      </motion.button>
                     ))}
                     
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === totalPages}
-                      className="px-3 py-2 bg-slate-700/50 text-slate-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600/50 transition-colors"
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 transition-colors font-semibold"
                     >
                       Próximo
-                    </button>
+                    </motion.button>
                   </div>
-                </div>
+                </motion.div>
               )}
             </>
           )}

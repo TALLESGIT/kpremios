@@ -267,15 +267,15 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
   };
 
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
-      <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-        <TrendingUp className="w-5 h-5" />
+    <div className="bg-white p-6">
+      <h3 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2">
+        <TrendingUp className="w-5 h-5 text-blue-600" />
         Painel de Controle
       </h3>
 
       {/* Link da Transmissão */}
-      <div className="mb-6 p-4 bg-slate-800 rounded-lg border border-slate-700">
-        <label className="block text-sm font-medium text-slate-300 mb-2">
+      <div className="mb-6 p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
+        <label className="block text-sm font-bold text-gray-700 mb-2">
           Link da Transmissão
         </label>
         <div className="flex gap-2">
@@ -283,18 +283,18 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
             type="text"
             value={streamLink}
             readOnly
-            className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-lg text-sm border border-slate-600"
+            className="flex-1 px-4 py-2 bg-white border-2 border-blue-200 text-gray-900 rounded-lg text-sm font-semibold focus:outline-none focus:border-blue-500"
           />
           <button
             onClick={copyLink}
-            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white rounded-lg transition-all duration-200 flex items-center gap-2 font-bold shadow-lg"
             title="Copiar link"
           >
             <Copy className="w-4 h-4" />
           </button>
           <button
             onClick={shareLink}
-            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all duration-200 flex items-center gap-2 font-bold shadow-lg"
             title="Compartilhar link"
           >
             <Share2 className="w-4 h-4" />
@@ -305,57 +305,57 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
       {/* Métricas em Tempo Real */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {/* Viewers Ativos */}
-        <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 rounded-lg p-4 border border-blue-500/30">
+        <div className="bg-blue-50 rounded-lg p-4 border-2 border-blue-200">
           <div className="flex items-center gap-2 mb-2">
-            <Eye className="w-5 h-5 text-blue-400" />
-            <span className="text-sm text-slate-300">Viewers Ativos</span>
+            <Eye className="w-5 h-5 text-blue-600" />
+            <span className="text-sm font-bold text-gray-700">Viewers Ativos</span>
           </div>
-          <p className="text-3xl font-bold text-white">{viewerCount}</p>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-3xl font-black text-gray-900">{viewerCount}</p>
+          <p className="text-xs text-gray-600 mt-1 font-semibold">
             {stats.totalViewers} total
           </p>
         </div>
 
         {/* Mensagens */}
-        <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-lg p-4 border border-green-500/30">
+        <div className="bg-green-50 rounded-lg p-4 border-2 border-green-200">
           <div className="flex items-center gap-2 mb-2">
-            <MessageSquare className="w-5 h-5 text-green-400" />
-            <span className="text-sm text-slate-300">Mensagens</span>
+            <MessageSquare className="w-5 h-5 text-green-600" />
+            <span className="text-sm font-bold text-gray-700">Mensagens</span>
           </div>
-          <p className="text-3xl font-bold text-white">{stats.totalMessages}</p>
-          <p className="text-xs text-slate-400 mt-1">No chat</p>
+          <p className="text-3xl font-black text-gray-900">{stats.totalMessages}</p>
+          <p className="text-xs text-gray-600 mt-1 font-semibold">No chat</p>
         </div>
 
         {/* Sessões Únicas */}
-        <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 rounded-lg p-4 border border-purple-500/30">
+        <div className="bg-purple-50 rounded-lg p-4 border-2 border-purple-200">
           <div className="flex items-center gap-2 mb-2">
-            <Users className="w-5 h-5 text-purple-400" />
-            <span className="text-sm text-slate-300">Sessões</span>
+            <Users className="w-5 h-5 text-purple-600" />
+            <span className="text-sm font-bold text-gray-700">Sessões</span>
           </div>
-          <p className="text-3xl font-bold text-white">{stats.uniqueSessions}</p>
-          <p className="text-xs text-slate-400 mt-1">Únicas</p>
+          <p className="text-3xl font-black text-gray-900">{stats.uniqueSessions}</p>
+          <p className="text-xs text-gray-600 mt-1 font-semibold">Únicas</p>
         </div>
 
         {/* Tempo Médio de Visualização */}
-        <div className="bg-gradient-to-br from-amber-500/20 to-amber-600/20 rounded-lg p-4 border border-amber-500/30">
+        <div className="bg-yellow-50 rounded-lg p-4 border-2 border-yellow-200">
           <div className="flex items-center gap-2 mb-2">
-            <Clock className="w-5 h-5 text-amber-400" />
-            <span className="text-sm text-slate-300">Tempo Médio</span>
+            <Clock className="w-5 h-5 text-yellow-600" />
+            <span className="text-sm font-bold text-gray-700">Tempo Médio</span>
           </div>
-          <p className="text-2xl font-bold text-white">
+          <p className="text-2xl font-black text-gray-900">
             {formatTime(stats.avgWatchTime)}
           </p>
-          <p className="text-xs text-slate-400 mt-1">Por viewer</p>
+          <p className="text-xs text-gray-600 mt-1 font-semibold">Por viewer</p>
         </div>
 
         {/* Viewers Totais */}
-        <div className="bg-gradient-to-br from-red-500/20 to-red-600/20 rounded-lg p-4 border border-red-500/30">
+        <div className="bg-red-50 rounded-lg p-4 border-2 border-red-200">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-5 h-5 text-red-400" />
-            <span className="text-sm text-slate-300">Total Viewers</span>
+            <TrendingUp className="w-5 h-5 text-red-600" />
+            <span className="text-sm font-bold text-gray-700">Total Viewers</span>
           </div>
-          <p className="text-3xl font-bold text-white">{stats.totalViewers}</p>
-          <p className="text-xs text-slate-400 mt-1">Desde o início</p>
+          <p className="text-3xl font-black text-gray-900">{stats.totalViewers}</p>
+          <p className="text-xs text-gray-600 mt-1 font-semibold">Desde o início</p>
         </div>
       </div>
       <Toaster position="top-right" />

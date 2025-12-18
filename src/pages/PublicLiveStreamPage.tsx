@@ -694,33 +694,63 @@ const PublicLiveStreamPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-400 mx-auto mb-4"></div>
-          <p className="text-white">Carregando transmissão...</p>
-        </div>
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+        <Header />
+        <main className="flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+              className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-blue-600 rounded-3xl mb-4 shadow-lg"
+            >
+              <motion.span
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                className="text-4xl font-black text-white"
+              >
+                ZK
+              </motion.span>
+            </motion.div>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="text-gray-700 text-xl font-semibold"
+            >
+              Carregando transmissão...
+            </motion.p>
+          </div>
+        </main>
+        <Footer />
       </div>
     );
   }
 
   if (!stream) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-white text-xl mb-4">Transmissão não encontrada</p>
-          <button
-            onClick={() => navigate('/')}
-            className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition-colors"
-          >
-            Voltar para Home
-          </button>
-        </div>
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+        <Header />
+        <main className="flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-gray-900 text-xl font-black mb-4">Transmissão não encontrada</p>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('/')}
+              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-bold transition-all duration-200 shadow-lg"
+            >
+              Voltar para Home
+            </motion.button>
+          </div>
+        </main>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col overflow-x-hidden">
       {/* Estilos específicos para mobile */}
       <style jsx>{`
         .mobile-video-container {
@@ -758,29 +788,37 @@ const PublicLiveStreamPage: React.FC = () => {
       {/* Conteúdo Principal */}
       <div className="flex-1 max-w-[1400px] mx-auto w-full p-2 sm:p-4 overflow-y-auto overflow-x-hidden">
         {/* Header da Transmissão */}
-        <div className="mb-3 sm:mb-4">
-          <button
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-3 sm:mb-4 bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-4 sm:p-6"
+        >
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => navigate('/')}
-            className="text-amber-400 hover:text-amber-300 mb-2 flex items-center gap-2 transition-colors text-sm sm:text-base"
+            className="text-blue-600 hover:text-blue-700 mb-4 flex items-center gap-2 transition-colors text-sm sm:text-base font-bold"
           >
             <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             <span>Voltar</span>
-          </button>
+          </motion.button>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg sm:text-2xl font-bold text-white mb-1 truncate">{stream.title}</h1>
+              <h1 className="text-lg sm:text-2xl font-black text-gray-900 mb-1 truncate">{stream.title}</h1>
               {stream.description && (
-                <p className="text-xs sm:text-sm text-slate-400 line-clamp-2">{stream.description}</p>
+                <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 font-semibold">{stream.description}</p>
               )}
             </div>
             <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-              <div className="flex items-center gap-1.5 sm:gap-2 text-slate-300 text-xs sm:text-base">
-                <Eye className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                <span className="font-medium whitespace-nowrap">{stream?.is_active ? (viewerCount > 0 ? viewerCount : stream?.viewer_count || 0) : 0}</span>
-                <span className="text-xs sm:text-sm text-slate-400 hidden sm:inline">viewers</span>
+              <div className="flex items-center gap-1.5 sm:gap-2 text-gray-700 text-xs sm:text-base bg-blue-50 px-3 py-2 rounded-lg border-2 border-blue-200">
+                <Eye className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 text-blue-600" />
+                <span className="font-bold whitespace-nowrap">{stream?.is_active ? (viewerCount > 0 ? viewerCount : stream?.viewer_count || 0) : 0}</span>
+                <span className="text-xs sm:text-sm text-gray-600 hidden sm:inline font-semibold">viewers</span>
               </div>
               {/* Botão de Compartilhar */}
-              <button
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={async () => {
                   const streamUrl = `${window.location.origin}/live/${stream.channel_name}`;
                   
@@ -807,28 +845,32 @@ const PublicLiveStreamPage: React.FC = () => {
                       await navigator.clipboard.writeText(streamUrl);
                       toast.success('Link copiado');
                     } catch (err) {
-                      console.error('Erro ao copiar link:', err);
-                      toast.error('Erro ao copiar link');
+                        console.error('Erro ao copiar link:', err);
+                        toast.error('Erro ao copiar link');
+                      }
                     }
-                  }
-                }}
-                className="px-2 sm:px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors flex items-center gap-1.5 sm:gap-2 flex-shrink-0"
+                  }}
+                className="px-2 sm:px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all duration-200 flex items-center gap-1.5 sm:gap-2 flex-shrink-0 font-bold shadow-lg"
                 title="Compartilhar transmissão"
               >
                 <Share2 className="w-4 h-4 flex-shrink-0" />
-                <span className="text-xs sm:text-sm font-medium hidden sm:inline">Compartilhar</span>
-              </button>
+                <span className="text-xs sm:text-sm font-bold hidden sm:inline">Compartilhar</span>
+              </motion.button>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Status da Transmissão - Só mostra se realmente não estiver ativa */}
         {stream && !stream.is_active && (
-          <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
-            <p className="text-yellow-300 text-center text-xs sm:text-sm">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-3 sm:mb-4 p-3 sm:p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg"
+          >
+            <p className="text-yellow-700 text-center text-xs sm:text-sm font-bold">
               ⏸️ Esta transmissão não está ativa no momento. Aguarde o início da transmissão.
             </p>
-          </div>
+          </motion.div>
         )}
 
         {/* Layout Principal - 16:9 com melhorias mobile */}
@@ -959,13 +1001,17 @@ const PublicLiveStreamPage: React.FC = () => {
                         enabled={stream?.is_active ?? false}
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-white">
                         <div className="text-center p-6">
-                          <div className="w-16 h-16 mx-auto mb-4 bg-slate-700 rounded-full flex items-center justify-center">
-                            <div className="w-6 h-6 bg-slate-500 rounded-full"></div>
-                          </div>
-                          <h3 className="text-white text-lg font-semibold mb-2">Transmissão em Preparação</h3>
-                          <p className="text-slate-400 text-sm">Aguarde o início da transmissão ao vivo</p>
+                          <motion.div
+                            animate={{ scale: [1, 1.1, 1] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                            className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center"
+                          >
+                            <div className="w-6 h-6 bg-blue-500 rounded-full"></div>
+                          </motion.div>
+                          <h3 className="text-gray-900 text-lg font-black mb-2">Transmissão em Preparação</h3>
+                          <p className="text-gray-600 text-sm font-semibold">Aguarde o início da transmissão ao vivo</p>
                         </div>
                       </div>
                     )}
@@ -1281,14 +1327,14 @@ const PublicLiveStreamPage: React.FC = () => {
           {!isMobile && stream?.is_active ? (
             /* Chat Normal (Desktop) */
             <div className="lg:col-span-4">
-              <div style={{ minHeight: '600px' }}>
+              <div className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 overflow-hidden" style={{ minHeight: '600px' }}>
                 <LiveChat streamId={stream.id} isAdmin={false} />
               </div>
             </div>
           ) : !isMobile ? (
             <div className="lg:col-span-4">
-              <div className="min-h-[200px] bg-slate-900 rounded-lg border border-slate-700 flex items-center justify-center p-6 text-center">
-                <div className="text-slate-300 text-sm">
+              <div className="min-h-[200px] bg-white rounded-2xl shadow-lg border-2 border-blue-200 flex items-center justify-center p-6 text-center">
+                <div className="text-gray-700 text-sm font-semibold">
                   Chat disponível apenas durante a transmissão ao vivo.
                 </div>
               </div>

@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { useWhatsApp } from '../hooks/useWhatsApp';
 import EliminationNotification from '../components/shared/EliminationNotification';
+import Header from '../components/shared/Header';
+import Footer from '../components/shared/Footer';
+import { Gamepad2, Users, XCircle, CheckCircle, Play, Square, Lock } from 'lucide-react';
 
 interface LiveGame {
   id: string;
@@ -328,36 +332,69 @@ Obrigado por participar! 🎉`;
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'waiting':
-        return <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">Aguardando</span>;
+        return <span className="px-3 py-1 text-xs font-bold bg-yellow-100 text-yellow-700 border-2 border-yellow-300 rounded-full">Aguardando</span>;
       case 'active':
-        return <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">Ativo</span>;
+        return <span className="px-3 py-1 text-xs font-bold bg-green-100 text-green-700 border-2 border-green-300 rounded-full">Ativo</span>;
       case 'finished':
-        return <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">Finalizado</span>;
+        return <span className="px-3 py-1 text-xs font-bold bg-gray-100 text-gray-700 border-2 border-gray-300 rounded-full">Finalizado</span>;
       default:
-        return <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">{status}</span>;
+        return <span className="px-3 py-1 text-xs font-bold bg-gray-100 text-gray-700 border-2 border-gray-300 rounded-full">{status}</span>;
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-400"></div>
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+        <Header />
+        <main className="flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+              className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-blue-600 rounded-3xl mb-4 shadow-lg"
+            >
+              <motion.span
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                className="text-4xl font-black text-white"
+              >
+                ZK
+              </motion.span>
+            </motion.div>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="text-gray-700 text-xl font-semibold"
+            >
+              Carregando controle do jogo...
+            </motion.p>
+          </div>
+        </main>
+        <Footer />
       </div>
     );
   }
 
   if (!game) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-white mb-4">Jogo não encontrado</h2>
-          <button
-            onClick={() => navigate(-1)}
-            className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300"
-          >
-            Voltar para Lista
-          </button>
-        </div>
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+        <Header />
+        <main className="flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-black text-gray-900 mb-4">Jogo não encontrado</h2>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate(-1)}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-lg font-bold transition-all duration-200 shadow-lg"
+            >
+              Voltar para Lista
+            </motion.button>
+          </div>
+        </main>
+        <Footer />
       </div>
     );
   }
@@ -366,234 +403,326 @@ Obrigado por participar! 🎉`;
   const eliminatedParticipants = participants.filter(p => p.status === 'eliminated');
 
   return (
-    <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-8">
-      <div className="flex-grow bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <button
-                onClick={() => navigate(-1)}
-                className="text-amber-400 hover:text-amber-300 mb-2 flex items-center gap-2 transition-colors"
-              >
-                ← Voltar para Lista
-              </button>
-              <h1 className="text-4xl font-bold text-white mb-2">
-                🎮 {game.title}
-              </h1>
-              <p className="text-slate-300">
-                {game.description || 'Controle do jogo "Resta Um"'}
-              </p>
-            </div>
-            <div className="text-right">
-              {getStatusBadge(game.status)}
-              <div className="text-slate-400 text-sm mt-2">
-                {activeParticipants.length} participantes ativos
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Game Controls */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-8 border border-white/20">
-          <h2 className="text-xl font-bold text-white mb-4">🎯 Controles do Jogo</h2>
-          <div className="flex flex-wrap gap-4">
-            {!gameActive && game.status === 'waiting' && (
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={startGame}
-                  disabled={activeParticipants.length < 2}
-                  className={`px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
-                    activeParticipants.length < 2
-                      ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white'
-                  }`}
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+      <Header />
+      <main className="flex-grow w-full py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Header Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-6 mb-6"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex-1">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => navigate(-1)}
+                  className="text-blue-600 hover:text-blue-700 mb-4 flex items-center gap-2 transition-colors font-bold"
                 >
-                  {activeParticipants.length < 2 
-                    ? `⏳ Aguardando Participantes (${activeParticipants.length}/2)`
-                    : `▶️ Iniciar Jogo (${activeParticipants.length} participantes)`
-                  }
-                </button>
-                
-                <button
-                  onClick={closeSystem}
-                  disabled={activeParticipants.length === 0}
-                  className={`px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
-                    activeParticipants.length === 0
-                      ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white'
-                  }`}
-                >
-                  🔒 Fechar Sistema para Sorteio Manual
-                </button>
-              </div>
-            )}
-            
-            {gameActive && (
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={endGame}
-                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300"
-                >
-                  ⏹️ Finalizar Jogo
-                </button>
-                
-                <div className="bg-green-500/20 border border-green-500/30 rounded-xl p-3 text-center">
-                  <p className="text-green-400 font-medium">🔒 Sistema Fechado</p>
-                  <p className="text-green-300 text-sm">Novos participantes não podem entrar</p>
+                  ← Voltar para Lista
+                </motion.button>
+                <div className="flex items-center space-x-3 mb-2">
+                  <motion.div
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg"
+                  >
+                    <Gamepad2 className="h-6 w-6 text-white" />
+                  </motion.div>
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-black text-gray-900 mb-2">
+                      {game.title}
+                    </h1>
+                    <p className="text-gray-600 text-sm font-semibold">
+                      {game.description || 'Controle do jogo "Resta Um"'}
+                    </p>
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Instructions for Manual Draw */}
-        {gameActive && (
-          <div className="bg-blue-500/20 backdrop-blur-sm rounded-2xl p-6 mb-8 border border-blue-500/30">
-            <h2 className="text-xl font-bold text-white mb-4">📋 Instruções para Sorteio Manual</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-slate-300">
-              <div>
-                <h3 className="font-semibold text-blue-400 mb-2">1. Exportar Lista de Participantes</h3>
-                <p className="text-sm">Use o botão "Exportar Participantes" para gerar uma lista em PDF com todos os números e nomes.</p>
-              </div>
-              <div>
-                <h3 className="font-semibold text-blue-400 mb-2">2. Fazer Sorteio Manual</h3>
-                <p className="text-sm">Use a lista exportada para fazer o sorteio manual fora do sistema.</p>
-              </div>
-              <div>
-                <h3 className="font-semibold text-blue-400 mb-2">3. Eliminar Participantes</h3>
-                <p className="text-sm">Use os controles abaixo para eliminar participantes conforme o sorteio manual.</p>
-              </div>
-              <div>
-                <h3 className="font-semibold text-blue-400 mb-2">4. Finalizar Jogo</h3>
-                <p className="text-sm">Quando restar apenas 1 participante, clique em "Finalizar Jogo" para declarar o vencedor.</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Manual Elimination */}
-        {gameActive && (
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-8 border border-white/20">
-            <h2 className="text-xl font-bold text-white mb-4">🎯 Eliminação Manual</h2>
-            <p className="text-slate-300 mb-4">Selecione os números para eliminar manualmente:</p>
-            
-            <div className="grid grid-cols-8 sm:grid-cols-12 lg:grid-cols-16 gap-2 mb-4">
-              {activeParticipants.map((participant) => (
-                <button
-                  key={participant.lucky_number}
-                  onClick={() => toggleNumberSelection(participant.lucky_number)}
-                  className={`w-12 h-12 rounded-lg font-bold transition-all duration-300 ${
-                    selectedNumbers.includes(participant.lucky_number)
-                      ? 'bg-red-500 text-white border-2 border-red-400'
-                      : 'bg-slate-700 text-white hover:bg-slate-600 border-2 border-transparent hover:border-amber-400'
-                  }`}
+              <div className="text-right">
+                <motion.span
+                  whileHover={{ scale: 1.1 }}
+                  className="inline-block mb-2"
                 >
-                  {participant.lucky_number}
-                </button>
-              ))}
+                  {getStatusBadge(game.status)}
+                </motion.span>
+                <div className="text-gray-700 text-sm font-bold">
+                  {activeParticipants.length} participantes ativos
+                </div>
+              </div>
             </div>
-            
-            {selectedNumbers.length > 0 && (
-              <button
-                onClick={eliminateSelectedParticipants}
-                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300"
-              >
-                🗑️ Eliminar Selecionados ({selectedNumbers.length})
-              </button>
-            )}
-          </div>
-        )}
+          </motion.div>
 
-        {/* Participants */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Active Participants */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-            <h2 className="text-xl font-bold text-white mb-4">
-              ✅ Participantes Ativos ({activeParticipants.length})
+          {/* Game Controls */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-6 mb-6"
+          >
+            <h2 className="text-xl font-black text-gray-900 mb-4 flex items-center gap-2">
+              <Gamepad2 className="h-6 w-6 text-blue-600" />
+              Controles do Jogo
             </h2>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {activeParticipants.map((participant) => (
-                <div
-                  key={participant.id}
-                  className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-300 ${
-                    selectedNumbers.includes(participant.lucky_number)
-                      ? 'border-red-400 bg-red-500/20'
-                      : 'border-slate-600 bg-slate-800/50 hover:border-amber-400'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-r from-amber-500 to-amber-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                      {participant.lucky_number}
+            <div className="flex flex-wrap gap-4">
+              {!gameActive && game.status === 'waiting' && (
+                <div className="flex flex-col sm:flex-row gap-3 w-full">
+                  <motion.button
+                    whileHover={{ scale: activeParticipants.length >= 2 ? 1.05 : 1 }}
+                    whileTap={{ scale: activeParticipants.length >= 2 ? 0.95 : 1 }}
+                    onClick={startGame}
+                    disabled={activeParticipants.length < 2}
+                    className={`flex-1 px-6 py-3 rounded-lg font-bold transition-all duration-200 ${
+                      activeParticipants.length < 2
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <Play className="h-5 w-5" />
+                      {activeParticipants.length < 2 
+                        ? `Aguardando Participantes (${activeParticipants.length}/2)`
+                        : `Iniciar Jogo (${activeParticipants.length} participantes)`
+                      }
                     </div>
-                    <div>
-                      <div className="text-white font-medium">{participant.user_name || 'Usuário'}</div>
-                      <div className="text-slate-400 text-sm">{participant.user_phone || 'Sem telefone'}</div>
+                  </motion.button>
+                  
+                  <motion.button
+                    whileHover={{ scale: activeParticipants.length > 0 ? 1.05 : 1 }}
+                    whileTap={{ scale: activeParticipants.length > 0 ? 0.95 : 1 }}
+                    onClick={closeSystem}
+                    disabled={activeParticipants.length === 0}
+                    className={`flex-1 px-6 py-3 rounded-lg font-bold transition-all duration-200 ${
+                      activeParticipants.length === 0
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-lg'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <Lock className="h-5 w-5" />
+                      Fechar Sistema para Sorteio Manual
                     </div>
-                  </div>
-                  <div className="text-green-400 text-sm">Ativo</div>
+                  </motion.button>
                 </div>
-              ))}
+              )}
+              
+              {gameActive && (
+                <div className="flex flex-col sm:flex-row gap-3 w-full">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={endGame}
+                    className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-lg font-bold transition-all duration-200 shadow-lg"
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <Square className="h-5 w-5" />
+                      Finalizar Jogo
+                    </div>
+                  </motion.button>
+                  
+                  <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4 text-center">
+                    <p className="text-green-700 font-bold flex items-center justify-center gap-2">
+                      <Lock className="h-5 w-5" />
+                      Sistema Fechado
+                    </p>
+                    <p className="text-green-600 text-sm font-semibold mt-1">Novos participantes não podem entrar</p>
+                  </div>
+                </div>
+              )}
             </div>
+          </motion.div>
+
+          {/* Instructions for Manual Draw */}
+          {gameActive && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-blue-50 rounded-2xl shadow-lg border-2 border-blue-200 p-6 mb-6"
+            >
+              <h2 className="text-xl font-black text-gray-900 mb-4">📋 Instruções para Sorteio Manual</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white rounded-lg p-4 border-2 border-blue-200">
+                  <h3 className="font-bold text-blue-700 mb-2">1. Exportar Lista de Participantes</h3>
+                  <p className="text-sm text-gray-700">Use o botão "Exportar Participantes" para gerar uma lista em PDF com todos os números e nomes.</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border-2 border-blue-200">
+                  <h3 className="font-bold text-blue-700 mb-2">2. Fazer Sorteio Manual</h3>
+                  <p className="text-sm text-gray-700">Use a lista exportada para fazer o sorteio manual fora do sistema.</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border-2 border-blue-200">
+                  <h3 className="font-bold text-blue-700 mb-2">3. Eliminar Participantes</h3>
+                  <p className="text-sm text-gray-700">Use os controles abaixo para eliminar participantes conforme o sorteio manual.</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border-2 border-blue-200">
+                  <h3 className="font-bold text-blue-700 mb-2">4. Finalizar Jogo</h3>
+                  <p className="text-sm text-gray-700">Quando restar apenas 1 participante, clique em "Finalizar Jogo" para declarar o vencedor.</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Manual Elimination */}
+          {gameActive && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-6 mb-6"
+            >
+              <h2 className="text-xl font-black text-gray-900 mb-4">🎯 Eliminação Manual</h2>
+              <p className="text-gray-700 mb-4 font-semibold">Selecione os números para eliminar manualmente:</p>
+              
+              <div className="grid grid-cols-8 sm:grid-cols-12 lg:grid-cols-16 gap-2 mb-4">
+                {activeParticipants.map((participant) => (
+                  <motion.button
+                    key={participant.lucky_number}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => toggleNumberSelection(participant.lucky_number)}
+                    className={`w-12 h-12 rounded-lg font-bold transition-all duration-200 ${
+                      selectedNumbers.includes(participant.lucky_number)
+                        ? 'bg-red-500 text-white border-2 border-red-400 shadow-lg'
+                        : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border-2 border-blue-300 hover:border-blue-400'
+                    }`}
+                  >
+                    {participant.lucky_number}
+                  </motion.button>
+                ))}
+              </div>
+              
+              {selectedNumbers.length > 0 && (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={eliminateSelectedParticipants}
+                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-lg font-bold transition-all duration-200 shadow-lg"
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <XCircle className="h-5 w-5" />
+                    Eliminar Selecionados ({selectedNumbers.length})
+                  </div>
+                </motion.button>
+              )}
+            </motion.div>
+          )}
+
+          {/* Participants */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Active Participants */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-white rounded-2xl shadow-lg border-2 border-green-200 p-6"
+            >
+              <h2 className="text-xl font-black text-gray-900 mb-4 flex items-center gap-2">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+                Participantes Ativos ({activeParticipants.length})
+              </h2>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {activeParticipants.map((participant, index) => (
+                  <motion.div
+                    key={participant.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.5 + index * 0.05 }}
+                    className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all duration-200 ${
+                      selectedNumbers.includes(participant.lucky_number)
+                        ? 'border-red-400 bg-red-50'
+                        : 'border-green-200 bg-green-50 hover:border-green-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                        {participant.lucky_number}
+                      </div>
+                      <div>
+                        <div className="text-gray-900 font-bold">{participant.user_name || 'Usuário'}</div>
+                        <div className="text-gray-600 text-sm font-semibold">{participant.user_phone || 'Sem telefone'}</div>
+                      </div>
+                    </div>
+                    <div className="text-green-600 text-sm font-bold">Ativo</div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* Eliminated Participants */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="bg-white rounded-2xl shadow-lg border-2 border-red-200 p-6"
+            >
+              <h2 className="text-xl font-black text-gray-900 mb-4 flex items-center gap-2">
+                <XCircle className="h-6 w-6 text-red-600" />
+                Eliminados ({eliminatedParticipants.length})
+              </h2>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {eliminatedParticipants.map((participant, index) => (
+                  <motion.div
+                    key={participant.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.6 + index * 0.05 }}
+                    className="flex items-center justify-between p-3 rounded-lg border-2 border-red-200 bg-red-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-r from-gray-500 to-gray-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                        {participant.lucky_number}
+                      </div>
+                      <div>
+                        <div className="text-gray-900 font-bold">{participant.user_name || 'Usuário'}</div>
+                        <div className="text-gray-600 text-sm font-semibold">{participant.user_phone || 'Sem telefone'}</div>
+                      </div>
+                    </div>
+                    <div className="text-red-600 text-sm font-bold">
+                      {participant.eliminated_at 
+                        ? new Date(participant.eliminated_at).toLocaleTimeString('pt-BR')
+                        : 'Eliminado'
+                      }
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
           </div>
 
-          {/* Eliminated Participants */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-            <h2 className="text-xl font-bold text-white mb-4">
-              ❌ Eliminados ({eliminatedParticipants.length})
-            </h2>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {eliminatedParticipants.map((participant) => (
-                <div
-                  key={participant.id}
-                  className="flex items-center justify-between p-3 rounded-lg border border-slate-600 bg-slate-800/50"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-r from-gray-500 to-gray-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                      {participant.lucky_number}
+          {/* Winner */}
+          {game.status === 'finished' && game.winner_id && (
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="mt-6 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-2xl shadow-lg border-2 border-yellow-300 p-8"
+            >
+              <h2 className="text-2xl font-black text-gray-900 mb-4 text-center">🎉 Vencedor!</h2>
+              <div className="text-center">
+                {(() => {
+                  const winner = participants.find(p => p.user_id === game.winner_id);
+                  return winner ? (
+                    <>
+                      <div className="text-4xl font-black text-yellow-600 mb-2">
+                        Número {winner.lucky_number}
+                      </div>
+                      <div className="text-gray-900 text-lg font-bold">
+                        {winner.user_name}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-gray-900 text-lg font-bold">
+                      Parabéns ao vencedor!
                     </div>
-                    <div>
-                      <div className="text-white font-medium">{participant.user_name || 'Usuário'}</div>
-                      <div className="text-slate-400 text-sm">{participant.user_phone || 'Sem telefone'}</div>
-                    </div>
-                  </div>
-                  <div className="text-red-400 text-sm">
-                    {participant.eliminated_at 
-                      ? new Date(participant.eliminated_at).toLocaleTimeString('pt-BR')
-                      : 'Eliminado'
-                    }
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+                  );
+                })()}
+              </div>
+            </motion.div>
+          )}
         </div>
-
-        {/* Winner */}
-        {game.status === 'finished' && game.winner_id && (
-          <div className="mt-8 bg-gradient-to-r from-amber-500/20 to-amber-600/20 backdrop-blur-sm rounded-2xl p-6 border border-amber-400/50">
-            <h2 className="text-2xl font-bold text-white mb-4 text-center">🎉 Vencedor!</h2>
-            <div className="text-center">
-              {(() => {
-                const winner = participants.find(p => p.user_id === game.winner_id);
-                return winner ? (
-                  <>
-                    <div className="text-4xl font-bold text-amber-400 mb-2">
-                      Número {winner.lucky_number}
-                    </div>
-                    <div className="text-white text-lg">
-                      {winner.user_name}
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-white text-lg">
-                    Parabéns ao vencedor!
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-        )}
+      </main>
+      
+      <Footer />
 
         {/* Notificações de Eliminação */}
         {recentEliminations.map((elimination, index) => (

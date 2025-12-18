@@ -229,42 +229,42 @@ const ModeratorManager: React.FC<ModeratorManagerProps> = ({ streamId }) => {
 
   if (loading) {
     return (
-      <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400 mx-auto"></div>
+      <div className="bg-white p-6">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
       </div>
     );
   }
 
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
-      <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-        <Shield className="w-5 h-5" />
+    <div className="bg-white p-6">
+      <h3 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2">
+        <Shield className="w-5 h-5 text-blue-600" />
         Gerenciar Moderadores
       </h3>
 
       {/* Usuários Participantes */}
-      <div className="mb-6 p-4 bg-slate-800 rounded-lg border border-slate-700">
-        <label className="block text-sm font-medium text-slate-300 mb-3">
+      <div className="mb-6 p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
+        <label className="block text-sm font-bold text-gray-700 mb-3">
           Usuários Participantes da Transmissão
         </label>
         {loadingParticipants ? (
           <div className="text-center py-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-amber-400 mx-auto"></div>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
           </div>
         ) : participatingUsers.length > 0 ? (
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {participatingUsers.map((participant) => (
               <div
                 key={participant.id}
-                className="flex items-center justify-between p-3 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors"
+                className="flex items-center justify-between p-3 bg-white rounded-lg border-2 border-blue-200 hover:border-blue-300 transition-colors"
               >
                 <div className="flex-1">
-                  <p className="text-white font-medium text-sm">{participant.name}</p>
-                  <p className="text-slate-400 text-xs">{participant.email}</p>
+                  <p className="text-gray-900 font-bold text-sm">{participant.name}</p>
+                  <p className="text-gray-600 text-xs font-semibold">{participant.email}</p>
                 </div>
                 <button
                   onClick={() => addModerator(participant.id)}
-                  className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded text-sm transition-all flex items-center gap-1.5 font-medium"
+                  className="px-3 py-1.5 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white rounded-lg text-sm transition-all flex items-center gap-1.5 font-bold shadow-lg"
                 >
                   <UserPlus className="w-4 h-4" />
                   Tornar Moderador
@@ -273,20 +273,20 @@ const ModeratorManager: React.FC<ModeratorManagerProps> = ({ streamId }) => {
             ))}
           </div>
         ) : (
-          <p className="text-slate-400 text-sm text-center py-4">
+          <p className="text-gray-600 text-sm text-center py-4 font-semibold">
             Nenhum usuário participando ainda
           </p>
         )}
       </div>
 
       {/* Adicionar Moderador (Busca por Email) */}
-      <div className="mb-6 p-4 bg-slate-800 rounded-lg border border-slate-700">
-        <label className="block text-sm font-medium text-slate-300 mb-2">
+      <div className="mb-6 p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
+        <label className="block text-sm font-bold text-gray-700 mb-2">
           Buscar Usuário por Email
         </label>
         <div className="flex gap-2 mb-2">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="email"
               value={searchEmail}
@@ -297,13 +297,13 @@ const ModeratorManager: React.FC<ModeratorManagerProps> = ({ streamId }) => {
                 }
               }}
               placeholder="Buscar por email..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-700 text-white rounded-lg text-sm border border-slate-600 focus:border-amber-500 focus:outline-none"
+              className="w-full pl-10 pr-4 py-2 bg-white border-2 border-blue-200 text-gray-900 rounded-lg text-sm font-semibold focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <button
             onClick={searchUser}
             disabled={searching}
-            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+            className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white rounded-lg transition-all duration-200 flex items-center gap-2 disabled:opacity-50 font-bold shadow-lg"
           >
             <Search className="w-4 h-4" />
             Buscar
@@ -316,15 +316,15 @@ const ModeratorManager: React.FC<ModeratorManagerProps> = ({ streamId }) => {
             {searchResults.map((userResult) => (
               <div
                 key={userResult.id}
-                className="flex items-center justify-between p-3 bg-slate-700 rounded-lg"
+                className="flex items-center justify-between p-3 bg-white rounded-lg border-2 border-blue-200"
               >
                 <div>
-                  <p className="text-white font-medium">{userResult.name || 'Usuário'}</p>
-                  <p className="text-slate-400 text-sm">{userResult.email}</p>
+                  <p className="text-gray-900 font-bold">{userResult.name || 'Usuário'}</p>
+                  <p className="text-gray-600 text-sm font-semibold">{userResult.email}</p>
                 </div>
                 <button
                   onClick={() => addModerator(userResult.id)}
-                  className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded text-sm transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg text-sm transition-all duration-200 flex items-center gap-1.5 font-bold shadow-lg"
                 >
                   <UserPlus className="w-4 h-4" />
                   Adicionar
@@ -335,19 +335,19 @@ const ModeratorManager: React.FC<ModeratorManagerProps> = ({ streamId }) => {
         )}
 
         {searchResults.length === 0 && searchEmail && !searching && (
-          <p className="text-slate-400 text-sm mt-2">Nenhum usuário encontrado</p>
+          <p className="text-gray-600 text-sm mt-2 font-semibold">Nenhum usuário encontrado</p>
         )}
       </div>
 
       {/* Lista de Moderadores */}
       <div>
-        <h4 className="text-sm font-medium text-slate-300 mb-3 flex items-center gap-2">
-          <Users className="w-4 h-4" />
+        <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+          <Users className="w-4 h-4 text-blue-600" />
           Moderadores ({moderators.length})
         </h4>
 
         {moderators.length === 0 ? (
-          <p className="text-slate-400 text-sm text-center py-4">
+          <p className="text-gray-600 text-sm text-center py-4 font-semibold">
             Nenhum moderador adicionado ainda
           </p>
         ) : (
@@ -355,18 +355,18 @@ const ModeratorManager: React.FC<ModeratorManagerProps> = ({ streamId }) => {
             {moderators.map((moderator) => (
               <div
                 key={moderator.id}
-                className="flex items-center justify-between p-3 bg-slate-800 rounded-lg border border-slate-700"
+                className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border-2 border-blue-200"
               >
                 <div>
-                  <p className="text-white font-medium">{moderator.user_name}</p>
-                  <p className="text-slate-400 text-sm">{moderator.user_email}</p>
-                  <p className="text-slate-500 text-xs mt-1">
+                  <p className="text-gray-900 font-bold">{moderator.user_name}</p>
+                  <p className="text-gray-600 text-sm font-semibold">{moderator.user_email}</p>
+                  <p className="text-gray-500 text-xs mt-1 font-semibold">
                     Adicionado em {new Date(moderator.created_at).toLocaleDateString('pt-BR')}
                   </p>
                 </div>
                 <button
                   onClick={() => removeModerator(moderator.id)}
-                  className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-sm transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg text-sm transition-all duration-200 flex items-center gap-1.5 font-bold shadow-lg"
                   title="Remover moderador"
                 >
                   <UserMinus className="w-4 h-4" />

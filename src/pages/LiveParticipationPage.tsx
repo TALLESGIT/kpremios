@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { useLiveGameRealtime } from '../hooks/useLiveGameRealtime';
 import LiveGameNumberGrid from '../components/user/LiveGameNumberGrid';
+import Header from '../components/shared/Header';
+import Footer from '../components/shared/Footer';
 
 interface LiveGame {
   id: string;
@@ -123,10 +126,10 @@ const LiveParticipationPage: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'waiting': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-      case 'active': return 'bg-green-500/20 text-green-400 border-green-500/30';
-      case 'finished': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+      case 'waiting': return 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300';
+      case 'active': return 'bg-green-100 text-green-700 border-2 border-green-300';
+      case 'finished': return 'bg-blue-100 text-blue-700 border-2 border-blue-300';
+      default: return 'bg-gray-100 text-gray-700 border-2 border-gray-300';
     }
   };
 
@@ -146,55 +149,83 @@ const LiveParticipationPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-400"></div>
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+        <Header />
+        <div className="flex-grow flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center"
+          >
+            <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-blue-600 font-semibold">Carregando...</p>
+          </motion.div>
+        </div>
+        <Footer />
       </div>
     );
   }
 
   if (!game) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-white mb-4">Jogo não encontrado</h2>
-          <button
-            onClick={() => navigate(-1)}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300"
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+        <Header />
+        <div className="flex-grow flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center"
           >
-            Voltar para Lista
-          </button>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Jogo não encontrado</h2>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate(-1)}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 shadow-lg"
+            >
+              Voltar para Lista
+            </motion.button>
+          </motion.div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-8">
-      <div className="flex-grow bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-4 sm:py-6 lg:py-8">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+      <Header />
+      <main className="flex-grow w-full py-4 sm:py-6 lg:py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <button
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 sm:mb-8"
+        >
+          <motion.button
+            whileHover={{ x: -5 }}
             onClick={() => navigate(-1)}
-            className="text-purple-400 hover:text-purple-300 mb-4 flex items-center gap-2 transition-colors text-sm sm:text-base"
+            className="text-blue-600 hover:text-blue-700 mb-4 flex items-center gap-2 transition-colors text-sm sm:text-base font-semibold"
           >
             ← Voltar para Lista
-          </button>
+          </motion.button>
           
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl sm:rounded-2xl p-4 sm:p-6">
+          <div className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
               <div className="flex-1">
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-gray-900 mb-2">
                   🎮 {game.title}
                 </h1>
-                <p className="text-slate-300 text-sm sm:text-base">
+                <p className="text-gray-600 text-sm sm:text-base">
                   {game.description || 'Jogo "Resta Um" - Seja o último participante!'}
                 </p>
               </div>
               <div className="flex flex-col sm:text-right gap-2">
-                <div className={`inline-block px-3 py-2 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold border ${getStatusColor(game.status)} text-center`}>
+                <div className={`inline-block px-3 py-2 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold ${getStatusColor(game.status)} text-center`}>
                   {getStatusText(game.status)}
                 </div>
-                <div className="text-slate-300 text-xs sm:text-sm text-center sm:text-right">
+                <div className="text-gray-600 text-xs sm:text-sm font-semibold text-center sm:text-right">
                   {participants.length}/{game.max_participants} participantes
                 </div>
               </div>
@@ -202,38 +233,56 @@ const LiveParticipationPage: React.FC = () => {
 
             {/* Winner Announcement */}
             {game.status === 'finished' && game.winner_number && (
-              <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl p-4 mb-4">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-gradient-to-r from-blue-100 to-blue-200 border-2 border-blue-300 rounded-xl p-4 mb-4"
+              >
                 <div className="text-center">
-                  <div className="text-3xl sm:text-4xl mb-2">🏆</div>
-                  <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-2">
+                  <motion.div
+                    animate={{ rotate: [0, 10, -10, 0] }}
+                    transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}
+                    className="text-3xl sm:text-4xl mb-2"
+                  >
+                    🏆
+                  </motion.div>
+                  <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-gray-900 mb-2">
                     Jogo Finalizado!
                   </h3>
-                  <p className="text-purple-300 text-sm sm:text-base">
-                    Número vencedor: <span className="font-bold text-xl sm:text-2xl text-yellow-400">{game.winner_number}</span>
+                  <p className="text-blue-700 text-sm sm:text-base font-semibold">
+                    Número vencedor: <span className="font-black text-xl sm:text-2xl text-yellow-600">{game.winner_number}</span>
                   </p>
                   {isWinner && (
-                    <div className="mt-3 text-green-400 font-bold text-sm sm:text-base lg:text-lg">
+                    <motion.div
+                      animate={{ scale: [1, 1.1, 1] }}
+                      transition={{ duration: 1, repeat: Infinity }}
+                      className="mt-3 text-green-600 font-black text-sm sm:text-base lg:text-lg"
+                    >
                       🎉 Parabéns! Você é o vencedor! 🎉
-                    </div>
+                    </motion.div>
                   )}
                 </div>
-              </div>
+              </motion.div>
             )}
 
             {/* My Participation Status */}
             {myParticipation && (
-              <div className={`rounded-xl p-3 sm:p-4 mb-4 border ${
-                myParticipation.status === 'active' 
-                  ? 'bg-green-500/20 border-green-500/30 text-green-400'
-                  : 'bg-red-500/20 border-red-500/30 text-red-400'
-              }`}>
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className={`rounded-xl p-3 sm:p-4 mb-4 border-2 ${
+                  myParticipation.status === 'active' 
+                    ? 'bg-green-50 border-green-300 text-green-700'
+                    : 'bg-red-50 border-red-300 text-red-700'
+                }`}
+              >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <div>
                     <span className="font-bold text-sm sm:text-base">
                       Seu número da sorte: {myParticipation.lucky_number}
                     </span>
                   </div>
-                  <div className="text-xs sm:text-sm">
+                  <div className="text-xs sm:text-sm font-semibold">
                     {myParticipation.status === 'active' ? '✅ Ativo' : '❌ Eliminado'}
                   </div>
                 </div>
@@ -242,41 +291,58 @@ const LiveParticipationPage: React.FC = () => {
                     Eliminado em: {new Date(myParticipation.eliminated_at).toLocaleString('pt-BR')}
                   </div>
                 )}
-              </div>
+              </motion.div>
             )}
 
             {/* Elimination Alert */}
             {isEliminated && (
-              <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-4 mb-4 animate-pulse">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-red-50 border-2 border-red-300 rounded-xl p-4 mb-4"
+              >
                 <div className="text-center">
-                  <div className="text-4xl mb-2">💀</div>
-                  <h3 className="text-lg font-bold text-red-400 mb-2">
+                  <motion.div
+                    animate={{ rotate: [0, -10, 10, 0] }}
+                    transition={{ duration: 0.5, repeat: Infinity }}
+                    className="text-4xl mb-2"
+                  >
+                    💀
+                  </motion.div>
+                  <h3 className="text-lg font-black text-red-600 mb-2">
                     Você foi eliminado!
                   </h3>
-                  <p className="text-red-300 text-sm">
+                  <p className="text-red-700 text-sm font-semibold">
                     Infelizmente sua sorte não foi desta vez. Continue participando dos próximos jogos!
                   </p>
                 </div>
-              </div>
+              </motion.div>
             )}
 
             {/* Join Button */}
             {canJoin && (
               <div className="text-center">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => setShowJoinModal(true)}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 sm:px-8 sm:py-4 rounded-xl font-bold text-base sm:text-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 w-full sm:w-auto"
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 sm:px-8 sm:py-4 rounded-xl font-black text-base sm:text-lg transition-all duration-300 shadow-lg hover:shadow-xl w-full sm:w-auto"
                 >
                   🎯 Participar do Jogo
-                </button>
+                </motion.button>
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* Number Grid */}
-        <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl sm:rounded-2xl p-4 sm:p-6 mb-6">
-          <h3 className="text-lg sm:text-xl font-bold text-white mb-4 flex items-center gap-2">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-4 sm:p-6 mb-6"
+        >
+          <h3 className="text-lg sm:text-xl font-black text-gray-900 mb-4 flex items-center gap-2">
             🎯 Números da Sorte (1-{game.max_participants})
           </h3>
           
@@ -290,13 +356,18 @@ const LiveParticipationPage: React.FC = () => {
             disabled={!canJoin}
             maxNumbers={game.max_participants}
           />
-        </div>
+        </motion.div>
 
         {/* Participants Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Active Participants */}
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl sm:rounded-2xl p-4 sm:p-6">
-            <h3 className="text-lg sm:text-xl font-bold text-white mb-4 flex items-center gap-2">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white rounded-2xl shadow-lg border-2 border-green-200 p-4 sm:p-6"
+          >
+            <h3 className="text-lg sm:text-xl font-black text-gray-900 mb-4 flex items-center gap-2">
               ✅ Participantes Ativos ({activeParticipants.length})
             </h3>
             
@@ -307,8 +378,8 @@ const LiveParticipationPage: React.FC = () => {
                     key={participant.id}
                     className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border-2 transition-all duration-300 ${
                       participant.user_id === user?.id
-                        ? 'border-purple-500 bg-purple-500/20 text-purple-300'
-                        : 'border-slate-600 bg-slate-700/50 text-white'
+                        ? 'border-blue-500 bg-blue-100 text-blue-700'
+                        : 'border-gray-200 bg-gray-50 text-gray-700'
                     }`}
                   >
                     <div className="text-center">
@@ -319,7 +390,7 @@ const LiveParticipationPage: React.FC = () => {
                         {participant.user_name}
                       </div>
                       {participant.user_id === user?.id && (
-                        <div className="text-xs text-purple-400 mt-1">
+                        <div className="text-xs text-blue-600 font-bold mt-1">
                           (Você)
                         </div>
                       )}
@@ -328,15 +399,20 @@ const LiveParticipationPage: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-6 sm:py-8 text-slate-400 text-sm sm:text-base">
+              <div className="text-center py-6 sm:py-8 text-gray-400 text-sm sm:text-base">
                 Nenhum participante ativo
               </div>
             )}
-          </div>
+          </motion.div>
 
           {/* Eliminated Participants */}
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl sm:rounded-2xl p-4 sm:p-6">
-            <h3 className="text-lg sm:text-xl font-bold text-white mb-4 flex items-center gap-2">
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white rounded-2xl shadow-lg border-2 border-red-200 p-4 sm:p-6"
+          >
+            <h3 className="text-lg sm:text-xl font-black text-gray-900 mb-4 flex items-center gap-2">
               ❌ Participantes Eliminados ({eliminatedParticipants.length})
             </h3>
             
@@ -346,9 +422,9 @@ const LiveParticipationPage: React.FC = () => {
                   <div
                     key={participant.id}
                     className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border-2 opacity-60 transition-all duration-300 ${
-participant.user_id === user?.id
-                        ? 'border-red-500 bg-red-500/20 text-red-300'
-                        : 'border-slate-600 bg-slate-700/50 text-slate-400'
+                      participant.user_id === user?.id
+                        ? 'border-red-500 bg-red-100 text-red-700'
+                        : 'border-gray-200 bg-gray-50 text-gray-400'
                     }`}
                   >
                     <div className="text-center">
@@ -368,25 +444,39 @@ participant.user_id === user?.id
                 ))}
               </div>
             ) : (
-              <div className="text-center py-6 sm:py-8 text-slate-400 text-sm sm:text-base">
+              <div className="text-center py-6 sm:py-8 text-gray-400 text-sm sm:text-base">
                 Nenhum participante eliminado ainda
               </div>
             )}
-          </div>
+          </motion.div>
         </div>
-      </div>
+        </div>
+      </main>
+      <Footer />
 
       {/* Join Game Modal */}
       {showJoinModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-sm sm:max-w-md border border-slate-700">
-            <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-4 sm:mb-6 text-center">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={() => setShowJoinModal(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl p-4 sm:p-6 w-full max-w-sm sm:max-w-md border-2 border-blue-200 shadow-2xl"
+          >
+            <h2 className="text-lg sm:text-xl lg:text-2xl font-black text-gray-900 mb-4 sm:mb-6 text-center">
               🎯 Escolha seu Número da Sorte
             </h2>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-slate-300 text-sm font-bold mb-2">
+                <label className="block text-gray-700 text-sm font-bold mb-2">
                   Número da Sorte (1-{game.max_participants})
                 </label>
                 <input
@@ -395,21 +485,21 @@ participant.user_id === user?.id
                   max={game.max_participants}
                   value={luckyNumber}
                   onChange={(e) => setLuckyNumber(e.target.value)}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg sm:rounded-xl px-3 sm:px-4 py-3 text-white text-center text-xl sm:text-2xl font-bold placeholder-slate-400 focus:outline-none focus:border-purple-500 transition-colors"
+                  className="w-full bg-blue-50 border-2 border-blue-200 rounded-lg sm:rounded-xl px-3 sm:px-4 py-3 text-gray-900 text-center text-xl sm:text-2xl font-black placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-all"
                   placeholder="7"
                   autoFocus
                 />
-                <p className="text-slate-400 text-xs mt-2 text-center">
+                <p className="text-gray-500 text-xs mt-2 text-center">
                   Escolha um número que ainda não foi selecionado
                 </p>
               </div>
 
               {/* Grid de números no modal */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Selecione um número disponível:
                 </label>
-                <div className="grid grid-cols-5 gap-2 max-h-40 overflow-y-auto no-scrollbar border border-slate-600 rounded-lg p-3 bg-slate-700/50">
+                <div className="grid grid-cols-5 gap-2 max-h-40 overflow-y-auto no-scrollbar border-2 border-blue-200 rounded-lg p-3 bg-blue-50">
                   {Array.from({ length: game.max_participants }, (_, i) => {
                     const number = i + 1;
                     const isTaken = participants.some(p => p.lucky_number === number);
@@ -421,12 +511,12 @@ participant.user_id === user?.id
                         onClick={() => !isTaken && setLuckyNumber(number.toString())}
                         disabled={isTaken}
                         className={`
-                          w-8 h-8 rounded text-xs font-bold transition-all duration-200
+                          w-8 h-8 rounded-lg text-xs font-bold transition-all duration-200
                           ${isSelected 
-                            ? 'bg-amber-500 text-white border-2 border-amber-400' 
+                            ? 'bg-yellow-500 text-white border-2 border-yellow-400 shadow-lg' 
                             : isTaken 
                               ? 'bg-red-500 text-white border-2 border-red-400 cursor-not-allowed opacity-60'
-                              : 'bg-slate-600 text-slate-300 border-2 border-slate-500 hover:bg-slate-500 hover:border-slate-400'
+                              : 'bg-blue-500 text-white border-2 border-blue-400 hover:bg-blue-600 hover:border-blue-500 hover:scale-110'
                           }
                         `}
                       >
@@ -435,63 +525,87 @@ participant.user_id === user?.id
                     );
                   })}
                 </div>
-                <p className="text-slate-400 text-xs mt-2">
+                <p className="text-gray-500 text-xs mt-2">
                   Números em vermelho já foram escolhidos
                 </p>
               </div>
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3 mt-4 sm:mt-6">
-              <button
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setShowJoinModal(false)}
                 disabled={joining}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 text-white px-4 py-3 rounded-lg sm:rounded-xl font-bold transition-all duration-300 text-sm sm:text-base"
+                className="flex-1 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 text-gray-700 px-4 py-3 rounded-lg sm:rounded-xl font-bold transition-all duration-300 text-sm sm:text-base"
               >
                 Cancelar
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={joinGame}
                 disabled={joining || !luckyNumber}
-                className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-4 py-3 rounded-lg sm:rounded-xl font-bold transition-all duration-300 text-sm sm:text-base"
+                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-4 py-3 rounded-lg sm:rounded-xl font-bold transition-all duration-300 text-sm sm:text-base shadow-lg"
               >
                 {joining ? 'Entrando...' : 'Participar'}
-              </button>
+              </motion.button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Elimination Modal */}
       {showEliminationModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-red-500/30 animate-bounce">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.8, opacity: 0 }}
+            className="bg-white rounded-2xl p-6 w-full max-w-md border-2 border-red-300 shadow-2xl"
+          >
             <div className="text-center">
-              <div className="text-6xl mb-4">💀</div>
-              <h2 className="text-2xl font-bold text-red-400 mb-4">
+              <motion.div
+                animate={{ rotate: [0, -10, 10, 0] }}
+                transition={{ duration: 0.5, repeat: Infinity }}
+                className="text-6xl mb-4"
+              >
+                💀
+              </motion.div>
+              <h2 className="text-2xl font-black text-red-600 mb-4">
                 Você foi eliminado!
               </h2>
-              <p className="text-slate-300 mb-6">
+              <p className="text-gray-600 mb-6 font-semibold">
                 Infelizmente sua sorte não foi desta vez. Continue participando dos próximos jogos!
               </p>
               <div className="space-y-3">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => {
                     setShowEliminationModal(false);
                   }}
-                  className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300"
+                  className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 shadow-lg"
                 >
                   Entendi
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => navigate('/live-games')}
-                  className="w-full bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300"
+                  className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-xl font-bold transition-all duration-300"
                 >
                   Ver Outros Jogos
-                </button>
+                </motion.button>
               </div>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );

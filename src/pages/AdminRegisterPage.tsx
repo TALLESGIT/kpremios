@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useData } from '../context/DataContext';
 import { Send, Loader2, Mail, User, Phone, Eye, EyeOff, Shield } from 'lucide-react';
 import Header from '../components/shared/Header';
@@ -71,47 +72,61 @@ export default function AdminRegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <Header />
-      <main className="flex-grow flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full">
-          <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 rounded-3xl shadow-2xl p-8 border border-slate-600/30 backdrop-blur-sm">
-            <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg shadow-red-500/25">
+      <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="max-w-md w-full"
+        >
+          <div className="bg-white rounded-3xl shadow-2xl p-8 border-2 border-blue-200">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: "spring" }}
+              className="flex justify-center mb-6"
+            >
+              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25">
                 <Shield className="h-8 w-8 text-white" />
               </div>
-            </div>
+            </motion.div>
             
-            <h2 className="text-2xl sm:text-3xl font-black text-white text-center mb-2">
+            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 text-center mb-2">
               Cadastro de Administrador
             </h2>
-            <p className="text-slate-300 text-center mb-8 text-sm sm:text-base">
+            <p className="text-gray-600 text-center mb-8 text-sm sm:text-base">
               Crie uma conta de administrador para gerenciar o sistema
             </p>
 
             {errors.general && (
-              <div className="mb-6 bg-red-500/20 border border-red-400/30 rounded-xl p-4">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="mb-6 bg-red-50 border-2 border-red-200 rounded-xl p-4"
+              >
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-200">{errors.general}</h3>
+                    <h3 className="text-sm font-semibold text-red-600">{errors.general}</h3>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             )}
 
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
                   Nome Completo
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-slate-400" />
+                    <User className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
                     id="name"
@@ -119,7 +134,7 @@ export default function AdminRegisterPage() {
                     type="text"
                     required
                     autoComplete="name"
-                    className="w-full pl-10 pr-4 py-3 border border-slate-600 bg-slate-700/50 text-white placeholder-slate-400 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
+                    className="w-full pl-10 pr-4 py-3 border-2 border-blue-200 bg-blue-50 text-gray-900 placeholder-gray-400 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     placeholder="Digite seu nome completo"
                     value={formData.name}
                     onChange={handleChange}
@@ -134,7 +149,7 @@ export default function AdminRegisterPage() {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-slate-400" />
+                    <Mail className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
                     id="email"
@@ -142,7 +157,7 @@ export default function AdminRegisterPage() {
                     type="email"
                     required
                     autoComplete="email"
-                    className="w-full pl-10 pr-4 py-3 border border-slate-600 bg-slate-700/50 text-white placeholder-slate-400 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
+                    className="w-full pl-10 pr-4 py-3 border-2 border-blue-200 bg-blue-50 text-gray-900 placeholder-gray-400 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     placeholder="Digite seu email"
                     value={formData.email}
                     onChange={handleChange}
@@ -157,7 +172,7 @@ export default function AdminRegisterPage() {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Phone className="h-5 w-5 text-slate-400" />
+                    <Phone className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
                     id="whatsapp"
@@ -165,7 +180,7 @@ export default function AdminRegisterPage() {
                     type="tel"
                     required
                     autoComplete="tel"
-                    className="w-full pl-10 pr-4 py-3 border border-slate-600 bg-slate-700/50 text-white placeholder-slate-400 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
+                    className="w-full pl-10 pr-4 py-3 border-2 border-blue-200 bg-blue-50 text-gray-900 placeholder-gray-400 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     placeholder="(11) 99999-9999"
                     value={formData.whatsapp}
                     onChange={handleChange}
@@ -185,7 +200,7 @@ export default function AdminRegisterPage() {
                     type={showPassword ? "text" : "password"}
                     required
                     autoComplete="new-password"
-                    className="w-full px-4 py-3 pr-12 border border-slate-600 bg-slate-700/50 text-white placeholder-slate-400 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
+                    className="w-full px-4 py-3 pr-12 border-2 border-blue-200 bg-blue-50 text-gray-900 placeholder-gray-400 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     placeholder="Mínimo 6 caracteres"
                     value={formData.password}
                     onChange={handleChange}
@@ -193,7 +208,7 @@ export default function AdminRegisterPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-300 transition-colors"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
                   >
                     {showPassword ? (
                       <EyeOff className="h-5 w-5" />
@@ -205,13 +220,15 @@ export default function AdminRegisterPage() {
                 {errors.password && <p className="mt-1 text-sm text-red-400">{errors.password}</p>}
               </div>
 
-              <button
+              <motion.button
                 type="submit"
                 disabled={loading}
-                className={`w-full py-4 px-6 rounded-xl flex items-center justify-center gap-3 font-semibold text-white transition-all duration-200 ${
+                whileHover={!loading ? { scale: 1.02 } : {}}
+                whileTap={!loading ? { scale: 0.98 } : {}}
+                className={`w-full py-4 px-6 rounded-xl flex items-center justify-center gap-3 font-bold text-white transition-all duration-200 ${
                   !loading
-                    ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5' 
-                    : 'bg-slate-600 cursor-not-allowed'
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl' 
+                    : 'bg-gray-400 cursor-not-allowed'
                 }`}
               >
                 {loading ? (
@@ -225,19 +242,19 @@ export default function AdminRegisterPage() {
                     <Send size={20} />
                   </>
                 )}
-              </button>
+              </motion.button>
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-gray-500">
                 Já tem uma conta?{' '}
-                <a href="/admin/login" className="text-red-400 hover:text-red-300 font-medium">
+                <a href="/admin/login" className="text-blue-600 hover:text-blue-700 font-semibold">
                   Faça login aqui
                 </a>
               </p>
             </div>
           </div>
-        </div>
+        </motion.div>
       </main>
       <Footer />
     </div>

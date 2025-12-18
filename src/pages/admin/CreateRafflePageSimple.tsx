@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { supabase } from '../../lib/supabase';
@@ -256,299 +257,330 @@ const CreateRafflePageSimple: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <Header />
       
-      <main className="flex-grow">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 py-6 sm:py-8 lg:py-12">
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-            <div className="flex items-center gap-4 mb-6">
-              <button
+      <main className="flex-grow w-full py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Header Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-6 mb-6"
+          >
+            <div className="flex items-center gap-4 mb-4">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => navigate('/admin')}
-                className="px-4 py-2 border border-slate-600 text-slate-300 rounded hover:bg-slate-700 flex items-center gap-2"
+                className="px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2 font-bold transition-all duration-200"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Voltar
-              </button>
-              <div>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-2">
-                  Criar Novo Sorteio
-                </h1>
-                <p className="text-slate-300 text-sm sm:text-base lg:text-lg">
-                  Crie um novo sorteio e notifique todos os usuários via WhatsApp
-                </p>
+              </motion.button>
+              <div className="flex items-center space-x-3">
+                <motion.div
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg"
+                >
+                  <Trophy className="h-6 w-6 text-white" />
+                </motion.div>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-black text-gray-900 mb-2">
+                    Criar Novo Sorteio
+                  </h1>
+                  <p className="text-gray-600 text-sm font-semibold">
+                    Crie um novo sorteio e notifique todos os usuários via WhatsApp
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          </motion.div>
 
-        {/* Formulário */}
-        <div className="max-w-4xl mx-auto px-2 sm:px-4 lg:px-8 py-8">
-          <div className="bg-slate-800/50 border border-slate-600/30 rounded-lg">
-            <div className="p-6 border-b border-slate-600/30">
-              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Trophy className="h-6 w-6 text-amber-500" />
-                Informações do Sorteio
-              </h2>
-            </div>
-            <div className="p-6">
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Título */}
-                <div>
-                  <label htmlFor="title" className="block text-sm font-medium text-slate-300 mb-2">
-                    Título do Sorteio *
-                  </label>
-                  <input
-                    id="title"
-                    type="text"
-                    value={formData.title}
-                    onChange={(e) => handleInputChange('title', e.target.value)}
-                    placeholder="Ex: Sorteio de Natal 2024"
-                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 text-white placeholder-slate-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                {/* Prêmio */}
-                <div>
-                  <label htmlFor="prize" className="block text-sm font-medium text-slate-300 mb-2">
-                    Prêmio *
-                  </label>
-                  <input
-                    id="prize"
-                    type="text"
-                    value={formData.prize}
-                    onChange={(e) => handleInputChange('prize', e.target.value)}
-                    placeholder="Ex: iPhone 15 Pro Max"
-                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 text-white placeholder-slate-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                {/* Imagem do Prêmio */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    🏆 Imagem do Prêmio (opcional)
-                  </label>
-                  
-                  {/* Tabs para escolher tipo de imagem */}
-                  <div className="flex mb-3">
-                    <button
-                      type="button"
-                      onClick={() => setImageType('upload')}
-                      className={`px-3 py-2 text-sm font-medium rounded-l-lg border ${
-                        imageType === 'upload'
-                          ? 'bg-blue-500 text-white border-blue-500'
-                          : 'bg-slate-700 text-slate-300 border-slate-600 hover:bg-slate-600'
-                      }`}
-                    >
-                      📁 Upload do PC
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setImageType('url')}
-                      className={`px-3 py-2 text-sm font-medium rounded-r-lg border-t border-r border-b ${
-                        imageType === 'url'
-                          ? 'bg-blue-500 text-white border-blue-500'
-                          : 'bg-slate-700 text-slate-300 border-slate-600 hover:bg-slate-600'
-                      }`}
-                    >
-                      🌐 URL (Unsplash)
-                    </button>
-                  </div>
-
-                  {/* Upload de arquivo */}
-                  {imageType === 'upload' && (
-                    <div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <p className="text-xs text-slate-400 mt-1">
-                        Formatos aceitos: JPG, PNG, GIF, WebP. Máximo: 5MB
-                      </p>
-                    </div>
-                  )}
-
-                  {/* URL de imagem */}
-                  {imageType === 'url' && (
-                    <div>
-                      <input
-                        type="url"
-                        value={formData.prizeImage}
-                        onChange={(e) => handleImageUrl(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 text-white placeholder-slate-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="https://images.unsplash.com/photo-..."
-                      />
-                      <p className="text-xs text-slate-400 mt-1">
-                        Cole aqui a URL da imagem (Unsplash, Imgur, etc.)
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Preview da imagem */}
-                  {imagePreview && (
-                    <div className="mt-3">
-                      <div className="relative inline-block">
-                        <img
-                          src={imagePreview}
-                          alt="Preview do prêmio"
-                          className="w-32 h-32 object-cover rounded-lg border border-slate-600"
-                        />
-                        <button
-                          type="button"
-                          onClick={removeImage}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Datas */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Formulário */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="max-w-4xl mx-auto"
+          >
+            <div className="bg-white rounded-2xl shadow-lg border-2 border-blue-200">
+              <div className="p-6 border-b-2 border-blue-200 bg-gradient-to-r from-blue-500 to-blue-600">
+                <h2 className="text-lg font-black text-white flex items-center gap-2">
+                  <Trophy className="h-6 w-6" />
+                  Informações do Sorteio
+                </h2>
+              </div>
+              <div className="p-6">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Título */}
                   <div>
-                    <label htmlFor="startDate" className="block text-sm font-medium text-slate-300 mb-2">
-                      Data de Início *
+                    <label htmlFor="title" className="block text-sm font-bold text-gray-700 mb-2">
+                      Título do Sorteio *
                     </label>
                     <input
-                      id="startDate"
-                      type="date"
-                      value={formData.startDate}
-                      onChange={(e) => handleInputChange('startDate', e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      id="title"
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => handleInputChange('title', e.target.value)}
+                      placeholder="Ex: Sorteio de Natal 2024"
+                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required
                     />
                   </div>
+
+                  {/* Prêmio */}
                   <div>
-                    <label htmlFor="endDate" className="block text-sm font-medium text-slate-300 mb-2">
-                      Data de Fim *
+                    <label htmlFor="prize" className="block text-sm font-bold text-gray-700 mb-2">
+                      Prêmio *
                     </label>
                     <input
-                      id="endDate"
-                      type="date"
-                      value={formData.endDate}
-                      onChange={(e) => handleInputChange('endDate', e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      id="prize"
+                      type="text"
+                      value={formData.prize}
+                      onChange={(e) => handleInputChange('prize', e.target.value)}
+                      placeholder="Ex: iPhone 15 Pro Max"
+                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required
                     />
                   </div>
-                </div>
 
-                {/* Descrição */}
-                <div>
-                  <label htmlFor="description" className="block text-sm font-medium text-slate-300 mb-2">
-                    Descrição
-                  </label>
-                  <textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    placeholder="Descreva os detalhes do sorteio..."
-                    rows={4}
-                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 text-white placeholder-slate-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Máximo de participantes */}
-                <div>
-                  <label htmlFor="maxParticipants" className="block text-sm font-medium text-slate-300 mb-2">
-                    Máximo de Participantes
-                  </label>
-                  <input
-                    id="maxParticipants"
-                    type="number"
-                    value={formData.maxParticipants}
-                    onChange={(e) => handleInputChange('maxParticipants', parseInt(e.target.value))}
-                    min="1"
-                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Notificação WhatsApp */}
-                <div className="flex items-center space-x-3 p-4 bg-slate-700/50 rounded-lg border border-slate-600/30">
-                  <input
-                    type="checkbox"
-                    id="notifyUsers"
-                    checked={formData.notifyUsers}
-                    onChange={(e) => handleInputChange('notifyUsers', e.target.checked)}
-                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                  />
-                  <div className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5 text-green-500" />
-                    <label htmlFor="notifyUsers" className="text-slate-300 cursor-pointer">
-                      Notificar todos os usuários via WhatsApp
+                  {/* Imagem do Prêmio */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      🏆 Imagem do Prêmio (opcional)
                     </label>
-                  </div>
-                </div>
+                    
+                    {/* Tabs para escolher tipo de imagem */}
+                    <div className="flex mb-3">
+                      <button
+                        type="button"
+                        onClick={() => setImageType('upload')}
+                        className={`px-3 py-2 text-sm font-bold rounded-l-lg border-2 ${
+                          imageType === 'upload'
+                            ? 'bg-blue-500 text-white border-blue-500'
+                            : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        📁 Upload do PC
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImageType('url')}
+                        className={`px-3 py-2 text-sm font-bold rounded-r-lg border-2 ${
+                          imageType === 'url'
+                            ? 'bg-blue-500 text-white border-blue-500'
+                            : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        🌐 URL (Unsplash)
+                      </button>
+                    </div>
 
-                {/* Resultado */}
-                {result && (
-                  <div className={`p-4 rounded-lg border ${result.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                    <div className="flex items-center gap-2">
-                      {result.success ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-500" />
-                      )}
+                    {/* Upload de arquivo */}
+                    {imageType === 'upload' && (
                       <div>
-                        <p className="text-gray-900">{result.message}</p>
-                        {result.notified !== undefined && result.total !== undefined && (
-                          <p className="text-sm text-gray-600 mt-1">
-                            📱 Notificações: {result.notified}/{result.total} usuários
-                          </p>
-                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Formatos aceitos: JPG, PNG, GIF, WebP. Máximo: 5MB
+                        </p>
                       </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Erro */}
-                {error && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <XCircle className="h-4 w-4 text-red-500" />
-                      <span className="text-sm text-red-700">{error}</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Botões */}
-                <div className="flex gap-4 pt-4">
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-md flex items-center justify-center gap-2"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Criando Sorteio...
-                      </>
-                    ) : (
-                      <>
-                        <Trophy className="h-4 w-4" />
-                        Criar Sorteio
-                      </>
                     )}
-                  </button>
-                  
-                  <button
-                    type="button"
-                    onClick={() => navigate('/admin')}
-                    className="px-6 py-3 border border-slate-600 text-slate-300 rounded-md hover:bg-slate-700"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </form>
+
+                    {/* URL de imagem */}
+                    {imageType === 'url' && (
+                      <div>
+                        <input
+                          type="url"
+                          value={formData.prizeImage}
+                          onChange={(e) => handleImageUrl(e.target.value)}
+                          className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="https://images.unsplash.com/photo-..."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Cole aqui a URL da imagem (Unsplash, Imgur, etc.)
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Preview da imagem */}
+                    {imagePreview && (
+                      <div className="mt-3">
+                        <div className="relative inline-block">
+                          <img
+                            src={imagePreview}
+                            alt="Preview do prêmio"
+                            className="w-32 h-32 object-cover rounded-lg border-2 border-gray-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={removeImage}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Datas */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="startDate" className="block text-sm font-bold text-gray-700 mb-2">
+                        Data de Início *
+                      </label>
+                      <input
+                        id="startDate"
+                        type="date"
+                        value={formData.startDate}
+                        onChange={(e) => handleInputChange('startDate', e.target.value)}
+                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="endDate" className="block text-sm font-bold text-gray-700 mb-2">
+                        Data de Fim *
+                      </label>
+                      <input
+                        id="endDate"
+                        type="date"
+                        value={formData.endDate}
+                        onChange={(e) => handleInputChange('endDate', e.target.value)}
+                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Descrição */}
+                  <div>
+                    <label htmlFor="description" className="block text-sm font-bold text-gray-700 mb-2">
+                      Descrição
+                    </label>
+                    <textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => handleInputChange('description', e.target.value)}
+                      placeholder="Descreva os detalhes do sorteio..."
+                      rows={4}
+                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  {/* Máximo de participantes */}
+                  <div>
+                    <label htmlFor="maxParticipants" className="block text-sm font-bold text-gray-700 mb-2">
+                      Máximo de Participantes
+                    </label>
+                    <input
+                      id="maxParticipants"
+                      type="number"
+                      value={formData.maxParticipants}
+                      onChange={(e) => handleInputChange('maxParticipants', parseInt(e.target.value))}
+                      min="1"
+                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  {/* Notificação WhatsApp */}
+                  <div className="flex items-center space-x-3 p-4 bg-green-50 rounded-lg border-2 border-green-200">
+                    <input
+                      type="checkbox"
+                      id="notifyUsers"
+                      checked={formData.notifyUsers}
+                      onChange={(e) => handleInputChange('notifyUsers', e.target.checked)}
+                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                    />
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5 text-green-600" />
+                      <label htmlFor="notifyUsers" className="text-gray-700 cursor-pointer font-semibold">
+                        Notificar todos os usuários via WhatsApp
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Resultado */}
+                  {result && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`p-4 rounded-lg border-2 ${result.success ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {result.success ? (
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                        ) : (
+                          <XCircle className="h-5 w-5 text-red-600" />
+                        )}
+                        <div>
+                          <p className="text-gray-900 font-bold">{result.message}</p>
+                          {result.notified !== undefined && result.total !== undefined && (
+                            <p className="text-sm text-gray-600 mt-1 font-semibold">
+                              📱 Notificações: {result.notified}/{result.total} usuários
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Erro */}
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-4 bg-red-50 border-2 border-red-300 rounded-lg"
+                    >
+                      <div className="flex items-center gap-2">
+                        <XCircle className="h-5 w-5 text-red-600" />
+                        <span className="text-sm text-red-700 font-semibold">{error}</span>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Botões */}
+                  <div className="flex gap-4 pt-4">
+                    <motion.button
+                      whileHover={{ scale: isLoading ? 1 : 1.05 }}
+                      whileTap={{ scale: isLoading ? 1 : 0.95 }}
+                      type="submit"
+                      disabled={isLoading}
+                      className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2 shadow-lg transition-all duration-200"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Criando Sorteio...
+                        </>
+                      ) : (
+                        <>
+                          <Trophy className="h-4 w-4" />
+                          Criar Sorteio
+                        </>
+                      )}
+                    </motion.button>
+                    
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      type="button"
+                      onClick={() => navigate('/admin')}
+                      className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-bold transition-all duration-200"
+                    >
+                      Cancelar
+                    </motion.button>
+                  </div>
+                </form>
+              </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </main>
       

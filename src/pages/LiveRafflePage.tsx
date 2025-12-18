@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Play, Users, Target, Trophy, Crown, Zap, Clock, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
@@ -362,41 +363,56 @@ const LiveRafflePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-8">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <Header />
       
-      <main className="flex-grow py-6">
-        {/* Header Section */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
+      <main className="flex-grow w-full py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Header Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-6 mb-6"
+          >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-red-600 rounded-lg flex items-center justify-center">
+              <motion.div
+                whileHover={{ scale: 1.1, rotate: 5 }}
+                className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg"
+              >
                 <span className="text-white text-xl font-bold">🎮</span>
-              </div>
+              </motion.div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Sorteio ao Vivo - Resta Um</h1>
-                <p className="text-gray-600 text-sm">Escolha seu número da sorte e sobreviva até o final!</p>
+                <h1 className="text-2xl font-black text-gray-900">Sorteio ao Vivo - Resta Um</h1>
+                <p className="text-gray-600 text-sm font-semibold">Escolha seu número da sorte e sobreviva até o final!</p>
               </div>
             </div>
             
             {/* Status Badge */}
             {game && (
               <div className="flex space-x-2">
-                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                  game.status === 'active' 
-                    ? 'bg-green-100 text-green-800 border border-green-200' 
-                    : game.status === 'waiting'
-                    ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                    : 'bg-gray-100 text-gray-800 border border-gray-200'
-                }`}>
+                <motion.span
+                  whileHover={{ scale: 1.05 }}
+                  className={`px-3 py-1 rounded-full text-sm font-bold border-2 ${
+                    game.status === 'active' 
+                      ? 'bg-green-100 text-green-700 border-green-300' 
+                      : game.status === 'waiting'
+                      ? 'bg-blue-100 text-blue-700 border-blue-300'
+                      : 'bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
                   {game.status === 'active' ? '🟢 Ativo' : 
                    game.status === 'waiting' ? '⏳ Aguardando' : 
                    '🔴 Finalizado'}
-                </span>
+                </motion.span>
                 {isEliminating && (
-                  <span className="px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800 border border-red-200">
+                  <motion.span
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                    className="px-3 py-1 rounded-full text-sm font-bold bg-red-100 text-red-700 border-2 border-red-300"
+                  >
                     🔥 Eliminando
-                  </span>
+                  </motion.span>
                 )}
               </div>
             )}
@@ -404,45 +420,67 @@ const LiveRafflePage: React.FC = () => {
 
           {/* Message Alert */}
           {message && (
-            <div className={`rounded-lg p-4 mb-4 border ${
-              messageType === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
-              messageType === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
-              'bg-blue-50 border-blue-200 text-blue-800'
-            }`}>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className={`rounded-lg p-4 mb-4 border-2 ${
+                messageType === 'success' ? 'bg-green-50 border-green-300 text-green-800' :
+                messageType === 'error' ? 'bg-red-50 border-red-300 text-red-800' :
+                'bg-blue-50 border-blue-300 text-blue-800'
+              }`}
+            >
               <div className="flex items-center space-x-2">
                 {messageType === 'success' ? <CheckCircle className="h-5 w-5" /> :
                  messageType === 'error' ? <XCircle className="h-5 w-5" /> :
                  <AlertCircle className="h-5 w-5" />}
-                <span className="font-medium">{message}</span>
+                <span className="font-bold">{message}</span>
               </div>
-            </div>
+            </motion.div>
           )}
-        </div>
+          </motion.div>
 
-        {!game ? (
-          /* No Raffle State */
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Target className="h-8 w-8 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Nenhum sorteio ativo</h3>
-            <p className="text-gray-600 mb-6">Não há sorteios ao vivo no momento.</p>
+          {!game ? (
+            /* No Raffle State */
+            <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-8 text-center"
+          >
+            <motion.div
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4"
+            >
+              <Target className="h-8 w-8 text-blue-600" />
+            </motion.div>
+            <h3 className="text-lg font-black text-gray-900 mb-2">Nenhum sorteio ativo</h3>
+            <p className="text-gray-600 mb-6 font-semibold">Não há sorteios ao vivo no momento.</p>
             {isAdmin && (
-              <button
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={createLiveRaffle}
                 disabled={loading}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-2 px-6 rounded-lg transition-all duration-200"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-all duration-200 shadow-lg"
               >
                 {loading ? 'Criando...' : 'Criar Novo Sorteio'}
-              </button>
+              </motion.button>
             )}
-          </div>
+          </motion.div>
         ) : (
           <>
             {/* Raffle Info Card */}
-            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-6 mb-6"
+            >
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+                <motion.div
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-4 border-2 border-blue-200"
+                >
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
                       <Users className="h-4 w-4 text-white" />
@@ -452,9 +490,12 @@ const LiveRafflePage: React.FC = () => {
                       <p className="text-blue-900 text-xl font-bold">{participants.length}</p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
-                <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+                <motion.div
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-4 border-2 border-green-200"
+                >
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
                       <Zap className="h-4 w-4 text-white" />
@@ -464,9 +505,12 @@ const LiveRafflePage: React.FC = () => {
                       <p className="text-green-900 text-xl font-bold">{activeParticipants.length}</p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
-                <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-lg p-4 border border-red-200">
+                <motion.div
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  className="bg-gradient-to-r from-red-50 to-red-100 rounded-lg p-4 border-2 border-red-200"
+                >
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
                       <XCircle className="h-4 w-4 text-white" />
@@ -476,19 +520,22 @@ const LiveRafflePage: React.FC = () => {
                       <p className="text-red-900 text-xl font-bold">{eliminatedParticipants.length}</p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
-                <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+                <motion.div
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  className="bg-gradient-to-r from-blue-50 to-indigo-100 rounded-lg p-4 border-2 border-indigo-200"
+                >
                   <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                    <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center">
                       <Trophy className="h-4 w-4 text-white" />
                     </div>
                     <div>
-                      <p className="text-purple-600 text-sm font-medium">Rodada</p>
-                      <p className="text-purple-900 text-xl font-bold">{game.current_round}</p>
+                      <p className="text-indigo-600 text-sm font-semibold">Rodada</p>
+                      <p className="text-indigo-900 text-xl font-black">{game.current_round}</p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               </div>
 
               {/* Timer and Admin Controls */}
@@ -538,10 +585,15 @@ const LiveRafflePage: React.FC = () => {
                   </div>
                 </div>
               )}
-            </div>
+            </motion.div>
 
             {/* Number Grid */}
-            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-6 mb-6"
+            >
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">
@@ -592,7 +644,7 @@ const LiveRafflePage: React.FC = () => {
                       disabled={!canSelect}
                       className={`
                         w-16 h-16 sm:w-12 sm:h-12 rounded-xl sm:rounded-lg font-bold text-lg sm:text-sm transition-all duration-200 flex items-center justify-center
-                        ${isTaken && !isEliminated ? 'bg-purple-500 text-white shadow-lg shadow-purple-200' : ''}
+                        ${isTaken && !isEliminated ? 'bg-blue-500 text-white shadow-lg shadow-blue-200' : ''}
                         ${isEliminated ? 'bg-red-500 text-white shadow-lg shadow-red-200' : ''}
                         ${isUserNumber ? 'bg-green-500 text-white ring-4 ring-green-300 shadow-lg shadow-green-200' : ''}
                         ${!isTaken && !isEliminated && !isUserNumber && canSelect ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-2 border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md' : ''}
@@ -613,8 +665,8 @@ const LiveRafflePage: React.FC = () => {
                   <span className="text-gray-600 font-medium">Disponível</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <div className="w-5 h-5 sm:w-4 sm:h-4 bg-purple-500 rounded-lg sm:rounded shadow-sm"></div>
-                  <span className="text-gray-600 font-medium">Escolhido</span>
+                  <div className="w-5 h-5 sm:w-4 sm:h-4 bg-blue-500 rounded-lg sm:rounded shadow-sm"></div>
+                  <span className="text-gray-600 font-semibold">Escolhido</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-5 h-5 sm:w-4 sm:h-4 bg-green-500 rounded-lg sm:rounded shadow-sm"></div>
@@ -627,17 +679,22 @@ const LiveRafflePage: React.FC = () => {
               </div>
               
               {/* Regra do jogo */}
-              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-sm text-amber-800 font-medium">
+              <div className="mt-4 p-3 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800 font-semibold">
                   📋 <strong>Regra do Resta Um:</strong> Cada participante pode escolher apenas <strong>1 número</strong> por sorteio. 
                   Uma vez escolhido, você não pode trocar ou escolher outro número.
                 </p>
               </div>
-            </div>
+            </motion.div>
 
             {/* Participants List */}
             {participants.length > 0 && (
-              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-6 mb-6"
+              >
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Participantes</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {participants.map((participant) => (
@@ -659,12 +716,16 @@ const LiveRafflePage: React.FC = () => {
                     </div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             )}
 
             {/* Winner */}
             {game?.winner_id && (
-              <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-xl p-8 text-center shadow-lg">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl p-8 text-center shadow-2xl"
+              >
                 <div className="w-20 h-20 bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Crown className="h-10 w-10 text-white" />
                 </div>
@@ -675,10 +736,11 @@ const LiveRafflePage: React.FC = () => {
                     return winner ? `${winner.user_name} com o número #${winner.lucky_number}` : 'Vencedor!';
                   })()}
                 </p>
-              </div>
+              </motion.div>
             )}
           </>
         )}
+        </div>
       </main>
       
       <Footer />

@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Plus, Video, Trash2, Play, Square } from 'lucide-react';
+import { ArrowLeft, Plus, Video, Trash2, Play, Square, Radio } from 'lucide-react';
 import LiveChat from '../components/live/LiveChat';
 import AdminLivePanel from '../components/live/AdminLivePanel';
 import ModeratorManager from '../components/live/ModeratorManager';
 import ZKViewer from '../components/ZKViewer';
+import Header from '../components/shared/Header';
+import Footer from '../components/shared/Footer';
 
 interface LiveStream {
   id: string;
@@ -321,293 +324,426 @@ const AdminLiveStreamPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-400"></div>
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+        <Header />
+        <main className="flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+              className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-blue-600 rounded-3xl mb-4 shadow-lg"
+            >
+              <motion.span
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                className="text-4xl font-black text-white"
+              >
+                ZK
+              </motion.span>
+            </motion.div>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="text-gray-700 text-xl font-semibold"
+            >
+              Carregando transmissões...
+            </motion.p>
+          </div>
+        </main>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Header */}
-      <div className="bg-slate-900/50 backdrop-blur-sm border-b border-slate-700">
-        <div className="max-w-[1400px] mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate('/admin/dashboard')}
-              className="text-amber-400 hover:text-amber-300 transition-colors"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-white">Transmissão ao Vivo</h1>
-              <p className="text-sm text-slate-400">Gerencie suas transmissões</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setIsCreating(true)}
-            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-lg font-medium transition-all flex items-center gap-2"
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+      <Header />
+      <main className="flex-grow w-full py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Header Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-6 mb-6"
           >
-            <Plus className="w-5 h-5" />
-            Nova Transmissão
-          </button>
-        </div>
-      </div>
-
-      {/* Modal de Criação */}
-      {isCreating && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-lg p-6 w-full max-w-md border border-slate-700">
-            <h2 className="text-xl font-bold text-white mb-4">Criar Nova Transmissão</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Título *
-                </label>
-                <input
-                  type="text"
-                  value={newStreamTitle}
-                  onChange={(e) => {
-                    setNewStreamTitle(e.target.value);
-                    // Atualizar preview do link em tempo real
-                    const slug = generateSlugFromTitle(e.target.value);
-                    if (slug) {
-                      setPreviewLink(`${window.location.origin}/live/${slug}`);
-                    } else {
-                      setPreviewLink('');
-                    }
-                  }}
-                  placeholder="Ex: Cruzeiro x Santos"
-                  className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-amber-500 focus:outline-none"
-                />
-                {previewLink && (
-                  <p className="mt-2 text-xs text-slate-400">
-                    Link: <span className="text-amber-400 font-mono">{previewLink}</span>
-                  </p>
-                )}
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+              <div className="mb-4 sm:mb-0">
+                <div className="flex items-center space-x-3 mb-2">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => navigate('/admin/dashboard')}
+                    className="text-blue-600 hover:text-blue-700 transition-colors"
+                  >
+                    <ArrowLeft className="w-6 h-6" />
+                  </motion.button>
+                  <motion.div
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg"
+                  >
+                    <Radio className="h-6 w-6 text-white" />
+                  </motion.div>
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-black text-gray-900">
+                      Transmissão ao Vivo
+                    </h1>
+                    <p className="text-gray-600 text-sm font-semibold">
+                      Gerencie suas transmissões
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Descrição
-                </label>
-                <textarea
-                  value={newStreamDescription}
-                  onChange={(e) => setNewStreamDescription(e.target.value)}
-                  placeholder="Descrição da transmissão..."
-                  rows={3}
-                  className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-amber-500 focus:outline-none resize-none"
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleCreateStreamClick}
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-lg font-medium transition-all"
-                >
-                  Criar
-                </button>
-                <button
-                  onClick={() => {
-                    setIsCreating(false);
-                    setNewStreamTitle('');
-                    setNewStreamDescription('');
-                    setPreviewLink('');
-                  }}
-                  className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors"
-                >
-                  Cancelar
-                </button>
-              </div>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsCreating(true)}
+                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold rounded-lg transition-all duration-200 shadow-lg"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Nova Transmissão
+              </motion.button>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
 
-      {/* Modal de Confirmação - Limpar Dados */}
-      {showClearDataConfirm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-lg p-6 w-full max-w-md border border-slate-700">
-            <h2 className="text-xl font-bold text-white mb-4">Limpar Dados da Transmissão Anterior?</h2>
-            <p className="text-slate-300 mb-6">
-              Existe uma transmissão anterior com dados (viewers, mensagens, etc). 
-              Deseja limpar todos os dados da transmissão anterior antes de criar a nova?
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowClearDataConfirm(false);
-                  createStream(true); // Limpar dados
-                }}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-medium transition-all"
+          {/* Modal de Criação */}
+          {isCreating && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-white rounded-2xl p-6 w-full max-w-md border-2 border-blue-200 shadow-2xl"
               >
-                Sim, Limpar
-              </button>
-              <button
-                onClick={() => {
-                  setShowClearDataConfirm(false);
-                  createStream(false); // Não limpar
-                }}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white rounded-lg font-medium transition-all"
-              >
-                Não, Manter
-              </button>
-              <button
-                onClick={() => {
-                  setShowClearDataConfirm(false);
-                  setPreviousStreamId(null);
-                }}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-all"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Conteúdo Principal */}
-      <div className="max-w-[1400px] mx-auto p-4">
-        {!selectedStream ? (
-          /* Lista de Transmissões */
-          <div className="max-w-4xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {streams.length === 0 ? (
-              <div className="col-span-full text-center py-12">
-                <Video className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                <p className="text-slate-400 text-lg">Nenhuma transmissão criada ainda</p>
-                <p className="text-slate-500 text-sm mt-2">
-                  Clique em "Nova Transmissão" para começar
-                </p>
-              </div>
-            ) : (
-              streams.map((stream) => (
-                <div
-                  key={stream.id}
-                  className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-amber-500/50 transition-all cursor-pointer"
-                  onClick={() => setSelectedStream(stream)}
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-white mb-1">{stream.title}</h3>
-                      {stream.description && (
-                        <p className="text-sm text-slate-400 line-clamp-2">
-                          {stream.description}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteStream(stream.id);
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                    <Radio className="h-5 w-5 text-white" />
+                  </div>
+                  <h2 className="text-xl font-black text-gray-900">Criar Nova Transmissão</h2>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Título *
+                    </label>
+                    <input
+                      type="text"
+                      value={newStreamTitle}
+                      onChange={(e) => {
+                        setNewStreamTitle(e.target.value);
+                        // Atualizar preview do link em tempo real
+                        const slug = generateSlugFromTitle(e.target.value);
+                        if (slug) {
+                          setPreviewLink(`${window.location.origin}/live/${slug}`);
+                        } else {
+                          setPreviewLink('');
+                        }
                       }}
-                      className="text-red-400 hover:text-red-300 transition-colors"
+                      placeholder="Ex: Cruzeiro x Santos"
+                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {previewLink && (
+                      <p className="mt-2 text-xs text-gray-600 font-semibold">
+                        Link: <span className="text-blue-600 font-mono">{previewLink}</span>
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Descrição
+                    </label>
+                    <textarea
+                      value={newStreamDescription}
+                      onChange={(e) => setNewStreamDescription(e.target.value)}
+                      placeholder="Descrição da transmissão..."
+                      rows={3}
+                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleCreateStreamClick}
+                      className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-bold transition-all duration-200 shadow-lg"
                     >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {stream.is_active ? (
-                        <>
-                          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                          <span className="text-sm text-red-400 font-medium">AO VIVO</span>
-                        </>
-                      ) : (
-                        <span className="text-sm text-slate-500">Inativa</span>
-                      )}
-                    </div>
-                    <span className="text-xs text-slate-500">
-                      {new Date(stream.created_at).toLocaleDateString('pt-BR')}
-                    </span>
+                      Criar
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        setIsCreating(false);
+                        setNewStreamTitle('');
+                        setNewStreamDescription('');
+                        setPreviewLink('');
+                      }}
+                      className="flex-1 px-4 py-3 border-2 border-gray-300 bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-bold transition-all duration-200"
+                    >
+                      Cancelar
+                    </motion.button>
                   </div>
                 </div>
-              ))
-            )}
-            </div>
-          </div>
-        ) : (
-          /* Painel de Transmissão */
-          <div className="space-y-4 w-full max-w-[1400px] mx-auto">
-            {/* Controles Superiores */}
-            <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex-1">
-                <h2 className="text-xl font-bold text-white">{selectedStream.title}</h2>
-                {selectedStream.description && (
-                  <p className="text-sm text-slate-400 mt-1">{selectedStream.description}</p>
-                )}
-              </div>
-              <div className="flex items-center gap-3 flex-shrink-0">
-                {!isStreaming ? (
-                  <button
-                    onClick={startStream}
-                    className="px-6 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg font-medium transition-all flex items-center gap-2"
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* Modal de Confirmação - Limpar Dados */}
+          {showClearDataConfirm && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-white rounded-2xl p-6 w-full max-w-md border-2 border-blue-200 shadow-2xl"
+              >
+                <h2 className="text-xl font-black text-gray-900 mb-4">Limpar Dados da Transmissão Anterior?</h2>
+                <p className="text-gray-700 mb-6 font-semibold">
+                  Existe uma transmissão anterior com dados (viewers, mensagens, etc). 
+                  Deseja limpar todos os dados da transmissão anterior antes de criar a nova?
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      setShowClearDataConfirm(false);
+                      createStream(true); // Limpar dados
+                    }}
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-bold transition-all duration-200 shadow-lg"
                   >
-                    <Play className="w-5 h-5" />
-                    Iniciar Transmissão
-                  </button>
-                ) : (
-                  <button
-                    onClick={stopStream}
-                    className="px-6 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-medium transition-all flex items-center gap-2"
+                    Sim, Limpar
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      setShowClearDataConfirm(false);
+                      createStream(false); // Não limpar
+                    }}
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white rounded-lg font-bold transition-all duration-200 shadow-lg"
                   >
-                    <Square className="w-5 h-5" />
-                    Encerrar Transmissão
-                  </button>
-                )}
-                <button
-                  onClick={() => {
-                    setSelectedStream(null);
-                    setIsStreaming(false);
-                  }}
-                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors"
-                >
-                  Voltar
-                </button>
-              </div>
-            </div>
-
-            {/* Layout Principal - Vídeo e Chat lado a lado */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Vídeo - Ocupa 2/3 da largura */}
-              <div className="lg:col-span-2">
-                <div 
-                  className="bg-black rounded-lg overflow-hidden relative" 
-                  style={{ aspectRatio: '16/9', maxWidth: '100%' }}
-                  onDoubleClick={() => {
-                    // Duplo clique para fullscreen no admin também
-                    const element = document.querySelector('.bg-black.rounded-lg') as HTMLElement;
-                    if (!document.fullscreenElement) {
-                      element?.requestFullscreen?.();
-                    } else {
-                      document.exitFullscreen?.();
-                    }
-                  }}
-                >
-                  {/* Admin SEMPRE vê o conteúdo (para preview antes de ir ao vivo) */}
-                  {/* MUTAR ÁUDIO: Admin já tem áudio local do ZK Studio, não precisa ouvir o áudio do site (evita duplicação/delay) */}
-                  <ZKViewer key="zkpremios-admin-preview" channel="ZkPremios" muteAudio={true} />
+                    Não, Manter
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      setShowClearDataConfirm(false);
+                      setPreviousStreamId(null);
+                    }}
+                    className="px-4 py-3 border-2 border-gray-300 bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-bold transition-all duration-200"
+                  >
+                    Cancelar
+                  </motion.button>
                 </div>
-              </div>
+              </motion.div>
+            </motion.div>
+          )}
 
-              {/* Chat - Ocupa 1/3 da largura */}
-              <div className="lg:col-span-1">
-                <div className="h-full" style={{ minHeight: '400px', maxHeight: 'calc(100vh - 300px)' }}>
-                  <LiveChat streamId={selectedStream.id} isAdmin={true} />
+          {/* Conteúdo Principal */}
+          {!selectedStream ? (
+            /* Lista de Transmissões */
+            <div className="max-w-4xl mx-auto">
+              {streams.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-8 text-center"
+                >
+                  <motion.div
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4"
+                  >
+                    <Video className="h-8 w-8 text-blue-600" />
+                  </motion.div>
+                  <p className="text-gray-900 text-lg font-black mb-2">Nenhuma transmissão criada ainda</p>
+                  <p className="text-gray-600 text-sm font-semibold">
+                    Clique em "Nova Transmissão" para começar
+                  </p>
+                </motion.div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {streams.map((stream, index) => (
+                    <motion.div
+                      key={stream.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      whileHover={{ scale: 1.02, y: -5 }}
+                      className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
+                      onClick={() => setSelectedStream(stream)}
+                    >
+                      {/* Header */}
+                      <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 border-b-2 border-blue-300">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <h3 className="text-lg font-black text-white mb-1">{stream.title}</h3>
+                            {stream.description && (
+                              <p className="text-sm text-blue-100 line-clamp-2">
+                                {stream.description}
+                              </p>
+                            )}
+                          </div>
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteStream(stream.id);
+                            }}
+                            className="text-white hover:text-red-200 transition-colors p-2 bg-white/20 rounded-lg"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </motion.button>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {stream.is_active ? (
+                              <>
+                                <motion.div
+                                  animate={{ scale: [1, 1.2, 1] }}
+                                  transition={{ duration: 1, repeat: Infinity }}
+                                  className="w-3 h-3 bg-red-500 rounded-full"
+                                ></motion.div>
+                                <span className="text-sm text-white font-bold">AO VIVO</span>
+                              </>
+                            ) : (
+                              <span className="text-sm text-blue-100 font-semibold">Inativa</span>
+                            )}
+                          </div>
+                          <span className="text-xs text-blue-100 font-semibold">
+                            {new Date(stream.created_at).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
-              </div>
+              )}
             </div>
+          ) : (
+            /* Painel de Transmissão */
+            <div className="space-y-6 w-full">
+              {/* Controles Superiores */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-4 sm:p-6"
+              >
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={selectedStream.channel_name}
+                      readOnly
+                      className="w-full px-4 py-3 bg-blue-50 border-2 border-blue-200 text-gray-900 rounded-lg font-bold text-sm sm:text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 w-full sm:w-auto">
+                    {!isStreaming ? (
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={startStream}
+                        className="flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg font-bold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg text-sm sm:text-base"
+                      >
+                        <Play className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <span className="whitespace-nowrap">Iniciar Transmissão</span>
+                      </motion.button>
+                    ) : (
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={stopStream}
+                        className="flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-bold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg text-sm sm:text-base"
+                      >
+                        <Square className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <span className="whitespace-nowrap">Encerrar Transmissão</span>
+                      </motion.button>
+                    )}
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        setSelectedStream(null);
+                        setIsStreaming(false);
+                      }}
+                      className="px-4 py-2 sm:py-3 border-2 border-blue-300 bg-white hover:bg-blue-50 text-gray-700 rounded-lg font-bold transition-all duration-200 text-sm sm:text-base whitespace-nowrap"
+                    >
+                      Voltar
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
 
-            {/* Painel de Métricas e Gerenciamento */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <AdminLivePanel
-                streamId={selectedStream.id}
-                channelName={selectedStream.channel_name}
-                isActive={selectedStream.is_active}
-              />
-              <ModeratorManager streamId={selectedStream.id} />
+              {/* Layout Principal - Vídeo e Chat lado a lado */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+              >
+                {/* Vídeo - Ocupa 2/3 da largura */}
+                <div className="lg:col-span-2">
+                  <div 
+                    className="bg-black rounded-2xl overflow-hidden relative shadow-2xl border-2 border-blue-200" 
+                    style={{ aspectRatio: '16/9', maxWidth: '100%' }}
+                    onDoubleClick={() => {
+                      // Duplo clique para fullscreen no admin também
+                      const element = document.querySelector('.bg-black.rounded-2xl') as HTMLElement;
+                      if (!document.fullscreenElement) {
+                        element?.requestFullscreen?.();
+                      } else {
+                        document.exitFullscreen?.();
+                      }
+                    }}
+                  >
+                    {/* Admin SEMPRE vê o conteúdo (para preview antes de ir ao vivo) */}
+                    {/* MUTAR ÁUDIO: Admin já tem áudio local do ZK Studio, não precisa ouvir o áudio do site (evita duplicação/delay) */}
+                    <ZKViewer key="zkpremios-admin-preview" channel="ZkPremios" muteAudio={true} />
+                  </div>
+                </div>
+
+                {/* Chat - Ocupa 1/3 da largura */}
+                <div className="lg:col-span-1">
+                  <div className="h-full bg-white rounded-2xl shadow-lg border-2 border-blue-200 overflow-hidden" style={{ minHeight: '400px', maxHeight: 'calc(100vh - 300px)' }}>
+                    <LiveChat streamId={selectedStream.id} isAdmin={true} />
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Painel de Métricas e Gerenciamento */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+              >
+                <div className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 overflow-hidden">
+                  <AdminLivePanel
+                    streamId={selectedStream.id}
+                    channelName={selectedStream.channel_name}
+                    isActive={selectedStream.is_active}
+                  />
+                </div>
+                <div className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 overflow-hidden">
+                  <ModeratorManager streamId={selectedStream.id} />
+                </div>
+              </motion.div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </main>
+      
+      <Footer />
     </div>
   );
 };
