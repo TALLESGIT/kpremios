@@ -7,9 +7,10 @@ interface ZKViewerProps {
   token?: string | null;
   fitMode?: 'contain' | 'cover';
   muteAudio?: boolean; // Para admin: mutar áudio para evitar duplicação (áudio local do ZK Studio + áudio do site)
+  enabled?: boolean; // Se false, desconecta imediatamente do Agora (independente do ZK Studio ainda estar transmitindo)
 }
 
-export default function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio = false }: ZKViewerProps) {
+export default function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio = false, enabled = true }: ZKViewerProps) {
   const clientRef = useRef<any>(null);
   const videoTrackRef = useRef<any>(null);
   const audioTrackRef = useRef<any>(null);
@@ -92,6 +93,10 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
 
     const init = async () => {
       try {
+        if (!enabled) {
+          console.log('⏸️ ZKViewer: enabled=false, não inicializando conexão Agora');
+          return;
+        }
         if (clientRef.current) return;
 
         // Usar appId do prop ou do .env
@@ -350,7 +355,10 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
       }
     };
 
-    init();
+    // Só inicializa se enabled for true
+    if (enabled) {
+      init();
+    }
 
     return () => {
       mounted = false;
@@ -378,7 +386,43 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
         bgVideoElRef.current = null;
       }
     };
-  }, []);
+  }, [appId, channel, token, muteAudio, enabled]); // enabled nas deps para reinicializar quando voltar para true
+
+  // Desconectar IMEDIATAMENTE quando enabled virar false (admin encerrou no site)
+  useEffect(() => {
+    if (!enabled && clientRef.current) {
+      console.log('🛑 ZKViewer: enabled=false - Desconectando IMEDIATAMENTE do Agora (admin encerrou no site)!');
+      setIsLive(false);
+      setError(null); // Limpar erro ao forçar desconexão
+      
+      videoTrackRef.current?.stop();
+      videoTrackRef.current = null;
+      
+      audioTrackRef.current?.stop();
+      audioTrackRef.current = null;
+
+      if (clientRef.current) {
+        clientRef.current.removeAllListeners();
+        clientRef.current.leave().catch((err) => {
+          console.error('Erro ao desconectar do Agora:', err);
+        });
+        clientRef.current = null;
+      }
+
+      if (bgTrackRef.current) {
+        try { bgTrackRef.current.stop(); } catch { /* ignore */ }
+        bgTrackRef.current = null;
+      }
+      if (bgVideoElRef.current) {
+        try {
+          bgVideoElRef.current.pause?.();
+          (bgVideoElRef.current as any).srcObject = null;
+        } catch { /* ignore */ }
+        bgVideoElRef.current.remove();
+        bgVideoElRef.current = null;
+      }
+    }
+  }, [enabled]);
 
   if (error) {
     return <div>{error}</div>;

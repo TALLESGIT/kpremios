@@ -915,8 +915,13 @@ const PublicLiveStreamPage: React.FC = () => {
                   >
                     {/* Sempre usa canal fixo "ZkPremios" para conectar ao ZK Studio Pro */}
                     {/* CORREÇÃO: Só mostrar conteúdo quando transmissão estiver ativa */}
+                    {/* IMPORTANTE: enabled={stream?.is_active} garante desconexão IMEDIATA quando admin encerrar no site */}
                     {showStreamContent ? (
-                      <ZKViewer channel="ZkPremios" fitMode={effectiveVideoFitMode} />
+                      <ZKViewer 
+                        channel="ZkPremios" 
+                        fitMode={effectiveVideoFitMode}
+                        enabled={stream?.is_active ?? false}
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
                         <div className="text-center p-6">
