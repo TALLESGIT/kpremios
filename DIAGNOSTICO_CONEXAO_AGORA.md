@@ -25,7 +25,7 @@ Certifique-se de que o ZK Studio Pro está transmitindo no canal: ZkPremios
 
 ### 2. **App ID Diferente**
 - ZK Studio pode estar usando um App ID diferente
-- Site está usando: `07680cf8bae7400ca2d8bc06a3b77df5`
+- Site está usando: `1e4cb25acbd349c6a540d0c0e1b13931`
 
 ### 3. **Token Expirado ou Incorreto**
 - Se o ZK Studio estiver usando token, ele pode estar expirado
@@ -130,7 +130,7 @@ Acesse: `http://localhost:5173/diagnostico-agora`
 ### **No ZK Studio Pro:**
 - [ ] Transmissão está ativa (botão "Ao Vivo" verde)
 - [ ] Nome do canal está correto: `ZkPremios`
-- [ ] App ID: `07680cf8bae7400ca2d8bc06a3b77df5`
+- [ ] App ID: `1e4cb25acbd349c6a540d0c0e1b13931`
 - [ ] Role: `host` ou `broadcaster`
 - [ ] Codec: H.264 (recomendado)
 
@@ -138,7 +138,7 @@ Acesse: `http://localhost:5173/diagnostico-agora`
 - [ ] Servidor está rodando (`npm run dev`)
 - [ ] `.env` está configurado corretamente
 - [ ] Nome do canal: `ZkPremios` (case-sensitive)
-- [ ] App ID: `07680cf8bae7400ca2d8bc06a3b77df5`
+- [ ] App ID: `1e4cb25acbd349c6a540d0c0e1b13931`
 - [ ] Token: Não configurado (App ID Only)
 - [ ] Console do navegador não mostra erros
 

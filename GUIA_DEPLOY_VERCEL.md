@@ -7,7 +7,7 @@
 Antes de fazer deploy, certifique-se de que seu `.env` local está configurado:
 
 ```env
-VITE_AGORA_APP_ID=07680cf8bae7400ca2d8bc06a3b77df5
+VITE_AGORA_APP_ID=1e4cb25acbd349c6a540d0c0e1b13931
 VITE_SUPABASE_URL=https://bukigyhhgrtgryklabjg.supabase.co
 VITE_SUPABASE_ANON_KEY=sua-chave-aqui
 # VITE_AGORA_TOKEN= (opcional - apenas se usar token)
