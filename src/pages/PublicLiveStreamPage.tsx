@@ -37,7 +37,6 @@ const PublicLiveStreamPage: React.FC = () => {
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [showStreamContent, setShowStreamContent] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
   const [sessionId] = useState(() => {
     // Tentar recuperar sessionId do localStorage para manter a mesma sessão entre recarregamentos
     const storageKey = `live_session_${channelName}`;
@@ -972,48 +971,6 @@ const PublicLiveStreamPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-
-              {/* Debug visual - mostrar estado (apenas mobile fullscreen) */}
-              {isMobile && isFullscreen && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 10,
-                    left: 10,
-                    background: 'rgba(0, 0, 0, 0.8)',
-                    color: 'white',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    fontSize: '10px',
-                    zIndex: 99999,
-                    fontFamily: 'monospace',
-                    maxWidth: '200px',
-                    lineHeight: '1.4',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => setShowDebug(!showDebug)}
-                >
-                  {showDebug ? (
-                    <div>
-                      <div>Docked: {isDockedChat ? '✅ SIM' : '❌ NÃO'}</div>
-                      <div>Mobile: {isMobile ? '✅' : '❌'}</div>
-                      <div>Fullscreen: {isFullscreen ? '✅' : '❌'}</div>
-                      <div>Paisagem: {isLandscape ? '✅' : '❌'}</div>
-                      <div>Chat: {isChatOpen ? '✅ ABERTO' : '❌ FECHADO'}</div>
-                      <div style={{ marginTop: '4px', fontSize: '9px', opacity: 0.7 }}>
-                        Toque p/ ocultar
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <div>🔍 Debug</div>
-                      <div style={{ fontSize: '9px', opacity: 0.7 }}>
-                        Toque p/ ver
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Painel DOCKED (YouTube) - fullscreen paisagem + chat aberto */}
               <AnimatePresence mode="wait">

@@ -357,6 +357,25 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isAdmin = false }) => {
       return;
     }
 
+    // Verificar se a transmissão está ativa
+    try {
+      const { data: streamData, error: streamError } = await supabase
+        .from('live_streams')
+        .select('is_active')
+        .eq('id', streamId)
+        .single();
+
+      if (streamError) {
+        console.error('Erro ao verificar status da transmissão:', streamError);
+      } else if (!streamData?.is_active) {
+        toast.error('A transmissão foi encerrada. Não é possível enviar mensagens.');
+        return;
+      }
+    } catch (error) {
+      console.error('Erro ao verificar status da transmissão:', error);
+      // Em caso de erro, permitir tentativa (pode ser problema temporário)
+    }
+
     // Validação para usuários não-admin
     if (!isAdmin) {
       if (containsPhoneNumber(newMessage)) {

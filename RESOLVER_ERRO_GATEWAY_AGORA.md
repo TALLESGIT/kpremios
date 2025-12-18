@@ -12,6 +12,12 @@ ou
 AgoraRTCError CAN_NOT_GET_GATEWAY_SERVER: dynamic use static key
 ```
 
+ou
+
+```
+AgoraRTCError CAN_NOT_GET_GATEWAY_SERVER: unknown error
+```
+
 ## 🎯 **O que significa:**
 
 ### **Erro "no active status":**
@@ -23,6 +29,49 @@ O projeto no Agora.io está **inativo, suspenso ou desabilitado**. Isso pode aco
 
 ### **Erro "dynamic use static key":**
 O projeto está configurado para usar **token dinâmico**, mas você está tentando usar apenas o **App ID** (sem token).
+
+### **Erro "unknown error":**
+Geralmente indica que:
+- O **App ID está incorreto ou inválido**
+- O projeto não existe ou foi deletado
+- Há problemas de conectividade com os servidores do Agora.io
+- O App ID não está sendo carregado corretamente do `.env`
+
+---
+
+## 🔍 **DIAGNÓSTICO RÁPIDO (Para erro "unknown error"):**
+
+Antes de tentar outras soluções, verifique:
+
+### **1. Verificar se o App ID está no `.env`:**
+```bash
+# No terminal, verifique se o arquivo .env existe e contém:
+VITE_AGORA_APP_ID=1e4cb25acbd349c6a540d0c0e1b13931
+```
+
+### **2. Verificar se o App ID está sendo carregado:**
+1. Abra o console do navegador (F12)
+2. No console, digite:
+   ```javascript
+   console.log('App ID:', import.meta.env.VITE_AGORA_APP_ID);
+   ```
+3. **Se aparecer `undefined`**, o App ID não está sendo carregado. Soluções:
+   - Certifique-se de que o arquivo `.env` está na raiz do projeto
+   - Reinicie o servidor de desenvolvimento (`npm run dev`)
+   - Limpe o cache do navegador (Ctrl+Shift+R)
+
+### **3. Verificar se o App ID está correto:**
+1. Acesse: https://console.agora.io/
+2. Faça login
+3. Vá em "Projects" → Procure pelo projeto com App ID: `1e4cb25acbd349c6a540d0c0e1b13931`
+4. **Se o projeto não existir**, você precisa:
+   - Criar um novo projeto
+   - Ou usar o App ID de um projeto existente
+
+### **4. Verificar status do projeto no Agora.io:**
+- O projeto deve estar **ATIVO**
+- Não deve estar suspenso ou desabilitado
+- Verifique se há avisos ou notificações no dashboard
 
 ---
 
@@ -82,7 +131,7 @@ O projeto está configurado para usar **token dinâmico**, mas você está tenta
 
 7. **Adicione no `.env`:**
    ```env
-   VITE_AGORA_APP_ID=1515b93d1aab4fb5ae15c91e9557585d
+   VITE_AGORA_APP_ID=1e4cb25acbd349c6a540d0c0e1b13931
    VITE_AGORA_TOKEN=cole-o-token-gerado-aqui
    ```
 
@@ -133,7 +182,7 @@ O projeto está configurado para usar **token dinâmico**, mas você está tenta
 
 3. **Atualize o `.env`:**
    ```env
-   VITE_AGORA_APP_ID=novo-app-id-aqui
+   VITE_AGORA_APP_ID=1e4cb25acbd349c6a540d0c0e1b13931
    # Não precisa de VITE_AGORA_TOKEN para este projeto
    ```
 
