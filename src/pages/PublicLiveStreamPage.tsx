@@ -142,9 +142,6 @@ const PublicLiveStreamPage: React.FC = () => {
     });
   }, [isDockedChat, isMobile, isFullscreen, isLandscape, isChatOpen]);
 
-  // Debug visual: mostrar estado na tela (apenas em desenvolvimento)
-  const [showDebug, setShowDebug] = useState(false);
-
   // Adicionar classe CSS no body quando estiver em paisagem (para CSS aplicar estilos)
   useEffect(() => {
     if (isLandscape) {
