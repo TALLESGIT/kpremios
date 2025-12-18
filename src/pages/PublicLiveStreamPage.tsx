@@ -828,10 +828,11 @@ const PublicLiveStreamPage: React.FC = () => {
               ref={videoContainerRef}
               className={`bg-black rounded-lg overflow-hidden relative ${
                 isMobile ? 'mobile-video-container' : ''
-              }`}
+              } ${isDockedChat ? 'docked-chat-active' : ''}`}
               style={{ 
                 aspectRatio: (isMobile && isFullscreen) ? undefined : '16/9',
                 // Garantir que em mobile fullscreen mantenha proporção
+                // NOTA: display e flexDirection são controlados pelo CSS via classe docked-chat-active
                 ...(isMobile && isFullscreen ? {
                   width: '100vw',
                   height: '100dvh',
@@ -840,10 +841,6 @@ const PublicLiveStreamPage: React.FC = () => {
                   left: 0,
                   zIndex: 9999,
                   borderRadius: 0,
-                  display: isDockedChat ? 'flex' : 'block',
-                  flexDirection: isDockedChat ? 'row' : undefined,
-                  alignItems: isDockedChat ? 'stretch' : undefined,
-                  justifyContent: isDockedChat ? 'flex-start' : undefined,
                   overflow: 'hidden'
                 } : {})
               }}

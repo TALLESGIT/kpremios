@@ -76,16 +76,19 @@
 
 /* Orientação paisagem em mobile - CHAT VISÍVEL - VÍDEO DIMINUI */
 @media (orientation: landscape) and (max-width: 768px) {
-  .mobile-video-container:fullscreen {
+  /* Quando o chat está DOCKED (aberto), usar flexbox */
+  .mobile-video-container:fullscreen.docked-chat-active {
     display: flex !important;
     flex-direction: row !important;
     align-items: stretch !important;
     width: 100vw !important;
     height: 100vh !important;
     height: 100dvh !important;
+    overflow: hidden !important;
   }
   
-  .mobile-video-container:fullscreen .zk-video-stage {
+  /* Vídeo ocupa espaço restante quando chat está aberto */
+  .mobile-video-container:fullscreen.docked-chat-active .zk-video-stage {
     flex: 1 !important;
     min-width: 0 !important;
     width: auto !important;
@@ -98,20 +101,14 @@
     transition: flex 0.3s ease !important;
   }
   
-  /* Quando o chat está aberto, o vídeo ocupa menos espaço */
-  .mobile-video-container:fullscreen:has(.chat-overlay-mobile) .zk-video-stage {
-    flex: 1 !important;
-    min-width: 0 !important;
-  }
-  
-  .mobile-video-container:fullscreen .zk-video-fg,
-  .mobile-video-container:fullscreen .zk-video-bg {
+  .mobile-video-container:fullscreen.docked-chat-active .zk-video-fg,
+  .mobile-video-container:fullscreen.docked-chat-active .zk-video-bg {
     width: 100% !important;
     height: 100% !important;
   }
   
   /* Chat docked - lado a lado com o vídeo */
-  .mobile-video-container:fullscreen .chat-overlay-mobile {
+  .mobile-video-container:fullscreen.docked-chat-active .chat-overlay-mobile {
     position: relative !important;
     width: clamp(280px, 35vw, 380px) !important;
     min-width: 280px !important;
@@ -125,6 +122,18 @@
     display: flex !important;
     flex-direction: column !important;
     transition: width 0.3s ease !important;
+  }
+  
+  /* Quando chat NÃO está aberto, vídeo ocupa 100% */
+  .mobile-video-container:fullscreen:not(.docked-chat-active) {
+    display: block !important;
+  }
+  
+  .mobile-video-container:fullscreen:not(.docked-chat-active) .zk-video-stage {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
   }
   
   /* Garantir que o chat seja visível em fullscreen paisagem (fallback para overlay) */
