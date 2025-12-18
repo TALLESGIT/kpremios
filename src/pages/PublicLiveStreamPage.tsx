@@ -131,6 +131,18 @@ const PublicLiveStreamPage: React.FC = () => {
   const isDockedChat = isMobile && isFullscreen && isLandscape && isChatOpen;
   const effectiveVideoFitMode: 'contain' | 'cover' = isDockedChat ? 'contain' : videoFitMode;
 
+  // Adicionar classe CSS no body quando estiver em paisagem (para CSS aplicar estilos)
+  useEffect(() => {
+    if (isLandscape) {
+      document.body.classList.add('landscape');
+    } else {
+      document.body.classList.remove('landscape');
+    }
+    return () => {
+      document.body.classList.remove('landscape');
+    };
+  }, [isLandscape]);
+
   const scheduleHideControls = (delayMs: number) => {
     if (controlsHideTimerRef.current) {
       window.clearTimeout(controlsHideTimerRef.current);
@@ -830,7 +842,9 @@ const PublicLiveStreamPage: React.FC = () => {
                   borderRadius: 0,
                   display: isDockedChat ? 'flex' : 'block',
                   flexDirection: isDockedChat ? 'row' : undefined,
-                  alignItems: isDockedChat ? 'stretch' : undefined
+                  alignItems: isDockedChat ? 'stretch' : undefined,
+                  justifyContent: isDockedChat ? 'flex-start' : undefined,
+                  overflow: 'hidden'
                 } : {})
               }}
               onClick={() => {
@@ -881,7 +895,18 @@ const PublicLiveStreamPage: React.FC = () => {
                 className="zk-video-stage"
                 style={
                   isDockedChat
-                    ? { position: 'relative', flex: 1, height: '100%', minWidth: 0, background: 'black' }
+                    ? { 
+                        position: 'relative', 
+                        flex: 1, 
+                        height: '100%', 
+                        minWidth: 0, 
+                        maxWidth: '100%',
+                        background: 'black',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'flex 0.3s ease'
+                      }
                     : { position: 'absolute', inset: 0 }
                 }
               >
@@ -948,11 +973,17 @@ const PublicLiveStreamPage: React.FC = () => {
                     className="bg-slate-900 shadow-2xl flex flex-col chat-overlay-mobile"
                     style={{
                       position: 'relative',
-                      width: 'clamp(260px, 35vw, 340px)',
+                      width: 'clamp(280px, 35vw, 380px)',
+                      minWidth: '280px',
+                      maxWidth: '380px',
                       height: '100%',
-                      zIndex: 2147483647,
+                      flexShrink: 0,
+                      zIndex: 1,
                       pointerEvents: 'auto',
-                      borderLeft: '1px solid rgba(148, 163, 184, 0.25)'
+                      borderLeft: '1px solid rgba(148, 163, 184, 0.25)',
+                      background: 'rgba(15, 23, 42, 0.98)',
+                      backdropFilter: 'blur(10px)',
+                      transition: 'width 0.3s ease'
                     }}
                   >
                     <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-800">

@@ -11,7 +11,7 @@
 /* Fullscreen mobile - SEM CORTAR O VÍDEO - FORÇAR CONTAIN EM TUDO */
 @media (max-width: 768px) {
   .mobile-video-container:fullscreen {
-    display: flex !important;
+    display: block !important;
     align-items: center !important;
     justify-content: center !important;
     background: black !important;
@@ -19,6 +19,13 @@
     margin: 0 !important;
     overflow: hidden !important;
     height: 100dvh !important;
+  }
+  
+  /* Quando o chat está aberto em paisagem, usar flexbox */
+  .mobile-video-container:fullscreen:has(.chat-overlay-mobile) {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: stretch !important;
   }
 
   /*
@@ -67,15 +74,60 @@
   }
 }
 
-/* Orientação paisagem em mobile - CHAT VISÍVEL */
+/* Orientação paisagem em mobile - CHAT VISÍVEL - VÍDEO DIMINUI */
 @media (orientation: landscape) and (max-width: 768px) {
+  .mobile-video-container:fullscreen {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: stretch !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+  }
+  
+  .mobile-video-container:fullscreen .zk-video-stage {
+    flex: 1 !important;
+    min-width: 0 !important;
+    width: auto !important;
+    height: 100% !important;
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: black !important;
+    transition: flex 0.3s ease !important;
+  }
+  
+  /* Quando o chat está aberto, o vídeo ocupa menos espaço */
+  .mobile-video-container:fullscreen:has(.chat-overlay-mobile) .zk-video-stage {
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+  
   .mobile-video-container:fullscreen .zk-video-fg,
   .mobile-video-container:fullscreen .zk-video-bg {
     width: 100% !important;
     height: 100% !important;
   }
   
-  /* Garantir que o chat seja visível em fullscreen paisagem */
+  /* Chat docked - lado a lado com o vídeo */
+  .mobile-video-container:fullscreen .chat-overlay-mobile {
+    position: relative !important;
+    width: clamp(280px, 35vw, 380px) !important;
+    min-width: 280px !important;
+    max-width: 380px !important;
+    height: 100% !important;
+    flex-shrink: 0 !important;
+    z-index: 1 !important;
+    background: rgba(15, 23, 42, 0.98) !important;
+    backdrop-filter: blur(10px) !important;
+    border-left: 1px solid rgba(148, 163, 184, 0.25) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    transition: width 0.3s ease !important;
+  }
+  
+  /* Garantir que o chat seja visível em fullscreen paisagem (fallback para overlay) */
   .mobile-video-container:fullscreen .chat-overlay {
     position: fixed !important;
     right: 0 !important;
