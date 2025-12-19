@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import ZKViewer from '../components/ZKViewer';
 import LiveChat from '../components/live/LiveChat';
+import MobileLiveControls from '../components/live/MobileLiveControls';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 
@@ -32,10 +33,9 @@ const PublicLiveStreamPage: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
   const [videoFitMode, setVideoFitMode] = useState<'contain' | 'cover'>('contain');
-  const [controlsVisible, setControlsVisible] = useState(true);
+  const [, setControlsVisible] = useState(true);
   const controlsHideTimerRef = useRef<number | null>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
-  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [showStreamContent, setShowStreamContent] = useState(false);
   const [sessionId] = useState(() => {
     const storageKey = `live_session_${channelName}`;
@@ -111,9 +111,24 @@ const PublicLiveStreamPage: React.FC = () => {
     if (!isFullscreen) setVideoFitMode('contain');
   }, [isMobile, isFullscreen, isLandscape]);
 
-  useEffect(() => {
-    if (isDockedChat) setVideoFitMode('contain');
-  }, [isDockedChat]);
+  const toggleFullscreen = () => {
+    if (!videoContainerRef.current) return;
+    if (!isFullscreen) {
+      if (videoContainerRef.current.requestFullscreen) {
+        videoContainerRef.current.requestFullscreen();
+      } else if ((videoContainerRef.current as any).webkitRequestFullscreen) {
+        (videoContainerRef.current as any).webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
+      }
+    }
+  };
+
+  const toggleChat = () => setIsChatOpen(!isChatOpen);
 
   useEffect(() => {
     if (!isMobile) { setControlsVisible(true); return; }
@@ -129,7 +144,15 @@ const PublicLiveStreamPage: React.FC = () => {
       if (!isFullscreenNow) setIsChatOpen(false);
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+
+    // Listen to custom chat events from MobileLiveControls
+    const handleToggleChat = () => setIsChatOpen(prev => !prev);
+    window.addEventListener('toggle-chat', handleToggleChat);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      window.removeEventListener('toggle-chat', handleToggleChat);
+    };
   }, []);
 
   useEffect(() => {
@@ -318,18 +341,47 @@ const PublicLiveStreamPage: React.FC = () => {
               <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/20 to-emerald-600/20 rounded-[2.5rem] blur opacity-0 group-hover/video:opacity-100 transition-opacity duration-1000"></div>
               <div
                 ref={videoContainerRef}
-                className="relative bg-black rounded-[2rem] lg:rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl isolate"
+                className={`relative bg-black rounded-[2rem] lg:rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl isolate mobile-video-container ${isDockedChat ? 'docked-chat-active' : ''}`}
                 style={{ aspectRatio: (isMobile && isFullscreen) ? undefined : '16/9' }}
+                onClick={() => isMobile && setControlsVisible(true)}
               >
-                {showStreamContent ? (
-                  <ZKViewer channel="ZkPremios" fitMode={effectiveVideoFitMode} enabled={stream.is_active} />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-slate-900/40">
-                    <div className="text-center space-y-4">
-                      <div className="w-20 h-20 mx-auto rounded-3xl bg-slate-800/50 border border-white/5 flex items-center justify-center">
-                        <MonitorPlay className="w-10 h-10 text-slate-500" />
+                <div className="zk-video-stage w-full h-full relative overflow-hidden">
+                  {showStreamContent ? (
+                    <ZKViewer channel="ZkPremios" fitMode={effectiveVideoFitMode} enabled={stream.is_active} />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-slate-900/40">
+                      <div className="text-center space-y-4">
+                        <div className="w-20 h-20 mx-auto rounded-3xl bg-slate-800/50 border border-white/5 flex items-center justify-center">
+                          <MonitorPlay className="w-10 h-10 text-slate-500" />
+                        </div>
+                        <p className="text-slate-400 font-black uppercase tracking-widest text-xs italic">Aguardando Transmissão...</p>
                       </div>
-                      <p className="text-slate-400 font-black uppercase tracking-widest text-xs italic">Aguardando Transmissão...</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Mobile Controls Overlay */}
+                {isMobile && (
+                  <MobileLiveControls
+                    onFullscreen={toggleFullscreen}
+                    onRotate={() => setIsLandscape(!isLandscape)}
+                    isFullscreen={isFullscreen}
+                    isActive={stream.is_active}
+                    containerRef={videoContainerRef}
+                  />
+                )}
+
+                {/* Inline Chat for Landscape Fullscreen (Docked) */}
+                {isDockedChat && (
+                  <div className="chat-overlay-mobile flex flex-col bg-slate-900 border-l border-white/10 w-[350px] pointer-events-auto">
+                    <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                      <span className="text-xs font-black uppercase tracking-widest">Chat ao Vivo</span>
+                      <button onClick={() => setIsChatOpen(false)} className="p-2 hover:bg-white/5 rounded-lg">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <LiveChat streamId={stream.id} isAdmin={false} />
                     </div>
                   </div>
                 )}

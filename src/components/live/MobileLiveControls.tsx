@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Maximize2, RotateCw, X, Minimize2, PictureInPicture } from 'lucide-react';
+import { Maximize2, RotateCw, X, Minimize2, PictureInPicture, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface MobileLiveControlsProps {
@@ -16,8 +16,8 @@ interface MobileLiveControlsProps {
   isActive?: boolean; // Se a transmissão está ativa
 }
 
-const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({ 
-  onFullscreen, 
+const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
+  onFullscreen,
   onRotate,
   onMinimize,
   onPictureInPicture,
@@ -33,12 +33,12 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
   const [isMobile, setIsMobile] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const timeoutRef = useRef<number | null>(null);
-  
+
   useEffect(() => {
     // Detectar se é mobile
     const checkMobile = () => {
-      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
-                    window.innerWidth <= 768;
+      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+        window.innerWidth <= 768;
       setIsMobile(mobile);
       // Em desktop, controles ficam sempre visíveis (exceto em fullscreen)
       if (!mobile) {
@@ -50,13 +50,13 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
         }
       }
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    
+
     return () => window.removeEventListener('resize', checkMobile);
   }, [isFullscreen]);
-  
+
   const showControls = useCallback(() => {
     setVisible(true);
     if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
@@ -66,12 +66,12 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
     }
     onTouchStart?.();
   }, [onTouchStart, isMobile, isFullscreen]);
-  
+
   useEffect(() => {
     if (isMobile) {
       // Auto-hide controls após 3 segundos (estilo YouTube) - apenas mobile
       showControls();
-      
+
       // Mostrar controles ao tocar na tela (apenas no container do vídeo)
       const handleTouchStart = (e: TouchEvent) => {
         // Verificar se o toque foi dentro do container do vídeo
@@ -79,15 +79,15 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
           showControls();
         }
       };
-      
+
       // Também mostrar ao tocar diretamente nos controles
       const handleClick = () => {
         showControls();
       };
-      
+
       document.addEventListener('touchstart', handleTouchStart);
       document.addEventListener('click', handleClick);
-      
+
       return () => {
         if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
         document.removeEventListener('touchstart', handleTouchStart);
@@ -98,16 +98,16 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
       if (isFullscreen) {
         // Em fullscreen, ocultar por padrão e mostrar ao clicar
         setVisible(false);
-        
+
         const handleClick = (e: MouseEvent) => {
           // Verificar se o clique foi dentro do container do vídeo
           if (containerRef?.current && containerRef.current.contains(e.target as Node)) {
             showControls();
           }
         };
-        
+
         document.addEventListener('click', handleClick);
-        
+
         return () => {
           if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
           document.removeEventListener('click', handleClick);
@@ -143,23 +143,49 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            transition={{ 
-              type: "spring", 
-              stiffness: 300, 
+            transition={{
+              type: "spring",
+              stiffness: 300,
               damping: 30,
               duration: 0.3
             }}
             className="absolute bottom-1 right-4 flex items-center gap-3 pointer-events-auto"
           >
+            {/* Botão de Chat (apenas mobile) */}
+            {isMobile && (
+              <motion.button
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 200,
+                  damping: 20,
+                  delay: 0.1
+                }}
+                whileTap={{ scale: 0.9 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Encontrar a função toggleChat via hack de evento ou disparar um evento customizado
+                  // Por simplicidade, vamos disparar um evento que a página de live escuta
+                  window.dispatchEvent(new CustomEvent('toggle-chat'));
+                  showControls();
+                }}
+                className="bg-black/20 backdrop-blur-sm text-white p-3 rounded-full hover:bg-black/40 transition-colors"
+                aria-label="Toggle Chat"
+              >
+                <MessageSquare className="w-5 h-5" />
+              </motion.button>
+            )}
+
             {/* Botão Rotate - desabilitado quando zoom travado (apenas mobile) */}
             {/* Serve para rotacionar o vídeo quando está em fullscreen no mobile */}
             {!isZoomLocked && isMobile && (
               <motion.button
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ 
-                  type: "spring", 
-                  stiffness: 200, 
+                transition={{
+                  type: "spring",
+                  stiffness: 200,
                   damping: 20,
                   delay: 0.15
                 }}
@@ -182,9 +208,9 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
               <motion.button
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ 
-                  type: "spring", 
-                  stiffness: 200, 
+                transition={{
+                  type: "spring",
+                  stiffness: 200,
                   damping: 20,
                   delay: isMobile ? 0.25 : 0
                 }}
@@ -206,9 +232,9 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
             <motion.button
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ 
-                type: "spring", 
-                stiffness: 200, 
+              transition={{
+                type: "spring",
+                stiffness: 200,
                 damping: 20,
                 delay: isMobile ? 0.2 : 0
               }}
@@ -231,9 +257,9 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
               <motion.button
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ 
-                  type: "spring", 
-                  stiffness: 200, 
+                transition={{
+                  type: "spring",
+                  stiffness: 200,
                   damping: 20,
                   delay: 0.25
                 }}
@@ -252,16 +278,16 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
-      
+
       {/* Badge AO VIVO - Sempre no canto superior esquerdo (desktop e mobile) */}
       {isActive && (
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.8 }}
-          transition={{ 
-            type: "spring", 
-            stiffness: 200, 
+          transition={{
+            type: "spring",
+            stiffness: 200,
             damping: 20
           }}
           className="absolute top-3 left-3 md:top-4 md:left-4 z-50 pointer-events-auto"
