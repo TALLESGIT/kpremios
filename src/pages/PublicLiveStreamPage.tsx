@@ -10,6 +10,7 @@ import LiveChat from '../components/live/LiveChat';
 import MobileLiveControls from '../components/live/MobileLiveControls';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import { CruzeiroGame, CruzeiroStanding } from '../types';
 
 interface LiveStream {
   id: string;
@@ -46,23 +47,42 @@ const PublicLiveStreamPage: React.FC = () => {
     return newSessionId;
   });
 
-  // Mock data for Cruzeiro features
-  const upcomingGames = [
-    { opponent: 'Atlético-MG', date: 'Dom, 22/12', time: '16:00', competition: 'Brasileirão', stadium: 'Mineirão', logo: 'https://upload.wikimedia.org/wikipedia/pt/d/de/Clube_Atl%C3%A9tico_Mineiro_logo.svg' },
-    { opponent: 'Flamengo', date: 'Qua, 25/12', time: '21:30', competition: 'Brasileirão', stadium: 'Maracanã', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2e/Flamengo_braz_logo.svg' }
-  ];
-
-  const championshipTable = [
-    { pos: 1, team: 'Cruzeiro', pts: 72, v: 22, e: 6, d: 4 },
-    { pos: 2, team: 'Botafogo', pts: 70, v: 21, e: 7, d: 4 },
-    { pos: 3, team: 'Palmeiras', pts: 68, v: 20, e: 8, d: 4 },
-    { pos: 4, team: 'Fortaleza', pts: 65, v: 19, e: 8, d: 5 }
-  ];
+  const [upcomingGames, setUpcomingGames] = useState<CruzeiroGame[]>([]);
+  const [standings, setStandings] = useState<CruzeiroStanding[]>([]);
+  const [competitions, setCompetitions] = useState<string[]>([]);
 
   useEffect(() => {
-    if (channelName) loadStream();
+    if (channelName) {
+      loadStream();
+      loadZkTVData();
+    }
     return () => { if (stream) endViewerSession(); };
   }, [channelName]);
+
+  const loadZkTVData = async () => {
+    try {
+      const { data: games } = await supabase
+        .from('cruzeiro_games')
+        .select('*')
+        .eq('status', 'upcoming')
+        .order('date', { ascending: true })
+        .limit(3);
+
+      const { data: table } = await supabase
+        .from('cruzeiro_standings')
+        .select('*')
+        .order('position', { ascending: true });
+
+      if (games) setUpcomingGames(games);
+      if (table) {
+        setStandings(table);
+        const uniqueCompetitions = Array.from(new Set(table.map(s => s.competition)));
+        setCompetitions(uniqueCompetitions);
+      }
+    } catch (error) {
+      console.error('Error loading ZK TV data:', error);
+    }
+  };
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -76,20 +96,29 @@ const PublicLiveStreamPage: React.FC = () => {
       setIsMobile(mobile);
       setIsLandscape(window.innerWidth > window.innerHeight);
     };
-    const handleOrientationChange = () => {
+
+    const handleRotation = () => {
       if (!isMobile) return;
-      setTimeout(() => {
-        const landscape = window.innerWidth > window.innerHeight;
-        setIsLandscape(landscape);
-        if (landscape && !isFullscreen && videoContainerRef.current) videoContainerRef.current.requestFullscreen?.();
-      }, 300);
+      const landscape = window.innerWidth > window.innerHeight;
+      setIsLandscape(landscape);
+
+      // Fullscreen Automático ao Rotacionar para Paisagem
+      if (landscape && !isFullscreen && videoContainerRef.current) {
+        const el = videoContainerRef.current;
+        if (el.requestFullscreen) el.requestFullscreen();
+        else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
+      }
     };
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    window.addEventListener('orientationchange', handleOrientationChange);
+    window.addEventListener('resize', handleRotation);
+    window.addEventListener('orientationchange', handleRotation);
+
     return () => {
       window.removeEventListener('resize', checkMobile);
-      window.removeEventListener('orientationchange', handleOrientationChange);
+      window.removeEventListener('resize', handleRotation);
+      window.removeEventListener('orientationchange', handleRotation);
     };
   }, [isMobile, isFullscreen]);
 
@@ -393,54 +422,67 @@ const PublicLiveStreamPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Stream Info Info Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="glass-panel-dark p-6 rounded-3xl space-y-4 border border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                    <Calendar className="w-5 h-5 text-blue-400" />
-                  </div>
-                  <h3 className="text-white font-black uppercase tracking-widest text-xs italic">Próximos Jogos</h3>
-                </div>
-                <div className="space-y-3">
-                  {upcomingGames.map((game, i) => (
-                    <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
-                      <div className="flex items-center gap-4">
-                        <img src={game.logo} alt={game.opponent} className="w-10 h-10 object-contain brightness-110" />
-                        <div>
-                          <p className="text-white font-black text-sm uppercase tracking-tight">Cruzeiro x {game.opponent}</p>
-                          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">{game.date} • {game.time}</p>
+            {/* Stream Info Info Cards - Dinâmicos e Ocultáveis */}
+            {(upcomingGames.length > 0 || standings.length > 0) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {upcomingGames.length > 0 && (
+                  <div className="glass-panel-dark p-6 rounded-3xl space-y-4 border border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                        <Calendar className="w-5 h-5 text-blue-400" />
+                      </div>
+                      <h3 className="text-white font-black uppercase tracking-widest text-xs italic">Próximos Jogos</h3>
+                    </div>
+                    <div className="space-y-3">
+                      {upcomingGames.map((game) => (
+                        <div key={game.id} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
+                          <div className="flex items-center gap-4">
+                            {game.opponent_logo ? (
+                              <img src={game.opponent_logo} alt={game.opponent} className="w-10 h-10 object-contain brightness-110" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-xs font-black text-slate-500 border border-white/5">VS</div>
+                            )}
+                            <div>
+                              <p className="text-white font-black text-sm uppercase tracking-tight">{game.is_home ? 'Cruzeiro' : game.opponent} x {game.is_home ? game.opponent : 'Cruzeiro'}</p>
+                              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                                {new Date(game.date).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })} • {new Date(game.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors" />
                         </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors" />
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="glass-panel-dark p-6 rounded-3xl space-y-4 border border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                    <Trophy className="w-5 h-5 text-emerald-400" />
                   </div>
-                  <h3 className="text-white font-black uppercase tracking-widest text-xs italic">Tabela do Brasileirão</h3>
-                </div>
-                <div className="space-y-2">
-                  {championshipTable.map((team, i) => (
-                    <div key={i} className={`flex items-center justify-between p-3 rounded-xl ${team.team === 'Cruzeiro' ? 'bg-blue-600/20 border border-blue-500/20' : 'bg-white/5 border border-transparent'}`}>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-black text-slate-500 w-4">{team.pos}º</span>
-                        <span className={`text-xs font-black uppercase tracking-tight ${team.team === 'Cruzeiro' ? 'text-blue-400' : 'text-slate-300'}`}>{team.team}</span>
+                )}
+
+                {standings.length > 0 && competitions.map(comp => (
+                  <div key={comp} className="glass-panel-dark p-6 rounded-3xl space-y-4 border border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                        <Trophy className="w-5 h-5 text-emerald-400" />
                       </div>
-                      <div className="flex gap-4">
-                        <div className="text-center min-w-[24px]"><p className="text-[8px] text-slate-500 uppercase font-black mb-0.5">PTS</p><p className="text-xs font-black text-white">{team.pts}</p></div>
-                        <div className="text-center min-w-[24px]"><p className="text-[8px] text-slate-500 uppercase font-black mb-0.5">V</p><p className="text-xs font-black text-slate-400">{team.v}</p></div>
-                      </div>
+                      <h3 className="text-white font-black uppercase tracking-widest text-xs italic">Tabela {comp}</h3>
                     </div>
-                  ))}
-                </div>
+                    <div className="space-y-2">
+                      {standings.filter(s => s.competition === comp).map((team) => (
+                        <div key={team.id} className={`flex items-center justify-between p-3 rounded-xl ${team.is_cruzeiro ? 'bg-blue-600/20 border border-blue-500/20' : 'bg-white/5 border border-transparent'}`}>
+                          <div className="flex items-center gap-3">
+                            <span className="text-[10px] font-black text-slate-500 w-4">{team.position}º</span>
+                            {team.logo && <img src={team.logo} alt={team.team} className="w-4 h-4 object-contain" />}
+                            <span className={`text-xs font-black uppercase tracking-tight ${team.is_cruzeiro ? 'text-blue-400' : 'text-slate-300'}`}>{team.team}</span>
+                          </div>
+                          <div className="flex gap-4">
+                            <div className="text-center min-w-[24px]"><p className="text-[8px] text-slate-500 uppercase font-black mb-0.5">PTS</p><p className="text-xs font-black text-white">{team.points}</p></div>
+                            <div className="text-center min-w-[24px]"><p className="text-[8px] text-slate-500 uppercase font-black mb-0.5">V</p><p className="text-xs font-black text-slate-400">{team.won}</p></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
+            )}
           </div>
 
           {/* Chat Sidebar Area */}
