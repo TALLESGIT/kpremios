@@ -9,7 +9,7 @@
 }
 
 /* Fullscreen mobile - SEM CORTAR O VÍDEO - FORÇAR CONTAIN EM TUDO */
-@media (max-width: 768px) {
+@media (max-width: 1280px) {
   .mobile-video-container:fullscreen {
     display: block !important;
     align-items: center !important;
@@ -20,7 +20,7 @@
     overflow: hidden !important;
     height: 100dvh !important;
   }
-  
+
   /* Quando o chat está aberto em paisagem, usar flexbox */
   .mobile-video-container:fullscreen:has(.chat-overlay-mobile) {
     display: flex !important;
@@ -50,7 +50,7 @@
     object-fit: cover !important;
     object-position: center !important;
   }
-  
+
   /* Forçar contain em TODOS os elementos de vídeo do Agora SDK */
   .mobile-video-container:fullscreen [class*="agora"],
   .mobile-video-container:fullscreen [id*="agora"],
@@ -59,13 +59,13 @@
     object-fit: contain !important;
     object-position: center !important;
   }
-  
+
   /* FORÇAR contain apenas no FOREGROUND (não mexer no background desfocado) */
   .mobile-video-container:fullscreen .zk-video-fg video[style*="object-fit"],
   .mobile-video-container:fullscreen .zk-video-fg div[style*="object-fit"] {
     object-fit: contain !important;
   }
-  
+
   /* Remover transform apenas no FOREGROUND (background precisa do scale p/ preencher) */
   .mobile-video-container:fullscreen .zk-video-fg video,
   .mobile-video-container:fullscreen .zk-video-fg video * {
@@ -75,7 +75,8 @@
 }
 
 /* Orientação paisagem em mobile - CHAT VISÍVEL - VÍDEO DIMINUI */
-@media (orientation: landscape) and (max-width: 768px) {
+@media (orientation: landscape) and (max-width: 1280px) {
+
   /* Quando o chat está DOCKED (aberto), usar flexbox */
   .mobile-video-container:fullscreen.docked-chat-active {
     display: flex !important;
@@ -86,7 +87,7 @@
     height: 100dvh !important;
     overflow: hidden !important;
   }
-  
+
   /* Vídeo ocupa espaço restante quando chat está aberto */
   .mobile-video-container:fullscreen.docked-chat-active .zk-video-stage {
     flex: 1 !important;
@@ -100,13 +101,13 @@
     background: black !important;
     transition: flex 0.3s ease !important;
   }
-  
+
   .mobile-video-container:fullscreen.docked-chat-active .zk-video-fg,
   .mobile-video-container:fullscreen.docked-chat-active .zk-video-bg {
     width: 100% !important;
     height: 100% !important;
   }
-  
+
   /* Chat docked - lado a lado com o vídeo */
   .mobile-video-container:fullscreen.docked-chat-active .chat-overlay-mobile {
     position: relative !important;
@@ -123,19 +124,19 @@
     flex-direction: column !important;
     transition: width 0.3s ease !important;
   }
-  
+
   /* Quando chat NÃO está aberto, vídeo ocupa 100% */
   .mobile-video-container:fullscreen:not(.docked-chat-active) {
     display: block !important;
   }
-  
+
   .mobile-video-container:fullscreen:not(.docked-chat-active) .zk-video-stage {
     position: absolute !important;
     inset: 0 !important;
     width: 100% !important;
     height: 100% !important;
   }
-  
+
   /* Garantir que o chat seja visível em fullscreen paisagem (fallback para overlay) */
   .mobile-video-container:fullscreen .chat-overlay {
     position: fixed !important;
@@ -149,7 +150,7 @@
     backdrop-filter: blur(10px) !important;
     pointer-events: auto !important;
   }
-  
+
   /* Botão de chat em fullscreen paisagem */
   .mobile-video-container:fullscreen .chat-button {
     position: fixed !important;
@@ -161,7 +162,7 @@
 }
 
 /* Orientação retrato em mobile */
-@media (orientation: portrait) and (max-width: 768px) {
+@media (orientation: portrait) and (max-width: 1280px) {
   .mobile-video-container:fullscreen .zk-video-fg video {
     width: 100% !important;
     height: 100% !important;
@@ -195,8 +196,8 @@ body:-ms-fullscreen .fixed {
 }
 
 /* Garantir que backdrop e chat panel funcionem em fullscreen */
-.mobile-video-container:fullscreen ~ div[style*="z-index: 9998"],
-.mobile-video-container:fullscreen ~ div[style*="z-index: 9999"] {
+.mobile-video-container:fullscreen~div[style*="z-index: 9998"],
+.mobile-video-container:fullscreen~div[style*="z-index: 9999"] {
   position: fixed !important;
   z-index: 99999 !important;
 }
@@ -219,7 +220,8 @@ body:-ms-fullscreen .fixed {
   right: 0 !important;
   bottom: 0 !important;
   height: 100vh !important;
-  height: 100dvh !important; /* Dynamic viewport height para mobile */
+  height: 100dvh !important;
+  /* Dynamic viewport height para mobile */
   z-index: 2147483647 !important;
   pointer-events: auto !important;
   display: flex !important;
@@ -227,14 +229,14 @@ body:-ms-fullscreen .fixed {
 }
 
 /* Garantir que o chat funcione em fullscreen - TODAS AS VARIAÇÕES */
-*:fullscreen ~ .chat-overlay-mobile,
-*:fullscreen ~ div .chat-overlay-mobile,
-*:-webkit-full-screen ~ .chat-overlay-mobile,
-*:-webkit-full-screen ~ div .chat-overlay-mobile,
-*:-moz-full-screen ~ .chat-overlay-mobile,
-*:-moz-full-screen ~ div .chat-overlay-mobile,
-*:-ms-fullscreen ~ .chat-overlay-mobile,
-*:-ms-fullscreen ~ div .chat-overlay-mobile {
+*:fullscreen~.chat-overlay-mobile,
+*:fullscreen~div .chat-overlay-mobile,
+*:-webkit-full-screen~.chat-overlay-mobile,
+*:-webkit-full-screen~div .chat-overlay-mobile,
+*:-moz-full-screen~.chat-overlay-mobile,
+*:-moz-full-screen~div .chat-overlay-mobile,
+*:-ms-fullscreen~.chat-overlay-mobile,
+*:-ms-fullscreen~div .chat-overlay-mobile {
   position: fixed !important;
   z-index: 2147483647 !important;
   pointer-events: auto !important;
@@ -252,10 +254,10 @@ body:has(*:-moz-full-screen) div[style*="2147483646"] {
 }
 
 /* Botão de chat em fullscreen - SEMPRE VISÍVEL */
-*:fullscreen ~ * .mobile-chat-button,
-*:-webkit-full-screen ~ * .mobile-chat-button,
-*:-moz-full-screen ~ * .mobile-chat-button,
-*:-ms-fullscreen ~ * .mobile-chat-button,
+*:fullscreen~* .mobile-chat-button,
+*:-webkit-full-screen~* .mobile-chat-button,
+*:-moz-full-screen~* .mobile-chat-button,
+*:-ms-fullscreen~* .mobile-chat-button,
 body:has(*:fullscreen) .mobile-chat-button,
 body:has(*:-webkit-full-screen) .mobile-chat-button {
   position: fixed !important;
@@ -309,10 +311,13 @@ body:has(*:-webkit-full-screen) .mobile-chat-button {
 }
 
 @keyframes swipe-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.6;
     transform: translateY(0);
   }
+
   50% {
     opacity: 0.8;
     transform: translateY(-2px);

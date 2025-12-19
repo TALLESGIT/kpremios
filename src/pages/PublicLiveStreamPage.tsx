@@ -107,9 +107,11 @@ const PublicLiveStreamPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isMobile && isFullscreen && isLandscape) setVideoFitMode('cover');
+    if (isMobile && isFullscreen && isLandscape) {
+      setVideoFitMode(isChatOpen ? 'contain' : 'cover');
+    }
     if (!isFullscreen) setVideoFitMode('contain');
-  }, [isMobile, isFullscreen, isLandscape]);
+  }, [isMobile, isFullscreen, isLandscape, isChatOpen]);
 
   const toggleFullscreen = () => {
     if (!videoContainerRef.current) return;
@@ -373,14 +375,17 @@ const PublicLiveStreamPage: React.FC = () => {
 
                 {/* Inline Chat for Landscape Fullscreen (Docked) */}
                 {isDockedChat && (
-                  <div className="chat-overlay-mobile flex flex-col bg-slate-900 border-l border-white/10 w-[350px] pointer-events-auto">
-                    <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                      <span className="text-xs font-black uppercase tracking-widest">Chat ao Vivo</span>
-                      <button onClick={() => setIsChatOpen(false)} className="p-2 hover:bg-white/5 rounded-lg">
+                  <div className="chat-overlay-mobile flex flex-col bg-slate-900 border-l border-white/10 w-[320px] sm:w-[350px] pointer-events-auto shrink-0 relative z-10">
+                    <div className="p-3 border-b border-white/5 flex items-center justify-between bg-slate-800/50">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white">Chat ao Vivo</span>
+                      </div>
+                      <button onClick={() => setIsChatOpen(false)} className="p-1.5 hover:bg-white/10 rounded-lg text-slate-400">
                         <X className="w-4 h-4" />
                       </button>
                     </div>
-                    <div className="flex-1 overflow-hidden">
+                    <div className="flex-1 overflow-hidden relative">
                       <LiveChat streamId={stream.id} isAdmin={false} />
                     </div>
                   </div>
