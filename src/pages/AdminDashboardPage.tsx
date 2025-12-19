@@ -740,9 +740,9 @@ export default function AdminDashboardPage() {
         </div>
       )}
       
-      <main className="flex-grow w-full">
+      <main className="flex-grow w-full overflow-x-hidden">
         {/* Modern Header */}
-        <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 py-8 sm:py-12 lg:py-16 relative overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 py-6 sm:py-8 lg:py-10 relative overflow-hidden">
           <div className="absolute inset-0 opacity-20">
             <div className="absolute top-0 left-1/4 w-96 h-96 bg-white rounded-full blur-3xl"></div>
             <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-yellow-300 rounded-full blur-3xl"></div>
@@ -758,10 +758,10 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 pt-4 sm:pt-6">
 
           {/* Enhanced Stats Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 -mt-4 sm:-mt-6 lg:-mt-8 mb-6 sm:mb-8 lg:mb-12">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8 lg:mb-12">
             <div className="bg-white overflow-hidden shadow-xl rounded-2xl border-2 border-blue-200">
               <div className="p-3 sm:p-4 lg:p-6">
                 <div className="flex items-center">
