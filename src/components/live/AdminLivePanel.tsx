@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Users, MessageSquare, Eye, TrendingUp, Clock, Copy, Share2 } from 'lucide-react';
-import { toast, Toaster } from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 
 interface AdminLivePanelProps {
   streamId: string;
@@ -267,98 +267,119 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
   };
 
   return (
-    <div className="bg-white p-6">
-      <h3 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2">
-        <TrendingUp className="w-5 h-5 text-blue-600" />
-        Painel de Controle
-      </h3>
+    <div className="p-8">
+      <div className="flex items-center gap-4 mb-10">
+        <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+          <TrendingUp className="w-6 h-6 text-blue-400" />
+        </div>
+        <div>
+          <h3 className="text-2xl font-black text-white uppercase italic">Painel de Métricas</h3>
+          <p className="text-slate-400 text-sm font-medium">Desempenho da transmissão em tempo real</p>
+        </div>
+      </div>
 
       {/* Link da Transmissão */}
-      <div className="mb-6 p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
-        <label className="block text-sm font-bold text-gray-700 mb-2">
+      <div className="mb-10 p-6 rounded-[2rem] bg-slate-900/50 border border-white/5 space-y-4">
+        <label className="text-[10px] font-black text-blue-200/40 uppercase tracking-[0.2em] ml-1">
           Link da Transmissão
         </label>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-3">
           <input
             type="text"
             value={streamLink}
             readOnly
-            className="flex-1 px-4 py-2 bg-white border-2 border-blue-200 text-gray-900 rounded-lg text-sm font-semibold focus:outline-none focus:border-blue-500"
+            className="flex-1 px-5 py-4 bg-slate-800/50 border border-white/5 text-blue-400 rounded-2xl text-sm font-bold focus:outline-none"
           />
-          <button
-            onClick={copyLink}
-            className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white rounded-lg transition-all duration-200 flex items-center gap-2 font-bold shadow-lg"
-            title="Copiar link"
-          >
-            <Copy className="w-4 h-4" />
-          </button>
-          <button
-            onClick={shareLink}
-            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all duration-200 flex items-center gap-2 font-bold shadow-lg"
-            title="Compartilhar link"
-          >
-            <Share2 className="w-4 h-4" />
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={copyLink}
+              className="flex-1 sm:flex-none px-6 py-4 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-2xl border border-blue-600/20 transition-all flex items-center justify-center gap-3 font-black text-xs uppercase"
+              title="Copiar link"
+            >
+              <Copy className="w-4 h-4" />
+              Copiar
+            </button>
+            <button
+              onClick={shareLink}
+              className="flex-1 sm:flex-none px-6 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl border border-white/10 transition-all flex items-center justify-center gap-3 font-black text-xs uppercase"
+              title="Compartilhar link"
+            >
+              <Share2 className="w-4 h-4" />
+              Dividir
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Métricas em Tempo Real */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Viewers Ativos */}
-        <div className="bg-blue-50 rounded-lg p-4 border-2 border-blue-200">
-          <div className="flex items-center gap-2 mb-2">
-            <Eye className="w-5 h-5 text-blue-600" />
-            <span className="text-sm font-bold text-gray-700">Viewers Ativos</span>
+        <div className="glass-panel p-6 rounded-[2rem] border border-blue-500/10 bg-blue-500/5 backdrop-blur-md">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+              <Eye className="w-5 h-5 text-blue-400" />
+            </div>
+            <span className="text-[11px] font-black text-blue-200/60 uppercase tracking-widest">Ativos</span>
           </div>
-          <p className="text-3xl font-black text-gray-900">{viewerCount}</p>
-          <p className="text-xs text-gray-600 mt-1 font-semibold">
-            {stats.totalViewers} total
-          </p>
+          <p className="text-4xl font-black text-white italic">{viewerCount}</p>
+          <div className="mt-2 flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+            <p className="text-[10px] text-blue-300 font-bold uppercase tracking-wider">
+              {stats.totalViewers} Acumulado
+            </p>
+          </div>
         </div>
 
         {/* Mensagens */}
-        <div className="bg-green-50 rounded-lg p-4 border-2 border-green-200">
-          <div className="flex items-center gap-2 mb-2">
-            <MessageSquare className="w-5 h-5 text-green-600" />
-            <span className="text-sm font-bold text-gray-700">Mensagens</span>
+        <div className="glass-panel p-6 rounded-[2rem] border border-emerald-500/10 bg-emerald-500/5 backdrop-blur-md">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+              <MessageSquare className="w-5 h-5 text-emerald-400" />
+            </div>
+            <span className="text-[11px] font-black text-emerald-200/60 uppercase tracking-widest">Mensagens</span>
           </div>
-          <p className="text-3xl font-black text-gray-900">{stats.totalMessages}</p>
-          <p className="text-xs text-gray-600 mt-1 font-semibold">No chat</p>
+          <p className="text-4xl font-black text-white italic">{stats.totalMessages}</p>
+          <p className="mt-2 text-[10px] text-emerald-400/80 font-bold uppercase tracking-wider">No chat ao vivo</p>
         </div>
 
         {/* Sessões Únicas */}
-        <div className="bg-purple-50 rounded-lg p-4 border-2 border-purple-200">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="w-5 h-5 text-purple-600" />
-            <span className="text-sm font-bold text-gray-700">Sessões</span>
+        <div className="glass-panel p-6 rounded-[2rem] border border-purple-500/10 bg-purple-500/5 backdrop-blur-md">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
+              <Users className="w-5 h-5 text-purple-400" />
+            </div>
+            <span className="text-[11px] font-black text-purple-200/60 uppercase tracking-widest">Sessões</span>
           </div>
-          <p className="text-3xl font-black text-gray-900">{stats.uniqueSessions}</p>
-          <p className="text-xs text-gray-600 mt-1 font-semibold">Únicas</p>
+          <p className="text-4xl font-black text-white italic">{stats.uniqueSessions}</p>
+          <p className="mt-2 text-[10px] text-purple-400/80 font-bold uppercase tracking-wider">Únicas totais</p>
         </div>
 
-        {/* Tempo Médio de Visualização */}
-        <div className="bg-yellow-50 rounded-lg p-4 border-2 border-yellow-200">
-          <div className="flex items-center gap-2 mb-2">
-            <Clock className="w-5 h-5 text-yellow-600" />
-            <span className="text-sm font-bold text-gray-700">Tempo Médio</span>
+        {/* Tempo Médio */}
+        <div className="glass-panel p-6 rounded-[2rem] border border-amber-500/10 bg-amber-500/5 backdrop-blur-md">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
+              <Clock className="w-5 h-5 text-amber-400" />
+            </div>
+            <span className="text-[11px] font-black text-amber-200/60 uppercase tracking-widest">Retenção</span>
           </div>
-          <p className="text-2xl font-black text-gray-900">
+          <p className="text-3xl font-black text-white italic">
             {formatTime(stats.avgWatchTime)}
           </p>
-          <p className="text-xs text-gray-600 mt-1 font-semibold">Por viewer</p>
+          <p className="mt-2 text-[10px] text-amber-400/80 font-bold uppercase tracking-wider">Tempo médio</p>
         </div>
 
         {/* Viewers Totais */}
-        <div className="bg-red-50 rounded-lg p-4 border-2 border-red-200">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-5 h-5 text-red-600" />
-            <span className="text-sm font-bold text-gray-700">Total Viewers</span>
+        <div className="glass-panel p-6 rounded-[2rem] border border-rose-500/10 bg-rose-500/5 backdrop-blur-md">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
+              <TrendingUp className="w-5 h-5 text-rose-400" />
+            </div>
+            <span className="text-[11px] font-black text-rose-200/60 uppercase tracking-widest">Alcance</span>
           </div>
-          <p className="text-3xl font-black text-gray-900">{stats.totalViewers}</p>
-          <p className="text-xs text-gray-600 mt-1 font-semibold">Desde o início</p>
+          <p className="text-4xl font-black text-white italic">{stats.totalViewers}</p>
+          <p className="mt-2 text-[10px] text-rose-400/80 font-bold uppercase tracking-wider">Total de visitas</p>
         </div>
       </div>
-      <Toaster position="top-right" />
     </div>
   );
 };

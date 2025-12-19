@@ -6,7 +6,7 @@ import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import { Play, Users, Trophy, Clock, Eye, Gamepad2, ArrowLeft, Hash } from 'lucide-react';
+import { Play, Trophy, Clock, Eye, Gamepad2, ArrowLeft, Hash } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 interface LiveGame {
@@ -46,9 +46,7 @@ export default function LiveGamesPage() {
 
   // Verificar se está logado
   useEffect(() => {
-    // Aguardar o carregamento completo antes de redirecionar
     if (loading) return;
-    
     if (!currentAppUser) {
       navigate('/login');
     }
@@ -59,12 +57,11 @@ export default function LiveGamesPage() {
     loadGames();
   }, []);
 
-  // Fallback: verificar jogos periodicamente (caso a subscription falhe)
+  // Fallback: verificar jogos periodicamente
   useEffect(() => {
     const interval = setInterval(() => {
-
       loadGames();
-    }, 10000); // Verifica a cada 10 segundos
+    }, 10000);
 
     return () => clearInterval(interval);
   }, []);
@@ -73,17 +70,14 @@ export default function LiveGamesPage() {
   useEffect(() => {
     const subscription = supabase
       .channel('live-games-list')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'live_games' 
-      }, (payload) => {
-
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'live_games'
+      }, () => {
         loadGames();
       })
-      .subscribe((status) => {
-
-      });
+      .subscribe();
 
     return () => {
       subscription.unsubscribe();
@@ -92,20 +86,16 @@ export default function LiveGamesPage() {
 
   const loadGames = async () => {
     try {
-
       const { data, error } = await supabase
         .from('live_games')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-
-        throw error;
-      }
+      if (error) throw error;
 
       setGames(data || []);
-    } catch (error) {
-
+    } catch {
+      // Silent error
     } finally {
       setLoading(false);
     }
@@ -127,23 +117,21 @@ export default function LiveGamesPage() {
         .order('lucky_number', { ascending: true });
 
       if (error) throw error;
-      
+
       const formattedParticipants = (data || []).map(p => ({
         ...p,
         user_name: (p.users as unknown as { name: string })?.name || 'Usuário'
       }));
-      
-      setParticipants(formattedParticipants);
-    } catch (error) {
 
+      setParticipants(formattedParticipants);
+    } catch {
+      // Silent error
     }
   };
 
   const handleJoinGame = async (game: LiveGame) => {
-
     setSelectedGame(game);
     await loadParticipants(game.id);
-
     setShowJoinModal(true);
   };
 
@@ -156,13 +144,11 @@ export default function LiveGamesPage() {
       return;
     }
 
-    // Verificar se o jogo ainda está aceitando participantes
     if (selectedGame.status !== 'waiting') {
       toast.error('Este jogo não está mais aceitando participantes');
       return;
     }
 
-    // Verificar se o número já foi escolhido
     const numberTaken = participants.some(p => p.lucky_number === numberValue);
     if (numberTaken) {
       toast.error('Este número já foi escolhido por outro participante');
@@ -185,9 +171,8 @@ export default function LiveGamesPage() {
       toast.success(`Você entrou no jogo com o número ${numberValue}!`);
       setShowJoinModal(false);
       setLuckyNumber('');
-      loadGames(); // Recarregar para atualizar contadores
+      loadGames();
     } catch (error: any) {
-
       if (error.code === '23505') {
         toast.error('Você já está participando deste jogo');
       } else {
@@ -200,11 +185,11 @@ export default function LiveGamesPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'waiting': return 'bg-yellow-400';
-      case 'active': return 'bg-green-500';
-      case 'finished': return 'bg-blue-500';
-      case 'cancelled': return 'bg-red-500';
-      default: return 'bg-gray-500';
+      case 'waiting': return 'bg-accent text-primary-dark border-accent';
+      case 'active': return 'bg-green-500 text-white border-green-400';
+      case 'finished': return 'bg-blue-500 text-white border-blue-400';
+      case 'cancelled': return 'bg-red-500 text-white border-red-400';
+      default: return 'bg-gray-500 text-white';
     }
   };
 
@@ -231,22 +216,20 @@ export default function LiveGamesPage() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => handleJoinGame(game)}
-            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 text-sm sm:text-base shadow-lg shadow-blue-500/25"
+            className="btn btn-primary w-full py-3 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20"
           >
-            <Play className="w-4 h-4" />
-            <span className="hidden sm:inline">Participar</span>
-            <span className="sm:hidden">Entrar</span>
+            <Play className="w-5 h-5" />
+            <span className="font-bold">Participar</span>
           </motion.button>
         ) : (
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => navigate(`/live-games/${game.id}`)}
-            className="bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 text-sm sm:text-base shadow-lg"
+            className="btn btn-outline border-white/20 hover:bg-white/10 text-white w-full py-3 flex items-center justify-center gap-2"
           >
-            <Eye className="w-4 h-4" />
-            <span className="hidden sm:inline">Assistir</span>
-            <span className="sm:hidden">Ver</span>
+            <Eye className="w-5 h-5" />
+            <span className="font-bold">Observar</span>
           </motion.button>
         );
       case 'active':
@@ -254,14 +237,13 @@ export default function LiveGamesPage() {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            animate={{ scale: [1, 1.05, 1] }}
+            animate={{ scale: [1, 1.02, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
             onClick={() => navigate(`/live-games/${game.id}`)}
-            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 text-sm sm:text-base shadow-lg shadow-red-500/25"
+            className="bg-red-600 hover:bg-red-500 text-white px-4 py-3 rounded-xl font-bold transition-all w-full flex items-center justify-center gap-2 shadow-lg shadow-red-600/30"
           >
-            <Eye className="w-4 h-4" />
-            <span className="hidden sm:inline">Ao Vivo</span>
-            <span className="sm:hidden">Live</span>
+            <Eye className="w-5 h-5" />
+            <span>Assistir Live</span>
           </motion.button>
         );
       case 'finished':
@@ -270,11 +252,10 @@ export default function LiveGamesPage() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => navigate(`/live-games/${game.id}`)}
-            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 text-sm sm:text-base shadow-lg"
+            className="btn btn-outline border-white/20 hover:bg-white/10 text-white w-full py-3 flex items-center justify-center gap-2"
           >
-            <Trophy className="w-4 h-4" />
-            <span className="hidden sm:inline">Ver Resultado</span>
-            <span className="sm:hidden">Resultado</span>
+            <Trophy className="w-5 h-5" />
+            <span>Ver Resultado</span>
           </motion.button>
         );
       default:
@@ -284,17 +265,10 @@ export default function LiveGamesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-8">
+      <div className="min-h-screen flex flex-col bg-background">
         <Header />
-        <div className="flex-grow bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="text-center"
-          >
-            <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-blue-600 font-semibold">Carregando...</p>
-          </motion.div>
+        <div className="flex-grow flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-accent"></div>
         </div>
         <Footer />
       </div>
@@ -302,111 +276,66 @@ export default function LiveGamesPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      
+
       <main className="flex-grow w-full">
         {/* Hero Section */}
-        <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 py-8 sm:py-12 lg:py-16 relative overflow-hidden">
-          {/* Animated background elements */}
-          <div className="absolute inset-0 opacity-20">
-            <motion.div
-              className="absolute top-0 left-1/4 w-96 h-96 bg-white rounded-full blur-3xl"
-              animate={{
-                scale: [1, 1.2, 1],
-                opacity: [0.3, 0.5, 0.3],
-              }}
-              transition={{
-                duration: 4,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-            />
-            <motion.div
-              className="absolute bottom-0 right-1/4 w-96 h-96 bg-yellow-300 rounded-full blur-3xl"
-              animate={{
-                scale: [1.2, 1, 1.2],
-                opacity: [0.3, 0.5, 0.3],
-              }}
-              transition={{
-                duration: 4,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: 1
-              }}
-            />
-          </div>
-          
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="relative py-12 lg:py-16 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-dark via-primary to-black opacity-90"></div>
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10"></div>
+
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center z-10">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="text-center"
             >
-              <motion.div
-                className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-2xl"
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <Gamepad2 className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
-              </motion.div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-black text-white mb-4 sm:mb-6 tracking-tight" style={{
-                textShadow: '3px 3px 0px rgba(251, 191, 36, 0.8)',
-              }}>
-                Lives - Resta Um
+              <div className="inline-flex items-center justify-center p-3 bg-gradient-to-br from-accent to-yellow-600 rounded-2xl shadow-xl shadow-accent/20 mb-6 transform -rotate-3">
+                <Gamepad2 className="w-10 h-10 text-white drop-shadow-md" />
+              </div>
+              <h1 className="text-4xl lg:text-6xl font-black text-white mb-4 uppercase tracking-tighter italic">
+                Lives <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-yellow-300">Premiadas</span>
               </h1>
-              <p className="text-lg sm:text-xl text-blue-100 max-w-2xl mx-auto leading-relaxed">
-                Participe das brincadeiras ao vivo e concorra a prêmios!
+              <p className="text-lg text-blue-100 max-w-2xl mx-auto font-light border-l-4 border-accent pl-4 ml-auto mr-auto text-left md:text-center md:border-l-0 md:pl-0">
+                Participe dos jogos ao vivo. A emoção do Cruzeiro agora nas suas mãos.
               </p>
             </motion.div>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 -mt-8 relative z-20">
           {/* Filtros */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="flex justify-center mb-8"
-          >
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-1 flex flex-wrap gap-1 max-w-full shadow-lg border-2 border-blue-200">
+          <div className="flex justify-center mb-8">
+            <div className="glass-panel p-1.5 rounded-2xl flex flex-wrap gap-1 shadow-2xl">
               {[
                 { key: 'all', label: 'Todas' },
                 { key: 'waiting', label: 'Aguardando' },
                 { key: 'active', label: 'Ao Vivo' },
-                { key: 'finished', label: 'Finalizadas' }
+                { key: 'finished', label: 'Encerradas' }
               ].map(({ key, label }) => (
-                <motion.button
+                <button
                   key={key}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
                   onClick={() => setFilter(key as any)}
-                  className={`px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-bold transition-all duration-200 text-sm sm:text-base ${
-                    filter === key
-                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
-                      : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
-                  }`}
+                  className={`px-6 py-2.5 rounded-xl font-bold transition-all duration-300 text-sm md:text-base ${filter === key
+                      ? 'bg-gradient-to-r from-primary to-primary-light text-white shadow-lg transform scale-105'
+                      : 'text-blue-200 hover:text-white hover:bg-white/5'
+                    }`}
                 >
                   {label}
-                </motion.button>
+                </button>
               ))}
             </div>
-          </motion.div>
+          </div>
 
           {/* Lista de jogos */}
-          <div className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredGames.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center py-12"
-              >
-                <Gamepad2 className="w-12 h-12 sm:w-16 sm:h-16 text-blue-400 mx-auto mb-4" />
-                <h3 className="text-lg sm:text-xl font-semibold text-blue-600 mb-2">Nenhum jogo encontrado</h3>
-                <p className="text-sm sm:text-base text-blue-500">Não há jogos disponíveis no momento.</p>
-              </motion.div>
+              <div className="col-span-full py-16 text-center glass-panel rounded-3xl">
+                <Gamepad2 className="w-16 h-16 text-blue-500/30 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-white mb-2">Sem Jogos no Momento</h3>
+                <p className="text-blue-200/60">Fique atento, logo teremos novidades!</p>
+              </div>
             ) : (
               filteredGames.map((game, index) => (
                 <motion.div
@@ -414,217 +343,145 @@ export default function LiveGamesPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  whileHover={{ scale: 1.02 }}
-                  className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-4 sm:p-6 hover:border-blue-400 hover:shadow-xl transition-all duration-300"
+                  className="glass-panel rounded-3xl overflow-hidden group hover:border-accent/30 transition-colors"
                 >
-                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                    {/* Informações do jogo */}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
-                          <Hash className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg sm:text-xl font-bold text-gray-900">{game.title}</h3>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`px-2 py-1 rounded-full text-xs font-bold text-white ${getStatusColor(game.status)}`}>
-                              {getStatusText(game.status)}
-                            </span>
-                            <span className="text-gray-500 text-xs sm:text-sm">
-                              {new Date(game.created_at).toLocaleDateString('pt-BR')}
-                            </span>
-                          </div>
-                        </div>
+                  {/* Card Header */}
+                  <div className="bg-gradient-to-r from-primary/80 to-primary-dark/80 p-6 border-b border-white/5">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${getStatusColor(game.status)}`}>
+                        {getStatusText(game.status)}
                       </div>
-                      
-                      {game.description && (
-                        <p className="text-gray-600 mb-4 text-sm sm:text-base">{game.description}</p>
-                      )}
-                      
-                      {/* Barra de progresso de participantes */}
-                      <div className="mb-4">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-xs sm:text-sm text-gray-600 font-semibold">Participantes</span>
-                          <span className="text-xs sm:text-sm text-gray-700 font-bold">
-                            {game.current_participants || 0} / {game.max_participants}
-                          </span>
-                        </div>
-                        <div className="w-full bg-blue-100 rounded-full h-3">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ 
-                              width: `${Math.min(((game.current_participants || 0) / game.max_participants) * 100, 100)}%` 
-                            }}
-                            transition={{ duration: 0.5 }}
-                            className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full shadow-lg"
-                          />
-                        </div>
+                      <span className="text-blue-200/60 text-xs font-mono">
+                        {new Date(game.created_at).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2 line-clamp-1" title={game.title}>{game.title}</h3>
+                    <p className="text-blue-200/70 text-sm line-clamp-2 min-h-[40px]">{game.description || 'Sem descrição.'}</p>
+                  </div>
+
+                  {/* Card Body */}
+                  <div className="p-6 bg-black/20">
+                    <div className="mb-6">
+                      <div className="flex justify-between items-end mb-2">
+                        <span className="text-xs text-blue-200 uppercase font-bold tracking-wider">Lotação</span>
+                        <span className="text-lg font-black text-white">
+                          {game.current_participants} <span className="text-blue-200/50 text-sm font-normal">/ {game.max_participants}</span>
+                        </span>
+                      </div>
+                      <div className="w-full bg-black/40 rounded-full h-2 overflow-hidden border border-white/5">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{
+                            width: `${Math.min(((game.current_participants || 0) / game.max_participants) * 100, 100)}%`
+                          }}
+                          className="bg-gradient-to-r from-accent to-yellow-500 h-full shadow-[0_0_10px_rgba(250,204,21,0.5)]"
+                        />
                       </div>
                     </div>
-                    
-                    {/* Ações */}
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      {getActionButton(game)}
-                    </div>
+
+                    {getActionButton(game)}
                   </div>
                 </motion.div>
               ))
             )}
-        </div>
+          </div>
 
-          {/* Estatísticas das lives */}
+          {/* Stats Bar */}
           {games.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="mt-8 sm:mt-12 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4"
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.5 }}
-                whileHover={{ scale: 1.05, y: -5 }}
-                className="bg-white rounded-2xl p-4 sm:p-6 text-center border-2 border-blue-200 shadow-lg hover:shadow-xl transition-all duration-300"
-              >
-                <div className="text-2xl sm:text-3xl font-black text-blue-600 mb-2">{games.length}</div>
-                <div className="text-gray-600 text-xs sm:text-sm font-semibold">Total de Lives</div>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.6 }}
-                whileHover={{ scale: 1.05, y: -5 }}
-                className="bg-white rounded-2xl p-4 sm:p-6 text-center border-2 border-yellow-200 shadow-lg hover:shadow-xl transition-all duration-300"
-              >
-                <div className="text-2xl sm:text-3xl font-black text-yellow-600 mb-2">
-                  {games.filter(g => g.status === 'waiting').length}
+            <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { label: 'Total', value: games.length, icon: Gamepad2, color: 'text-blue-400' },
+                { label: 'Aguardando', value: games.filter(g => g.status === 'waiting').length, icon: Clock, color: 'text-yellow-400' },
+                { label: 'Ao Vivo', value: games.filter(g => g.status === 'active').length, icon: Eye, color: 'text-green-400' },
+                { label: 'Finalizadas', value: games.filter(g => g.status === 'finished').length, icon: Trophy, color: 'text-white' },
+              ].map((stat, i) => (
+                <div key={i} className="glass-panel p-4 rounded-2xl flex items-center gap-4">
+                  <div className={`p-3 rounded-xl bg-white/5 ${stat.color}`}>
+                    <stat.icon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-black text-white">{stat.value}</p>
+                    <p className="text-xs text-blue-200 uppercase font-bold tracking-wider">{stat.label}</p>
+                  </div>
                 </div>
-                <div className="text-gray-600 text-xs sm:text-sm font-semibold">Aguardando</div>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.7 }}
-                whileHover={{ scale: 1.05, y: -5 }}
-                className="bg-white rounded-2xl p-4 sm:p-6 text-center border-2 border-green-200 shadow-lg hover:shadow-xl transition-all duration-300"
-              >
-                <div className="text-2xl sm:text-3xl font-black text-green-600 mb-2">
-                  {games.filter(g => g.status === 'active').length}
-                </div>
-                <div className="text-gray-600 text-xs sm:text-sm font-semibold">Ao Vivo</div>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.8 }}
-                whileHover={{ scale: 1.05, y: -5 }}
-                className="bg-white rounded-2xl p-4 sm:p-6 text-center border-2 border-red-200 shadow-lg hover:shadow-xl transition-all duration-300"
-              >
-                <div className="text-2xl sm:text-3xl font-black text-red-600 mb-2">
-                  {games.filter(g => g.status === 'finished').length}
-                </div>
-                <div className="text-gray-600 text-xs sm:text-sm font-semibold">Finalizadas</div>
-              </motion.div>
-            </motion.div>
+              ))}
+            </div>
           )}
         </div>
       </main>
-      
+
       <Footer />
 
-      {/* Modal de Seleção de Números */}
+      {/* Join Modal */}
       {showJoinModal && selectedGame && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-          onClick={() => setShowJoinModal(false)}
-        >
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl p-6 w-full max-w-md border-2 border-blue-200 shadow-2xl"
+            className="glass-panel-dark w-full max-w-md rounded-3xl overflow-hidden border border-white/20 shadow-2xl"
           >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-black text-gray-900">Escolha seu Número da Sorte</h3>
-              <motion.button
-                whileHover={{ scale: 1.1, rotate: 90 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => setShowJoinModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
+            <div className="bg-gradient-to-r from-primary to-primary-dark p-6 border-b border-white/10 flex justify-between items-center">
+              <h3 className="text-xl font-black text-white">Entrar no Jogo</h3>
+              <button onClick={() => setShowJoinModal(false)} className="text-white/60 hover:text-white transition-colors">
                 <ArrowLeft className="w-6 h-6" />
-              </motion.button>
+              </button>
             </div>
 
-            <div className="mb-6">
-              <h4 className="text-lg font-bold text-blue-600 mb-2">{selectedGame.title}</h4>
-              <p className="text-gray-600 text-sm mb-4">
-                Escolha um número de 1 a {selectedGame.max_participants} para participar do jogo.
-              </p>
-              
-              <div className="space-y-4">
+            <div className="p-8">
+              <div className="text-center mb-8">
+                <p className="text-blue-200 text-sm uppercase tracking-widest font-bold mb-2">Você está entrando em</p>
+                <h4 className="text-2xl font-bold text-white mb-2">{selectedGame.title}</h4>
+                <div className="inline-block px-4 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-bold">
+                  Escolha de 1 a {selectedGame.max_participants}
+                </div>
+              </div>
+
+              <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Número da Sorte (1-{selectedGame.max_participants})
+                  <label className="block text-xs font-bold text-blue-200 uppercase tracking-widest mb-2 pl-1">
+                    Seu Número da Sorte
                   </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max={selectedGame.max_participants}
-                    value={luckyNumber}
-                    onChange={(e) => setLuckyNumber(e.target.value)}
-                    className="w-full px-4 py-3 bg-blue-50 border-2 border-blue-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                    placeholder="Digite seu número"
-                  />
+                  <div className="relative">
+                    <Hash className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/40 w-5 h-5" />
+                    <input
+                      type="number"
+                      min="1"
+                      max={selectedGame.max_participants}
+                      value={luckyNumber}
+                      onChange={(e) => setLuckyNumber(e.target.value)}
+                      className="w-full pl-12 pr-4 py-4 bg-black/40 border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent text-lg font-mono"
+                      placeholder="000"
+                    />
+                  </div>
                 </div>
 
-                {/* Números já escolhidos */}
                 {participants.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Números já escolhidos:
-                    </label>
-                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto no-scrollbar">
+                  <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+                    <p className="text-xs font-bold text-red-300 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                      Números Indisponíveis
+                    </p>
+                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
                       {participants.map((participant) => (
-                        <span
-                          key={participant.id}
-                          className="px-2 py-1 bg-red-100 text-red-600 rounded-lg text-sm border-2 border-red-200 font-semibold"
-                        >
+                        <span key={participant.id} className="px-2 py-1 bg-red-500/20 text-red-200 rounded text-xs font-mono border border-red-500/30">
                           {participant.lucky_number}
                         </span>
                       ))}
                     </div>
                   </div>
                 )}
+
+                <button
+                  onClick={joinGame}
+                  disabled={joining || !luckyNumber}
+                  className="btn btn-primary w-full py-4 text-lg shadow-lg shadow-blue-900/40"
+                >
+                  {joining ? 'Processando...' : 'Confirmar Participação'}
+                </button>
               </div>
             </div>
-
-            <div className="flex gap-3">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowJoinModal(false)}
-                className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
-              >
-                Cancelar
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={joinGame}
-                disabled={joining || !luckyNumber}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-bold shadow-lg"
-              >
-                {joining ? 'Participando...' : 'Participar'}
-              </motion.button>
-            </div>
           </motion.div>
-        </motion.div>
+        </div>
       )}
     </div>
   );

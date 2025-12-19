@@ -2,12 +2,15 @@ import { Heart } from 'lucide-react';
 
 function Footer() {
   const year = new Date().getFullYear();
-  
+
   return (
-    <footer className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 mt-auto border-t-2 border-yellow-300">
-      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 md:flex md:items-center md:justify-between lg:px-8">
-        <div className="flex justify-center space-x-6 md:order-2">
-          <a href="https://www.instagram.com/itallozk/" target="_blank" rel="noopener noreferrer" className="text-white hover:text-yellow-300 transition-colors duration-300">
+    <footer className="bg-primary-dark mt-auto border-t border-white/5 relative overflow-hidden">
+      {/* Detail element - Cruzeiro Stars Pattern could go here */}
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/50 to-transparent opacity-30"></div>
+
+      <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 md:flex md:items-center md:justify-between lg:px-8">
+        <div className="flex justify-center space-x-8 md:order-2">
+          <a href="https://www.instagram.com/itallozk/" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white hover:scale-110 transition-all duration-300">
             <span className="sr-only">Instagram</span>
             <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -17,7 +20,7 @@ function Footer() {
               />
             </svg>
           </a>
-          <a href="https://www.youtube.com/channel/UCyP-ZyjtM-I-J2mfI-utNtw" target="_blank" rel="noopener noreferrer" className="text-white hover:text-yellow-300 transition-colors duration-300">
+          <a href="https://www.youtube.com/channel/UCyP-ZyjtM-I-J2mfI-utNtw" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white hover:scale-110 transition-all duration-300">
             <span className="sr-only">YouTube</span>
             <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -27,7 +30,7 @@ function Footer() {
               />
             </svg>
           </a>
-          <a href="https://wa.me/5531972393341" target="_blank" rel="noopener noreferrer" className="text-white hover:text-yellow-300 transition-colors duration-300">
+          <a href="https://wa.me/5531972393341" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white hover:scale-110 transition-all duration-300">
             <span className="sr-only">WhatsApp Suporte</span>
             <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -39,9 +42,9 @@ function Footer() {
           </a>
         </div>
         <div className="mt-8 md:mt-0 md:order-1">
-          <p className="text-center text-base text-white flex items-center justify-center font-medium">
-            &copy; {year} ZK Premios. Feito com 
-            <Heart className="h-4 w-4 mx-1 text-yellow-300" /> por <a href="https://wa.me/5533999030124" target="_blank" rel="noopener noreferrer" className="text-yellow-300 hover:text-yellow-200 transition-colors duration-300 ml-1 font-bold">Tales Coelho</a>
+          <p className="text-center text-base text-gray-400 flex items-center justify-center font-medium">
+            &copy; {year} ZK Premios. Feito com
+            <Heart className="h-4 w-4 mx-1 text-red-500 animate-pulse" /> por <a href="https://wa.me/5533999030124" target="_blank" rel="noopener noreferrer" className="text-white hover:text-accent transition-colors duration-300 ml-1 font-bold">Tales Coelho</a>
           </p>
         </div>
       </div>

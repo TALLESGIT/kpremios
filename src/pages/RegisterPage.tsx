@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { User, Mail, Phone, Lock, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
+import { User, Mail, Phone, Lock, ArrowRight, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 
@@ -29,13 +29,12 @@ const RegisterPage: React.FC = () => {
     });
   };
 
-  // Verificar se email já existe com debounce otimizado
   const checkEmailExists = useCallback(async (email: string) => {
     if (!email || !email.includes('@')) {
       setIsLoginMode(false);
       return;
     }
-    
+
     setCheckingEmail(true);
     try {
       const { data, error } = await supabase
@@ -52,34 +51,30 @@ const RegisterPage: React.FC = () => {
         setError('');
       }
     } catch (error) {
-      // Silenciar erros de rede para não atrapalhar UX
+      // Silenciar erros de rede
     } finally {
       setCheckingEmail(false);
     }
   }, []);
 
-  // Função otimizada para debounce do email
   const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     handleChange(e);
     const email = e.target.value;
-    
-    // Cancelar verificação anterior
+
     if (emailCheckTimeoutRef.current) {
       clearTimeout(emailCheckTimeoutRef.current);
     }
-    
-    // Só verificar se email tem formato válido
+
     if (email && email.includes('@') && email.includes('.')) {
       emailCheckTimeoutRef.current = setTimeout(() => {
         checkEmailExists(email);
-      }, 800); // Reduzido de 1000ms para 800ms
+      }, 800);
     } else {
       setIsLoginMode(false);
       setCheckingEmail(false);
     }
   }, [checkEmailExists]);
 
-  // Função para fazer login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -94,36 +89,18 @@ const RegisterPage: React.FC = () => {
       if (error) throw error;
 
       if (data.user) {
-        // Verificar se é admin
-        const { data: profile, error: profileError } = await supabase
+        const { data: profile } = await supabase
           .from('users')
           .select('is_admin')
           .eq('id', data.user.id)
-          .single();
+          .maybeSingle();
 
-        // Se não há perfil, criar um básico
-        if (profileError && profileError.code === 'PGRST116') {
-          const { error: insertError } = await supabase
-            .from('users')
-            .insert({
-              id: data.user.id,
-              name: data.user.email?.split('@')[0] || 'Usuário',
-              email: data.user.email || '',
-              whatsapp: '',
-              is_admin: false,
-            });
-
-          if (insertError) {
-          }
-        }
-
-        // Redirecionar para returnTo se fornecido, senão baseado no perfil
         if (returnTo) {
           navigate(returnTo);
         } else if (profile?.is_admin) {
           navigate('/admin/dashboard');
         } else {
-          navigate('/dashboard');
+          navigate('/user-dashboard');
         }
       }
     } catch (error: any) {
@@ -138,7 +115,6 @@ const RegisterPage: React.FC = () => {
     setLoading(true);
     setError('');
 
-    // Validações rápidas no frontend
     if (formData.password !== formData.confirmPassword) {
       setError('As senhas não coincidem');
       setLoading(false);
@@ -158,7 +134,6 @@ const RegisterPage: React.FC = () => {
     }
 
     try {
-      // Criar usuário e perfil em uma única transação otimizada
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email.trim(),
         password: formData.password,
@@ -173,7 +148,7 @@ const RegisterPage: React.FC = () => {
       if (authError) throw authError;
 
       if (authData.user) {
-        // Criar perfil de forma otimizada
+        // Criar perfil
         const { error: profileError } = await supabase
           .from('users')
           .insert({
@@ -185,31 +160,21 @@ const RegisterPage: React.FC = () => {
             created_at: new Date().toISOString(),
           });
 
-        if (profileError) {
-          // Se erro for de duplicação, ignorar (usuário já existe)
-          if (!profileError.message.includes('duplicate') && !profileError.message.includes('already exists')) {
-            throw profileError;
-          }
+        if (profileError && !profileError.message.includes('duplicate')) {
+          // Ignorar erros de duplicação se o auth já passou
         }
 
-        // Redirecionar imediatamente sem aguardar WhatsApp
-        // Se houver returnTo, passar adiante para o login
-        navigate('/login', { 
-          state: { 
+        navigate('/login', {
+          state: {
             message: 'Conta criada com sucesso! Verifique seu email para confirmar.',
             returnTo: returnTo
           }
         });
       }
     } catch (error: any) {
-      if (error.message.includes('already registered') || 
-          error.message.includes('email-already-in-use') ||
-          error.message.includes('User already registered')) {
-        setError('Este email já está cadastrado! Faça login em vez de se cadastrar novamente.');
-      } else if (error.message.includes('Invalid email')) {
-        setError('Email inválido. Verifique o formato.');
-      } else if (error.message.includes('Password')) {
-        setError('Senha muito fraca. Use pelo menos 6 caracteres.');
+      if (error.message.includes('already registered')) {
+        setError('Este email já está cadastrado!');
+        setIsLoginMode(true);
       } else {
         setError('Erro ao criar conta. Tente novamente.');
       }
@@ -219,267 +184,211 @@ const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      
-      <main className="flex-grow flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6">
-        <div className="w-full max-w-md">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl mb-4 shadow-lg">
-              <span className="text-2xl sm:text-3xl font-black text-white">ZK</span>
+
+      <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 relative overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-dark via-background to-black opacity-90"></div>
+
+        <div className="w-full max-w-md relative z-10">
+          <div className="glass-panel rounded-3xl overflow-hidden shadow-2xl border border-white/10">
+
+            {/* Header */}
+            <div className="relative bg-primary/20 p-8 text-center border-b border-white/5">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent to-transparent opacity-50"></div>
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 rounded-2xl mb-4 backdrop-blur-md border border-white/20 shadow-lg group">
+                <span className="text-3xl font-black text-white group-hover:scale-110 transition-transform">ZK</span>
+              </div>
+              <h1 className="text-2xl font-black text-white tracking-tight">
+                {isLoginMode ? 'Bem-vindo de volta!' : 'Cadastre-se Grátis'}
+              </h1>
+              <p className="text-blue-200 text-sm mt-1">
+                {isLoginMode ? 'Acesse sua conta para continuar' : 'Crie sua conta e participe dos sorteios'}
+              </p>
             </div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-blue-600 mb-2">
-              {isLoginMode ? 'Faça seu login' : 'Crie sua conta'}
-            </h1>
-            <p className="text-blue-600 text-sm sm:text-base">
-              {isLoginMode 
-                ? 'Entre com seu email e senha para acessar sua conta' 
-                : 'Junte-se ao ZK Prêmios e comece a ganhar!'
-              }
-            </p>
-          </div>
 
-          {/* Formulário */}
-          <div className="bg-white rounded-2xl shadow-xl border-2 border-blue-200 p-6 sm:p-8">
-            <form onSubmit={isLoginMode ? handleLogin : handleRegister} className="space-y-5">
-              {isLoginMode && (
-                <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="h-5 w-5" />
-                    <div className="flex-1">
-                      <span className="font-medium">Email encontrado! Faça login com sua senha.</span>
-                    </div>
+            {/* Form */}
+            <div className="p-8 bg-black/20 backdrop-blur-md">
+              <form onSubmit={isLoginMode ? handleLogin : handleRegister} className="space-y-5">
+
+                {isLoginMode && (
+                  <div className="bg-blue-500/10 border border-blue-400/30 text-blue-200 px-4 py-3 rounded-xl flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400 mt-0.5" />
+                    <span className="text-sm font-medium">Email encontrado! Faça login.</span>
                   </div>
-                </div>
-              )}
-
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <AlertCircle className="h-5 w-5" />
-                    <div className="flex-1">
-                      <span className="font-medium">{error}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {!isLoginMode && (
-                <div>
-                  <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Nome Completo
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <User className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <input
-                      id="name"
-                      name="name"
-                      type="text"
-                      value={formData.name}
-                      onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                      placeholder="Seu nome completo"
-                      required
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleEmailChange}
-                    className="w-full pl-10 pr-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                    placeholder="seu@email.com"
-                    required
-                  />
-                  {checkingEmail && (
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {!isLoginMode && (
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2">
-                    WhatsApp <span className="text-gray-500 text-sm font-normal">(opcional)</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Phone className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <input
-                      id="phone"
-                      name="phone"
-                      type="tel"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                      placeholder="(31) 99999-9999"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Senha
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                    placeholder="Mínimo 6 caracteres"
-                    required
-                  />
-                </div>
-              </div>
-
-              {!isLoginMode && (
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Confirmar Senha
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Lock className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                      placeholder="Digite a senha novamente"
-                      required
-                    />
-                  </div>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading || checkingEmail}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 mt-6"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    <span>{isLoginMode ? 'Entrando...' : 'Criando conta...'}</span>
-                  </>
-                ) : checkingEmail ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    <span>Verificando email...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>{isLoginMode ? 'Entrar' : 'Criar Conta'}</span>
-                    <ArrowRight className="h-5 w-5" />
-                  </>
                 )}
-              </button>
-            </form>
 
-            <div className="mt-6 text-center">
-              {isLoginMode ? (
-                <p className="text-gray-600">
-                  Não tem uma conta?{' '}
-                  <button 
+                {error && (
+                  <div className="bg-red-500/10 border border-red-500/30 text-red-300 px-4 py-3 rounded-xl flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                    <span className="text-sm font-medium">{error}</span>
+                  </div>
+                )}
+
+                {!isLoginMode && (
+                  <div>
+                    <label htmlFor="name" className="block text-xs font-bold text-blue-200 uppercase tracking-widest mb-2">
+                      Nome Completo
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <User className="h-5 w-5 text-slate-400 group-focus-within:text-accent transition-colors" />
+                      </div>
+                      <input
+                        id="name"
+                        name="name"
+                        type="text"
+                        value={formData.name}
+                        onChange={handleChange}
+                        className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
+                        placeholder="Seu nome"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label htmlFor="email" className="block text-xs font-bold text-blue-200 uppercase tracking-widest mb-2">
+                    Email
+                  </label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Mail className="h-5 w-5 text-slate-400 group-focus-within:text-accent transition-colors" />
+                    </div>
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleEmailChange}
+                      className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
+                      placeholder="seu@email.com"
+                      required
+                    />
+                    {checkingEmail && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <Loader2 className="animate-spin h-4 w-4 text-accent" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {!isLoginMode && (
+                  <div>
+                    <label htmlFor="phone" className="block text-xs font-bold text-blue-200 uppercase tracking-widest mb-2">
+                      WhatsApp <span className="opacity-50 text-[10px] normal-case ml-1">(opcional)</span>
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Phone className="h-5 w-5 text-slate-400 group-focus-within:text-accent transition-colors" />
+                      </div>
+                      <input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
+                        placeholder="(31) 99999-9999"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label htmlFor="password" className="block text-xs font-bold text-blue-200 uppercase tracking-widest mb-2">
+                    Senha
+                  </label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-accent transition-colors" />
+                    </div>
+                    <input
+                      id="password"
+                      name="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
+                      placeholder="Mínimo 6 caracteres"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {!isLoginMode && (
+                  <div>
+                    <label htmlFor="confirmPassword" className="block text-xs font-bold text-blue-200 uppercase tracking-widest mb-2">
+                      Confirmar Senha
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-accent transition-colors" />
+                      </div>
+                      <input
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        type="password"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
+                        placeholder="Repita sua senha"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading || checkingEmail}
+                  className="w-full btn btn-primary py-4 rounded-xl flex items-center justify-center gap-2 group shadow-lg shadow-blue-900/20 mt-4"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="animate-spin h-5 w-5" />
+                      <span>Processando...</span>
+                    </>
+                  ) : checkingEmail ? (
+                    <>
+                      <Loader2 className="animate-spin h-5 w-5" />
+                      <span>Verificando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{isLoginMode ? 'Acessar Conta' : 'Criar Minha Conta'}</span>
+                      <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="mt-8 text-center border-t border-white/5 pt-6">
+                <p className="text-slate-400 text-sm">
+                  {isLoginMode ? 'Não tem uma conta?' : 'Já tem uma conta?'}
+                  <button
                     onClick={() => {
-                      setIsLoginMode(false);
+                      setIsLoginMode(!isLoginMode);
                       setError('');
                     }}
-                    className="text-blue-600 hover:text-blue-700 font-semibold transition-colors duration-200"
+                    className="text-accent hover:text-white font-bold transition-colors ml-1 hover:underline underline-offset-4"
                   >
-                    Cadastre-se aqui
+                    {isLoginMode ? 'Cadastre-se grátis' : 'Fazer login'}
                   </button>
                 </p>
-              ) : (
-                <p className="text-gray-600">
-                  Já tem uma conta?{' '}
-                  <button 
-                    onClick={() => {
-                      setIsLoginMode(true);
-                      setError('');
-                    }}
-                    className="text-blue-600 hover:text-blue-700 font-semibold transition-colors duration-200"
-                  >
-                    Faça login aqui
-                  </button>
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Benefits */}
-          <div className="mt-8 grid grid-cols-1 gap-4">
-            <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                  <CheckCircle className="h-4 w-4 text-white" />
-                </div>
-                <div>
-                  <p className="text-green-900 font-semibold text-sm">Cadastro Gratuito</p>
-                  <p className="text-green-700 text-xs">Crie sua conta sem custos</p>
-                </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">🎁</span>
-                </div>
-                <div>
-                  <p className="text-purple-900 font-semibold text-sm">Prêmios Incríveis</p>
-                  <p className="text-purple-700 text-xs">Concorra a prêmios exclusivos</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">⚡</span>
-                </div>
-                <div>
-                  <p className="text-blue-900 font-semibold text-sm">Notificações Instantâneas</p>
-                  <p className="text-blue-700 text-xs">Seja notificado via WhatsApp</p>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </main>
-      
+
       <Footer />
     </div>
   );
 };
 
 export default RegisterPage;
-

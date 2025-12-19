@@ -6,7 +6,7 @@ import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import { CheckCircle, XCircle, Clock, User, Hash, DollarSign, Calendar, AlertCircle, Image, FileText } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, User, Hash, DollarSign, Calendar, AlertCircle, FileText } from 'lucide-react';
 
 interface ExtraNumberRequest {
   id: string;
@@ -65,15 +65,15 @@ export default function AdminApprovalsPage() {
 
     const subscription = supabase
       .channel('admin-requests-changes')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'extra_number_requests' 
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'extra_number_requests'
       }, (payload) => {
         console.log('AdminApprovalsPage - Mudança detectada na tabela extra_number_requests:', payload);
         console.log('AdminApprovalsPage - Evento:', payload.eventType);
         console.log('AdminApprovalsPage - Dados:', payload.new || payload.old);
-        
+
         // Recarregar solicitações para todos os admins
         loadRequests();
       })
@@ -90,7 +90,7 @@ export default function AdminApprovalsPage() {
   const loadRequests = async () => {
     try {
       setLoading(true);
-      
+
       // Primeiro, buscar todas as solicitações
       const { data: requestsData, error: requestsError } = await supabase
         .from('extra_number_requests')
@@ -166,7 +166,7 @@ export default function AdminApprovalsPage() {
       if (!request) {
         throw new Error('Solicitação não encontrada');
       }
-      
+
       // Verificar se há comprovante de pagamento
       if (!request.payment_proof_url) {
         // Abrir modal de confirmação em vez de bloquear
@@ -174,10 +174,10 @@ export default function AdminApprovalsPage() {
         setShowConfirmModal(true);
         return;
       }
-      
+
       // Calcular quantidade correta: 100 números por cada R$ 10,00
       const quantity = Math.floor(request.payment_amount / 10) * 100;
-      
+
       // Usar a função assign_random_extra_numbers_with_raffle_limit para atribuir números automaticamente
       // Esta função considera o total_numbers do sorteio ativo
       const { data: assignedNumbers, error: assignError } = await supabase
@@ -187,7 +187,7 @@ export default function AdminApprovalsPage() {
         });
 
       if (assignError) throw assignError;
-      
+
       // Atualizar status da solicitação com os números atribuídos
       const { error: updateError } = await supabase
         .from('extra_number_requests')
@@ -205,7 +205,7 @@ export default function AdminApprovalsPage() {
       await loadRequests();
       setShowModal(false);
       setSelectedRequest(null);
-      
+
       // Notificar o usuário sobre a aprovação
       try {
         await notifyExtraNumbersApproved(requestId);
@@ -213,7 +213,7 @@ export default function AdminApprovalsPage() {
 
         // Não falha a operação se a notificação falhar
       }
-      
+
       alert('Solicitação aprovada com sucesso!');
     } catch (error) {
 
@@ -223,17 +223,17 @@ export default function AdminApprovalsPage() {
 
   const confirmApproval = async () => {
     if (!pendingApprovalId) return;
-    
+
     try {
       // Encontrar a solicitação para obter a quantidade correta
       const request = requests.find(r => r.id === pendingApprovalId);
       if (!request) {
         throw new Error('Solicitação não encontrada');
       }
-      
+
       // Calcular quantidade correta: 100 números por cada R$ 10,00
       const quantity = Math.floor(request.payment_amount / 10) * 100;
-      
+
       // Usar a função assign_random_extra_numbers_with_raffle_limit para atribuir números automaticamente
       const { data: assignedNumbers, error: assignError } = await supabase
         .rpc('assign_random_extra_numbers_with_raffle_limit', {
@@ -242,7 +242,7 @@ export default function AdminApprovalsPage() {
         });
 
       if (assignError) throw assignError;
-      
+
       // Atualizar status da solicitação com os números atribuídos e notas opcionais
       const updateData: any = {
         status: 'approved',
@@ -250,12 +250,12 @@ export default function AdminApprovalsPage() {
         processed_by: currentAppUser?.id,
         assigned_numbers: assignedNumbers
       };
-      
+
       // Adicionar notas se fornecidas
       if (approvalNotes.trim()) {
         updateData.admin_notes = approvalNotes.trim();
       }
-      
+
       const { error: updateError } = await supabase
         .from('extra_number_requests')
         .update(updateData)
@@ -270,14 +270,14 @@ export default function AdminApprovalsPage() {
       setApprovalNotes('');
       setShowModal(false);
       setSelectedRequest(null);
-      
+
       // Notificar o usuário sobre a aprovação
       try {
         await notifyExtraNumbersApproved(pendingApprovalId);
       } catch (notifyError) {
         // Não falha a operação se a notificação falhar
       }
-      
+
       alert('Solicitação aprovada com sucesso!');
     } catch (error) {
       alert('Erro ao aprovar solicitação');
@@ -291,7 +291,7 @@ export default function AdminApprovalsPage() {
 
   const confirmReject = async () => {
     if (!requestToReject) return;
-    
+
     try {
       // Encontrar a solicitação para obter os dados do usuário
       const request = requests.find(r => r.id === requestToReject);
@@ -329,7 +329,7 @@ export default function AdminApprovalsPage() {
       setShowRejectModal(false);
       setRequestToReject(null);
       setRejectionReason('');
-      
+
       alert('Solicitação rejeitada e usuário notificado via WhatsApp');
     } catch (error) {
 
@@ -351,25 +351,25 @@ export default function AdminApprovalsPage() {
   // Função para organizar números em faixas de 100
   const organizeNumbersInRanges = (numbers: number[]) => {
     const ranges: { [key: string]: number[] } = {};
-    
+
     numbers.forEach(num => {
       const rangeStart = Math.floor((num - 1) / 100) * 100 + 1;
       const rangeEnd = rangeStart + 99;
       const rangeKey = `${rangeStart}-${rangeEnd}`;
-      
+
       if (!ranges[rangeKey]) {
         ranges[rangeKey] = [];
       }
       ranges[rangeKey].push(num);
     });
-    
+
     return ranges;
   };
 
   // Funções de filtro e paginação
   const filteredRequests = requests.filter(request => {
     const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
-    const matchesSearch = searchTerm === '' || 
+    const matchesSearch = searchTerm === '' ||
       request.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       request.user_email.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
@@ -439,623 +439,345 @@ export default function AdminApprovalsPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen flex flex-col bg-slate-900">
       <Header />
-      <main className="flex-grow w-full">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 py-6 sm:py-8 lg:py-12 relative overflow-hidden">
-          {/* Animated background elements */}
-          <div className="absolute inset-0 opacity-20">
-            <motion.div
-              className="absolute top-0 left-1/4 w-96 h-96 bg-white rounded-full blur-3xl"
-              animate={{
-                scale: [1, 1.2, 1],
-                opacity: [0.3, 0.5, 0.3],
-              }}
-              transition={{
-                duration: 4,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-            />
-          </div>
-          
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center sm:text-left"
-            >
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-2 sm:mb-4 tracking-tight" style={{
-                textShadow: '3px 3px 0px rgba(251, 191, 36, 0.8)',
-              }}>
-                Aprovações
-              </h1>
-              <p className="text-blue-100 text-sm sm:text-base lg:text-lg font-semibold">
-                Gerencie solicitações de números extras
-              </p>
-              {pendingCount > 0 && (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="mt-3 sm:mt-4 inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-red-100 border-2 border-red-300"
-                >
-                  <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-red-600 mr-1 sm:mr-2" />
-                  <span className="text-red-700 font-black text-xs sm:text-sm">
-                    {pendingCount} solicitação{pendingCount > 1 ? 'ões' : ''} pendente{pendingCount > 1 ? 's' : ''}
-                  </span>
-                </motion.div>
-              )}
-            </motion.div>
-          </div>
+      <main className="flex-grow w-full relative overflow-hidden">
+        {/* Background Effects */}
+        <div className="fixed inset-0 pointer-events-none">
+          <div className="absolute top-0 right-0 w-full h-[500px] bg-blue-600/10 blur-[100px]" />
+          <div className="absolute bottom-0 left-0 w-full h-[500px] bg-indigo-900/20 blur-[100px]" />
         </div>
 
-        {/* Controles de Filtro e Busca */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 sm:mb-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border-2 border-blue-200"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Busca */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Buscar por nome ou email
-                </label>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  placeholder="Digite nome ou email..."
-                  className="w-full px-4 py-2 bg-blue-50 border-2 border-blue-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                />
-              </div>
-
-              {/* Filtro por Status */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Filtrar por status
-                </label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => handleStatusFilter(e.target.value)}
-                  className="w-full px-4 py-2 bg-blue-50 border-2 border-blue-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                >
-                  <option value="all">Todos ({requests.length})</option>
-                  <option value="pending">Pendentes ({requests.filter(r => r.status === 'pending').length})</option>
-                  <option value="approved">Aprovados ({requests.filter(r => r.status === 'approved').length})</option>
-                  <option value="rejected">Rejeitados ({requests.filter(r => r.status === 'rejected').length})</option>
-                </select>
-              </div>
-
-              {/* Estatísticas */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Estatísticas
-                </label>
-                <div className="text-gray-600 text-sm font-semibold">
-                  <p>Mostrando {paginatedRequests.length} de {filteredRequests.length} solicitações</p>
-                  <p>Página {currentPage} de {totalPages}</p>
+        {/* Header Section */}
+        <div className="relative py-8 sm:py-12 lg:py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="relative z-10">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-3 tracking-tight">
+                    APROVAÇÕES DE <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-200">SOLICITAÇÕES</span>
+                  </h1>
+                  <p className="text-blue-200/60 text-lg font-medium">
+                    Gerencie e valide as solicitações de números extras dos usuários.
+                  </p>
                 </div>
+
+                {pendingCount > 0 && (
+                  <div className="inline-flex items-center px-6 py-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 backdrop-blur-md">
+                    <AlertCircle className="h-5 w-5 text-amber-400 mr-3" />
+                    <span className="text-amber-200 font-bold">
+                      {pendingCount} Pendente{pendingCount > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
 
-        {/* Lista de Solicitações */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        {/* Filters and Controls */}
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+          <div className="glass-panel p-6 rounded-3xl border border-white/5 bg-slate-800/40 backdrop-blur-xl">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Search */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-blue-200/50 ml-1">Buscar Usuário</label>
+                <div className="relative group">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    placeholder="Nome ou email..."
+                    className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-white/5 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Status Filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-blue-200/50 ml-1">Filtrar por Status</label>
+                <div className="relative">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => handleStatusFilter(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-white/5 rounded-2xl text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all cursor-pointer"
+                  >
+                    <option value="all">Todos os Status</option>
+                    <option value="pending">Pendentes</option>
+                    <option value="approved">Aprovados</option>
+                    <option value="rejected">Rejeitados</option>
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <Clock className="h-4 w-4 text-slate-500" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats Summary */}
+              <div className="space-y-2 lg:text-right flex flex-col justify-end">
+                <p className="text-slate-400 text-sm font-medium">
+                  Mostrando <span className="text-white font-bold">{paginatedRequests.length}</span> de <span className="text-white font-bold">{filteredRequests.length}</span> registros
+                </p>
+                <p className="text-slate-500 text-xs">Página {currentPage} de {totalPages}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Requests List */}
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
           {filteredRequests.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-8 sm:py-16"
-            >
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6">
-                <Clock className="h-8 w-8 sm:h-10 sm:w-10 text-blue-600" />
+            <div className="glass-panel p-20 rounded-3xl text-center border border-white/5">
+              <div className="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Clock className="h-10 w-10 text-slate-600" />
               </div>
-              <h3 className="text-xl sm:text-2xl font-black text-gray-900 mb-2 sm:mb-4">
-                {searchTerm || statusFilter !== 'all' ? 'Nenhuma solicitação encontrada' : 'Nenhuma solicitação'}
-              </h3>
-              <p className="text-gray-600 text-base sm:text-lg px-4 font-semibold">
-                {searchTerm || statusFilter !== 'all' 
-                  ? 'Tente ajustar os filtros de busca ou status.' 
-                  : 'Não há solicitações de números extras no momento.'
-                }
+              <h3 className="text-2xl font-bold text-white mb-2">Nenhuma solicitação encontrada</h3>
+              <p className="text-slate-500 max-w-sm mx-auto">
+                Não existem solicitações que correspondam aos seus filtros atuais.
               </p>
-            </motion.div>
+            </div>
           ) : (
-            <>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
-                {paginatedRequests.map((request, index) => (
-                <motion.div
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {paginatedRequests.map((request, index) => (
+                <div
                   key={request.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  whileHover={{ scale: 1.02, y: -5 }}
-                  className={`group bg-white overflow-hidden shadow-lg rounded-2xl border-2 cursor-pointer transition-all duration-300 ${
-                    request.payment_proof_url 
-                      ? 'border-green-300 hover:border-green-400 hover:shadow-xl' 
-                      : 'border-yellow-300 hover:border-yellow-400 hover:shadow-xl'
-                  }`}
-                  onClick={() => {
-                    setSelectedRequest(request);
-                    setShowModal(true);
-                  }}
+                  className="glass-panel group overflow-hidden rounded-3xl border border-white/5 bg-slate-800/40 backdrop-blur-md hover:border-white/10 transition-all duration-300"
                 >
-                  {/* Header */}
-                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-3 sm:p-6 border-b-2 border-blue-300 relative">
-                    {/* Badge de Comprovante - posicionado no canto superior direito, responsivo */}
-                    {request.payment_proof_url ? (
-                      <div className="absolute top-2 sm:top-3 right-2 sm:right-3 bg-green-100 border-2 border-green-300 rounded-full px-1.5 sm:px-2 py-0.5 sm:py-1 flex items-center gap-1 z-10">
-                        <Image className="h-3 w-3 text-green-700" />
-                        <span className="text-green-700 text-xs font-black hidden sm:inline">Comprovante</span>
-                        <span className="text-green-700 text-xs font-black sm:hidden">Comp</span>
-                      </div>
-                    ) : (
-                      <div className="absolute top-2 sm:top-3 right-2 sm:right-3 bg-yellow-100 border-2 border-yellow-300 rounded-full px-1.5 sm:px-2 py-0.5 sm:py-1 flex items-center gap-1 z-10">
-                        <FileText className="h-3 w-3 text-yellow-700" />
-                        <span className="text-yellow-700 text-xs font-black hidden sm:inline">Sem Comprovante</span>
-                        <span className="text-yellow-700 text-xs font-black sm:hidden">Sem</span>
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center justify-between pr-16 sm:pr-20">
-                      <div className="flex items-center min-w-0 flex-1">
-                        <div className="w-8 h-8 sm:w-12 sm:h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
-                          <User className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+                  {/* Card Header */}
+                  <div className="relative p-6 bg-gradient-to-r from-blue-900/30 to-slate-900/30 border-b border-white/5">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 group-hover:scale-110 transition-transform">
+                          <User className="h-6 w-6 text-blue-400" />
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-sm sm:text-lg font-black text-white truncate">{request.user_name}</h3>
-                          <p className="text-blue-100 text-xs sm:text-sm truncate">{request.user_email}</p>
+                        <div className="min-w-0">
+                          <h3 className="text-lg font-bold text-white truncate">{request.user_name}</h3>
+                          <p className="text-slate-400 text-sm truncate">{request.user_email}</p>
                         </div>
                       </div>
-                      {/* Badge de Status - posicionado abaixo do badge de comprovante, menor no mobile */}
-                      <div className={`absolute top-10 sm:top-12 right-2 sm:right-3 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-bold flex-shrink-0 ${getStatusColor(request.status)}`}>
-                        <span className="hidden sm:inline">{getStatusText(request.status)}</span>
-                        <span className="sm:hidden">
-                          {request.status === 'pending' ? 'Pend' : 
-                           request.status === 'approved' ? 'Aprov' : 
-                           request.status === 'rejected' ? 'Rej' : '?'}
-                        </span>
+                      <div className={`shrink-0 px-4 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider border ${request.status === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                        request.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                          'bg-red-500/10 text-red-400 border-red-500/20'
+                        }`}>
+                        {getStatusText(request.status)}
                       </div>
                     </div>
                   </div>
 
-                  {/* Conteúdo */}
-                  <div className="p-3 sm:p-6 bg-white">
-                    <div className="space-y-3 sm:space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center text-gray-600">
-                          <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                          <span className="text-xs sm:text-sm font-semibold">Valor:</span>
-                        </div>
-                        <span className="text-gray-900 font-black text-sm sm:text-base">R$ {request.payment_amount.toFixed(2)}</span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center text-gray-600">
-                          <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                          <span className="text-xs sm:text-sm font-semibold">Solicitado:</span>
-                        </div>
-                        <span className="text-gray-900 font-bold text-xs sm:text-sm">
-                          {new Date(request.created_at).toLocaleDateString('pt-BR')}
-                        </span>
-                      </div>
-
-                      {request.extra_numbers && request.extra_numbers.length > 0 && (
-                        <div className="space-y-3">
-                          <div className="flex items-center text-gray-600">
-                            <Hash className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                            <span className="text-xs sm:text-sm font-semibold">Números Extras:</span>
-                          </div>
-                          
-                          {/* Faixas de números */}
-                          <div className="space-y-2">
-                            {Object.entries(organizeNumbersInRanges(request.extra_numbers)).map(([range, numbers]) => (
-                              <div key={range} className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="text-blue-700 font-black text-sm">{range}</span>
-                                  <span className="text-gray-600 text-xs font-semibold">{numbers.length} números</span>
-                                </div>
-                                <div className="flex flex-wrap gap-1">
-                                  {numbers.map((num, index) => (
-                                    <span key={index} className="bg-blue-500 text-white px-2 py-1 rounded-lg text-xs font-bold">
-                                      {num}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Comprovante de Pagamento */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center text-gray-600">
-                          <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                          <span className="text-xs sm:text-sm font-semibold">Comprovante:</span>
-                        </div>
+                  {/* Card Body */}
+                  <div className="p-6 space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 rounded-2xl bg-slate-900/30 border border-white/5">
+                        <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-1 leading-none">Valor Pago</p>
                         <div className="flex items-center gap-2">
-                          {request.payment_proof_url ? (
-                            <>
-                              <div className="flex items-center gap-1">
-                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                <span className="text-green-700 text-xs sm:text-sm font-semibold">Enviado</span>
-                              </div>
-                              <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedProofUrl(request.payment_proof_url!);
-                                  setSelectedProofRequest(request);
-                                  setShowProofModal(true);
-                                }}
-                                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 border-2 border-blue-300 shadow-lg"
-                              >
-                                <Image className="h-3 w-3" />
-                                Visualizar
-                              </motion.button>
-                            </>
-                          ) : (
-                            <div className="flex items-center gap-1">
-                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                              <span className="text-red-700 text-xs sm:text-sm font-semibold">Não enviado</span>
-                            </div>
-                          )}
+                          <DollarSign className="h-4 w-4 text-emerald-400" />
+                          <p className="text-lg font-black text-white">R$ {request.payment_amount.toFixed(2)}</p>
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-slate-900/30 border border-white/5">
+                        <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-1 leading-none">Data Solicitação</p>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-blue-400" />
+                          <p className="text-sm font-bold text-white">{new Date(request.created_at).toLocaleDateString('pt-BR')}</p>
                         </div>
                       </div>
                     </div>
 
+                    {/* Proof Section */}
+                    <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-900/50 border border-white/5">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${request.payment_proof_url ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
+                          {request.payment_proof_url ? <CheckCircle className="h-4 w-4 text-emerald-400" /> : <XCircle className="h-4 w-4 text-red-400" />}
+                        </div>
+                        <span className="text-sm font-medium text-slate-300">
+                          {request.payment_proof_url ? 'Comprovante Enviado' : 'Sem Comprovante'}
+                        </span>
+                      </div>
+                      {request.payment_proof_url && (
+                        <button
+                          onClick={() => {
+                            setSelectedProofUrl(request.payment_proof_url!);
+                            setSelectedProofRequest(request);
+                            setShowProofModal(true);
+                          }}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20"
+                        >
+                          Visualizar
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Admin Actions */}
                     {request.status === 'pending' && (
-                      <div className="mt-4 sm:mt-6 flex gap-2 sm:gap-3">
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleApprove(request.id);
-                          }}
-                          className={`flex-1 font-black py-2 sm:py-3 px-3 sm:px-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm shadow-lg ${
-                            !request.payment_proof_url
-                              ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white'
-                              : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white'
-                          }`}
+                      <div className="flex gap-3 pt-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleApprove(request.id); }}
+                          className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-sm transition-all shadow-xl ${!request.payment_proof_url
+                            ? 'bg-amber-500 hover:bg-amber-400 text-white shadow-amber-500/20'
+                            : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
+                            }`}
                         >
-                          <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
-                          {!request.payment_proof_url ? 'Aprovar (Sem Comprovante)' : 'Aprovar'}
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReject(request.id);
-                          }}
-                          className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white font-black py-2 sm:py-3 px-3 sm:px-4 rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-300 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm shadow-lg"
+                          <CheckCircle className="h-5 w-5" />
+                          Aprovar
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleReject(request.id); }}
+                          className="flex-1 flex items-center justify-center gap-2 py-4 bg-red-600 hover:bg-red-500 text-white rounded-2xl font-black text-sm transition-all shadow-xl shadow-red-600/20"
                         >
-                          <XCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                          <XCircle className="h-5 w-5" />
                           Rejeitar
-                        </motion.button>
+                        </button>
                       </div>
                     )}
                   </div>
-                </motion.div>
+                </div>
               ))}
-              </div>
+            </div>
+          )}
 
-              {/* Paginação */}
-              {totalPages > 1 && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="mt-8 flex justify-center"
-                >
-                  <div className="flex items-center space-x-2">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 transition-colors font-semibold"
-                    >
-                      Anterior
-                    </motion.button>
-                    
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                      <motion.button
-                        key={page}
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => handlePageChange(page)}
-                        className={`px-3 py-2 rounded-lg transition-colors font-bold ${
-                          currentPage === page
-                            ? 'bg-blue-500 text-white shadow-lg'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
-                      >
-                        {page}
-                      </motion.button>
-                    ))}
-                    
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 transition-colors font-semibold"
-                    >
-                      Próximo
-                    </motion.button>
-                  </div>
-                </motion.div>
-              )}
-            </>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-12 flex justify-center items-center gap-4">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="p-3 bg-slate-800 text-slate-400 rounded-2xl disabled:opacity-30 border border-white/5 hover:border-white/10 transition-all font-bold"
+              >
+                Anterior
+              </button>
+              <div className="flex gap-2">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`w-12 h-12 rounded-2xl font-black transition-all ${currentPage === page ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'bg-slate-800 text-slate-400 border border-white/5 hover:border-white/10'
+                      }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="p-3 bg-slate-800 text-slate-400 rounded-2xl disabled:opacity-30 border border-white/5 hover:border-white/10 transition-all font-bold"
+              >
+                Próximo
+              </button>
+            </div>
           )}
         </div>
+
+        {/* Modals */}
+        {showProofModal && selectedProofUrl && selectedProofRequest && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="glass-panel p-0 rounded-3xl border border-white/10 bg-slate-800/90 w-full max-w-4xl shadow-2xl">
+              <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                    <CheckCircle className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Comprovante de Pagamento</h3>
+                    <p className="text-slate-400 text-sm">{selectedProofRequest.user_name}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowProofModal(false)}
+                  className="p-2 hover:bg-white/5 rounded-xl transition-colors"
+                >
+                  <XCircle className="h-6 w-6 text-slate-400" />
+                </button>
+              </div>
+              <div className="p-6">
+                <div className="aspect-video relative rounded-2xl overflow-hidden bg-slate-900/50 border border-white/5 mb-6">
+                  <img
+                    src={selectedProofUrl}
+                    alt="Proof"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setShowProofModal(false)}
+                    className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-2xl transition-all"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showRejectModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <div className="glass-panel p-8 rounded-3xl border border-white/10 bg-slate-800/90 w-full max-w-md shadow-2xl">
+              <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mb-6 border border-red-500/20">
+                <XCircle className="h-8 w-8 text-red-500" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2">Rejeitar Solicitação</h3>
+              <p className="text-slate-400 mb-6 font-medium">
+                Tem certeza que deseja rejeitar esta solicitação? Esta ação informará o usuário que o pagamento não foi validado.
+              </p>
+              <div className="space-y-4 mb-8">
+                <label className="text-sm font-bold text-blue-200/50 block ml-1">Observações (opcional)</label>
+                <textarea
+                  value={rejectionReason} // Changed from rejectionNotes to rejectionReason to match existing state
+                  onChange={(e) => setRejectionReason(e.target.value)} // Changed from setRejectionNotes to setRejectionReason
+                  placeholder="Motivo da rejeição..."
+                  className="w-full px-4 py-3 bg-slate-900/50 border border-white/5 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all min-h-[100px]"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowRejectModal(false)}
+                  className="flex-1 px-6 py-4 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-2xl transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmReject} // Changed from confirmRejection to confirmReject
+                  className="flex-1 px-6 py-4 bg-red-600 hover:bg-red-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-red-600/20"
+                >
+                  Rejeitar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showConfirmModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <div className="glass-panel p-8 rounded-3xl border border-white/10 bg-slate-800/90 w-full max-w-md shadow-2xl">
+              <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-6 border border-emerald-500/20">
+                <CheckCircle className="h-8 w-8 text-emerald-500" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2">Confirmar Aprovação</h3>
+              <p className="text-slate-400 mb-8 font-medium">
+                Deseja aprovar esta solicitação de números extras? O usuário receberá seus números imediatamente.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="flex-1 px-6 py-4 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-2xl transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmApproval} // Changed from confirmApprove to confirmApproval
+                  className="flex-1 px-6 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-emerald-600/20"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
       <Footer />
-      
-      {/* Modal de Rejeição */}
-      {showRejectModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl shadow-2xl border border-slate-600/30 w-full max-w-md mx-auto">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-red-500/20 to-red-600/20 p-6 border-b border-slate-600/30 rounded-t-3xl">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
-                  <XCircle className="h-6 w-6 text-red-400" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-white">Rejeitar Solicitação</h3>
-                  <p className="text-slate-300 text-sm">Informe o motivo da rejeição</p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Conteúdo */}
-            <div className="p-6">
-              <div className="mb-6">
-                <label className="block text-sm font-bold text-slate-300 mb-3">
-                  Motivo da rejeição (opcional)
-                </label>
-                <textarea
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="Ex: Comprovante ilegível, valor incorreto, documento inválido..."
-                  className="w-full bg-slate-700/50 border border-slate-600/50 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200 resize-none"
-                  rows={4}
-                />
-              </div>
-              
-              <div className="text-xs text-slate-400 mb-6 bg-slate-700/30 p-3 rounded-xl">
-                💡 <strong>Dica:</strong> Fornecer um motivo ajuda o usuário a entender o problema e fazer uma nova solicitação correta.
-              </div>
-            </div>
-            
-            {/* Botões */}
-            <div className="p-6 pt-0 flex gap-3">
-              <button
-                onClick={() => {
-                  setShowRejectModal(false);
-                  setRequestToReject(null);
-                  setRejectionReason('');
-                }}
-                className="flex-1 bg-slate-700/50 hover:bg-slate-700/70 text-slate-300 font-bold py-3 px-4 rounded-xl transition-all duration-200 border border-slate-600/30"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmReject}
-                className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
-              >
-                <XCircle className="h-4 w-4" />
-                Confirmar Rejeição
-              </button>
-            </div>
-          </div>
-        </div>
-       )}
-       
-       {/* Modal de Confirmação para Aprovação Sem Comprovante */}
-       {showConfirmModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-600/30 w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-amber-500/20 to-amber-600/20 p-4 sm:p-6 border-b border-slate-600/30 rounded-t-2xl sm:rounded-t-3xl">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-amber-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-amber-400" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-base sm:text-xl font-black text-white leading-tight">Aprovar sem Comprovante?</h3>
-                  <p className="text-slate-300 text-xs sm:text-sm">Solicitação precisa de atenção</p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Conteúdo */}
-            <div className="p-4 sm:p-6">
-              <div className="mb-4 sm:mb-6 bg-amber-500/10 border border-amber-500/30 rounded-lg sm:rounded-xl p-3 sm:p-4">
-                <p className="text-amber-200 text-xs sm:text-sm leading-relaxed">
-                  ⚠️ <strong>Atenção:</strong> Esta solicitação não possui comprovante anexado no sistema.
-                </p>
-                <p className="text-amber-200/80 text-xs mt-1 sm:mt-2">
-                  Aprove apenas se o comprovante foi enviado por WhatsApp, email, etc.
-                </p>
-              </div>
-              
-              <div className="mb-4 sm:mb-6">
-                <label className="block text-xs sm:text-sm font-bold text-slate-300 mb-2 sm:mb-3">
-                  Notas da aprovação (opcional)
-                </label>
-                <textarea
-                  value={approvalNotes}
-                  onChange={(e) => setApprovalNotes(e.target.value)}
-                  placeholder="Ex: Comprovante via WhatsApp..."
-                  className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all duration-200 resize-none"
-                  rows={2}
-                />
-              </div>
-              
-              <div className="text-xs text-slate-400 bg-slate-700/30 p-2 sm:p-3 rounded-lg sm:rounded-xl">
-                💡 <strong>Dica:</strong> Notas ajudam a manter o histórico da aprovação.
-              </div>
-            </div>
-            
-            {/* Botões */}
-            <div className="p-4 sm:p-6 pt-0 flex gap-2 sm:gap-3">
-              <button
-                onClick={() => {
-                  setShowConfirmModal(false);
-                  setPendingApprovalId(null);
-                  setApprovalNotes('');
-                }}
-                className="flex-1 bg-slate-700/50 hover:bg-slate-700/70 text-slate-300 font-bold py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg sm:rounded-xl transition-all duration-200 border border-slate-600/30 text-sm sm:text-base"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmApproval}
-                className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg sm:rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base"
-              >
-                <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">Aprovar Mesmo Assim</span>
-                <span className="sm:hidden">Aprovar</span>
-              </button>
-            </div>
-          </div>
-        </div>
-       )}
-       
-       {/* Modal de Visualização de Comprovante */}
-       {showProofModal && selectedProofUrl && selectedProofRequest && (
-         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl shadow-2xl border border-slate-600/30 w-full max-w-4xl mx-auto max-h-[90vh] overflow-hidden">
-             {/* Header */}
-             <div className="bg-gradient-to-r from-blue-500/20 to-blue-600/20 p-6 border-b border-slate-600/30">
-               <div className="flex items-center justify-between">
-                 <div className="flex items-center gap-3">
-                   <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
-                     <Image className="h-6 w-6 text-blue-400" />
-                   </div>
-                   <div>
-                     <h3 className="text-xl font-black text-white">Comprovante de Pagamento</h3>
-                     <p className="text-slate-300 text-sm">{selectedProofRequest.user_name} - R$ {selectedProofRequest.payment_amount.toFixed(2)}</p>
-                   </div>
-                 </div>
-                 <button
-                   onClick={() => {
-                     setShowProofModal(false);
-                     setSelectedProofUrl(null);
-                     setSelectedProofRequest(null);
-                   }}
-                   className="w-10 h-10 bg-slate-700/50 hover:bg-slate-700/70 rounded-xl flex items-center justify-center transition-colors duration-200"
-                 >
-                   <XCircle className="h-5 w-5 text-slate-400" />
-                 </button>
-               </div>
-             </div>
-             
-             {/* Conteúdo */}
-             <div className="p-6 overflow-auto max-h-[calc(90vh-200px)]">
-               <div className="bg-slate-700/30 rounded-2xl p-4 mb-6">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                   <div>
-                     <span className="text-slate-400 font-medium">Usuário:</span>
-                     <p className="text-white font-bold">{selectedProofRequest.user_name}</p>
-                   </div>
-                   <div>
-                     <span className="text-slate-400 font-medium">Email:</span>
-                     <p className="text-white font-bold">{selectedProofRequest.user_email}</p>
-                   </div>
-                   <div>
-                     <span className="text-slate-400 font-medium">WhatsApp:</span>
-                     <p className="text-white font-bold">{selectedProofRequest.user_whatsapp}</p>
-                   </div>
-                   <div>
-                     <span className="text-slate-400 font-medium">Valor:</span>
-                     <p className="text-white font-bold">R$ {selectedProofRequest.payment_amount.toFixed(2)}</p>
-                   </div>
-                   <div>
-                     <span className="text-slate-400 font-medium">Data:</span>
-                     <p className="text-white font-bold">{new Date(selectedProofRequest.created_at).toLocaleDateString('pt-BR')}</p>
-                   </div>
-                   <div>
-                     <span className="text-slate-400 font-medium">Status:</span>
-                     <p className={`font-bold ${
-                       selectedProofRequest.status === 'approved' ? 'text-emerald-400' :
-                       selectedProofRequest.status === 'rejected' ? 'text-red-400' : 'text-amber-400'
-                     }`}>
-                       {selectedProofRequest.status === 'approved' ? 'Aprovado' :
-                        selectedProofRequest.status === 'rejected' ? 'Rejeitado' : 'Pendente'}
-                     </p>
-                   </div>
-                 </div>
-               </div>
-               
-               {/* Imagem do Comprovante */}
-               <div className="bg-white rounded-2xl p-4 flex items-center justify-center">
-                 <img
-                   src={selectedProofUrl}
-                   alt="Comprovante de Pagamento"
-                   className="max-w-full max-h-96 object-contain rounded-xl shadow-lg"
-                   onError={(e) => {
-                     const target = e.target as HTMLImageElement;
-                     target.style.display = 'none';
-                     const parent = target.parentElement;
-                     if (parent) {
-                       parent.innerHTML = `
-                         <div class="text-center py-8">
-                           <div class="w-16 h-16 bg-slate-200 rounded-xl flex items-center justify-center mx-auto mb-4">
-                             <svg class="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                             </svg>
-                           </div>
-                           <p class="text-slate-600 font-medium">Erro ao carregar imagem</p>
-                           <a href="${selectedProofUrl}" target="_blank" class="text-blue-600 hover:text-blue-700 font-medium text-sm mt-2 inline-block">Abrir em nova aba</a>
-                         </div>
-                       `;
-                     }
-                   }}
-                 />
-               </div>
-             </div>
-             
-             {/* Botões de Ação */}
-             {selectedProofRequest.status === 'pending' && (
-               <div className="p-6 pt-0 border-t border-slate-600/30">
-                 <div className="flex gap-3">
-                   <button
-                     onClick={() => {
-                       setShowProofModal(false);
-                       handleApprove(selectedProofRequest.id);
-                     }}
-                     className="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
-                   >
-                     <CheckCircle className="h-4 w-4" />
-                     Aprovar
-                   </button>
-                   <button
-                     onClick={() => {
-                       setShowProofModal(false);
-                       handleReject(selectedProofRequest.id);
-                     }}
-                     className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
-                   >
-                     <XCircle className="h-4 w-4" />
-                     Rejeitar
-                   </button>
-                 </div>
-               </div>
-             )}
-           </div>
-         </div>
-       )}
     </div>
   );
 }
+

@@ -3,7 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { Link, useNavigate } from 'react-router-dom';
-import { X, Gift, Calendar, Bell } from 'lucide-react';
+import { X, Gift, Calendar, Bell, Trophy, Zap, Gamepad2, Ticket } from 'lucide-react';
+import Header from '../components/shared/Header';
+import Footer from '../components/shared/Footer';
 
 interface UserStats {
   totalRaffles: number;
@@ -22,7 +24,7 @@ interface RecentActivity {
 }
 
 const UserDashboardPage: React.FC = () => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { currentUser: currentAppUser } = useData();
   const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats>({
@@ -39,12 +41,10 @@ const UserDashboardPage: React.FC = () => {
     loadRecentActivity();
   }, [user]);
 
-  // Subscription em tempo real para atualizar estatísticas
   useEffect(() => {
     if (!user) return;
 
     const subscriptions = [
-      // Subscription para mudanças em draw_results
       supabase
         .channel('user-draw-results')
         .on('postgres_changes', {
@@ -55,8 +55,7 @@ const UserDashboardPage: React.FC = () => {
         }, () => {
           loadUserStats();
         }),
-      
-      // Subscription para mudanças em raffles (sorteios ativos)
+
       supabase
         .channel('active-raffles')
         .on('postgres_changes', {
@@ -69,10 +68,8 @@ const UserDashboardPage: React.FC = () => {
         })
     ];
 
-    // Subscribe to all channels
     subscriptions.forEach(sub => sub.subscribe());
 
-    // Cleanup function
     return () => {
       subscriptions.forEach(sub => sub.unsubscribe());
     };
@@ -80,24 +77,20 @@ const UserDashboardPage: React.FC = () => {
 
   const loadUserStats = async () => {
     if (!user) return;
-    
+
     try {
-      // Carregar estatísticas reais do usuário
       const [totalRafflesResult, wonRafflesResult, currentRafflesResult] = await Promise.all([
-        // Total de sorteios que o usuário participou
         supabase
           .from('draw_results')
           .select('id', { count: 'exact' })
           .eq('winner_id', user.id),
-        
-        // Sorteios que o usuário ganhou
+
         supabase
           .from('draw_results')
           .select('id', { count: 'exact' })
           .eq('winner_id', user.id)
           .eq('is_winner', true),
-        
-        // Sorteios ativos (raffles com is_active = true)
+
         supabase
           .from('raffles')
           .select('id', { count: 'exact' })
@@ -110,7 +103,6 @@ const UserDashboardPage: React.FC = () => {
         currentRaffles: currentRafflesResult.count || 0,
       });
     } catch (error) {
-      // Fallback para dados mock em caso de erro
       setStats({
         totalRaffles: 0,
         wonRaffles: 0,
@@ -125,7 +117,6 @@ const UserDashboardPage: React.FC = () => {
     if (!user) return;
 
     try {
-      // Buscar resultados de sorteios recentes do usuário
       const { data: drawResults, error: drawError } = await supabase
         .from('draw_results')
         .select(`
@@ -144,17 +135,20 @@ const UserDashboardPage: React.FC = () => {
 
       if (drawError) throw drawError;
 
-      // Converter para formato de atividade recente
-      const activities: RecentActivity[] = drawResults?.map(result => ({
-        id: result.id,
-        type: result.is_winner ? 'win' : 'participation',
-        title: result.is_winner ? 'Você ganhou um sorteio!' : 'Participou de um sorteio',
-        description: result.is_winner 
-          ? `Prêmio: ${result.prize_value ? `R$ ${result.prize_value}` : result.raffles?.prize || 'N/A'}`
-          : `Sorteio: ${result.raffles?.title || 'N/A'}`,
-        date: result.draw_date,
-        prize: result.prize_value ? `R$ ${result.prize_value}` : result.raffles?.prize
-      })) || [];
+      const activities: RecentActivity[] = drawResults?.map(result => {
+        const raffleData = (Array.isArray(result.raffles) ? result.raffles[0] : result.raffles) as any;
+
+        return {
+          id: result.id,
+          type: result.is_winner ? 'win' : 'participation',
+          title: result.is_winner ? 'Você ganhou um sorteio!' : 'Participou de um sorteio',
+          description: result.is_winner
+            ? `Prêmio: ${result.prize_value ? `R$ ${result.prize_value}` : raffleData?.prize || 'N/A'}`
+            : `Sorteio: ${raffleData?.title || 'N/A'}`,
+          date: result.draw_date,
+          prize: result.prize_value ? `R$ ${result.prize_value}` : raffleData?.prize
+        };
+      }) || [];
 
       setRecentActivity(activities);
     } catch (error) {
@@ -164,240 +158,209 @@ const UserDashboardPage: React.FC = () => {
 
   const handleViewRaffles = () => {
     if (stats.currentRaffles > 0) {
-      // Se há sorteios ativos, navegar para a página inicial
       navigate('/');
     } else {
-      // Se não há sorteios ativos, mostrar modal
       setShowNoRafflesModal(true);
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-accent"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      
+
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 py-8 sm:py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-2" style={{
-              textShadow: '2px 2px 0px rgba(251, 191, 36, 0.8)'
-            }}>
-              DASHBOARD
-            </h1>
-            <p className="text-blue-100 text-lg sm:text-xl">Bem-vindo, {currentAppUser?.name || user?.email?.split('@')[0]}!</p>
-          </div>
+      <div className="relative py-12 md:py-16 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary-dark via-primary to-primary-dark opacity-90"></div>
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-3xl md:text-5xl font-black text-white mb-2 uppercase tracking-tight">
+            Área do Torcedor
+          </h1>
+          <p className="text-blue-100 text-lg">
+            Bem-vindo de volta, <span className="text-accent font-bold">{currentAppUser?.name || user?.email?.split('@')[0]}</span>!
+          </p>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
-          <div className="bg-white rounded-2xl p-6 border-2 border-blue-200 shadow-lg">
-            <div className="flex items-center justify-between">
+      <div className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full relative z-10 -mt-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          {/* Total Participations */}
+          <div className="glass-panel p-6 rounded-3xl relative overflow-hidden group hover:scale-[1.02] transition-transform">
+            <div className="absolute top-0 left-0 w-2 h-full bg-blue-500"></div>
+            <div className="flex justify-between items-start">
               <div>
-                <p className="text-blue-600 text-sm font-semibold">Total de Sorteios</p>
-                <p className="text-3xl font-black text-blue-600">{stats.totalRaffles}</p>
+                <p className="text-blue-200 text-sm font-bold uppercase tracking-wider mb-1">Participações</p>
+                <p className="text-4xl font-black text-white">{stats.totalRaffles}</p>
               </div>
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-md">
-                <span className="text-2xl">🎯</span>
+              <div className="w-12 h-12 bg-blue-500/20 rounded-2xl flex items-center justify-center text-blue-400">
+                <Ticket className="w-6 h-6" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 border-2 border-blue-200 shadow-lg">
-            <div className="flex items-center justify-between">
+          {/* Wins */}
+          <div className="glass-panel p-6 rounded-3xl relative overflow-hidden group hover:scale-[1.02] transition-transform">
+            <div className="absolute top-0 left-0 w-2 h-full bg-accent"></div>
+            <div className="flex justify-between items-start">
               <div>
-                <p className="text-blue-600 text-sm font-semibold">Sorteios Ganhos</p>
-                <p className="text-3xl font-black text-blue-600">{stats.wonRaffles}</p>
+                <p className="text-yellow-200 text-sm font-bold uppercase tracking-wider mb-1">Vitórias</p>
+                <p className="text-4xl font-black text-white">{stats.wonRaffles}</p>
               </div>
-              <div className="w-12 h-12 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-xl flex items-center justify-center shadow-md">
-                <span className="text-2xl">🏆</span>
+              <div className="w-12 h-12 bg-accent/20 rounded-2xl flex items-center justify-center text-accent">
+                <Trophy className="w-6 h-6" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 border-2 border-blue-200 shadow-lg">
-            <div className="flex items-center justify-between">
+          {/* Active Raffles */}
+          <div className="glass-panel p-6 rounded-3xl relative overflow-hidden group hover:scale-[1.02] transition-transform">
+            <div className="absolute top-0 left-0 w-2 h-full bg-green-500"></div>
+            <div className="flex justify-between items-start">
               <div>
-                <p className="text-blue-600 text-sm font-semibold">Sorteios Ativos</p>
-                <p className="text-3xl font-black text-blue-600">{stats.currentRaffles}</p>
+                <p className="text-green-200 text-sm font-bold uppercase tracking-wider mb-1">Sorteios Ativos</p>
+                <p className="text-4xl font-black text-white">{stats.currentRaffles}</p>
               </div>
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-md">
-                <span className="text-2xl">⚡</span>
+              <div className="w-12 h-12 bg-green-500/20 rounded-2xl flex items-center justify-center text-green-400">
+                <Zap className="w-6 h-6" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Ações Rápidas */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-          {/* Sorteio ao Vivo */}
-          <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-200 shadow-xl">
-            <div className="text-center">
-              <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <span className="text-3xl">🎮</span>
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+          {/* Live Game Action */}
+          <div className="glass-panel p-8 rounded-3xl relative overflow-hidden text-center group">
+            <div className="absolute inset-0 bg-primary-dark/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative z-10">
+              <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-600 to-blue-800 rounded-full flex items-center justify-center mb-6 shadow-xl border border-white/10 group-hover:scale-110 transition-transform">
+                <Gamepad2 className="w-10 h-10 text-white" />
               </div>
-              <h3 className="text-2xl font-black text-blue-600 mb-4">Sorteio ao Vivo</h3>
-              <p className="text-blue-600 mb-6 text-sm sm:text-base">
-                Participe do emocionante jogo "Resta Um"! Escolha seu número da sorte e veja quem sobrevive até o final.
-              </p>
-              <Link
-                to="/live-raffle"
-                className="inline-block bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 px-8 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
-              >
+              <h3 className="text-2xl font-bold text-white mb-2">Restam Poucos!</h3>
+              <p className="text-blue-200 mb-6 max-w-md mx-auto">Participe do sorteio ao vivo e mostre que você tem sorte de campeão.</p>
+              <Link to="/live-raffle" className="btn btn-primary w-full max-w-xs mx-auto shadow-blue-900/50">
                 Participar Agora
               </Link>
             </div>
           </div>
 
-          {/* Sorteios Gratuitos */}
-          <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-200 shadow-xl">
-            <div className="text-center">
-              <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <span className="text-3xl">🎁</span>
+          {/* Free Raffles Action */}
+          <div className="glass-panel p-8 rounded-3xl relative overflow-hidden text-center group">
+            <div className="absolute inset-0 bg-primary-dark/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative z-10">
+              <div className="w-20 h-20 mx-auto bg-gradient-to-br from-accent to-yellow-600 rounded-full flex items-center justify-center mb-6 shadow-xl border border-white/10 group-hover:scale-110 transition-transform">
+                <Gift className="w-10 h-10 text-white" />
               </div>
-              <h3 className="text-2xl font-black text-blue-600 mb-4">Sorteios Gratuitos</h3>
-              <p className="text-blue-600 mb-6 text-sm sm:text-base">
-                Participe de sorteios gratuitos e ganhe prêmios incríveis sem pagar nada!
-              </p>
-              <button
-                onClick={handleViewRaffles}
-                className="inline-block bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 px-8 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
-              >
+              <h3 className="text-2xl font-bold text-white mb-2">Sorteios Gratuitos</h3>
+              <p className="text-blue-200 mb-6 max-w-md mx-auto">Não perca a chance de ganhar prêmios incríveis totalmente na faixa.</p>
+              <button onClick={handleViewRaffles} className="btn btn-outline border-white/20 hover:bg-white/10 text-white w-full max-w-xs mx-auto">
                 Ver Sorteios
               </button>
             </div>
           </div>
         </div>
 
-        {/* Histórico Recente */}
-        <div className="mt-8 bg-white rounded-2xl p-6 border-2 border-blue-200 shadow-xl">
-          <h3 className="text-xl font-bold text-white mb-4">Atividade Recente</h3>
+        {/* Recent Activity */}
+        <div className="glass-panel p-8 rounded-3xl">
+          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-accent" />
+            Histórico de Atividades
+          </h3>
+
           <div className="space-y-4">
             {recentActivity.length > 0 ? (
               recentActivity.map((activity) => (
-                <div key={activity.id} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      activity.type === 'win' ? 'bg-green-500/20' : 
-                      activity.type === 'participation' ? 'bg-blue-500/20' : 
-                      'bg-amber-500/20'
-                    }`}>
-                      <span className={
-                        activity.type === 'win' ? 'text-green-400' : 
-                        activity.type === 'participation' ? 'text-blue-400' : 
-                        'text-amber-400'
-                      }>
-                        {activity.type === 'win' ? '🏆' : 
-                         activity.type === 'participation' ? '🎯' : 
-                         '🎁'}
-                      </span>
+                <div key={activity.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-colors border border-white/5">
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${activity.type === 'win' ? 'bg-accent/20 text-accent' :
+                      activity.type === 'participation' ? 'bg-blue-500/20 text-blue-400' :
+                        'bg-white/10 text-gray-400'
+                      }`}>
+                      {activity.type === 'win' && <Trophy className="w-6 h-6" />}
+                      {activity.type === 'participation' && <Ticket className="w-6 h-6" />}
+                      {activity.type === 'raffle_join' && <Gift className="w-6 h-6" />}
                     </div>
                     <div>
-                      <p className="text-white font-semibold">{activity.title}</p>
-                      <p className="text-gray-400 text-sm">{activity.description}</p>
+                      <p className="text-white font-bold">{activity.title}</p>
+                      <p className="text-blue-200/60 text-sm">{activity.description}</p>
                     </div>
                   </div>
-                  <span className="text-gray-400 text-sm">
+                  <span className="text-blue-200/40 text-xs font-mono bg-black/20 px-2 py-1 rounded">
                     {new Date(activity.date).toLocaleDateString('pt-BR')}
                   </span>
                 </div>
               ))
             ) : (
-              <div className="text-center py-8 text-gray-400">
-                <div className="text-4xl mb-2">📊</div>
-                <p>Nenhuma atividade recente</p>
-                <p className="text-sm">Participe de sorteios para ver sua atividade aqui!</p>
+              <div className="text-center py-12 text-blue-200/40">
+                <div className="text-4xl mb-4 grayscale opacity-50">📊</div>
+                <p>Nenhuma atividade recente registrada.</p>
+                <p className="text-sm mt-1">Participe dos sorteios para ver seu histórico aqui!</p>
               </div>
             )}
           </div>
         </div>
+
       </div>
 
       {/* Modal - Nenhum Sorteio Ativo */}
       {showNoRafflesModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl shadow-2xl border border-slate-600/30 w-full max-w-md mx-auto">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="glass-panel-dark max-w-md w-full p-0 rounded-3xl overflow-hidden shadow-2xl border border-white/10">
             {/* Header */}
-            <div className="bg-gradient-to-r from-amber-500/20 to-amber-600/20 p-6 border-b border-slate-600/30 rounded-t-3xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl flex items-center justify-center">
-                    <Gift className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-black text-white">Sorteios Gratuitos</h3>
-                    <p className="text-slate-300 text-sm">Aguarde novos sorteios</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowNoRafflesModal(false)}
-                  className="w-10 h-10 bg-slate-700/50 hover:bg-slate-700/70 rounded-xl flex items-center justify-center transition-colors duration-200"
-                >
-                  <X className="h-5 w-5 text-slate-400" />
-                </button>
+            <div className="bg-gradient-to-r from-primary to-primary-dark p-6 text-center relative">
+              <button
+                onClick={() => setShowNoRafflesModal(false)}
+                className="absolute top-4 right-4 text-white/60 hover:text-white"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md border border-white/20">
+                <Bell className="w-8 h-8 text-accent" />
               </div>
+              <h3 className="text-2xl font-black text-white">Ops! Sem Sorteios</h3>
             </div>
-            
-            {/* Conteúdo */}
-            <div className="p-6">
-              <div className="text-center mb-6">
-                <div className="w-20 h-20 bg-gradient-to-r from-amber-500/20 to-amber-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Calendar className="h-10 w-10 text-amber-400" />
-                </div>
-                <h4 className="text-lg font-bold text-white mb-2">Nenhum Sorteio Ativo</h4>
-                <p className="text-slate-300 text-sm leading-relaxed">
-                  No momento não há sorteios gratuitos disponíveis. 
-                  Fique atento às nossas redes sociais para não perder os próximos sorteios!
-                </p>
-              </div>
-              
-              <div className="bg-slate-700/30 rounded-xl p-4 mb-6">
-                <div className="flex items-center gap-3 mb-3">
-                  <Bell className="h-5 w-5 text-amber-400" />
-                  <h5 className="font-bold text-white">Como ser notificado?</h5>
-                </div>
-                <ul className="text-sm text-slate-300 space-y-2">
-                  <li>• Siga nossas redes sociais</li>
-                  <li>• Ative as notificações do app</li>
-                  <li>• Verifique regularmente esta página</li>
-                </ul>
-              </div>
-              
+
+            {/* Content */}
+            <div className="p-8 text-center">
+              <p className="text-blue-200 mb-8 leading-relaxed">
+                No momento não estamos com sorteios ativos. Mas não se preocupe, a nação azul não para! Fique ligado nas nossas redes.
+              </p>
+
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowNoRafflesModal(false)}
-                  className="flex-1 bg-slate-700/50 hover:bg-slate-700/70 text-slate-300 font-bold py-3 px-4 rounded-xl transition-all duration-200 border border-slate-600/30"
+                  className="flex-1 btn btn-outline border-white/10 hover:bg-white/5 text-white py-3 rounded-xl"
                 >
-                  Entendi
+                  Fechar
                 </button>
                 <button
                   onClick={() => {
                     setShowNoRafflesModal(false);
                     navigate('/');
                   }}
-                  className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+                  className="flex-1 btn btn-primary py-3 rounded-xl"
                 >
-                  <Calendar className="h-4 w-4" />
-                  Ver Página
+                  Ir para Home
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      <Footer />
     </div>
   );
 };
 
 export default UserDashboardPage;
-

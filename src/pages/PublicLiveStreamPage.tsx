@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Eye, Share2, MessageSquare, X } from 'lucide-react';
+import { ArrowLeft, Eye, Share2, MessageSquare, X, Trophy, Calendar, ChevronRight, Play, MonitorPlay } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import ZKViewer from '../components/ZKViewer';
@@ -37,131 +37,68 @@ const PublicLiveStreamPage: React.FC = () => {
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [showStreamContent, setShowStreamContent] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
   const [sessionId] = useState(() => {
-    // Tentar recuperar sessionId do localStorage para manter a mesma sessão entre recarregamentos
     const storageKey = `live_session_${channelName}`;
     const savedSessionId = localStorage.getItem(storageKey);
-    
-    if (savedSessionId) {
-      return savedSessionId;
-    }
-    
-    // Criar novo sessionId se não existir
+    if (savedSessionId) return savedSessionId;
     const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     localStorage.setItem(storageKey, newSessionId);
     return newSessionId;
   });
 
-  useEffect(() => {
-    if (channelName) {
-      loadStream();
-    }
+  // Mock data for Cruzeiro features
+  const upcomingGames = [
+    { opponent: 'Atlético-MG', date: 'Dom, 22/12', time: '16:00', competition: 'Brasileirão', stadium: 'Mineirão', logo: 'https://upload.wikimedia.org/wikipedia/pt/d/de/Clube_Atl%C3%A9tico_Mineiro_logo.svg' },
+    { opponent: 'Flamengo', date: 'Qua, 25/12', time: '21:30', competition: 'Brasileirão', stadium: 'Maracanã', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2e/Flamengo_braz_logo.svg' }
+  ];
 
-    return () => {
-      // Marcar sessão como encerrada ao sair
-      if (stream) {
-        endViewerSession();
-      }
-    };
+  const championshipTable = [
+    { pos: 1, team: 'Cruzeiro', pts: 72, v: 22, e: 6, d: 4 },
+    { pos: 2, team: 'Botafogo', pts: 70, v: 21, e: 7, d: 4 },
+    { pos: 3, team: 'Palmeiras', pts: 68, v: 20, e: 8, d: 4 },
+    { pos: 4, team: 'Fortaleza', pts: 65, v: 19, e: 8, d: 5 }
+  ];
+
+  useEffect(() => {
+    if (channelName) loadStream();
+    return () => { if (stream) endViewerSession(); };
   }, [channelName]);
 
-  // Scroll para o topo quando a página carregar (após renderização)
   useEffect(() => {
-    // Forçar scroll para o topo imediatamente e após um pequeno delay
     window.scrollTo(0, 0);
-    const timer = setTimeout(() => {
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-    }, 100);
-    
+    const timer = setTimeout(() => window.scrollTo(0, 0), 100);
     return () => clearTimeout(timer);
   }, []);
 
-  // Scroll para o topo quando o stream for carregado
-  useEffect(() => {
-    if (stream) {
-      setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        document.documentElement.scrollTop = 0;
-        document.body.scrollTop = 0;
-      }, 100);
-    }
-  }, [stream]);
-
-  // Detectar se é mobile e orientação
   useEffect(() => {
     const checkMobile = () => {
-      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
-                    window.innerWidth <= 768;
+      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768;
       setIsMobile(mobile);
       setIsLandscape(window.innerWidth > window.innerHeight);
-      console.log('📱 Detecção mobile:', { mobile, userAgent: navigator.userAgent, width: window.innerWidth });
     };
-    
     const handleOrientationChange = () => {
       if (!isMobile) return;
-      
-      // Aguardar um pouco para a orientação se estabilizar
       setTimeout(() => {
-        const isLandscape = window.innerWidth > window.innerHeight;
-        setIsLandscape(isLandscape);
-        console.log('🔄 Mudança de orientação:', { isLandscape, width: window.innerWidth, height: window.innerHeight });
-        
-        // Auto fullscreen em paisagem no mobile
-        if (isLandscape && !isFullscreen && videoContainerRef.current) {
-          console.log('🔄 Auto fullscreen ativado (paisagem)');
-          videoContainerRef.current.requestFullscreen?.();
-        }
+        const landscape = window.innerWidth > window.innerHeight;
+        setIsLandscape(landscape);
+        if (landscape && !isFullscreen && videoContainerRef.current) videoContainerRef.current.requestFullscreen?.();
       }, 300);
     };
-    
     checkMobile();
     window.addEventListener('resize', checkMobile);
     window.addEventListener('orientationchange', handleOrientationChange);
-    window.addEventListener('resize', handleOrientationChange);
-    
     return () => {
       window.removeEventListener('resize', checkMobile);
       window.removeEventListener('orientationchange', handleOrientationChange);
-      window.removeEventListener('resize', handleOrientationChange);
     };
   }, [isMobile, isFullscreen]);
 
   const isDockedChat = isMobile && isFullscreen && isLandscape && isChatOpen;
   const effectiveVideoFitMode: 'contain' | 'cover' = isDockedChat ? 'contain' : videoFitMode;
 
-  // Debug: log quando isDockedChat muda
-  useEffect(() => {
-    console.log('🔍 isDockedChat:', isDockedChat, {
-      isMobile,
-      isFullscreen,
-      isLandscape,
-      isChatOpen
-    });
-  }, [isDockedChat, isMobile, isFullscreen, isLandscape, isChatOpen]);
-
-  // Adicionar classe CSS no body quando estiver em paisagem (para CSS aplicar estilos)
-  useEffect(() => {
-    if (isLandscape) {
-      document.body.classList.add('landscape');
-    } else {
-      document.body.classList.remove('landscape');
-    }
-    return () => {
-      document.body.classList.remove('landscape');
-    };
-  }, [isLandscape]);
-
   const scheduleHideControls = (delayMs: number) => {
-    if (controlsHideTimerRef.current) {
-      window.clearTimeout(controlsHideTimerRef.current);
-      controlsHideTimerRef.current = null;
-    }
-    controlsHideTimerRef.current = window.setTimeout(() => {
-      setControlsVisible(false);
-    }, delayMs);
+    if (controlsHideTimerRef.current) { window.clearTimeout(controlsHideTimerRef.current); }
+    controlsHideTimerRef.current = window.setTimeout(() => setControlsVisible(false), delayMs);
   };
 
   const showControlsTemporarily = (delayMs: number = 2500) => {
@@ -169,558 +106,142 @@ const PublicLiveStreamPage: React.FC = () => {
     scheduleHideControls(delayMs);
   };
 
-  // comportamento estilo YouTube: em fullscreen paisagem, padrão é "Preencher (zoom)"
   useEffect(() => {
-    if (isMobile && isFullscreen && isLandscape) {
-      setVideoFitMode('cover');
-    }
-    if (!isFullscreen) {
-      setVideoFitMode('contain');
-    }
+    if (isMobile && isFullscreen && isLandscape) setVideoFitMode('cover');
+    if (!isFullscreen) setVideoFitMode('contain');
   }, [isMobile, isFullscreen, isLandscape]);
 
-  // Quando o chat estiver DOCKED (lado a lado), SEMPRE usar "sem cortes"
   useEffect(() => {
-    if (isDockedChat) {
-      setVideoFitMode('contain');
-    }
+    if (isDockedChat) setVideoFitMode('contain');
   }, [isDockedChat]);
 
-  // Auto-hide dos botões (mobile): mostra por um instante e depois some
   useEffect(() => {
-    if (!isMobile) {
-      setControlsVisible(true);
-      return;
-    }
-    // Só faz sentido quando há stream ativo (botões existem)
-    if (stream?.is_active) {
-      // Ao entrar em fullscreen/rotacionar, mostra e esconde
-      showControlsTemporarily(isFullscreen ? 2000 : 2500);
-    } else {
-      setControlsVisible(false);
-    }
-
-    return () => {
-      if (controlsHideTimerRef.current) {
-        window.clearTimeout(controlsHideTimerRef.current);
-        controlsHideTimerRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!isMobile) { setControlsVisible(true); return; }
+    if (stream?.is_active) showControlsTemporarily(isFullscreen ? 2000 : 2500);
+    else setControlsVisible(false);
+    return () => { if (controlsHideTimerRef.current) window.clearTimeout(controlsHideTimerRef.current); };
   }, [isMobile, isFullscreen, isLandscape, stream?.is_active]);
 
-  // Detectar fullscreen
   useEffect(() => {
     const handleFullscreenChange = () => {
-      const isFullscreenNow = !!(document.fullscreenElement || 
-                                 (document as any).webkitFullscreenElement ||
-                                 (document as any).mozFullScreenElement ||
-                                 (document as any).msFullscreenElement);
+      const isFullscreenNow = !!(document.fullscreenElement || (document as any).webkitFullscreenElement || (document as any).mozFullScreenElement || (document as any).msFullscreenElement);
       setIsFullscreen(isFullscreenNow);
-      console.log('🖥️ Fullscreen mudou:', { isFullscreen: isFullscreenNow, isMobile });
-      // Fechar chat quando sair do fullscreen
-      if (!isFullscreenNow) {
-        setIsChatOpen(false);
-      }
+      if (!isFullscreenNow) setIsChatOpen(false);
     };
-
-    // Verificar estado inicial
-    handleFullscreenChange();
-
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
-    };
-  }, [isMobile]);
-
-
-  // Track viewer após stream ser carregado (apenas se estiver ativo)
   useEffect(() => {
-    if (stream && channelName && stream.is_active) {
-      trackViewer();
-      // Mostrar conteúdo apenas quando transmissão estiver ativa
-      setShowStreamContent(true);
-    } else if (stream && !stream.is_active) {
-      // Se a transmissão não está ativa, encerrar sessão se existir
-      endViewerSession();
-      // Ocultar conteúdo quando transmissão não estiver ativa
-      setShowStreamContent(false);
-      // Garantir que o chat feche automaticamente quando encerrar
-      setIsChatOpen(false);
-    }
+    if (stream && channelName && stream.is_active) { trackViewer(); setShowStreamContent(true); }
+    else if (stream && !stream.is_active) { endViewerSession(); setShowStreamContent(false); setIsChatOpen(false); }
   }, [stream, channelName]);
 
-  // Se o stream ficar inativo por polling/subscription, fechar chat imediatamente
   useEffect(() => {
-    if (!stream?.is_active && isChatOpen) {
-      setIsChatOpen(false);
-    }
-  }, [stream?.is_active, isChatOpen]);
-
-  // Heartbeat e atualização do contador (apenas se estiver ativo)
-  useEffect(() => {
-    if (!stream || !stream.is_active) {
-      // Se não está ativo, definir contador como 0
-      setViewerCount(0);
-      return;
-    }
-
-    // Atualizar heartbeat e contador imediatamente
+    if (!stream || !stream.is_active) { setViewerCount(0); return; }
     updateHeartbeat();
     updateViewerCount();
-
-    // Atualizar heartbeat a cada 30 segundos
-    const heartbeatInterval = setInterval(() => {
-      updateHeartbeat();
-    }, 30000);
-
-    // Atualizar contador a cada 5 segundos
-    const countInterval = setInterval(() => {
-      updateViewerCount();
-    }, 5000);
-
-    return () => {
-      clearInterval(heartbeatInterval);
-      clearInterval(countInterval);
-    };
-  }, [stream, stream?.is_active]);
+    const heartbeatInterval = setInterval(() => updateHeartbeat(), 30000);
+    const countInterval = setInterval(() => updateViewerCount(), 5000);
+    return () => { clearInterval(heartbeatInterval); clearInterval(countInterval); };
+  }, [stream]);
 
   const loadStream = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('live_streams')
-        .select('*')
-        .eq('channel_name', channelName)
-        .maybeSingle(); // Usar maybeSingle() ao invés de single() para evitar erro 406 quando não há resultado
-
+      const { data, error } = await supabase.from('live_streams').select('*').eq('channel_name', channelName).maybeSingle();
       if (error) throw error;
-
-      if (!data) {
-        toast.error('Transmissão não encontrada');
-        navigate('/');
-        return;
-      }
-
+      if (!data) { toast.error('Transmissão não encontrada'); navigate('/'); return; }
       setStream(data);
       setViewerCount(data.viewer_count || 0);
-      
-      console.log('📺 Stream carregado:', { 
-        id: data.id, 
-        is_active: data.is_active, 
-        title: data.title 
-      });
-
-      // Não mostrar toast se a transmissão não está ativa - a mensagem já aparece na tela
-    } catch (error: any) {
-      console.error('Erro ao carregar transmissão:', error);
-      if (error.code === 'PGRST116') {
-        toast.error('Transmissão não encontrada');
-        navigate('/');
-      } else {
-        toast.error('Erro ao carregar transmissão');
-      }
+    } catch (error) {
+      toast.error('Erro ao carregar transmissão');
     } finally {
       setLoading(false);
     }
   };
 
   const trackViewer = async () => {
-    if (!stream) {
-      console.log('⏳ Stream ainda não carregado, aguardando...');
-      return;
-    }
-
-    // Só rastrear viewer se a transmissão estiver ativa
-    if (!stream.is_active) {
-      console.log('⏸️ Transmissão não está ativa, não rastreando viewer');
-      return;
-    }
-
+    if (!stream || !stream.is_active) return;
     try {
-      console.log('👤 Criando sessão de visualização...', {
-        streamId: stream.id,
-        sessionId,
-        channelName
-      });
-      
-      // Verificar se já existe sessão para este session_id (usando maybeSingle para evitar erro 406)
-      const { data: existingSession, error: checkError } = await supabase
-        .from('viewer_sessions')
-        .select('id, is_active, ended_at')
-        .eq('session_id', sessionId)
-        .eq('stream_id', stream.id)
-        .maybeSingle();
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error('❌ Erro ao verificar sessão existente:', checkError);
-      }
-
+      const { data: existingSession } = await supabase.from('viewer_sessions').select('id, is_active, ended_at').eq('session_id', sessionId).eq('stream_id', stream.id).maybeSingle();
       if (existingSession) {
-        // Se já existe, apenas reativar e atualizar heartbeat
-        console.log('ℹ️ Sessão já existe, reativando...', existingSession);
-        const { error: updateError } = await supabase
-          .from('viewer_sessions')
-          .update({ 
-            is_active: true,
-            // Se o usuário fizer login depois, anexar o user_id na sessão
-            user_id: user?.id ?? null,
-            last_heartbeat: new Date().toISOString(),
-            ended_at: null,
-            started_at: existingSession.ended_at ? new Date().toISOString() : undefined
-          })
-          .eq('session_id', sessionId)
-          .eq('stream_id', stream.id);
-
-        if (updateError) {
-          console.error('❌ Erro ao reativar sessão:', updateError);
-        } else {
-          console.log('✅ Sessão reativada com sucesso');
-        }
+        await supabase.from('viewer_sessions').update({ is_active: true, user_id: user?.id ?? null, last_heartbeat: new Date().toISOString(), ended_at: null }).eq('session_id', sessionId).eq('stream_id', stream.id);
       } else {
-        // Criar nova sessão de visualização
-        const { data, error } = await supabase.from('viewer_sessions').insert({
-          stream_id: stream.id,
-          session_id: sessionId,
-          is_active: true,
-          user_id: user?.id ?? null,
-          user_agent: navigator.userAgent,
-          last_heartbeat: new Date().toISOString(),
-        }).select();
-
-        if (error) {
-          console.error('❌ Erro ao criar sessão de visualização:', error);
-        } else {
-          console.log('✅ Sessão de visualização criada:', data);
-        }
+        await supabase.from('viewer_sessions').insert({ stream_id: stream.id, session_id: sessionId, is_active: true, user_id: user?.id ?? null, user_agent: navigator.userAgent, last_heartbeat: new Date().toISOString() });
       }
-      
-      // NÃO limpar sessões aqui - isso será feito periodicamente pelo updateViewerCount
-      // Apenas atualizar contador (que já faz limpeza internamente)
       await updateViewerCount();
     } catch (error) {
-      console.error('Erro ao rastrear viewer:', error);
+      console.error(error);
     }
   };
 
   const updateHeartbeat = async () => {
     if (!stream || !stream.is_active) return;
-
-    try {
-      // Atualizar heartbeat usando função SQL
-      const { error } = await supabase.rpc('update_viewer_heartbeat', {
-        p_session_id: sessionId
-      });
-
-      if (error) {
-        console.error('❌ Erro ao atualizar heartbeat:', error);
-      }
-    } catch (error) {
-      console.error('Erro ao atualizar heartbeat:', error);
-    }
+    await supabase.rpc('update_viewer_heartbeat', { p_session_id: sessionId });
   };
 
   const cleanupOldSessions = async () => {
     if (!stream) return;
-
-    try {
-      // Limpar sessões duplicadas primeiro
-      const { error: dupError } = await supabase.rpc(
-        'cleanup_duplicate_viewer_sessions',
-        { p_stream_id: stream.id }
-      );
-
-      if (dupError) {
-        console.error('❌ Erro ao limpar sessões duplicadas:', dupError);
-      } else {
-        console.log('🧹 Sessões duplicadas limpas');
-      }
-
-      // Limpar sessões antigas usando função SQL
-      const { error } = await supabase.rpc('cleanup_inactive_viewer_sessions');
-
-      if (error) {
-        console.error('❌ Erro ao limpar sessões antigas:', error);
-      } else {
-        console.log('🧹 Sessões antigas limpas');
-      }
-    } catch (error) {
-      console.error('Erro ao limpar sessões antigas:', error);
-    }
+    await supabase.rpc('cleanup_duplicate_viewer_sessions', { p_stream_id: stream.id });
+    await supabase.rpc('cleanup_inactive_viewer_sessions');
   };
 
   const endViewerSession = async () => {
     if (!stream) return;
-
     try {
-      console.log('👋 Encerrando sessão de visualização...', { sessionId, streamId: stream.id });
-      
-      const { error } = await supabase
-        .from('viewer_sessions')
-        .update({
-          ended_at: new Date().toISOString(),
-          is_active: false,
-        })
-        .eq('session_id', sessionId)
-        .eq('stream_id', stream.id);
-
-      if (error) {
-        console.error('❌ Erro ao encerrar sessão:', error);
-      } else {
-        console.log('✅ Sessão encerrada com sucesso');
-      }
-
-      // Remover sessionId do localStorage ao sair
-      const storageKey = `live_session_${channelName}`;
-      localStorage.removeItem(storageKey);
-
-      // Atualizar contador após encerrar sessão
+      await supabase.from('viewer_sessions').update({ ended_at: new Date().toISOString(), is_active: false }).eq('session_id', sessionId).eq('stream_id', stream.id);
+      localStorage.removeItem(`live_session_${channelName}`);
       await updateViewerCount();
     } catch (error) {
-      console.error('Erro ao encerrar sessão:', error);
+      console.error(error);
     }
   };
 
-  // Ref para evitar múltiplas chamadas simultâneas
   const updatingCountRef = useRef(false);
   const lastCleanupRef = useRef(0);
 
   const updateViewerCount = async () => {
-    if (!stream) return;
-
-    // Evitar chamadas simultâneas
-    if (updatingCountRef.current) {
-      return;
-    }
-
-    // Se a transmissão não está ativa, definir contador como 0
+    if (!stream || updatingCountRef.current) return;
     if (!stream.is_active) {
       setViewerCount(0);
-      // Atualizar no banco também
-      await supabase
-        .from('live_streams')
-        .update({ viewer_count: 0 })
-        .eq('id', stream.id);
+      await supabase.from('live_streams').update({ viewer_count: 0 }).eq('id', stream.id);
       return;
     }
-
     updatingCountRef.current = true;
-
     try {
-      // Limpar sessões apenas a cada 30 segundos (não a cada atualização)
       const now = Date.now();
-      if (now - lastCleanupRef.current > 30000) {
-        await cleanupOldSessions();
-        lastCleanupRef.current = now;
-      }
-      
-      console.log('📊 Atualizando contador de viewers...', { streamId: stream.id });
-      
-      // Usar função SQL para contar apenas sessões únicas ativas
-      const { data: countData, error } = await supabase.rpc(
-        'count_active_unique_viewers',
-        { p_stream_id: stream.id }
-      );
-
-      if (error) {
-        console.error('❌ Erro ao contar viewers:', error);
-        // Fallback: contar manualmente com DISTINCT
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-        const { data: sessions, error: fallbackError } = await supabase
-          .from('viewer_sessions')
-          .select('session_id')
-          .eq('stream_id', stream.id)
-          .eq('is_active', true)
-          .gte('last_heartbeat', fiveMinutesAgo);
-
-        if (fallbackError) {
-          throw fallbackError;
-        }
-
-        // Contar sessões únicas manualmente
-        const uniqueSessions = new Set(sessions?.map(s => s.session_id) || []);
-        const newCount = uniqueSessions.size;
-        console.log('👥 Viewers únicos encontrados (fallback):', newCount);
-
-        await supabase
-          .from('live_streams')
-          .update({ viewer_count: newCount })
-          .eq('id', stream.id);
-
-        setViewerCount(newCount);
-        return;
-      }
-
+      if (now - lastCleanupRef.current > 30000) { await cleanupOldSessions(); lastCleanupRef.current = now; }
+      const { data: countData } = await supabase.rpc('count_active_unique_viewers', { p_stream_id: stream.id });
       const newCount = Number(countData) || 0;
-      console.log('👥 Viewers únicos ativos encontrados:', newCount);
-
-      // Atualizar contador na tabela live_streams
-      const { error: updateError } = await supabase
-        .from('live_streams')
-        .update({ viewer_count: newCount })
-        .eq('id', stream.id);
-
-      if (updateError) {
-        console.error('❌ Erro ao atualizar viewer_count no banco:', updateError);
-      } else {
-        console.log('✅ Contador atualizado no banco:', newCount);
-      }
-
+      await supabase.from('live_streams').update({ viewer_count: newCount }).eq('id', stream.id);
       setViewerCount(newCount);
     } catch (error) {
-      console.error('Erro ao atualizar contador de viewers:', error);
+      console.error(error);
     } finally {
       updatingCountRef.current = false;
     }
   };
 
-  // Subscribe para atualizações da transmissão e viewer_sessions
   useEffect(() => {
     if (!stream) return;
-
-    console.log('🔔 Configurando subscription para stream:', stream.id, 'is_active:', stream.is_active);
-
-    const channel = supabase
-      .channel(`public_stream_${stream.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'live_streams',
-          filter: `id=eq.${stream.id}`,
-        },
-        (payload) => {
-          const updated = payload.new as LiveStream;
-          const wasActive = stream?.is_active;
-          const isNowInactive = !updated.is_active;
-          
-          console.log('📡 Stream atualizado via subscription:', { 
-            is_active: updated.is_active, 
-            viewer_count: updated.viewer_count,
-            old_is_active: wasActive,
-            wasActive,
-            isNowInactive,
-            payload: payload
-          });
-          
-          // Se o stream foi ENCERRADO (mudou de ativo para inativo), ação IMEDIATA
-          if (wasActive && isNowInactive) {
-            console.log('🛑 TRANSMISSÃO ENCERRADA - Desconectando imediatamente!');
-            // Ocultar conteúdo IMEDIATAMENTE
-            setShowStreamContent(false);
-            // Fechar chat
-            setIsChatOpen(false);
-            // Encerrar sessão de viewer
-            endViewerSession();
-          }
-          
-          // Forçar atualização do estado
-          setStream((prev) => {
-            if (prev && prev.id === updated.id) {
-              return { ...prev, ...updated };
-            }
-            return updated;
-          });
-          setViewerCount(updated.viewer_count || 0);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'viewer_sessions',
-          filter: `stream_id=eq.${stream.id}`,
-        },
-        (payload) => {
-          console.log('📊 Mudança em viewer_sessions:', payload.eventType);
-          // Atualizar contador quando houver mudanças nas sessões
-          updateViewerCount();
-        }
-      )
+    const channel = supabase.channel(`public_stream_${stream.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'live_streams', filter: `id=eq.${stream.id}` }, (payload) => {
+        const updated = payload.new as LiveStream;
+        if (stream.is_active && !updated.is_active) { setShowStreamContent(false); setIsChatOpen(false); endViewerSession(); }
+        setStream(updated);
+        setViewerCount(updated.viewer_count || 0);
+      })
       .subscribe();
-
-    // Polling como fallback para garantir que o estado seja atualizado (mais rápido quando inativo)
-    const pollInterval = setInterval(async () => {
-      try {
-        const { data, error } = await supabase
-          .from('live_streams')
-          .select('*')
-          .eq('id', stream.id)
-          .single();
-
-        if (!error && data) {
-          const wasActive = stream?.is_active;
-          const isNowInactive = !data.is_active;
-          
-          setStream((prev) => {
-            if (prev && prev.is_active !== data.is_active) {
-              console.log('🔄 Estado do stream mudou via polling:', { 
-                old: prev.is_active, 
-                new: data.is_active 
-              });
-              
-              // Se foi encerrado, ação imediata
-              if (wasActive && isNowInactive) {
-                console.log('🛑 TRANSMISSÃO ENCERRADA (via polling) - Desconectando imediatamente!');
-                setShowStreamContent(false);
-                setIsChatOpen(false);
-                endViewerSession();
-              }
-            }
-            return data;
-          });
-          setViewerCount(data.viewer_count || 0);
-        }
-      } catch (error) {
-        console.error('Erro ao fazer polling do stream:', error);
-      }
-    }, stream?.is_active ? 5000 : 1000); // Polling MUITO rápido quando inativo (1s) para detectar encerramento IMEDIATAMENTE
-
-    return () => {
-      console.log('🔕 Removendo subscription do stream:', stream.id);
-      supabase.removeChannel(channel);
-      clearInterval(pollInterval);
-    };
-  }, [stream?.id]); // Usar apenas stream.id como dependência para evitar recriar subscription
+    return () => { supabase.removeChannel(channel); };
+  }, [stream?.id]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+      <div className="min-h-screen flex flex-col bg-slate-900">
         <Header />
         <main className="flex-grow flex items-center justify-center">
-          <div className="text-center">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-              className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-blue-600 rounded-3xl mb-4 shadow-lg"
-            >
-              <motion.span
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                className="text-4xl font-black text-white"
-              >
-                ZK
-              </motion.span>
-            </motion.div>
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="text-gray-700 text-xl font-semibold"
-            >
-              Carregando transmissão...
-            </motion.p>
-          </div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
         </main>
         <Footer />
       </div>
@@ -729,19 +250,12 @@ const PublicLiveStreamPage: React.FC = () => {
 
   if (!stream) {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+      <div className="min-h-screen flex flex-col bg-slate-900">
         <Header />
         <main className="flex-grow flex items-center justify-center">
           <div className="text-center">
-            <p className="text-gray-900 text-xl font-black mb-4">Transmissão não encontrada</p>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => navigate('/')}
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-bold transition-all duration-200 shadow-lg"
-            >
-              Voltar para Home
-            </motion.button>
+            <h2 className="text-white text-2xl font-bold mb-4">Transmissão não encontrada</h2>
+            <button onClick={() => navigate('/')} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold">Voltar para Home</button>
           </div>
         </main>
         <Footer />
@@ -750,598 +264,145 @@ const PublicLiveStreamPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col overflow-x-hidden">
-      {/* Estilos específicos para mobile */}
-      <style jsx>{`
-        .mobile-video-container {
-          touch-action: pan-y;
-        }
-        
-        @media (max-width: 768px) {
-          .mobile-video-container:fullscreen {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            background: black !important;
-          }
-          
-          .mobile-video-container:fullscreen > * {
-            width: 100% !important;
-            height: auto !important;
-            max-height: 100% !important;
-            aspect-ratio: 16/9 !important;
-            object-fit: contain !important;
-          }
-        }
-        
-        @media (orientation: landscape) and (max-width: 768px) {
-          .mobile-video-container:fullscreen > * {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: contain !important;
-          }
-        }
-      `}</style>
-      
+    <div className="min-h-screen bg-slate-900 flex flex-col overflow-x-hidden selection:bg-blue-500/30">
       <Header />
 
-      {/* Conteúdo Principal */}
-      <div className="flex-1 max-w-[1400px] mx-auto w-full p-2 sm:p-4 overflow-y-auto overflow-x-hidden">
-        {/* Header da Transmissão */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-3 sm:mb-4 bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-4 sm:p-6"
-        >
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/')}
-            className="text-blue-600 hover:text-blue-700 mb-4 flex items-center gap-2 transition-colors text-sm sm:text-base font-bold"
-          >
-            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span>Voltar</span>
-          </motion.button>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-lg sm:text-2xl font-black text-gray-900 mb-1 truncate">{stream.title}</h1>
-              {stream.description && (
-                <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 font-semibold">{stream.description}</p>
-              )}
-            </div>
-            <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-              <div className="flex items-center gap-1.5 sm:gap-2 text-gray-700 text-xs sm:text-base bg-blue-50 px-3 py-2 rounded-lg border-2 border-blue-200">
-                <Eye className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 text-blue-600" />
-                <span className="font-bold whitespace-nowrap">{stream?.is_active ? (viewerCount > 0 ? viewerCount : stream?.viewer_count || 0) : 0}</span>
-                <span className="text-xs sm:text-sm text-gray-600 hidden sm:inline font-semibold">viewers</span>
+      <main className="flex-1 max-w-[1600px] mx-auto w-full p-4 lg:p-8 space-y-8">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-4">
+            <button onClick={() => navigate('/')} className="group flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-xs font-black uppercase tracking-widest">
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              Voltar ao Início
+            </button>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                  <Play className="w-6 h-6 text-blue-400 fill-blue-400" />
+                </div>
+                <div>
+                  <h1 className="text-3xl lg:text-4xl font-black text-white italic uppercase tracking-tighter">{stream.title}</h1>
+                  <p className="text-blue-400 font-bold text-xs uppercase tracking-[0.2em]">{stream.channel_name}</p>
+                </div>
               </div>
-              {/* Botão de Compartilhar */}
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={async () => {
-                  const streamUrl = `${window.location.origin}/live/${stream.channel_name}`;
-                  
-                  if (navigator.share) {
-                    try {
-                      await navigator.share({
-                        title: stream.title,
-                        text: `Assista à transmissão ao vivo: ${stream.title}`,
-                        url: streamUrl,
-                      });
-                    } catch (error) {
-                      // Usuário cancelou ou erro - copiar para área de transferência
-                      try {
-                        await navigator.clipboard.writeText(streamUrl);
-                        toast.success('Link copiado');
-                      } catch (err) {
-                        console.error('Erro ao copiar link:', err);
-                        toast.error('Erro ao compartilhar link');
-                      }
-                    }
-                  } else {
-                    // Fallback: copiar para área de transferência
-                    try {
-                      await navigator.clipboard.writeText(streamUrl);
-                      toast.success('Link copiado');
-                    } catch (err) {
-                        console.error('Erro ao copiar link:', err);
-                        toast.error('Erro ao copiar link');
-                      }
-                    }
-                  }}
-                className="px-2 sm:px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all duration-200 flex items-center gap-1.5 sm:gap-2 flex-shrink-0 font-bold shadow-lg"
-                title="Compartilhar transmissão"
-              >
-                <Share2 className="w-4 h-4 flex-shrink-0" />
-                <span className="text-xs sm:text-sm font-bold hidden sm:inline">Compartilhar</span>
-              </motion.button>
             </div>
           </div>
-        </motion.div>
 
-        {/* Status da Transmissão - Só mostra se realmente não estiver ativa */}
-        {stream && !stream.is_active && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-3 sm:mb-4 p-3 sm:p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg"
-          >
-            <p className="text-yellow-700 text-center text-xs sm:text-sm font-bold">
-              ⏸️ Esta transmissão não está ativa no momento. Aguarde o início da transmissão.
-            </p>
-          </motion.div>
-        )}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="px-6 py-3 rounded-2xl bg-slate-800/50 border border-white/5 flex items-center gap-4 glass-panel shadow-lg">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                </span>
+                <span className="text-rose-400 text-xs font-black uppercase tracking-[0.1em]">Ao Vivo</span>
+              </div>
+              <div className="w-[1px] h-4 bg-white/10" />
+              <div className="flex items-center gap-2">
+                <Eye className="w-4 h-4 text-slate-400" />
+                <span className="text-white font-black text-sm">{stream.is_active ? (viewerCount || stream.viewer_count || 0) : 0}</span>
+              </div>
+            </div>
 
-        {/* Layout Principal - 16:9 com melhorias mobile */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 relative">
-          {/* Vídeo - Ocupa 8 colunas */}
-          <div className="lg:col-span-8 relative">
-            <div 
-              ref={videoContainerRef}
-              className={`bg-black rounded-lg overflow-hidden relative ${
-                isMobile ? 'mobile-video-container' : ''
-              } ${isDockedChat ? 'docked-chat-active' : ''}`}
-              style={{ 
-                aspectRatio: (isMobile && isFullscreen) ? undefined : '16/9',
-                // Garantir que em mobile fullscreen mantenha proporção
-                ...(isMobile && isFullscreen ? {
-                  width: '100vw',
-                  height: '100dvh',
-                  position: 'fixed',
-                  top: 0,
-                  left: 0,
-                  zIndex: 9999,
-                  borderRadius: 0,
-                  overflow: 'hidden',
-                  // FORÇAR flexbox quando chat está docked
-                  display: isDockedChat ? 'flex' : 'block',
-                  flexDirection: isDockedChat ? 'row' : undefined,
-                  alignItems: isDockedChat ? 'stretch' : undefined
-                } : {})
-              }}
-              onClick={() => {
-                // Toque/click na tela: mostrar controles e depois esconder (estilo YouTube)
-                if (isMobile && stream?.is_active) {
-                  showControlsTemporarily(2500);
-                }
-              }}
-              onDoubleClick={() => {
-                // Duplo clique para fullscreen
-                if (!document.fullscreenElement) {
-                  videoContainerRef.current?.requestFullscreen?.();
-                } else {
-                  document.exitFullscreen?.();
-                }
-              }}
-              onTouchStart={(e) => {
-                if (!isMobile) return;
-                if (stream?.is_active) {
-                  showControlsTemporarily(2500);
-                }
-                const touch = e.touches[0];
-                setTouchStart({ x: touch.clientX, y: touch.clientY });
-              }}
-              onTouchEnd={(e) => {
-                if (!isMobile || !touchStart) return;
-                
-                const touch = e.changedTouches[0];
-                const deltaY = touchStart.y - touch.clientY;
-                const deltaX = Math.abs(touchStart.x - touch.clientX);
-                
-                // Swipe vertical com pelo menos 50px de movimento e pouco movimento horizontal
-                if (Math.abs(deltaY) > 50 && deltaX < 100) {
-                  if (deltaY > 0 && !isFullscreen) {
-                    // Swipe up - entrar em fullscreen
-                    videoContainerRef.current?.requestFullscreen?.();
-                  } else if (deltaY < 0 && isFullscreen) {
-                    // Swipe down - sair do fullscreen
-                    document.exitFullscreen?.();
-                  }
-                }
-                
-                setTouchStart(null);
-              }}
-            >
-              {/* Área do vídeo (em docked chat, ocupa apenas a parte esquerda) */}
+            <button className="p-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-lg shadow-blue-600/20 active:scale-95">
+              <Share2 className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Video & Sidebar Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Main Video Area */}
+          <div className="lg:col-span-8 space-y-6">
+            <div className="relative group/video">
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/20 to-emerald-600/20 rounded-[2.5rem] blur opacity-0 group-hover/video:opacity-100 transition-opacity duration-1000"></div>
               <div
-                className="zk-video-stage"
-                style={
-                  isDockedChat
-                    ? { 
-                        position: 'relative', 
-                        flex: 1, 
-                        height: '100%', 
-                        minWidth: 0, 
-                        maxWidth: '100%',
-                        background: 'black',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'flex 0.3s ease'
-                      }
-                    : { position: 'absolute', inset: 0 }
-                }
+                ref={videoContainerRef}
+                className="relative bg-black rounded-[2rem] lg:rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl isolate"
+                style={{ aspectRatio: (isMobile && isFullscreen) ? undefined : '16/9' }}
               >
-                <div
-                  className="zk-video-frame"
-                  style={
-                    isDockedChat
-                      ? {
-                          position: 'absolute',
-                          inset: 0,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          background: 'black',
-                        }
-                      : { position: 'absolute', inset: 0 }
-                  }
-                >
-                  <div
-                    style={
-                      isDockedChat
-                        ? {
-                            position: 'relative',
-                            width: '100%',
-                            height: '100%',
-                            maxWidth: '100%',
-                            maxHeight: '100%',
-                          }
-                        : { position: 'absolute', inset: 0 }
-                    }
-            >
-              {/* Sempre usa canal fixo "ZkPremios" para conectar ao ZK Studio Pro */}
-                    {/* CORREÇÃO: Só mostrar conteúdo quando transmissão estiver ativa */}
-                    {/* IMPORTANTE: enabled={stream?.is_active} garante desconexão IMEDIATA quando admin encerrar no site */}
-                    {showStreamContent ? (
-                      <ZKViewer 
-                        channel="ZkPremios" 
-                        fitMode={effectiveVideoFitMode}
-                        enabled={stream?.is_active ?? false}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-white">
-                        <div className="text-center p-6">
-                          <motion.div
-                            animate={{ scale: [1, 1.1, 1] }}
-                            transition={{ duration: 2, repeat: Infinity }}
-                            className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center"
-                          >
-                            <div className="w-6 h-6 bg-blue-500 rounded-full"></div>
-                          </motion.div>
-                          <h3 className="text-gray-900 text-lg font-black mb-2">Transmissão em Preparação</h3>
-                          <p className="text-gray-600 text-sm font-semibold">Aguarde o início da transmissão ao vivo</p>
+                {showStreamContent ? (
+                  <ZKViewer channel="ZkPremios" fitMode={effectiveVideoFitMode} enabled={stream.is_active} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-slate-900/40">
+                    <div className="text-center space-y-4">
+                      <div className="w-20 h-20 mx-auto rounded-3xl bg-slate-800/50 border border-white/5 flex items-center justify-center">
+                        <MonitorPlay className="w-10 h-10 text-slate-500" />
+                      </div>
+                      <p className="text-slate-400 font-black uppercase tracking-widest text-xs italic">Aguardando Transmissão...</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Stream Info Info Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="glass-panel-dark p-6 rounded-3xl space-y-4 border border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                    <Calendar className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <h3 className="text-white font-black uppercase tracking-widest text-xs italic">Próximos Jogos</h3>
+                </div>
+                <div className="space-y-3">
+                  {upcomingGames.map((game, i) => (
+                    <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
+                      <div className="flex items-center gap-4">
+                        <img src={game.logo} alt={game.opponent} className="w-10 h-10 object-contain brightness-110" />
+                        <div>
+                          <p className="text-white font-black text-sm uppercase tracking-tight">Cruzeiro x {game.opponent}</p>
+                          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">{game.date} • {game.time}</p>
                         </div>
                       </div>
-                    )}
-                  </div>
+                      <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors" />
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Debug visual - mostrar estado (apenas mobile fullscreen) */}
-              {isMobile && isFullscreen && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 10,
-                    left: 10,
-                    background: 'rgba(0, 0, 0, 0.8)',
-                    color: 'white',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    fontSize: '10px',
-                    zIndex: 99999,
-                    fontFamily: 'monospace',
-                    maxWidth: '200px',
-                    lineHeight: '1.4',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => setShowDebug(!showDebug)}
-                >
-                  {showDebug ? (
-                    <div>
-                      <div>Docked: {isDockedChat ? '✅ SIM' : '❌ NÃO'}</div>
-                      <div>Mobile: {isMobile ? '✅' : '❌'}</div>
-                      <div>Fullscreen: {isFullscreen ? '✅' : '❌'}</div>
-                      <div>Paisagem: {isLandscape ? '✅' : '❌'}</div>
-                      <div>Chat: {isChatOpen ? '✅ ABERTO' : '❌ FECHADO'}</div>
-                      <div style={{ marginTop: '4px', fontSize: '9px', opacity: 0.7 }}>
-                        Toque p/ ocultar
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <div>🔍 Debug</div>
-                      <div style={{ fontSize: '9px', opacity: 0.7 }}>
-                        Toque p/ ver
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Painel DOCKED (YouTube) - fullscreen paisagem + chat aberto */}
-              <AnimatePresence mode="wait">
-                {isDockedChat && stream && stream.is_active && (
-                  <motion.div
-                    initial={{ width: 0, opacity: 0 }}
-                    animate={{ 
-                      width: 'clamp(280px, 35vw, 380px)', 
-                      opacity: 1,
-                      transition: { duration: 0.3, ease: 'easeOut' }
-                    }}
-                    exit={{ 
-                      width: 0, 
-                      opacity: 0,
-                      transition: { duration: 0.25, ease: 'easeIn' }
-                    }}
-                    className="bg-slate-900 shadow-2xl flex flex-col"
-                    style={{
-                      // IMPORTANTE: position relative para participar do flexbox
-                      position: 'relative',
-                      minWidth: '280px',
-                      maxWidth: '380px',
-                      height: '100%',
-                      flexShrink: 0,
-                      zIndex: 1,
-                      pointerEvents: 'auto',
-                      borderLeft: '1px solid rgba(148, 163, 184, 0.25)',
-                      background: 'rgba(15, 23, 42, 0.98)',
-                      backdropFilter: 'blur(10px)',
-                      overflow: 'hidden',
-                      // Garantir que não use position fixed quando docked
-                      top: 'auto',
-                      right: 'auto',
-                      bottom: 'auto',
-                      left: 'auto'
-                    }}
-                  >
-                    <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-800">
-                      <h3 className="text-white font-semibold flex items-center gap-2">
-                        <MessageSquare className="w-5 h-5" />
-                        Chat ao Vivo
-                      </h3>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsChatOpen(false);
-                        }}
-                        className="text-slate-400 hover:text-white transition-colors p-1"
-                        aria-label="Fechar chat"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-
-                    <div className="flex-1 overflow-hidden">
-                      <LiveChat streamId={stream.id} isAdmin={false} />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              
-              {/* Botões Mobile - Chat e Fullscreen */}
-              {isMobile && stream && stream.is_active && (
-                <>
-                  {/* Wrapper de controles: some e aparece por toque */}
-                  <div
-                    style={{
-                      opacity: controlsVisible ? 1 : 0,
-                      transition: 'opacity 200ms ease',
-                      pointerEvents: controlsVisible ? 'auto' : 'none',
-                    }}
-                  >
-                    {/* Botão "Zoom/Preencher" (estilo YouTube) - só faz sentido fora do docked chat */}
-                    {isFullscreen && isLandscape && !isDockedChat && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 0.65, scale: 1 }}
-                      whileHover={{ opacity: 0.95 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setVideoFitMode((prev) => (prev === 'cover' ? 'contain' : 'cover'));
-                      }}
-                      className="absolute top-4 left-4 mobile-chat-button text-white p-2.5 rounded-full shadow-lg"
-                      style={{
-                        position: 'fixed',
-                        top: '16px',
-                        left: '16px',
-                        zIndex: 2147483646,
-                        pointerEvents: 'auto',
-                        touchAction: 'auto',
-                      }}
-                      aria-label={videoFitMode === 'cover' ? 'Sem cortar' : 'Preencher tela'}
-                      title={videoFitMode === 'cover' ? 'Sem cortar' : 'Preencher tela'}
-                      >
-                        {/* ícone simples */}
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
-                        </svg>
-                      </motion.button>
-                    )}
-
-                  {/* Botão de Chat Transparente */}
-                  <motion.button
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 0.7, scale: 1 }}
-                    whileHover={{ opacity: 1 }}
-                    whileTap={{ scale: 0.95 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      
-                      const newState = !isChatOpen;
-                      console.log('💬 Botão de chat clicado:', { 
-                        isChatOpen, 
-                        isFullscreen, 
-                        isMobile,
-                        willOpen: newState,
-                        timestamp: new Date().toISOString()
-                      });
-                      
-                      // Feedback visual temporário
-                      const button = e.currentTarget as HTMLButtonElement;
-                      button.style.backgroundColor = 'rgba(34, 197, 94, 0.8)';
-                      setTimeout(() => {
-                        button.style.backgroundColor = '';
-                      }, 300);
-                      
-                      setIsChatOpen(newState);
-                      console.log('💬 Estado do chat após clique:', newState);
-                      
-                      // Alerta visual para debug (remover depois)
-                      if (newState) {
-                        console.log('✅ Chat DEVE estar abrindo agora!');
-                      } else {
-                        console.log('❌ Chat DEVE estar fechando agora!');
-                      }
-                    }}
-                    className="absolute top-4 right-4 mobile-chat-button text-white p-2.5 rounded-full shadow-lg"
-                    style={{
-                      position: 'fixed',
-                      top: '16px',
-                      right: '16px',
-                      zIndex: 2147483646,
-                      pointerEvents: 'auto',
-                      touchAction: 'auto'
-                    }}
-                  aria-label={isChatOpen ? "Fechar chat" : "Abrir chat"}
-                  title={isChatOpen ? "Fechar chat" : "Abrir chat"}
-                >
-                  {isChatOpen ? (
-                      <X className="w-4 h-4" />
-                    ) : (
-                      <MessageSquare className="w-4 h-4" />
-                    )}
-                  </motion.button>
-
-                  {/* Botão Fullscreen Transparente (Retrato) */}
-                  {!isFullscreen && window.innerHeight > window.innerWidth && (
-                    <motion.button
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 0.6, scale: 1 }}
-                      whileHover={{ opacity: 0.9 }}
-                      whileTap={{ scale: 0.95 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        console.log('🔍 Botão fullscreen clicado');
-                        videoContainerRef.current?.requestFullscreen?.();
-                      }}
-                      className="absolute bottom-4 right-4 z-[60] mobile-chat-button text-white p-2.5 rounded-full shadow-lg"
-                      aria-label="Tela cheia"
-                      title="Tela cheia"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                      </svg>
-                </motion.button>
-              )}
-          </div>
-
-                  {/* Chat Overlay (modo overlay) - não usar quando estiver DOCKED */}
-            <AnimatePresence>
-                    {isChatOpen && !isDockedChat && (
-                <>
-                  {/* Backdrop */}
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                          onClick={() => {
-                            console.log('🔙 Backdrop clicado - fechando chat (mobile)');
-                            setIsChatOpen(false);
-                          }}
-                          className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                          style={{
-                            zIndex: 2147483646,
-                            pointerEvents: 'auto',
-                          }}
-                        />
-
-                        {/* Painel do Chat */}
-                  <motion.div
-                    initial={{ x: '100%' }}
-                    animate={{ x: 0 }}
-                    exit={{ x: '100%' }}
-                    transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                          className="absolute top-0 right-0 h-full w-[75%] max-w-sm bg-slate-900 shadow-2xl flex flex-col chat-overlay-mobile"
-                          style={{
-                            height: '100%',
-                            zIndex: 2147483647,
-                            pointerEvents: 'auto',
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                          }}
-                        >
-                    <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-800">
-                      <h3 className="text-white font-semibold flex items-center gap-2">
-                        <MessageSquare className="w-5 h-5" />
-                        Chat ao Vivo
-                      </h3>
-                      <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setIsChatOpen(false);
-                              }}
-                        className="text-slate-400 hover:text-white transition-colors p-1"
-                        aria-label="Fechar chat"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-                    
-                    <div className="flex-1 overflow-hidden">
-                      <LiveChat streamId={stream.id} isAdmin={false} />
-                    </div>
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
-                </>
-              )}
-
-              {/* Indicador de Swipe para Fullscreen (Mobile) */}
-              {isMobile && !isFullscreen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 0.6, y: 0 }}
-                  exit={{ opacity: 0, y: 20 }}
-                  className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none"
-                >
-                  <div className="bg-black/40 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-2 swipe-indicator">
-                    <span>↕️</span>
-                    <span>Deslize para expandir</span>
+              <div className="glass-panel-dark p-6 rounded-3xl space-y-4 border border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                    <Trophy className="w-5 h-5 text-emerald-400" />
                   </div>
-                </motion.div>
-              )}
+                  <h3 className="text-white font-black uppercase tracking-widest text-xs italic">Tabela do Brasileirão</h3>
+                </div>
+                <div className="space-y-2">
+                  {championshipTable.map((team, i) => (
+                    <div key={i} className={`flex items-center justify-between p-3 rounded-xl ${team.team === 'Cruzeiro' ? 'bg-blue-600/20 border border-blue-500/20' : 'bg-white/5 border border-transparent'}`}>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-black text-slate-500 w-4">{team.pos}º</span>
+                        <span className={`text-xs font-black uppercase tracking-tight ${team.team === 'Cruzeiro' ? 'text-blue-400' : 'text-slate-300'}`}>{team.team}</span>
+                      </div>
+                      <div className="flex gap-4">
+                        <div className="text-center min-w-[24px]"><p className="text-[8px] text-slate-500 uppercase font-black mb-0.5">PTS</p><p className="text-xs font-black text-white">{team.pts}</p></div>
+                        <div className="text-center min-w-[24px]"><p className="text-[8px] text-slate-500 uppercase font-black mb-0.5">V</p><p className="text-xs font-black text-slate-400">{team.v}</p></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Chat - Desktop (apenas quando estiver AO VIVO) */}
-          {!isMobile && stream?.is_active ? (
-            /* Chat Normal (Desktop) */
-            <div className="lg:col-span-4">
-              <div className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 overflow-hidden" style={{ minHeight: '600px' }}>
+          {/* Chat Sidebar Area */}
+          <div className="lg:col-span-4 h-full min-h-[600px] flex flex-col">
+            <div className="flex-1 bg-slate-800/40 rounded-[2.5rem] border border-white/10 overflow-hidden glass-panel-dark shadow-2xl relative">
+              {!isMobile || isChatOpen ? (
                 <LiveChat streamId={stream.id} isAdmin={false} />
-              </div>
-            </div>
-          ) : !isMobile ? (
-            <div className="lg:col-span-4">
-              <div className="min-h-[200px] bg-white rounded-2xl shadow-lg border-2 border-blue-200 flex items-center justify-center p-6 text-center">
-                <div className="text-gray-700 text-sm font-semibold">
-                  Chat disponível apenas durante a transmissão ao vivo.
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <button onClick={() => setIsChatOpen(true)} className="flex items-center gap-3 px-8 py-4 bg-blue-600 rounded-2xl text-white font-black uppercase tracking-widest text-sm shadow-xl shadow-blue-600/20">
+                    <MessageSquare className="w-5 h-5" />
+                    Abrir Chat
+                  </button>
                 </div>
-              </div>
+              )}
             </div>
-          ) : null}
+          </div>
         </div>
-      </div>
+      </main>
 
       <Footer />
     </div>
@@ -1349,4 +410,3 @@ const PublicLiveStreamPage: React.FC = () => {
 };
 
 export default PublicLiveStreamPage;
-

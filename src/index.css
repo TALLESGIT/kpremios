@@ -4,24 +4,40 @@
 
 @layer base {
   :root {
-    --color-primary: 30 41 59;
-    --color-primary-light: 51 65 85;
-    --color-primary-dark: 15 23 42;
-    --color-secondary: 252 211 77;
-    --color-secondary-light: 254 240 138;
-    --color-secondary-dark: 245 158 11;
+    /* Cores Cruzeiro Esporte Clube */
+    --color-primary: 0 91 170;
+    /* #005BAA */
+    --color-primary-light: 0 115 214;
+    --color-primary-dark: 0 66 128;
+    --color-secondary: 255 255 255;
+    --color-secondary-light: 243 244 246;
+    --color-secondary-dark: 229 231 235;
+
+    --color-accent: 255 215 0;
+    /* Gold */
+
     --color-success: 34 197 94;
     --color-warning: 234 179 8;
     --color-error: 239 68 68;
-    --color-background: 249 250 251;
-    --color-text: 17 24 39;
+
+    --color-background: 0 45 90;
+    /* Azul Profundo */
+    --color-text: 248 250 252;
+    /* Texto claro por padrão */
+    --color-text-inverse: 15 23 42;
+    /* Texto escuro para cards claros */
+
     /* Altura real do viewport no mobile (evita corte por barra de navegação) */
     --vh: 1vh;
   }
 
   body {
-    @apply bg-gray-50 text-gray-900 font-sans;
+    @apply font-sans antialiased;
+    background: radial-gradient(circle at top center, #005BAA 0%, #002D5A 40%, #001A33 100%);
+    background-attachment: fixed;
+    color: white;
     overflow-x: hidden;
+    min-height: 100vh;
   }
 
   html {
@@ -31,16 +47,20 @@
   /* Esconder barras de rolagem apenas no mobile */
   @media (max-width: 768px) {
     * {
-      scrollbar-width: none; /* Firefox */
-      -ms-overflow-style: none; /* IE and Edge */
+      scrollbar-width: none;
+      /* Firefox */
+      -ms-overflow-style: none;
+      /* IE and Edge */
     }
 
     *::-webkit-scrollbar {
-      display: none; /* Chrome, Safari, Opera */
+      display: none;
+      /* Chrome, Safari, Opera */
     }
 
     /* Garantir que elementos com overflow não mostrem scrollbar no mobile */
-    html, body {
+    html,
+    body {
       overflow-x: hidden;
       scrollbar-width: none;
       -ms-overflow-style: none;
@@ -84,7 +104,12 @@
     }
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-bold tracking-tight;
   }
 
@@ -102,38 +127,58 @@
 }
 
 @layer components {
+  .glass-panel {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-xl;
+  }
+
+  .glass-panel-dark {
+    @apply bg-black/40 backdrop-blur-md border border-white/5 shadow-xl;
+  }
+
   .btn {
-    @apply inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-full text-sm font-bold uppercase tracking-wide transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 transform hover:-translate-y-0.5 shadow-lg active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
   }
 
   .btn-primary {
-    @apply bg-primary text-white hover:bg-primary-dark focus:ring-primary;
+    @apply bg-white text-primary hover:bg-gray-100 focus:ring-white border border-transparent shadow-soft hover:shadow-lg;
+    color: #005BAA;
+    /* Force color for specificity */
   }
 
   .btn-secondary {
-    @apply bg-secondary text-white hover:bg-secondary-dark focus:ring-secondary;
+    @apply bg-transparent text-white border-2 border-white hover:bg-white/10 focus:ring-white;
+  }
+
+  .btn-accent {
+    @apply bg-gradient-to-r from-yellow-400 to-yellow-500 text-blue-900 border border-yellow-300 hover:from-yellow-300 hover:to-yellow-400 shadow-lg hover:shadow-yellow-500/20;
   }
 
   .btn-outline {
-    @apply border border-gray-300 bg-transparent hover:bg-gray-50 focus:ring-primary;
+    @apply border border-white/30 bg-transparent text-white hover:bg-white/10 focus:ring-white;
   }
 
   .btn-danger {
-    @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+    @apply bg-red-600/90 text-white hover:bg-red-700 backdrop-blur-sm focus:ring-red-500 shadow-lg;
   }
 
   .card {
-    @apply bg-white rounded-lg shadow-md overflow-hidden;
+    @apply bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 transition-all duration-300 hover:shadow-2xl hover:border-primary/20;
+  }
+
+  .card-dark {
+    @apply bg-gray-900/80 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden border border-white/10 text-white;
   }
 
   .input {
-    @apply block w-full rounded-md border-gray-300 shadow-sm 
-           focus:ring-primary focus:border-primary sm:text-sm;
+    @apply block w-full rounded-xl border-gray-200 bg-white/90 shadow-sm px-4 py-3 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-primary focus:bg-white transition-all duration-200;
+  }
+
+  .input-dark {
+    @apply block w-full rounded-xl border-white/20 bg-white/10 shadow-sm px-4 py-3 text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-light focus:border-transparent focus:bg-white/20 transition-all duration-200;
   }
 
   .number-item {
-    @apply relative flex items-center justify-center w-12 h-12 m-1 rounded-md 
-           text-lg font-medium transition-all duration-200 cursor-pointer;
+    @apply relative flex items-center justify-center w-12 h-12 m-1 rounded-md text-lg font-medium transition-all duration-200 cursor-pointer;
   }
 
   .number-item-available {
@@ -153,8 +198,13 @@
   }
 
   @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
   }
 
   .animate-scale {
@@ -162,9 +212,17 @@
   }
 
   @keyframes scale {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
+    0% {
+      transform: scale(1);
+    }
+
+    50% {
+      transform: scale(1.05);
+    }
+
+    100% {
+      transform: scale(1);
+    }
   }
 
   .animate-slide-in-right {
@@ -172,13 +230,14 @@
   }
 
   @keyframes slide-in-right {
-    0% { 
-      transform: translateX(100%); 
-      opacity: 0; 
+    0% {
+      transform: translateX(100%);
+      opacity: 0;
     }
-    100% { 
-      transform: translateX(0); 
-      opacity: 1; 
+
+    100% {
+      transform: translateX(0);
+      opacity: 1;
     }
   }
 }

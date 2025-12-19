@@ -1,8 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
 
 interface Participant {
+  number: any;
+  name: any;
   id: string;
   user_id: string;
   lucky_number: number;
@@ -13,6 +15,7 @@ interface Participant {
 }
 
 interface LiveGame {
+  current_round: ReactNode;
   id: string;
   title: string;
   description: string;
@@ -21,6 +24,9 @@ interface LiveGame {
   current_participants: number;
   winner_id?: string;
   created_at: string;
+  started_at?: string;
+  ended_at?: string;
+  elimination_interval?: number;
 }
 
 export const useLiveGameRealtime = (gameId: string, userId?: string) => {
@@ -58,13 +64,13 @@ export const useLiveGameRealtime = (gameId: string, userId?: string) => {
         .order('lucky_number', { ascending: true });
 
       if (error) throw error;
-      
+
       const formattedParticipants = (data || []).map(p => ({
         ...p,
         user_name: p.users?.name || 'Usuário',
         user_phone: p.users?.whatsapp || ''
       }));
-      
+
       setParticipants(formattedParticipants);
 
       // Verificar se o usuário atual foi eliminado
@@ -152,7 +158,7 @@ export const useLiveGameRealtime = (gameId: string, userId?: string) => {
               }
             }
           }
-          
+
           loadParticipants();
         }
       )

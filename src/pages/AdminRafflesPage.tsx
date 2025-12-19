@@ -64,16 +64,16 @@ export default function AdminRafflesPage() {
         alert('Por favor, selecione apenas arquivos de imagem');
         return;
       }
-      
+
       // Verificar tamanho (máximo 5MB)
       if (file.size > 5 * 1024 * 1024) {
         alert('A imagem deve ter no máximo 5MB');
         return;
       }
-      
+
       setImageFile(file);
       setImageType('upload');
-      
+
       // Criar preview
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -85,7 +85,7 @@ export default function AdminRafflesPage() {
 
   // Função para lidar com URL de imagem
   const handleImageUrl = (url: string) => {
-    setFormData({...formData, prize_image: url});
+    setFormData({ ...formData, prize_image: url });
     setImagePreview(url);
     setImageType('url');
   };
@@ -94,13 +94,13 @@ export default function AdminRafflesPage() {
   const removeImage = () => {
     setImageFile(null);
     setImagePreview('');
-    setFormData({...formData, prize_image: ''});
+    setFormData({ ...formData, prize_image: '' });
   };
 
   const loadRaffles = async () => {
     try {
       setLoading(true);
-      
+
       const { data, error } = await supabase
         .from('raffles')
         .select('*')
@@ -149,22 +149,22 @@ export default function AdminRafflesPage() {
     try {
       // Upload da imagem se fornecida
       let imageUrl = formData.prize_image;
-      
+
       if (imageFile && imageType === 'upload') {
         const fileExt = imageFile.name.split('.').pop();
         const fileName = `${Date.now()}.${fileExt}`;
         const filePath = `prize-images/${fileName}`;
-        
+
         const { error: uploadError } = await supabase.storage
           .from('prize-images')
           .upload(filePath, imageFile);
-        
+
         if (uploadError) throw uploadError;
-        
+
         const { data: { publicUrl } } = supabase.storage
           .from('prize-images')
           .getPublicUrl(filePath);
-        
+
         imageUrl = publicUrl;
       }
 
@@ -188,16 +188,16 @@ export default function AdminRafflesPage() {
         // Se o sorteio está ativo e o total_numbers foi alterado, recarregar números
         if (editingRaffle.is_active && editingRaffle.total_numbers !== formData.total_numbers) {
           console.log(`AdminRafflesPage - Total de números alterado de ${editingRaffle.total_numbers} para ${formData.total_numbers}, recarregando números...`);
-          
+
           // Se o total_numbers foi reduzido, limpar números órfãos
           if (formData.total_numbers < editingRaffle.total_numbers) {
             console.log(`AdminRafflesPage - Aviso: Total de números reduzido de ${editingRaffle.total_numbers} para ${formData.total_numbers}`);
             console.log(`AdminRafflesPage - Limpando números órfãos de ${formData.total_numbers + 1} a ${editingRaffle.total_numbers}...`);
-            
+
             try {
               const { error: cleanupError } = await supabase
                 .rpc('cleanup_orphaned_numbers_by_range', { max_number: formData.total_numbers });
-              
+
               if (cleanupError) {
                 console.warn('Erro ao limpar números órfãos:', cleanupError);
               } else {
@@ -207,7 +207,7 @@ export default function AdminRafflesPage() {
               console.warn('Erro ao limpar números órfãos:', cleanupError);
             }
           }
-          
+
           // Recarregar números no DataContext
           try {
             // Aguardar um pouco para garantir que as mudanças sejam propagadas
@@ -223,7 +223,7 @@ export default function AdminRafflesPage() {
         // Resetar sistema usando função RPC otimizada
         const { error: resetError } = await supabase
           .rpc('reset_system_safe');
-        
+
         if (resetError) {
           throw new Error('Erro ao resetar sistema');
         }
@@ -233,7 +233,7 @@ export default function AdminRafflesPage() {
           .from('extra_number_requests')
           .delete()
           .in('status', ['pending', 'approved']);
-        
+
         if (requestsResetError) {
           // Não falha o processo se não conseguir limpar as solicitações
           console.warn('Erro ao limpar solicitações:', requestsResetError);
@@ -257,7 +257,7 @@ export default function AdminRafflesPage() {
       setEditingRaffle(null);
       setImageFile(null);
       setImagePreview('');
-      
+
       alert(editingRaffle ? 'Sorteio atualizado com sucesso!' : 'Sorteio criado com sucesso!');
     } catch (error) {
 
@@ -270,7 +270,7 @@ export default function AdminRafflesPage() {
 
     try {
       console.log('AdminRafflesPage - Iniciando exclusão do sorteio:', raffleId);
-      
+
       // Usar função RPC específica para excluir dados do sorteio
       const { data: result, error } = await supabase
         .rpc('delete_specific_raffle_data', {
@@ -299,10 +299,10 @@ export default function AdminRafflesPage() {
       // Recarregar números para refletir as mudanças
       await new Promise(resolve => setTimeout(resolve, 500));
       await loadNumbers();
-      
+
       // Recarregar lista de sorteios
       await loadRaffles();
-      
+
       alert('Sorteio e todos os dados relacionados foram excluídos com sucesso!');
     } catch (error) {
       console.error('Erro ao excluir sorteio:', error);
@@ -314,7 +314,7 @@ export default function AdminRafflesPage() {
     try {
       const { error } = await supabase
         .from('raffles')
-        .update({ 
+        .update({
           is_active: !currentStatus,
           updated_at: new Date().toISOString()
         })
@@ -332,32 +332,18 @@ export default function AdminRafflesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+      <div className="min-h-screen flex flex-col bg-slate-900">
         <Header />
-        <main className="flex-grow flex items-center justify-center">
-          <div className="text-center">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-              className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-blue-600 rounded-3xl mb-4 shadow-lg"
-            >
-              <motion.span
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                className="text-4xl font-black text-white"
-              >
-                ZK
-              </motion.span>
-            </motion.div>
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="text-gray-700 text-xl font-semibold"
-            >
-              Carregando sorteios...
-            </motion.p>
+        <main className="flex-grow flex items-center justify-center relative overflow-hidden">
+          <div className="fixed inset-0 pointer-events-none">
+            <div className="absolute top-0 left-0 w-full h-[500px] bg-blue-600/10 blur-[100px]" />
+            <div className="absolute bottom-0 right-0 w-full h-[500px] bg-blue-900/20 blur-[100px]" />
+          </div>
+          <div className="relative z-10 text-center">
+            <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-blue-500/20 animate-pulse">
+              <Trophy className="h-8 w-8 text-blue-400" />
+            </div>
+            <p className="text-blue-200/60 text-lg font-medium animate-pulse">Carregando sorteios...</p>
           </div>
         </main>
         <Footer />
@@ -366,405 +352,296 @@ export default function AdminRafflesPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen flex flex-col bg-slate-900">
       <Header />
-      <main className="flex-grow w-full py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-6 mb-6"
-          >
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-              <div className="mb-4 sm:mb-0">
-                <div className="flex items-center space-x-3 mb-2">
-                  <motion.div
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                    className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg"
-                  >
-                    <Trophy className="h-6 w-6 text-white" />
-                  </motion.div>
-                  <div>
-                    <h1 className="text-2xl sm:text-3xl font-black text-gray-900">
-                      Gestão de Sorteios
-                    </h1>
-                    <p className="text-gray-600 text-sm font-semibold">
-                      Crie e gerencie sorteios personalizados
-                    </p>
-                  </div>
-                </div>
+      <main className="flex-grow w-full relative overflow-hidden">
+        {/* Background Effects */}
+        <div className="fixed inset-0 pointer-events-none">
+          <div className="absolute top-0 right-0 w-full h-[500px] bg-blue-600/10 blur-[100px]" />
+          <div className="absolute bottom-0 left-0 w-full h-[500px] bg-indigo-900/20 blur-[100px]" />
+          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+        </div>
+
+        {/* Header Section */}
+        <div className="relative py-8 sm:py-12 lg:py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div>
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-3 tracking-tight">
+                  GESTÃO DE <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-200">SORTEIOS</span>
+                </h1>
+                <p className="text-blue-200/60 text-lg font-medium">
+                  Crie, edite e acompanhe seus sorteios ativos de forma profissional.
+                </p>
               </div>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              <button
                 onClick={handleCreateRaffle}
-                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold rounded-lg transition-all duration-200 shadow-lg"
+                className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-black rounded-2xl transition-all duration-300 shadow-xl shadow-blue-600/20 hover:-translate-y-1 active:scale-[0.98]"
               >
                 <Plus className="h-5 w-5 mr-2" />
                 Novo Sorteio
-              </motion.button>
+              </button>
             </div>
-          </motion.div>
+          </div>
+        </div>
 
+        {/* Raffles List */}
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
           {raffles.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-8 text-center"
-            >
-              <motion.div
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4"
-              >
-                <Trophy className="h-8 w-8 text-blue-600" />
-              </motion.div>
-              <h3 className="text-lg font-black text-gray-900 mb-2">Nenhum sorteio criado</h3>
-              <p className="text-gray-600 mb-6 font-semibold">Crie seu primeiro sorteio personalizado.</p>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+            <div className="glass-panel p-20 rounded-3xl text-center border border-white/5 bg-slate-800/50 backdrop-blur-xl max-w-2xl mx-auto">
+              <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-blue-500/20">
+                <Trophy className="h-10 w-10 text-blue-400" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2">Nenhum sorteio encontrado</h3>
+              <p className="text-blue-200/60 mb-8 font-medium">Você ainda não criou nenhum sorteio. Comece agora mesmo!</p>
+              <button
                 onClick={handleCreateRaffle}
-                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-all duration-200 shadow-lg"
+                className="inline-flex items-center px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl transition-all shadow-lg"
               >
-                <Plus className="h-5 w-5 inline mr-2" />
+                <Plus className="h-5 w-5 mr-2" />
                 Criar Primeiro Sorteio
-              </motion.button>
-            </motion.div>
+              </button>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {raffles.map((raffle, index) => (
-                <motion.div
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {raffles.map((raffle) => (
+                <div
                   key={raffle.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  whileHover={{ scale: 1.02, y: -5 }}
-                  className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 overflow-hidden hover:shadow-xl transition-all duration-300"
+                  className="glass-panel group overflow-hidden rounded-[2.5rem] border border-white/5 bg-slate-800/40 backdrop-blur-md hover:border-white/10 transition-all duration-500"
                 >
-                  {/* Header */}
-                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 border-b-2 border-blue-300">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center mr-4">
-                          <Trophy className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-black text-white">{raffle.title}</h3>
-                          <p className="text-blue-100 text-sm">{raffle.prize}</p>
-                        </div>
+                  {/* Card Header/Banner */}
+                  <div className="relative h-48 bg-slate-900 overflow-hidden">
+                    {raffle.prize_image ? (
+                      <img src={raffle.prize_image} alt={raffle.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-60" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-blue-900/50 to-slate-900/50 flex items-center justify-center">
+                        <Trophy className="h-20 w-20 text-blue-500/20" />
                       </div>
-                      <motion.span
-                        whileHover={{ scale: 1.1 }}
-                        className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${
-                          raffle.is_active 
-                            ? 'bg-green-100 text-green-700 border-green-300' 
-                            : 'bg-gray-100 text-gray-700 border-gray-300'
-                        }`}
-                      >
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent" />
+                    <div className="absolute top-6 right-6">
+                      <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border backdrop-blur-md ${raffle.is_active
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                        }`}>
                         {raffle.is_active ? 'Ativo' : 'Inativo'}
-                      </motion.span>
+                      </span>
+                    </div>
+                    <div className="absolute bottom-6 left-6 right-6">
+                      <h3 className="text-2xl font-black text-white mb-1 group-hover:text-blue-400 transition-colors uppercase italic">{raffle.title}</h3>
+                      <p className="text-blue-200 font-bold flex items-center gap-2">
+                        <Trophy className="h-4 w-4 text-yellow-400" />
+                        {raffle.prize}
+                      </p>
                     </div>
                   </div>
 
-                  {/* Conteúdo */}
-                  <div className="p-6 bg-white">
-                    <p className="text-gray-600 mb-6 text-sm leading-relaxed">
+                  {/* Card Content */}
+                  <div className="p-8 space-y-8">
+                    <p className="text-slate-400 text-sm leading-relaxed line-clamp-2">
                       {raffle.description}
                     </p>
 
-                    <div className="space-y-3 mb-6">
-                      <div className="flex items-center justify-between bg-blue-50 rounded-lg p-3 border-2 border-blue-200">
-                        <div className="flex items-center text-gray-700">
-                          <Hash className="h-4 w-4 mr-2 text-blue-600" />
-                          <span className="text-sm font-semibold">Total de números:</span>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 rounded-3xl bg-slate-900/50 border border-white/5 group-hover:bg-slate-900 transition-colors">
+                        <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-1 leading-none">Total Números</p>
+                        <div className="flex items-center gap-2">
+                          <Hash className="h-4 w-4 text-blue-400" />
+                          <p className="text-lg font-black text-white">{raffle.total_numbers.toLocaleString()}</p>
                         </div>
-                        <span className="text-gray-900 font-bold text-sm">{raffle.total_numbers.toLocaleString()}</span>
                       </div>
-
-                      <div className="flex items-center justify-between bg-blue-50 rounded-lg p-3 border-2 border-blue-200">
-                        <div className="flex items-center text-gray-700">
-                          <Calendar className="h-4 w-4 mr-2 text-blue-600" />
-                          <span className="text-sm font-semibold">Período:</span>
+                      <div className="p-4 rounded-3xl bg-slate-900/50 border border-white/5 group-hover:bg-slate-900 transition-colors">
+                        <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-1 leading-none">Status</p>
+                        <div className="flex items-center gap-2">
+                          <Settings className="h-4 w-4 text-blue-400" />
+                          <p className={`text-sm font-bold ${raffle.is_active ? 'text-emerald-400' : 'text-slate-400'}`}>
+                            {raffle.is_active ? 'Rodando' : 'Pausado'}
+                          </p>
                         </div>
-                        <span className="text-gray-900 font-bold text-sm">
-                          {new Date(raffle.start_date).toLocaleDateString('pt-BR')} - {new Date(raffle.end_date).toLocaleDateString('pt-BR')}
-                        </span>
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                    <div className="flex items-center gap-3 p-4 rounded-3xl bg-blue-500/5 border border-blue-500/10">
+                      <Calendar className="h-4 w-4 text-blue-400" />
+                      <span className="text-blue-200/80 text-xs font-bold uppercase tracking-wider">
+                        {new Date(raffle.start_date).toLocaleDateString('pt-BR')} - {new Date(raffle.end_date).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex flex-wrap gap-4 pt-4 border-t border-white/5">
+                      <button
                         onClick={() => handleEditRaffle(raffle)}
-                        className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center justify-center gap-2 shadow-lg"
+                        className="flex-1 min-w-[120px] flex items-center justify-center gap-2 py-4 bg-slate-700 hover:bg-slate-600 text-white font-black rounded-[1.25rem] transition-all duration-300"
                       >
                         <Edit className="h-4 w-4" />
                         Editar
-                      </motion.button>
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                      </button>
+                      <button
                         onClick={() => toggleRaffleStatus(raffle.id, raffle.is_active)}
-                        className={`flex-1 font-bold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-lg ${
-                          raffle.is_active
-                            ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-yellow-700'
-                            : 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700'
-                        }`}
+                        className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-4 font-black rounded-[1.25rem] transition-all duration-300 ${raffle.is_active
+                          ? 'bg-amber-500 hover:bg-amber-400 text-white'
+                          : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                          }`}
                       >
-                        <Settings className="h-4 w-4" />
-                        {raffle.is_active ? 'Desativar' : 'Ativar'}
-                      </motion.button>
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                        {raffle.is_active ? <X className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+                        {raffle.is_active ? 'Pausar' : 'Ativar'}
+                      </button>
+                      <button
                         onClick={() => handleDeleteRaffle(raffle.id)}
-                        className="bg-gradient-to-r from-red-500 to-red-600 text-white font-bold py-3 px-4 rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 flex items-center justify-center gap-2 shadow-lg"
+                        className="p-4 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-[1.25rem] transition-all duration-300 border border-red-500/20"
                       >
-                        <Trash2 className="h-4 w-4" />
-                        Excluir
-                      </motion.button>
+                        <Trash2 className="h-5 w-5" />
+                      </button>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Modal de Criação/Edição */}
+        {/* Modal: Create/Edit Raffle */}
         {showModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed z-50 inset-0 overflow-y-auto backdrop-blur-md"
-          >
-            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity">
-                <div className="absolute inset-0 bg-black/60"></div>
-              </div>
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="inline-block align-bottom bg-white rounded-2xl px-6 pt-6 pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border-2 border-blue-200"
-              >
-                <div className="sm:flex sm:items-start">
-                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-14 w-14 rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 sm:mx-0">
-                    <Trophy className="h-8 w-8 text-white" />
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl flex items-center justify-center z-50 p-4">
+            <div className="glass-panel p-0 rounded-[2.5rem] border border-white/10 bg-slate-800 w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+              {/* Modal Header */}
+              <div className="p-8 border-b border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                    <Trophy className="h-6 w-6 text-blue-400" />
                   </div>
-                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                    <h3 className="text-2xl font-black text-gray-900 mb-6">
+                  <div>
+                    <h3 className="text-2xl font-black text-white uppercase italic tracking-tight">
                       {editingRaffle ? 'Editar Sorteio' : 'Novo Sorteio'}
                     </h3>
-                    
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">
-                          Título do Sorteio
-                        </label>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="p-3 hover:bg-white/5 rounded-2xl transition-colors"
+                >
+                  <X className="h-6 w-6 text-slate-400" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-8 overflow-y-auto custom-scrollbar">
+                <div className="grid gap-6">
+                  {/* Basic Info */}
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-blue-200/50 uppercase tracking-widest ml-1">Título</label>
                         <input
                           type="text"
                           value={formData.title}
-                          onChange={(e) => setFormData({...formData, title: e.target.value})}
-                          className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Ex: Sorteio iPhone 15 Pro Max"
+                          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                          className="w-full px-5 py-4 bg-slate-900/50 border border-white/5 rounded-[1.25rem] text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-bold"
+                          placeholder="Ex: Sorteio do Milhão"
                         />
                       </div>
-
-                      <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">
-                          Descrição
-                        </label>
-                        <textarea
-                          value={formData.description}
-                          onChange={(e) => setFormData({...formData, description: e.target.value})}
-                          rows={3}
-                          className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Descreva o sorteio e suas regras..."
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">
-                          Prêmio
-                        </label>
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-blue-200/50 uppercase tracking-widest ml-1">Prêmio</label>
                         <input
                           type="text"
                           value={formData.prize}
-                          onChange={(e) => setFormData({...formData, prize: e.target.value})}
-                          className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Ex: iPhone 15 Pro Max 256GB"
+                          onChange={(e) => setFormData({ ...formData, prize: e.target.value })}
+                          className="w-full px-5 py-4 bg-slate-900/50 border border-white/5 rounded-[1.25rem] text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-bold"
+                          placeholder="Ex: iPhone 15 Pro Max"
                         />
                       </div>
+                    </div>
 
-                      {/* Imagem do Prêmio */}
-                      <div>
-                        <label className="block text-sm font-bold text-slate-300 mb-2">
-                          🏆 Imagem do Prêmio (opcional)
-                        </label>
-                        
-                        {/* Tabs para escolher tipo de imagem */}
-                        <div className="flex mb-3">
-                          <button
-                            type="button"
-                            onClick={() => setImageType('upload')}
-                            className={`px-3 py-2 text-sm font-medium rounded-l-lg border-2 ${
-                              imageType === 'upload'
-                                ? 'bg-blue-500 text-white border-blue-500'
-                                : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                            }`}
-                          >
-                            📁 Upload do PC
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setImageType('url')}
-                            className={`px-3 py-2 text-sm font-medium rounded-r-lg border-2 ${
-                              imageType === 'url'
-                                ? 'bg-blue-500 text-white border-blue-500'
-                                : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                            }`}
-                          >
-                            🌐 URL (Unsplash)
-                          </button>
-                        </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-blue-200/50 uppercase tracking-widest ml-1">Descrição</label>
+                      <textarea
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        rows={3}
+                        className="w-full px-5 py-4 bg-slate-900/50 border border-white/5 rounded-[1.25rem] text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium resize-none"
+                        placeholder="Detalhes sobre o sorteio..."
+                      />
+                    </div>
+                  </div>
 
-                        {/* Upload de arquivo */}
-                        {imageType === 'upload' && (
-                          <div>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleImageUpload}
-                              className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Formatos aceitos: JPG, PNG, GIF, WebP. Máximo: 5MB
-                            </p>
-                          </div>
-                        )}
-
-                        {/* URL de imagem */}
-                        {imageType === 'url' && (
-                          <div>
-                            <input
-                              type="url"
-                              value={formData.prize_image}
-                              onChange={(e) => handleImageUrl(e.target.value)}
-                              className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="https://images.unsplash.com/photo-..."
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Cole aqui a URL da imagem (Unsplash, Imgur, etc.)
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Preview da imagem */}
-                        {imagePreview && (
-                          <div className="mt-3">
-                            <div className="relative inline-block">
-                              <img
-                                src={imagePreview}
-                                alt="Preview do prêmio"
-                                className="w-32 h-32 object-cover rounded-lg border-2 border-gray-200"
-                              />
-                              <button
-                                type="button"
-                                onClick={removeImage}
-                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-2">
-                            Total de Números
-                          </label>
-                          <input
-                            type="number"
-                            value={formData.total_numbers}
-                            onChange={(e) => setFormData({...formData, total_numbers: parseInt(e.target.value) || 1000})}
-                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            min="100"
-                            max="10000"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-2">
-                            Status
-                          </label>
-                          <select
-                            value={formData.is_active ? 'active' : 'inactive'}
-                            onChange={(e) => setFormData({...formData, is_active: e.target.value === 'active'})}
-                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          >
-                            <option value="active">Ativo</option>
-                            <option value="inactive">Inativo</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-2">
-                            Data de Início
-                          </label>
-                          <input
-                            type="date"
-                            value={formData.start_date}
-                            onChange={(e) => setFormData({...formData, start_date: e.target.value})}
-                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-2">
-                            Data de Fim
-                          </label>
-                          <input
-                            type="date"
-                            value={formData.end_date}
-                            onChange={(e) => setFormData({...formData, end_date: e.target.value})}
-                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
+                  {/* Image/Numbers Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-blue-200/50 uppercase tracking-widest ml-1">Total de Números</label>
+                      <input
+                        type="number"
+                        value={formData.total_numbers}
+                        onChange={(e) => setFormData({ ...formData, total_numbers: parseInt(e.target.value) || 1000 })}
+                        className="w-full px-5 py-4 bg-slate-900/50 border border-white/5 rounded-[1.25rem] text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-black text-xl"
+                        min="100"
+                        max="10000"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-blue-200/50 uppercase tracking-widest ml-1">Tipo de Imagem</label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setImageType('upload')}
+                          className={`flex-1 py-4 rounded-2xl font-bold border transition-all ${imageType === 'upload' ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-600/20' : 'bg-slate-900/50 text-slate-400 border-white/5 hover:bg-slate-900'}`}
+                        >
+                          Upload
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setImageType('url')}
+                          className={`flex-1 py-4 rounded-2xl font-bold border transition-all ${imageType === 'url' ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-600/20' : 'bg-slate-900/50 text-slate-400 border-white/5 hover:bg-slate-900'}`}
+                        >
+                          URL
+                        </button>
                       </div>
                     </div>
                   </div>
+
+                  {/* Date Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-blue-200/50 uppercase tracking-widest ml-1">Data Início</label>
+                      <input
+                        type="date"
+                        value={formData.start_date}
+                        onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                        className="w-full px-5 py-4 bg-slate-900/50 border border-white/5 rounded-[1.25rem] text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-bold"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-blue-200/50 uppercase tracking-widest ml-1">Data Fim</label>
+                      <input
+                        type="date"
+                        value={formData.end_date}
+                        onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                        className="w-full px-5 py-4 bg-slate-900/50 border border-white/5 rounded-[1.25rem] text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-bold"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-6 flex gap-3 sm:flex-row-reverse">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    type="button"
-                    className="flex-1 sm:flex-none sm:w-auto inline-flex justify-center rounded-lg px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg"
-                    onClick={handleSaveRaffle}
-                  >
-                    <Save className="h-5 w-5 mr-2" />
-                    Salvar
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    type="button"
-                    className="flex-1 sm:flex-none sm:w-auto inline-flex justify-center rounded-lg px-6 py-3 border-2 border-gray-300 bg-white text-gray-700 font-bold hover:bg-gray-50 transition-all duration-200"
-                    onClick={() => setShowModal(false)}
-                  >
-                    <X className="h-5 w-5 mr-2" />
-                    Cancelar
-                  </motion.button>
-                </div>
-              </motion.div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-8 border-t border-white/5 bg-slate-900/30 flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 py-4 bg-slate-700 hover:bg-slate-600 text-white font-black rounded-2xl transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSaveRaffle}
+                  className="flex-[2] py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-black rounded-2xl transition-all shadow-xl shadow-blue-600/25 flex items-center justify-center gap-2 uppercase italic"
+                >
+                  <Save className="h-5 w-5" />
+                  Salvar Sorteio
+                </button>
+              </div>
             </div>
-          </motion.div>
+          </div>
         )}
       </main>
       <Footer />

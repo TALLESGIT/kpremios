@@ -66,3 +66,41 @@ export interface AuditLog {
   ip_address?: string;
   user_agent?: string;
 }
+
+export interface CruzeiroSettings {
+  id: string;
+  live_url: string;
+  is_live: boolean;
+  updated_at: string;
+}
+
+export interface CruzeiroGame {
+  id: string;
+  opponent: string;
+  opponent_logo?: string;
+  date: string;
+  venue: string;
+  score_home?: number;
+  score_away?: number;
+  status: 'upcoming' | 'finished' | 'live';
+  competition: string;
+  is_home: boolean;
+  created_at: string;
+}
+
+export interface CruzeiroStanding {
+  id: string;
+  position: number;
+  team: string;
+  logo?: string;
+  points: number;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goals_for: number;
+  goals_against: number;
+  is_cruzeiro: boolean;
+  competition: string;
+  created_at: string;
+}

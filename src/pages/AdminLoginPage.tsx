@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useData } from '../context/DataContext';
-import { LogIn, Eye, EyeOff } from 'lucide-react';
+import { LogIn, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import { ZKLogo } from '../components/shared/ZKLogo';
@@ -25,22 +24,19 @@ export default function AdminLoginPage() {
       const { error: signInError } = await signIn(email, password);
 
       if (!signInError) {
-        // Redirect directly to admin dashboard
         navigate('/admin/dashboard');
       } else {
-
         if (signInError.message === 'Invalid login credentials') {
           setError('Credenciais inválidas');
         } else if (signInError.message === 'Email not confirmed') {
-          setError('Email não confirmado. Verifique sua caixa de entrada.');
+          setError('Email não confirmado.');
         } else if (signInError.message === 'Too many requests') {
-          setError('Muitas tentativas. Aguarde alguns minutos e tente novamente.');
+          setError('Muitas tentativas. Aguarde.');
         } else {
           setError(signInError.message || 'Erro ao fazer login');
         }
       }
     } catch (err) {
-
       setError('Erro inesperado ao fazer login');
     } finally {
       setIsLoading(false);
@@ -48,117 +44,100 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      <main className="flex-grow flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6">
-        <div className="max-w-md w-full">
-          <div className="bg-white rounded-2xl shadow-xl border-2 border-blue-200 p-6 sm:p-8">
-            <div className="flex justify-center mb-6">
-              <ZKLogo size="lg" />
-            </div>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-blue-600 text-center mb-8">
-              Acesso Administrativo
-            </h2>
-            {error === 'Credenciais inválidas' && (
-              <div className="mb-6 bg-red-50 border-2 border-red-300 rounded-lg p-4">
-                <div className="text-sm">
-                  <p className="font-semibold mb-3 text-red-800">❌ Usuário admin não encontrado no Supabase Auth!</p>
-                  <p className="text-red-700 mb-3">⚠️ Definir `is_admin=true` na tabela não é suficiente. Você precisa criar o usuário no sistema de autenticação:</p>
-                  <div className="bg-red-100 p-3 rounded text-red-800 space-y-1">
-                    <p><strong>1.</strong> Abra seu Supabase Dashboard</p>
-                    <p><strong>2.</strong> Vá em Authentication → Users</p>
-                    <p><strong>3.</strong> Clique em "Add User"</p>
-                    <p><strong>4.</strong> Digite um email e senha para o admin</p>
-                    <p><strong>5.</strong> Use credenciais seguras</p>
-                    <p><strong>6.</strong> ✅ Marque "Confirm email" como true</p>
-                    <p><strong>7.</strong> Clique em "Create User"</p>
-                    <p><strong>8.</strong> Depois vá na tabela `users` e defina `is_admin=true`</p>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            <form className="space-y-6" onSubmit={handleSubmit}>
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  className="appearance-none rounded-lg relative block w-full px-4 py-3 border-2 border-blue-200 placeholder-blue-400 text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                  placeholder="Digite seu email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                  Senha
-                </label>
-                <div className="relative">
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    required
-                    autoComplete="current-password"
-                    className="appearance-none rounded-lg relative block w-full px-4 py-3 pr-12 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200"
-                    placeholder="Digite sua senha"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 transition-colors"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
+      <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 relative overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-dark via-background to-black opacity-90"></div>
 
+        <div className="max-w-md w-full relative z-10">
+          <div className="glass-panel rounded-3xl shadow-2xl overflow-hidden border border-white/10">
+            <div className="bg-primary/20 p-8 text-center border-b border-white/5 relative">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent to-transparent"></div>
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/10">
+                  <ShieldCheck className="w-8 h-8 text-accent" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-black text-white uppercase tracking-tight">Área Administrativa</h2>
+              <p className="text-blue-200 text-sm mt-1">Acesso restrito a gerenciadores</p>
+            </div>
+
+            <div className="p-8 bg-black/20 backdrop-blur-md">
               {error && (
-                <div className="rounded-lg bg-red-50 p-4 border border-red-200">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-red-800">{error}</h3>
-                    </div>
-                  </div>
+                <div className="mb-6 bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+                  <p className="text-red-200 text-sm flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                    {error}
+                  </p>
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="group relative w-full flex justify-center py-3 px-4 border-2 border-blue-600 text-sm font-bold rounded-lg text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-lg"
-              >
-                <span className="absolute left-0 inset-y-0 flex items-center pl-3">
-                  <LogIn className="h-5 w-5 text-primary-dark group-hover:text-primary" aria-hidden="true" />
-                </span>
-                {isLoading ? 'Entrando...' : 'Entrar'}
-              </button>
-            </form>
+              <form className="space-y-6" onSubmit={handleSubmit}>
+                <div>
+                  <label htmlFor="email" className="block text-xs font-bold text-blue-200 uppercase tracking-wider mb-2 pl-1">
+                    Email de Acesso
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
+                    placeholder="admin@zkpremios.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="password" className="block text-xs font-bold text-blue-200 uppercase tracking-wider mb-2 pl-1">
+                    Senha
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      autoComplete="current-password"
+                      className="w-full px-4 py-3 pr-12 bg-black/40 border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-white/40 hover:text-white transition-colors"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
 
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
-                Não tem uma conta de admin?{' '}
-                <a href="/admin/register" className="text-blue-600 hover:text-blue-700 font-bold">
-                  Cadastre-se aqui
-                </a>
-              </p>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="btn btn-primary w-full py-4 rounded-xl flex items-center justify-center gap-2 group shadow-lg shadow-blue-900/20"
+                >
+                  <span className="absolute left-0 inset-y-0 flex items-center pl-3">
+                    <LogIn className="h-5 w-5 text-primary-dark group-hover:text-primary transition-colors" />
+                  </span>
+                  {isLoading ? 'Autenticando...' : 'Entrar no Sistema'}
+                </button>
+              </form>
+
+              <div className="mt-8 text-center border-t border-white/5 pt-6">
+                <p className="text-xs text-white/40">
+                  Protegido por ZK Premios Security
+                </p>
+              </div>
             </div>
           </div>
         </div>

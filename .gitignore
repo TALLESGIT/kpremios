@@ -81,8 +81,8 @@ jspm_packages/
 dist
 
 # Gatsby files
-.cache/
-public
+# public (uncoment if using gatsby, but this is Vite)
+# public
 
 # Storybook build outputs
 .out

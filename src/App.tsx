@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Toaster } from 'react-hot-toast';
+import { ZKToastIcon } from './components/shared/ZKToastIcon';
 import HomePage from './pages/HomePage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminRegisterPage from './pages/AdminRegisterPage';
@@ -27,12 +29,15 @@ import UserDashboardPage from './pages/UserDashboardPage';
 import LiveRafflePage from './pages/LiveRafflePage';
 import FreeRafflesPage from './pages/FreeRafflesPage';
 
+// ZK TV
+import ZkTVPage from './pages/ZkTVPage';
+import AdminZkTVPage from './pages/admin/AdminZkTVPage';
+
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import ProtectedRoute from './components/shared/ProtectedRoute';
 import UserProtectedRoute from './components/ProtectedRoute';
-import AdminRedirect from './components/shared/AdminRedirect';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -69,7 +74,7 @@ function AppContent() {
             }}
           />
         </div>
-        
+
         <motion.div
           className="text-center relative z-10"
           initial={{ opacity: 0, y: 20 }}
@@ -109,9 +114,39 @@ function AppContent() {
       </div>
     );
   }
-  
+
   return (
     <DataProvider authUser={user}>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#005BAA',
+            color: '#FFFFFF',
+            borderRadius: '12px',
+            border: '2px solid #FFFFFF',
+            padding: '16px 20px',
+            fontSize: '14px',
+            fontWeight: '800',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+          },
+          success: {
+            icon: <ZKToastIcon />,
+            style: {
+              background: '#005BAA',
+            }
+          },
+          error: {
+            icon: <ZKToastIcon />,
+            style: {
+              background: '#991B1B', // Vermelho para erro, mas mantendo o ícone azul e branco
+            }
+          }
+        }}
+      />
       <Router>
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -119,7 +154,7 @@ function AppContent() {
           <Route path="/my-numbers" element={<MyNumbersPage />} />
           <Route path="/live-games" element={<LiveGamesPage />} />
           <Route path="/live-games/:gameId" element={<LiveParticipationPage />} />
-          
+
           {/* Novas rotas de autenticação */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -138,80 +173,90 @@ function AppContent() {
               <FreeRafflesPage />
             </UserProtectedRoute>
           } />
-          
+
+          <Route path="/zk-tv" element={<ZkTVPage />} />
+
           {/* Rotas antigas do admin */}
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/admin/register" element={<AdminRegisterPage />} />
           <Route path="/test-admin" element={<TestAdminPage />} />
           <Route path="/loading-demo" element={<LoadingDemo />} />
-          <Route 
-            path="/admin/dashboard" 
+          <Route
+            path="/admin/dashboard"
             element={
               <ProtectedRoute>
                 <AdminDashboardPage />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/admin/approvals" 
+          <Route
+            path="/admin/approvals"
             element={
               <ProtectedRoute>
                 <AdminApprovalsPage />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/admin/users" 
+          <Route
+            path="/admin/users"
             element={
               <ProtectedRoute>
                 <AdminUsersPage />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/admin/raffles" 
+          <Route
+            path="/admin/raffles"
             element={
               <ProtectedRoute>
                 <AdminRafflesPage />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/admin/raffles/create" 
+          <Route
+            path="/admin/raffles/create"
             element={
               <ProtectedRoute>
                 <CreateRafflePageSimple />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/admin/live-games" 
+          <Route
+            path="/admin/live-games"
             element={
               <ProtectedRoute>
                 <AdminLiveGamesPage />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/admin/live-games/:gameId/control" 
+          <Route
+            path="/admin/live-games/:gameId/control"
             element={
               <ProtectedRoute>
                 <AdminLiveControlPage />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/admin/live-stream" 
+          <Route
+            path="/admin/live-stream"
             element={
               <ProtectedRoute>
                 <AdminLiveStreamPage />
               </ProtectedRoute>
-            } 
+            }
+          />
+          <Route
+            path="/admin/zk-tv"
+            element={
+              <ProtectedRoute>
+                <AdminZkTVPage />
+              </ProtectedRoute>
+            }
           />
 
           {/* Rotas públicas de live streaming */}
           <Route path="/live/:channelName" element={<PublicLiveStreamPage />} />
-          
+
           {/* Rota de diagnóstico do Agora.io */}
           <Route path="/diagnostico-agora" element={<DiagnosticoAgoraPage />} />
 

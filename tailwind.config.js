@@ -5,18 +5,31 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: 'rgb(var(--color-primary) / <alpha-value>)',
-          light: 'rgb(var(--color-primary-light) / <alpha-value>)',
-          dark: 'rgb(var(--color-primary-dark) / <alpha-value>)',
+          DEFAULT: '#005BAA', // Azul Cruzeiro Oficial
+          light: '#0073D6',
+          dark: '#004280',
+          foreground: '#FFFFFF',
         },
         secondary: {
-          DEFAULT: 'rgb(var(--color-secondary) / <alpha-value>)',
-          light: 'rgb(var(--color-secondary-light) / <alpha-value>)',
-          dark: 'rgb(var(--color-secondary-dark) / <alpha-value>)',
+          DEFAULT: '#FFFFFF', // Branco
+          light: '#F3F4F6', // Cinza muito claro
+          dark: '#E5E7EB', // Cinza claro
+          foreground: '#005BAA',
         },
+        accent: {
+          DEFAULT: '#FFD700', // Dourado Estrelas
+          light: '#FFE44D',
+          dark: '#B39700',
+        },
+        background: {
+          DEFAULT: '#002D5A', // Azul Profundo Fundo
+          dark: '#001A33',
+          card: 'rgba(255, 255, 255, 0.95)', // Card claro (quase branco)
+        }
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
+        display: ['Montserrat', 'sans-serif'], // Fonte para títulos
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',

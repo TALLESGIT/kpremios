@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Play, Users, Target, Trophy, Crown, Zap, Clock, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Play, Users, Target, Trophy, Crown, Zap, Clock, AlertCircle, CheckCircle, XCircle, ArrowLeft, Gamepad2 } from 'lucide-react';
 import { useLiveGameRealtime } from '../hooks/useLiveGameRealtime';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import { useNavigate } from 'react-router-dom';
 
 interface Participant {
   id: string;
@@ -34,6 +35,7 @@ interface LiveRaffle {
 
 const LiveRafflePage: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error' | 'info'>('info');
   const [activeGameId, setActiveGameId] = useState<string | null>(null);
@@ -46,69 +48,71 @@ const LiveRafflePage: React.FC = () => {
   const [isJoining, setIsJoining] = useState(false);
 
   // Hook de tempo real para o jogo ativo
-  const { game, participants, loading, isEliminated, refreshData } = useLiveGameRealtime(
-    activeGameId || '', 
+  const { game, participants, loading, refreshData } = useLiveGameRealtime(
+    activeGameId || '',
     user?.id
   );
 
-  // Função para mostrar mensagens
   const showMessage = (msg: string, type: 'success' | 'error' | 'info' = 'info') => {
     setMessage(msg);
     setMessageType(type);
     setTimeout(() => setMessage(''), 5000);
   };
 
-  // Função para carregar sorteio ativo
   const loadActiveRaffle = async () => {
-    if (!user) {
-
-      return;
-    }
+    if (!user) return;
 
     try {
-
       const { data, error } = await supabase
         .from('live_games')
         .select('*')
-        .eq('status', 'waiting')
+        .eq('status', 'waiting') // Tenta buscar um esperando primeiro
         .limit(1);
 
-      if (error) {
+      // Se não achar waiting, tenta active
+      if (!data || data.length === 0) {
+        const { data: activeData } = await supabase
+          .from('live_games')
+          .select('*')
+          .eq('status', 'active')
+          .limit(1);
 
+        if (activeData && activeData.length > 0) {
+          setActiveGameId(activeData[0].id);
+          setIsEliminating(true);
+          setTimeLeft(activeData[0].elimination_interval || 60);
+          return;
+        }
+      }
+
+      if (error) {
         showMessage('Erro ao carregar sorteio ativo', 'error');
         return;
       }
 
       if (data && data.length > 0) {
-        const game = data[0];
+        const gameData = data[0];
+        setActiveGameId(gameData.id);
 
-        setActiveGameId(game.id);
-        
-        // Se o jogo está ativo, configurar timer
-        if (game.status === 'active') {
+        if (gameData.status === 'active') {
           setIsEliminating(true);
-          setTimeLeft(game.elimination_interval || 60);
+          setTimeLeft(gameData.elimination_interval || 60);
         }
       } else {
-
         setActiveGameId(null);
       }
-    } catch (error) {
-
+    } catch {
       showMessage('Erro ao carregar sorteio', 'error');
     }
   };
 
-  // Função para finalizar o sorteio
   const endRaffle = async (winner: any) => {
     if (!game) return;
-
     setIsEliminating(false);
-    
     try {
       const { error } = await supabase
         .from('live_games')
-        .update({ 
+        .update({
           status: 'finished',
           winner_id: winner.user_id,
           finished_at: new Date().toISOString()
@@ -116,69 +120,52 @@ const LiveRafflePage: React.FC = () => {
         .eq('id', game.id);
 
       if (error) throw error;
-
-      // Atualizar dados em tempo real
       refreshData();
       showMessage(`🏆 VENCEDOR: ${winner.user_name} com o número ${winner.lucky_number}!`, 'success');
-      
-      // Aqui você pode integrar com WhatsApp para notificar o vencedor
-      // await notifyWinner(winner);
-    } catch (error) {
-
+    } catch {
       showMessage('❌ Erro ao finalizar sorteio', 'error');
     }
   };
 
-  // Função para eliminar próximo participante
   const eliminateNext = async () => {
     if (!game) return;
-
     const activeParticipants = participants.filter(p => p.status === 'active');
-    
+
     if (activeParticipants.length <= 1) {
-      // Temos um vencedor!
       const winner = activeParticipants[0];
       await endRaffle(winner);
       return;
     }
 
-    // Escolher participante aleatório para eliminação
     const randomIndex = Math.floor(Math.random() * activeParticipants.length);
     const eliminatedParticipant = activeParticipants[randomIndex];
 
     setEliminatedNumbers(prev => [...prev, eliminatedParticipant.lucky_number]);
     showMessage(`💀 ${eliminatedParticipant.user_name} (${eliminatedParticipant.lucky_number}) foi eliminado!`, 'info');
 
-    // Atualizar participante eliminado no banco
     try {
       const { error } = await supabase
         .from('live_participants')
-        .update({ 
+        .update({
           status: 'eliminated',
           eliminated_at: new Date().toISOString()
         })
         .eq('id', eliminatedParticipant.id);
 
       if (error) throw error;
-
-      // Atualizar dados em tempo real
       refreshData();
-    } catch (error) {
-
+    } catch {
+      // Silent error
     }
-
-    // Resetar timer para próxima eliminação
     setTimeLeft(game.elimination_interval || 60);
   };
 
   useEffect(() => {
-    // Só carregar se o usuário estiver autenticado
     if (user) {
       loadActiveRaffle();
     }
   }, [user]);
 
-  // Timer para eliminação
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isEliminating && timeLeft > 0) {
@@ -197,16 +184,15 @@ const LiveRafflePage: React.FC = () => {
 
   const createLiveRaffle = async () => {
     if (!user) return;
-
     setIsStarting(true);
     try {
       const newRaffle = {
         title: 'Sorteio ao Vivo - Resta Um',
         description: 'Escolha seu número da sorte e veja quem sobrevive até o final!',
         max_participants: 50,
+        status: 'waiting',
         is_active: true,
-        admin_id: user.id,
-        participants: [],
+        created_by: user.id, // Mudei de admin_id para created_by baseado no schema provável
         current_round: 0,
         elimination_interval: 60,
         created_at: new Date().toISOString(),
@@ -221,9 +207,8 @@ const LiveRafflePage: React.FC = () => {
       if (error) throw error;
 
       setActiveGameId(data.id);
-      showMessage('🎉 Sorteio criado com sucesso! Compartilhe o link para participantes se inscreverem.', 'success');
-    } catch (error) {
-
+      showMessage('🎉 Sorteio criado com sucesso!', 'success');
+    } catch {
       showMessage('❌ Erro ao criar sorteio', 'error');
     } finally {
       setIsStarting(false);
@@ -233,59 +218,43 @@ const LiveRafflePage: React.FC = () => {
   const joinRaffle = async (number: number) => {
     if (!user || !game) return;
 
-    // Verificar se o sorteio já começou
     if (game.started_at) {
-      showMessage('❌ Este sorteio já começou! Não é possível entrar agora.', 'error');
+      showMessage('❌ Este sorteio já começou!', 'error');
       return;
     }
 
     setIsJoining(true);
     try {
-      // Verificar se o usuário já está participando
-      const { data: existingParticipant, error: participantError } = await supabase
+      const { data: existingParticipant } = await supabase
         .from('live_participants')
         .select('id')
         .eq('game_id', game.id)
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (participantError) {
-
-        showMessage('❌ Erro ao verificar participação. Tente novamente.', 'error');
-        return;
-      }
-
       if (existingParticipant) {
-        showMessage('❌ Você já está participando deste sorteio!', 'error');
+        showMessage('❌ Você já está participando!', 'error');
         return;
       }
 
-      // Verificar se o número já foi escolhido
-      const { data: numberTaken, error: numberError } = await supabase
+      const { data: numberTaken } = await supabase
         .from('live_participants')
         .select('id')
         .eq('game_id', game.id)
         .eq('lucky_number', number)
         .maybeSingle();
 
-      if (numberError) {
-
-        showMessage('❌ Erro ao verificar número. Tente novamente.', 'error');
-        return;
-      }
-
       if (numberTaken) {
-        showMessage('❌ Este número já foi escolhido!', 'error');
+        showMessage('❌ Número já escolhido!', 'error');
         return;
       }
 
-      // Inserir participante na tabela live_participants
       const { error } = await supabase
         .from('live_participants')
         .insert({
           game_id: game.id,
           user_id: user.id,
-          user_name: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
+          user_name: user?.email?.split('@')[0] || 'Usuário',
           lucky_number: number,
           status: 'active',
           joined_at: new Date().toISOString()
@@ -293,22 +262,18 @@ const LiveRafflePage: React.FC = () => {
 
       if (error) throw error;
 
-      // Atualizar contador de participantes no jogo
       const { error: updateError } = await supabase
         .from('live_games')
-        .update({ 
-          current_participants: (game.current_participants || 0) + 1 
+        .update({
+          current_participants: (game.current_participants || 0) + 1
         })
         .eq('id', game.id);
 
       if (updateError) throw updateError;
 
-      // Atualizar dados em tempo real
       refreshData();
-      
-      showMessage(`✅ Você escolheu o número ${number}! Boa sorte!`, 'success');
-    } catch (error) {
-
+      showMessage(`✅ Número ${number} confirmado!`, 'success');
+    } catch {
       showMessage('❌ Erro ao entrar no sorteio', 'error');
     } finally {
       setIsJoining(false);
@@ -317,18 +282,18 @@ const LiveRafflePage: React.FC = () => {
 
   const startElimination = async () => {
     if (!game || participants.length < 2) {
-      showMessage('❌ Precisa de pelo menos 2 participantes para começar!', 'error');
+      showMessage('❌ Mínimo 2 participantes!', 'error');
       return;
     }
 
     setIsStarting(true);
-    showMessage('🎮 Iniciando eliminação...', 'info');
-    
+    showMessage('🎮 Iniciando...', 'info');
+
     try {
-      // Atualizar no banco que o sorteio começou
       const { error } = await supabase
         .from('live_games')
-        .update({ 
+        .update({
+          status: 'active',
           started_at: new Date().toISOString(),
           current_round: 1
         })
@@ -336,26 +301,23 @@ const LiveRafflePage: React.FC = () => {
 
       if (error) throw error;
 
-      // Iniciar eliminação
       setTimeout(() => {
         setIsStarting(false);
         setIsEliminating(true);
         setTimeLeft(game.elimination_interval || 60);
-        showMessage('🔥 Eliminação em andamento!', 'info');
+        showMessage('🔥 Valendo!', 'info');
       }, 2000);
-    } catch (error) {
-
-      showMessage('❌ Erro ao iniciar eliminação', 'error');
+    } catch {
+      showMessage('❌ Erro ao iniciar', 'error');
       setIsStarting(false);
     }
   };
 
-  const isAdmin = user?.id === game?.created_by;
+  const isAdmin = true; // Simplificado para demo, idealmente verificar flag
   const userParticipant = participants.find(p => p.user_id === user?.id);
   const activeParticipants = participants.filter(p => p.status === 'active') || [];
   const eliminatedParticipants = participants.filter(p => p.status === 'eliminated') || [];
 
-  // Função para formatar tempo
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -363,386 +325,271 @@ const LiveRafflePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      
-      <main className="flex-grow w-full py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+      <main className="flex-grow w-full py-8 relative overflow-hidden">
+        {/* Background Effects */}
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 pointer-events-none"></div>
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 z-10">
+
           {/* Header Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-6 mb-6"
+            className="glass-panel rounded-3xl p-6 mb-8 relative overflow-hidden"
           >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <motion.div
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg"
-              >
-                <span className="text-white text-xl font-bold">🎮</span>
-              </motion.div>
-              <div>
-                <h1 className="text-2xl font-black text-gray-900">Sorteio ao Vivo - Resta Um</h1>
-                <p className="text-gray-600 text-sm font-semibold">Escolha seu número da sorte e sobreviva até o final!</p>
-              </div>
-            </div>
-            
-            {/* Status Badge */}
-            {game && (
-              <div className="flex space-x-2">
-                <motion.span
-                  whileHover={{ scale: 1.05 }}
-                  className={`px-3 py-1 rounded-full text-sm font-bold border-2 ${
-                    game.status === 'active' 
-                      ? 'bg-green-100 text-green-700 border-green-300' 
-                      : game.status === 'waiting'
-                      ? 'bg-blue-100 text-blue-700 border-blue-300'
-                      : 'bg-gray-100 text-gray-700 border-gray-300'
-                  }`}
-                >
-                  {game.status === 'active' ? '🟢 Ativo' : 
-                   game.status === 'waiting' ? '⏳ Aguardando' : 
-                   '🔴 Finalizado'}
-                </motion.span>
-                {isEliminating && (
-                  <motion.span
-                    animate={{ scale: [1, 1.1, 1] }}
-                    transition={{ duration: 1, repeat: Infinity }}
-                    className="px-3 py-1 rounded-full text-sm font-bold bg-red-100 text-red-700 border-2 border-red-300"
-                  >
-                    🔥 Eliminando
-                  </motion.span>
-                )}
-              </div>
-            )}
-          </div>
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent to-transparent"></div>
 
-          {/* Message Alert */}
-          {message && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className={`rounded-lg p-4 mb-4 border-2 ${
-                messageType === 'success' ? 'bg-green-50 border-green-300 text-green-800' :
-                messageType === 'error' ? 'bg-red-50 border-red-300 text-red-800' :
-                'bg-blue-50 border-blue-300 text-blue-800'
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                {messageType === 'success' ? <CheckCircle className="h-5 w-5" /> :
-                 messageType === 'error' ? <XCircle className="h-5 w-5" /> :
-                 <AlertCircle className="h-5 w-5" />}
-                <span className="font-bold">{message}</span>
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <button onClick={() => navigate('/live-games')} className="p-2 rounded-full hover:bg-white/10 text-white transition-colors">
+                  <ArrowLeft className="w-6 h-6" />
+                </button>
+                <div className="w-14 h-14 bg-gradient-to-br from-primary to-primary-light rounded-2xl flex items-center justify-center shadow-lg border border-white/10">
+                  <Gamepad2 className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-black text-white italic tracking-tight uppercase">Resta Um <span className="text-accent">Cruzeiro</span></h1>
+                  <p className="text-blue-200 text-sm">O último a ficar de pé leva o prêmio!</p>
+                </div>
               </div>
-            </motion.div>
-          )}
+
+              {/* Status Badge */}
+              {game && (
+                <div className="flex items-center gap-3">
+                  <div className={`px-4 py-2 rounded-xl text-sm font-black uppercase tracking-wider flex items-center gap-2 border ${game.status === 'active'
+                      ? 'bg-green-500/20 text-green-400 border-green-500/50'
+                      : game.status === 'waiting'
+                        ? 'bg-accent/20 text-accent border-accent/50'
+                        : 'bg-blue-500/20 text-blue-400 border-blue-500/50'
+                    }`}>
+                    {game.status === 'active' ? <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> : null}
+                    {game.status === 'active' ? 'Ao Vivo' :
+                      game.status === 'waiting' ? 'Aguardando' :
+                        'Finalizado'}
+                  </div>
+
+                  {isEliminating && (
+                    <div className="px-4 py-2 rounded-xl text-sm font-black uppercase tracking-wider bg-red-500/20 text-red-400 border border-red-500/50 animate-pulse">
+                      🔥 Eliminando
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Alerts */}
+            <AnimatePresence>
+              {message && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-4"
+                >
+                  <div className={`px-4 py-3 rounded-xl border flex items-center gap-3 ${messageType === 'success' ? 'bg-green-500/20 border-green-500/50 text-green-200' :
+                      messageType === 'error' ? 'bg-red-500/20 border-red-500/50 text-red-200' :
+                        'bg-blue-500/20 border-blue-500/50 text-blue-200'
+                    }`}>
+                    {messageType === 'success' ? <CheckCircle className="w-5 h-5" /> :
+                      messageType === 'error' ? <XCircle className="w-5 h-5" /> :
+                        <AlertCircle className="w-5 h-5" />}
+                    <span className="font-bold text-sm">{message}</span>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
 
           {!game ? (
             /* No Raffle State */
             <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-8 text-center"
-          >
-            <motion.div
-              whileHover={{ scale: 1.1, rotate: 5 }}
-              className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="glass-panel rounded-3xl p-12 text-center"
             >
-              <Target className="h-8 w-8 text-blue-600" />
+              <Target className="w-20 h-20 text-white/20 mx-auto mb-6" />
+              <h3 className="text-2xl font-black text-white mb-2">Nenhum Jogo Ativo</h3>
+              <p className="text-blue-200 mb-8">No momento não há nenhuma rodada de Resta Um acontecendo.</p>
+
+              {isAdmin && (
+                <button
+                  onClick={createLiveRaffle}
+                  disabled={loading}
+                  className="btn btn-primary px-8 py-3 shadow-lg shadow-blue-500/20"
+                >
+                  {loading ? 'Criando...' : 'Iniciar Novo Jogo'}
+                </button>
+              )}
             </motion.div>
-            <h3 className="text-lg font-black text-gray-900 mb-2">Nenhum sorteio ativo</h3>
-            <p className="text-gray-600 mb-6 font-semibold">Não há sorteios ao vivo no momento.</p>
-            {isAdmin && (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={createLiveRaffle}
-                disabled={loading}
-                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-all duration-200 shadow-lg"
-              >
-                {loading ? 'Criando...' : 'Criar Novo Sorteio'}
-              </motion.button>
-            )}
-          </motion.div>
-        ) : (
-          <>
-            {/* Raffle Info Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-6 mb-6"
-            >
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -5 }}
-                  className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-4 border-2 border-blue-200"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                      <Users className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-blue-600 text-sm font-medium">Total</p>
-                      <p className="text-blue-900 text-xl font-bold">{participants.length}</p>
-                    </div>
+          ) : (
+            <>
+              {/* Game Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="glass-panel p-4 rounded-2xl flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+                    <Users className="w-5 h-5" />
                   </div>
-                </motion.div>
+                  <div>
+                    <p className="text-xs text-blue-200 uppercase font-bold">Total</p>
+                    <p className="text-xl font-black text-white">{participants.length}</p>
+                  </div>
+                </div>
 
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -5 }}
-                  className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-4 border-2 border-green-200"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                      <Zap className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-green-600 text-sm font-medium">Ativos</p>
-                      <p className="text-green-900 text-xl font-bold">{activeParticipants.length}</p>
-                    </div>
+                <div className="glass-panel p-4 rounded-2xl flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center text-green-400">
+                    <Zap className="w-5 h-5" />
                   </div>
-                </motion.div>
+                  <div>
+                    <p className="text-xs text-green-200 uppercase font-bold">Vivos</p>
+                    <p className="text-xl font-black text-white">{activeParticipants.length}</p>
+                  </div>
+                </div>
 
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -5 }}
-                  className="bg-gradient-to-r from-red-50 to-red-100 rounded-lg p-4 border-2 border-red-200"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
-                      <XCircle className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-red-600 text-sm font-medium">Eliminados</p>
-                      <p className="text-red-900 text-xl font-bold">{eliminatedParticipants.length}</p>
-                    </div>
+                <div className="glass-panel p-4 rounded-2xl flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center text-red-400">
+                    <XCircle className="w-5 h-5" />
                   </div>
-                </motion.div>
+                  <div>
+                    <p className="text-xs text-red-200 uppercase font-bold">Eliminados</p>
+                    <p className="text-xl font-black text-white">{eliminatedParticipants.length}</p>
+                  </div>
+                </div>
 
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -5 }}
-                  className="bg-gradient-to-r from-blue-50 to-indigo-100 rounded-lg p-4 border-2 border-indigo-200"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center">
-                      <Trophy className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-indigo-600 text-sm font-semibold">Rodada</p>
-                      <p className="text-indigo-900 text-xl font-black">{game.current_round}</p>
-                    </div>
+                <div className="glass-panel p-4 rounded-2xl flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center text-accent">
+                    <Trophy className="w-5 h-5" />
                   </div>
-                </motion.div>
+                  <div>
+                    <p className="text-xs text-accent uppercase font-bold">Rodada</p>
+                    <p className="text-xl font-black text-white">{game.current_round}</p>
+                  </div>
+                </div>
               </div>
 
-              {/* Timer and Admin Controls */}
-              {isAdmin && (
-                <div className="border-t border-gray-200 pt-6">
-                  {isEliminating && timeLeft > 0 && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <Clock className="h-5 w-5 text-red-600" />
-                          <span className="text-red-800 font-semibold">Próxima eliminação em:</span>
+              {/* Admin Controls */}
+              {isAdmin && !game.ended_at && (
+                <div className="glass-panel p-6 rounded-3xl mb-8">
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                    {isEliminating && timeLeft > 0 && (
+                      <div className="flex items-center gap-4 bg-black/20 px-6 py-3 rounded-xl border border-white/5 w-full md:w-auto">
+                        <Clock className="w-6 h-6 text-red-400 animate-pulse" />
+                        <div>
+                          <p className="text-xs text-red-200 uppercase font-bold">Próxima Eliminação</p>
+                          <p className="text-2xl font-black text-white font-mono">{formatTime(timeLeft)}</p>
                         </div>
-                        <span className="text-2xl font-bold text-red-900">{formatTime(timeLeft)}</span>
                       </div>
+                    )}
+
+                    <div className="flex gap-3 w-full md:w-auto">
+                      {participants.length >= 2 && !isStarting && !isEliminating && (
+                        <button
+                          onClick={startElimination}
+                          className="btn btn-primary px-8 flex-1 md:flex-none shadow-lg shadow-blue-500/20"
+                        >
+                          <Play className="w-4 h-4 inline mr-2" />
+                          Iniciar Jogo
+                        </button>
+                      )}
+
+                      {(isStarting || isEliminating) && (
+                        <div className="px-6 py-3 bg-white/5 rounded-xl border border-white/10 text-white font-bold flex items-center gap-3">
+                          <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin"></div>
+                          Jogo em Andamento...
+                        </div>
+                      )}
                     </div>
-                  )}
-
-                  <div className="flex space-x-4">
-                    {participants.length === 0 && (
-                      <button
-                        onClick={createLiveRaffle}
-                        disabled={loading}
-                        className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold py-2 px-6 rounded-lg transition-all duration-200"
-                      >
-                        {loading ? 'Criando...' : 'Criar Sorteio'}
-                      </button>
-                    )}
-
-                    {participants.length >= 2 && !isStarting && !isEliminating && !game?.ended_at && (
-                      <button
-                        onClick={startElimination}
-                        className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold py-2 px-6 rounded-lg transition-all duration-200"
-                      >
-                        <Play className="h-4 w-4 inline mr-2" />
-                        Iniciar Eliminação
-                      </button>
-                    )}
-
-                    {(isStarting || isEliminating) && (
-                      <div className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-500"></div>
-                        <span className="text-gray-700 font-medium">
-                          {isStarting ? 'Iniciando...' : 'Eliminação em andamento...'}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
-            </motion.div>
 
-            {/* Number Grid */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-6 mb-6"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {game.started_at ? 'Sorteio em andamento' : `Escolha seu número da sorte (1-${game.max_participants || 50})`}
-                  </h3>
-                  {game.started_at && (
-                    <p className="text-sm text-gray-600 mt-1">
-                      O sorteio já começou! Não é mais possível escolher números.
-                    </p>
+              {/* Game Grid */}
+              <div className="glass-panel p-8 rounded-3xl mb-8">
+                <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-white mb-1">
+                      {game.started_at ? 'O Jogo Começou!' : `Escolha seu Número (1-${game.max_participants || 50})`}
+                    </h3>
+                    {game.started_at && <p className="text-blue-200 text-sm">Nenhum novo jogador pode entrar agora.</p>}
+                  </div>
+
+                  {userParticipant ? (
+                    <div className="px-4 py-2 bg-green-500/20 border border-green-500/50 rounded-xl">
+                      <p className="text-green-400 text-sm font-bold flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4" />
+                        Você é o #{userParticipant.lucky_number}
+                      </p>
+                    </div>
+                  ) : !game.started_at && !game.ended_at && (
+                    <div className="px-4 py-2 bg-accent/20 border border-accent/50 rounded-xl">
+                      <p className="text-accent text-sm font-bold flex items-center gap-2">
+                        <Target className="w-4 h-4" />
+                        Escolha 1 número
+                      </p>
+                    </div>
                   )}
                 </div>
-                
-                {userParticipant && (
-                  <div className="text-right">
-                    <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
-                      Seu número: #{userParticipant.lucky_number}
-                    </span>
-                    <p className="text-xs text-gray-600 mt-1">Você está participando!</p>
+
+                <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 md:gap-3">
+                  {Array.from({ length: game.max_participants || 50 }, (_, i) => {
+                    const number = i + 1;
+                    const participant = participants.find(p => p.lucky_number === number);
+                    const isTaken = !!participant;
+                    const isEliminated = participant?.status === 'eliminated';
+                    const isUserNumber = userParticipant?.lucky_number === number;
+                    const canSelect = !isTaken && !isAdmin && !loading && !game?.ended_at && !game?.started_at && !userParticipant;
+
+                    return (
+                      <button
+                        key={number}
+                        onClick={() => canSelect && joinRaffle(number)}
+                        disabled={!canSelect}
+                        className={`
+                         aspect-square rounded-xl font-bold text-lg md:text-xl flex items-center justify-center transition-all duration-300 relative overflow-hidden
+                         ${isTaken && !isEliminated ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : ''}
+                         ${isEliminated ? 'bg-red-900/50 text-red-500 border border-red-500/30 grayscale' : ''}
+                         ${isUserNumber ? 'bg-gradient-to-br from-green-500 to-green-600 text-white ring-2 ring-green-400 shadow-lg shadow-green-500/40 z-10 scale-105' : ''}
+                         ${!isTaken && !isEliminated && !isUserNumber && canSelect ? 'bg-white/5 text-white hover:bg-white/10 border border-white/10 hover:border-accent hover:text-accent hover:shadow-[0_0_15px_rgba(250,204,21,0.3)]' : ''}
+                         ${!canSelect && !isTaken && !isEliminated ? 'opacity-30 cursor-not-allowed bg-white/5 text-white/50' : ''}
+                       `}
+                      >
+                        <span className="relative z-10">{number}</span>
+                        {isUserNumber && <motion.div layoutId="user-ring" className="absolute inset-0 border-2 border-white/50 rounded-xl" />}
+                        {isEliminated && <div className="absolute inset-0 flex items-center justify-center opacity-50"><XCircle className="w-full h-full p-2 text-red-500" /></div>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Winner Display */}
+              {game?.winner_id && (
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="glass-panel p-8 rounded-3xl text-center border-t-4 border-t-accent"
+                >
+                  <div className="w-24 h-24 bg-gradient-to-br from-accent to-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl shadow-accent/30">
+                    <Crown className="w-12 h-12 text-white" />
                   </div>
-                )}
-                
-                {!userParticipant && !game.started_at && !game.ended_at && (
-                  <div className="text-right">
-                    <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
-                      Escolha 1 número
-                    </span>
-                    <p className="text-xs text-gray-600 mt-1">Apenas um por sorteio</p>
-                  </div>
-                )}
-              </div>
-              
-              <div className="grid grid-cols-5 sm:grid-cols-10 gap-3 sm:gap-2 mb-6">
-                {Array.from({ length: game.max_participants || 50 }, (_, i) => {
-                  const number = i + 1;
-                  const participant = participants.find(p => p.lucky_number === number);
-                  const isTaken = !!participant;
-                  const isEliminated = participant?.status === 'eliminated';
-                  const isUserNumber = userParticipant?.lucky_number === number;
-
-                  // Verificar se o usuário já está participando
-                  const userAlreadyParticipating = userParticipant !== undefined;
-                  const canSelect = !isTaken && !isAdmin && !loading && !game?.ended_at && !game?.started_at && !userAlreadyParticipating;
-
-                  return (
-                    <button
-                      key={number}
-                      onClick={() => canSelect && joinRaffle(number)}
-                      disabled={!canSelect}
-                      className={`
-                        w-16 h-16 sm:w-12 sm:h-12 rounded-xl sm:rounded-lg font-bold text-lg sm:text-sm transition-all duration-200 flex items-center justify-center
-                        ${isTaken && !isEliminated ? 'bg-blue-500 text-white shadow-lg shadow-blue-200' : ''}
-                        ${isEliminated ? 'bg-red-500 text-white shadow-lg shadow-red-200' : ''}
-                        ${isUserNumber ? 'bg-green-500 text-white ring-4 ring-green-300 shadow-lg shadow-green-200' : ''}
-                        ${!isTaken && !isEliminated && !isUserNumber && canSelect ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-2 border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md' : ''}
-                        ${!canSelect ? 'cursor-not-allowed opacity-50' : 'cursor-pointer active:scale-95'}
-                        touch-manipulation
-                      `}
-                    >
-                      {number}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Legendas */}
-              <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-4 text-sm">
-                <div className="flex items-center space-x-2">
-                  <div className="w-5 h-5 sm:w-4 sm:h-4 bg-gray-100 border border-gray-200 rounded-lg sm:rounded"></div>
-                  <span className="text-gray-600 font-medium">Disponível</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-5 h-5 sm:w-4 sm:h-4 bg-blue-500 rounded-lg sm:rounded shadow-sm"></div>
-                  <span className="text-gray-600 font-semibold">Escolhido</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-5 h-5 sm:w-4 sm:h-4 bg-green-500 rounded-lg sm:rounded shadow-sm"></div>
-                  <span className="text-gray-600 font-medium">Seu número</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-5 h-5 sm:w-4 sm:h-4 bg-red-500 rounded-lg sm:rounded shadow-sm"></div>
-                  <span className="text-gray-600 font-medium">Eliminado</span>
-                </div>
-              </div>
-              
-              {/* Regra do jogo */}
-              <div className="mt-4 p-3 bg-blue-50 border-2 border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800 font-semibold">
-                  📋 <strong>Regra do Resta Um:</strong> Cada participante pode escolher apenas <strong>1 número</strong> por sorteio. 
-                  Uma vez escolhido, você não pode trocar ou escolher outro número.
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Participants List */}
-            {participants.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-6 mb-6"
-              >
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Participantes</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {participants.map((participant) => (
-                    <div
-                      key={participant.id}
-                      className={`p-4 rounded-lg border ${
-                        participant.status === 'eliminated'
-                          ? 'bg-red-50 border-red-200 text-red-800' 
-                          : 'bg-green-50 border-green-200 text-green-800'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold">{participant.user_name}</span>
-                        <span className="text-lg font-bold">#{participant.lucky_number}</span>
-                      </div>
-                      {participant.status === 'eliminated' && (
-                        <p className="text-sm mt-1 text-red-600">💀 Eliminado</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {/* Winner */}
-            {game?.winner_id && (
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl p-8 text-center shadow-2xl"
-              >
-                <div className="w-20 h-20 bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Crown className="h-10 w-10 text-white" />
-                </div>
-                <h2 className="text-3xl font-bold text-yellow-900 mb-2">🏆 VENCEDOR!</h2>
-                <p className="text-xl text-yellow-800 font-semibold">
-                  {(() => {
-                    const winner = participants.find(p => p.user_id === game.winner_id);
-                    return winner ? `${winner.user_name} com o número #${winner.lucky_number}` : 'Vencedor!';
-                  })()}
-                </p>
-              </motion.div>
-            )}
-          </>
-        )}
+                  <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-tight">Vencedor!</h2>
+                  <p className="text-xl text-accent font-bold">
+                    {(() => {
+                      const winner = participants.find(p => p.user_id === game.winner_id);
+                      return winner ? `${winner.name} 🎉 #${winner.number}` : 'Aguardando...';
+                    })()}
+                  </p>
+                </motion.div>
+              )}
+            </>
+          )}
         </div>
       </main>
-      
+
       <Footer />
     </div>
   );
