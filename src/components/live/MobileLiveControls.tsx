@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Maximize2, RotateCw, X, Minimize2, PictureInPicture, MessageSquare } from 'lucide-react';
+import { Maximize2, RotateCw, X, Minimize2, PictureInPicture, MessageSquare, Maximize } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface MobileLiveControlsProps {
@@ -14,6 +14,9 @@ interface MobileLiveControlsProps {
   onTouchStart?: () => void;
   containerRef?: React.RefObject<HTMLDivElement>;
   isActive?: boolean; // Se a transmissão está ativa
+  onToggleFit?: () => void;
+  fitMode?: 'contain' | 'cover';
+  isDocked?: boolean;
 }
 
 const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
@@ -27,11 +30,14 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
   isPictureInPicture = false,
   onTouchStart,
   containerRef,
-  isActive = false
+  isActive = false,
+  onToggleFit,
+  fitMode = 'contain',
+  isDocked = false
 }) => {
   const [visible, setVisible] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
+  const lastTapRef = useRef<number>(0);
   const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -121,17 +127,23 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
 
   return (
     <div
-      onClick={showControls}
-      onMouseEnter={() => {
-        if (!isMobile) {
-          setIsHovering(true);
-          setVisible(true);
+      onClick={() => {
+        showControls();
+        // Lógica de toque duplo para zoom
+        if (isMobile && onToggleFit) {
+          const now = Date.now();
+          const DOUBLE_TAP_DELAY = 300;
+          if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+            onToggleFit();
+            // Mostrar um feedback visual de zoom talvez? 
+            // Por enquanto só o toggle.
+          }
+          lastTapRef.current = now;
         }
       }}
-      onMouseLeave={() => {
+      onMouseEnter={() => {
         if (!isMobile) {
-          setIsHovering(false);
-          // Manter visível em desktop, mas pode adicionar fade se quiser
+          setVisible(true);
         }
       }}
       className="absolute inset-0 z-50 pointer-events-none"
@@ -149,8 +161,36 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
               damping: 30,
               duration: 0.3
             }}
-            className="absolute bottom-1 right-4 flex items-center gap-3 pointer-events-auto"
+            className={`absolute flex items-center gap-3 pointer-events-auto ${isDocked
+              ? "top-4 right-4"
+              : "bottom-1 right-4"
+              }`}
           >
+            {/* Botão de Zoom/Preencher (Apenas Fullscreen Mobile) */}
+            {isFullscreen && onToggleFit && (
+              <motion.button
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 200,
+                  damping: 20,
+                  delay: 0.12
+                }}
+                whileTap={{ scale: 0.9 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleFit();
+                  showControls();
+                }}
+                className={`bg-black/20 backdrop-blur-sm p-3 rounded-full hover:bg-black/40 transition-colors ${fitMode === 'cover' ? 'text-blue-400 border border-blue-500/30' : 'text-white'}`}
+                aria-label="Alternar Zoom"
+                title={fitMode === 'cover' ? "Ajustar à tela" : "Preencher tela"}
+              >
+                <Maximize className={`w-5 h-5 ${fitMode === 'cover' ? 'scale-110' : ''}`} />
+              </motion.button>
+            )}
+
             {/* Botão de Chat (apenas mobile) */}
             {isMobile && (
               <motion.button
