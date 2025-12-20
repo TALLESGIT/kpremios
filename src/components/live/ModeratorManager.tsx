@@ -31,6 +31,63 @@ const ModeratorManager: React.FC<ModeratorManagerProps> = ({ streamId }) => {
   useEffect(() => {
     loadModerators();
     loadParticipatingUsers();
+
+    // Configurar Realtime para moderadores
+    const moderatorsSubscription = supabase
+      .channel('stream_moderators_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'stream_moderators',
+          filter: `stream_id=eq.${streamId}`
+        },
+        () => {
+          loadModerators();
+        }
+      )
+      .subscribe();
+
+    // Configurar Realtime para participantes (viewer_sessions)
+    const sessionsSubscription = supabase
+      .channel('viewer_sessions_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'viewer_sessions',
+          filter: `stream_id=eq.${streamId}`
+        },
+        () => {
+          loadParticipatingUsers();
+        }
+      )
+      .subscribe();
+
+    // Configurar Realtime para chat (novos usuários aparecendo no chat)
+    const chatSubscription = supabase
+      .channel('live_chat_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'live_chat_messages',
+          filter: `stream_id=eq.${streamId}`
+        },
+        () => {
+          loadParticipatingUsers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(moderatorsSubscription);
+      supabase.removeChannel(sessionsSubscription);
+      supabase.removeChannel(chatSubscription);
+    };
   }, [streamId]);
 
   const loadModerators = async () => {
