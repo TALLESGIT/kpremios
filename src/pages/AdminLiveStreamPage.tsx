@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { Trash2, Play, Square, Radio, Plus } from 'lucide-react';
+import { Trash2, Play, Square, Radio } from 'lucide-react';
 import LiveChat from '../components/live/LiveChat';
 import AdminLivePanel from '../components/live/AdminLivePanel';
 import ModeratorManager from '../components/live/ModeratorManager';
@@ -12,7 +11,7 @@ import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 
 interface LiveStream {
-  is_active: any;
+  is_active: boolean;
   id: string;
   title: string;
   description: string;
@@ -32,7 +31,6 @@ const generateSlugFromTitle = (title: string): string => {
 
 const AdminLiveStreamPage: React.FC = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [streams, setStreams] = useState<LiveStream[]>([]);
   const [selectedStream, setSelectedStream] = useState<LiveStream | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -189,7 +187,11 @@ const AdminLiveStreamPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               <div className="lg:col-span-8 space-y-8">
                 <div className="bg-black aspect-video rounded-3xl overflow-hidden border border-white/10 shadow-2xl relative group">
-                  <ZKViewer channel="ZkPremios" muteAudio={true} />
+                  <ZKViewer
+                    channel={selectedStream.channel_name}
+                    muteAudio={true}
+                    enabled={selectedStream.is_active}
+                  />
                   <div className="absolute top-6 left-6 z-10">
                     <div className="px-4 py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-2">
                       <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />

@@ -27,7 +27,15 @@ const PublicLiveStreamPage: React.FC = () => {
   const { user } = useAuth();
   const [stream, setStream] = useState<LiveStream | null>(null);
   const [loading, setLoading] = useState(true);
-  const [viewerCount, setViewerCount] = useState(0);
+  const [sessionId] = useState(() => {
+    const key = `live_session_${channelName}`;
+    const saved = localStorage.getItem(key);
+    if (saved) return saved;
+    const nuevo = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem(key, nuevo);
+    return nuevo;
+  });
+
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -40,6 +48,54 @@ const PublicLiveStreamPage: React.FC = () => {
   useEffect(() => {
     if (channelName) { loadStream(); loadZkTVData(); }
   }, [channelName]);
+
+  useEffect(() => {
+    if (!stream) return;
+
+    // Assinatura Realtime para mudanças na live (Ativa/Inativa e Contagem de Viewers)
+    const channel = supabase.channel(`public_stream_${stream.id}`)
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'live_streams', filter: `id=eq.${stream.id}` },
+        (payload) => {
+          const updated = payload.new as LiveStream;
+          setStream(updated);
+          // Se a live foi encerrada, desativa chat docked
+          if (!updated.is_active) {
+            setIsChatOpen(false);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [stream?.id]);
+
+  useEffect(() => {
+    if (stream && stream.is_active) {
+      trackViewer();
+      const heartbeat = setInterval(() => {
+        supabase.rpc('update_viewer_heartbeat', { p_session_id: sessionId });
+      }, 30000);
+      return () => {
+        clearInterval(heartbeat);
+      };
+    }
+  }, [stream?.id, stream?.is_active]);
+
+  const trackViewer = async () => {
+    if (!stream || !stream.is_active) return;
+    try {
+      await supabase.from('viewer_sessions').upsert({
+        stream_id: stream.id,
+        session_id: sessionId,
+        is_active: true,
+        user_agent: navigator.userAgent,
+        last_heartbeat: new Date().toISOString()
+      }, { onConflict: 'session_id,stream_id' });
+    } catch (e) { }
+  };
 
   const loadStream = async () => {
     setLoading(true);
@@ -69,7 +125,6 @@ const PublicLiveStreamPage: React.FC = () => {
       setIsLandscape(landscape);
 
       if (landscape && !isFullscreen && videoContainerRef.current) {
-        // Tentar entrar em fullscreen automaticamente
         const el = videoContainerRef.current;
         try {
           if (el.requestFullscreen) el.requestFullscreen();
@@ -82,7 +137,6 @@ const PublicLiveStreamPage: React.FC = () => {
 
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    // Usar orientationchange para disparar a rotação
     window.addEventListener('orientationchange', () => {
       setTimeout(handleRotation, 200);
     });
@@ -90,7 +144,7 @@ const PublicLiveStreamPage: React.FC = () => {
     return () => {
       window.removeEventListener('resize', checkMobile);
     };
-  }, []);
+  }, [isMobile, isFullscreen]);
 
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -127,8 +181,10 @@ const PublicLiveStreamPage: React.FC = () => {
           <div className="flex items-center gap-4">
             <div className="px-6 py-3 bg-slate-800/40 rounded-2xl border border-white/5 flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
-                <span className="text-rose-400 text-xs font-black uppercase">Ao Vivo</span>
+                <div className={`w-2 h-2 rounded-full animate-pulse ${stream.is_active ? 'bg-rose-500' : 'bg-slate-500'}`} />
+                <span className={`${stream.is_active ? 'text-rose-400' : 'text-slate-500'} text-xs font-black uppercase`}>
+                  {stream.is_active ? 'Ao Vivo' : 'Offline'}
+                </span>
               </div>
               <div className="w-[1px] h-4 bg-white/10" />
               <div className="flex items-center gap-2">
@@ -149,7 +205,11 @@ const PublicLiveStreamPage: React.FC = () => {
                 ${isDockedChat ? 'flex' : ''}`}
             >
               <div className={`relative h-full ${isDockedChat ? 'flex-1' : 'w-full'}`}>
-                <ZKViewer channel={stream.channel_name} fitMode={videoFitMode} enabled={true} />
+                <ZKViewer
+                  channel={stream.channel_name}
+                  fitMode={videoFitMode}
+                  enabled={stream.is_active}
+                />
                 <MobileLiveControls
                   isActive={stream.is_active}
                   isFullscreen={isFullscreen}
