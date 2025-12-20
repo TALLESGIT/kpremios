@@ -6,7 +6,7 @@ import { Trash2, Play, Square, Radio } from 'lucide-react';
 import LiveChat from '../components/live/LiveChat';
 import AdminLivePanel from '../components/live/AdminLivePanel';
 import ModeratorManager from '../components/live/ModeratorManager';
-import VideoStream from '../components/live/VideoStream';
+import ZKViewer from '../components/ZKViewer';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 
@@ -38,6 +38,17 @@ const AdminLiveStreamPage: React.FC = () => {
   const [newStreamTitle, setNewStreamTitle] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Handler para duplo clique - tela cheia
+  const handleDoubleClick = () => {
+    const videoContainer = document.querySelector('.zk-viewer-container');
+    if (!videoContainer) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      (videoContainer as HTMLElement).requestFullscreen();
+    }
+  };
 
   useEffect(() => {
     loadStreams();
@@ -132,7 +143,7 @@ const AdminLiveStreamPage: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-slate-900">
       <Header />
-      <main className="flex-grow pt-24 px-4 max-w-7xl mx-auto w-full pb-20">
+      <main className="flex-grow pt-24 px-4 max-w-5xl mx-auto w-full pb-20">
         <div className="flex justify-between items-center mb-12">
           <div>
             <h1 className="text-4xl font-black text-white italic uppercase tracking-tighter">Central de Transmissão</h1>
@@ -203,20 +214,30 @@ const AdminLiveStreamPage: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               <div className="lg:col-span-8 space-y-8">
-                <div className="bg-black aspect-video rounded-3xl overflow-hidden border border-white/10 shadow-2xl relative group">
-                  <VideoStream
-                    channelName={selectedStream.channel_name}
-                    role="host"
-                    isActive={true}
-                    startStreaming={isStreaming}
-                    onStreamReady={() => console.log('Stream pronto')}
-                    onStreamError={(err) => toast.error('Erro no stream: ' + err.message)}
+                <div
+                  className="zk-viewer-container bg-black aspect-video rounded-3xl overflow-hidden border border-white/10 shadow-2xl relative group cursor-pointer"
+                  onDoubleClick={handleDoubleClick}
+                  title="Duplo clique para tela cheia"
+                >
+                  <ZKViewer
+                    channel={selectedStream.channel_name}
+                    fitMode="contain"
+                    enabled={true}
+                    muteAudio={true}
                   />
+                  {!isStreaming && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
+                      <div className="text-center">
+                        <p className="text-white text-lg font-bold mb-2">Preview do ZK Studio</p>
+                        <p className="text-slate-400 text-sm">Clique em "Iniciar Live" para liberar para os usuários</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <AdminLivePanel streamId={selectedStream.id} channelName={selectedStream.channel_name} isActive={selectedStream.is_active} />
               </div>
               <div className="lg:col-span-4 h-[650px] overflow-hidden rounded-[2.5rem] border border-white/5 bg-slate-900 shadow-2xl">
-                <LiveChat streamId={selectedStream.id} />
+                <LiveChat streamId={selectedStream.id} isActive={selectedStream.is_active} />
               </div>
             </div>
             <ModeratorManager streamId={selectedStream.id} />

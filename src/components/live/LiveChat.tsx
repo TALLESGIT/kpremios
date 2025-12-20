@@ -17,6 +17,7 @@ interface ChatMessage {
 
 interface LiveChatProps {
   streamId: string;
+  isActive?: boolean; // Se a live está ativa (permite enviar mensagens)
 }
 
 const EMOJI_CATEGORIES = {
@@ -30,7 +31,7 @@ const EMOJI_CATEGORIES = {
   }
 };
 
-const LiveChat: React.FC<LiveChatProps> = ({ streamId }) => {
+const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -119,6 +120,10 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId }) => {
       <div className="p-4 bg-slate-800/40 border-t border-white/5">
         {!user ? (
           <button onClick={() => navigate('/login')} className="w-full py-3 bg-blue-600 text-white rounded-xl text-xs font-black uppercase">Entre para comentar</button>
+        ) : !isActive ? (
+          <div className="text-center py-3">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Chat disponível durante a transmissão</p>
+          </div>
         ) : (
           <div className="flex gap-2 items-center">
             <div className="relative" ref={emojiPickerRef}>

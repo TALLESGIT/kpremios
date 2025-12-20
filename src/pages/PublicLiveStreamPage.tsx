@@ -45,6 +45,16 @@ const PublicLiveStreamPage: React.FC = () => {
   const [upcomingGames, setUpcomingGames] = useState<CruzeiroGame[]>([]);
   const [standings, setStandings] = useState<CruzeiroStanding[]>([]);
 
+  // Handler para duplo clique - tela cheia
+  const handleDoubleClick = () => {
+    if (!videoContainerRef.current) return;
+    if (isFullscreen) {
+      document.exitFullscreen();
+    } else {
+      videoContainerRef.current.requestFullscreen();
+    }
+  };
+
   useEffect(() => {
     if (channelName) { loadStream(); loadZkTVData(); }
   }, [channelName]);
@@ -167,7 +177,7 @@ const PublicLiveStreamPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col">
       <Header />
-      <main className="flex-1 max-w-7xl mx-auto w-full p-4 lg:p-12 space-y-12">
+      <main className="flex-1 max-w-5xl mx-auto w-full p-4 lg:p-12 space-y-12">
         <div className="flex flex-col md:flex-row justify-between items-start gap-8">
           <div className="space-y-4">
             <button onClick={() => navigate('/')} className="flex items-center gap-2 text-slate-500 font-bold uppercase text-[10px] tracking-widest hover:text-white transition-colors">
@@ -200,9 +210,11 @@ const PublicLiveStreamPage: React.FC = () => {
           <div className="lg:col-span-8 space-y-10">
             <div
               ref={videoContainerRef}
-              className={`relative bg-black shadow-2xl overflow-hidden transition-all duration-500 isolate
+              onDoubleClick={handleDoubleClick}
+              className={`relative bg-black shadow-2xl overflow-hidden transition-all duration-500 isolate cursor-pointer
                 ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : 'rounded-3xl border border-white/10 aspect-video'}
                 ${isDockedChat ? 'flex' : ''}`}
+              title="Duplo clique para tela cheia"
             >
               <div className={`relative h-full ${isDockedChat ? 'flex-1' : 'w-full'}`}>
                 <ZKViewer
@@ -210,6 +222,19 @@ const PublicLiveStreamPage: React.FC = () => {
                   fitMode={videoFitMode}
                   enabled={stream.is_active}
                 />
+
+                {/* Overlay quando live encerrada */}
+                {!stream.is_active && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-20">
+                    <div className="text-center space-y-4 px-8">
+                      <div className="text-6xl">📡</div>
+                      <h2 className="text-3xl font-black text-white uppercase italic">Live Encerrada</h2>
+                      <p className="text-slate-400 text-sm font-bold">A transmissão foi finalizada</p>
+                      <div className="w-16 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent mx-auto"></div>
+                    </div>
+                  </div>
+                )}
+
                 <MobileLiveControls
                   isActive={stream.is_active}
                   isFullscreen={isFullscreen}
@@ -261,7 +286,7 @@ const PublicLiveStreamPage: React.FC = () => {
 
           <div className="lg:col-span-4 h-[650px] flex flex-col sticky top-24">
             <div className="flex-1 bg-slate-900 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
-              <LiveChat streamId={stream.id} />
+              <LiveChat streamId={stream.id} isActive={stream.is_active} />
             </div>
           </div>
         </div>
