@@ -486,7 +486,7 @@ const PublicLiveStreamPage: React.FC = () => {
           </div>
 
           {/* Chat Sidebar Area */}
-          <div className="lg:col-span-4 h-full min-h-[600px] flex flex-col">
+          <div className="lg:col-span-4 h-[650px] flex flex-col">
             <div className="flex-1 bg-slate-800/40 rounded-[2.5rem] border border-white/10 overflow-hidden glass-panel-dark shadow-2xl relative">
               {!isMobile || isChatOpen ? (
                 <LiveChat streamId={stream.id} isAdmin={false} />

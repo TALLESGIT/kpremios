@@ -711,7 +711,7 @@ const AdminLiveStreamPage: React.FC = () => {
                 </div>
 
                 <div className="lg:col-span-1">
-                  <div className="glass-panel h-full rounded-[2.5rem] border border-white/5 bg-slate-800/40 backdrop-blur-md overflow-hidden min-h-[500px]">
+                  <div className="glass-panel h-[650px] rounded-[2.5rem] border border-white/5 bg-slate-800/40 backdrop-blur-md overflow-hidden shadow-2xl relative">
                     <LiveChat streamId={selectedStream.id} isAdmin={true} />
                   </div>
                 </div>
