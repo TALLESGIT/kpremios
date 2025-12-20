@@ -206,8 +206,9 @@ const AdminLiveStreamPage: React.FC = () => {
                 <div className="bg-black aspect-video rounded-3xl overflow-hidden border border-white/10 shadow-2xl relative group">
                   <VideoStream
                     channelName={selectedStream.channel_name}
-                    role="audience"
+                    role="host"
                     isActive={true}
+                    startStreaming={isStreaming}
                     onStreamReady={() => console.log('Stream pronto')}
                     onStreamError={(err) => toast.error('Erro no stream: ' + err.message)}
                   />

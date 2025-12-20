@@ -86,7 +86,7 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
       videoObserver.observe(containerRef.current, {
         childList: true,
         subtree: true,
-          attributes: true,
+        attributes: true,
         attributeFilter: ['style']
       });
     }
@@ -117,9 +117,9 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
 
         client.on('connection-state-change', (state: string) => {
           if (!mounted) return;
-          console.log('🔌 ZKViewer: connection-state-change', { 
-            state, 
-            timestamp: new Date().toISOString() 
+          console.log('🔌 ZKViewer: connection-state-change', {
+            state,
+            timestamp: new Date().toISOString()
           });
           if (state === 'DISCONNECTED') {
             console.warn('⚠️ ZKViewer: Desconectado do Agora!', {
@@ -166,7 +166,7 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
           if (!mounted) return;
 
           console.log('🎬 ZKViewer: user-published', { uid: user.uid, mediaType });
-            
+
           try {
             await client.subscribe(user, mediaType);
             console.log('✅ ZKViewer: Subscribe realizado com sucesso', mediaType);
@@ -193,7 +193,7 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
                 } catch {
                   // ignore
                 }
-                
+
                 // Log de qualidade do vídeo
                 const stats = user.videoTrack.getStats();
                 console.log('🎥 ZKViewer: Reproduzindo vídeo...', {
@@ -201,15 +201,15 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
                   enabled: user.videoTrack.enabled,
                   stats: stats
                 });
-                
+
                 // Tentar obter estatísticas de recepção
                 try {
                   const remoteStats = await client.getRemoteVideoStats();
                   console.log('📊 Estatísticas de vídeo:', remoteStats);
-      } catch (e) {
+                } catch (e) {
                   console.warn('⚠️ Não foi possível obter estatísticas:', e);
                 }
-                
+
                 // Foreground (sem cortes)
                 await user.videoTrack.play(fgRef.current!);
                 console.log('✅ ZKViewer: Vídeo reproduzindo!');
@@ -263,7 +263,7 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
                   bgRef.current.innerHTML = '';
                   bgRef.current.appendChild(bgVideo);
                   bgVideoElRef.current = bgVideo;
-                  bgVideo.play?.().catch(() => {});
+                  bgVideo.play?.().catch(() => { });
                   return true;
                 };
 
@@ -281,10 +281,10 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
                   }
                 };
                 requestAnimationFrame(tick);
+              }
             }
-          }
 
-          if (mediaType === 'audio' && user.audioTrack) {
+            if (mediaType === 'audio' && user.audioTrack) {
               audioTrackRef.current = user.audioTrack;
               if (muteAudio) {
                 // Admin: mutar imediatamente para evitar duplicação (áudio local do ZK Studio + áudio do site com delay)
@@ -303,9 +303,9 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
 
         client.on('user-unpublished', (user: any, mediaType: 'video' | 'audio') => {
           if (!mounted) return;
-          console.log('📴 ZKViewer: user-unpublished', { 
-              uid: user.uid, 
-              mediaType,
+          console.log('📴 ZKViewer: user-unpublished', {
+            uid: user.uid,
+            mediaType,
             timestamp: new Date().toISOString()
           });
           if (mediaType === 'video') {
@@ -313,7 +313,7 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
             setReconnectCount(prev => prev + 1);
             console.log('⚫ ZKViewer: isLive = FALSE');
             console.warn('⚠️ ZKViewer: Reconexão #' + (reconnectCount + 1));
-            
+
             // Limpar referências
             if (videoTrackRef.current) {
               videoTrackRef.current.stop();
@@ -339,17 +339,19 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
         });
 
         await client.setClientRole('audience');
-        console.log('🔌 ZKViewer: Conectando ao canal...', { 
-          channel,
+        const fixedChannel = 'ZkPremios';
+        console.log('🔌 ZKViewer: Conectando ao canal...', {
+          channel: fixedChannel,
+          originalChannel: channel,
           hasToken: !!agoraToken,
           tokenPreview: agoraToken ? agoraToken.substring(0, 20) + '...' : 'null'
         });
-        await client.join(agoraAppId, channel, agoraToken, null);
-        console.log('✅ ZKViewer: Conectado ao canal!', { 
-          channel,
+        await client.join(agoraAppId, fixedChannel, agoraToken, null);
+        console.log('✅ ZKViewer: Conectado ao canal!', {
+          channel: fixedChannel,
           connectionTime: new Date().toISOString()
         });
-              } catch (err) {
+      } catch (err) {
         console.error(err);
         setError('Erro ao conectar à transmissão');
       }
@@ -394,16 +396,16 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
       console.log('🛑 ZKViewer: enabled=false - Desconectando IMEDIATAMENTE do Agora (admin encerrou no site)!');
       setIsLive(false);
       setError(null); // Limpar erro ao forçar desconexão
-      
+
       videoTrackRef.current?.stop();
       videoTrackRef.current = null;
-      
+
       audioTrackRef.current?.stop();
       audioTrackRef.current = null;
 
       if (clientRef.current) {
         clientRef.current.removeAllListeners();
-        clientRef.current.leave().catch((err) => {
+        clientRef.current.leave().catch((err: any) => {
           console.error('Erro ao desconectar do Agora:', err);
         });
         clientRef.current = null;
@@ -443,11 +445,11 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
       <div
         ref={bgRef}
         className="zk-video-bg"
-        style={{ 
+        style={{
           position: 'absolute',
           inset: 0,
-          width: '100%', 
-          height: '100%', 
+          width: '100%',
+          height: '100%',
           zIndex: 0,
           backgroundColor: 'black',
         }}
@@ -457,9 +459,9 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
       <div
         ref={fgRef}
         className="zk-video-fg"
-          style={{
+        style={{
           position: 'absolute',
-            inset: 0,
+          inset: 0,
           width: '100%',
           height: '100%',
           zIndex: 1,
@@ -471,12 +473,12 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
       {!isLive && (
         <div style={{
           position: 'absolute',
-            inset: 0,
+          inset: 0,
           zIndex: 2,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            pointerEvents: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          pointerEvents: 'none',
           backgroundColor: 'rgba(0, 0, 0, 0.85)'
         }}>
           <div style={{

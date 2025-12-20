@@ -2336,7 +2336,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         onRotate={handleRotate}
         onPictureInPicture={handlePictureInPicture}
         isPictureInPicture={isPictureInPicture}
-        isPictureInPicture={isPictureInPicture}
+
         isActive={isActive}
         onToggleAudio={handleActivateAudio}
         isAudioEnabled={audioActivated}

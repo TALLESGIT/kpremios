@@ -54,7 +54,7 @@ const MobileVideoPlayer: React.FC<MobileVideoPlayerProps> = ({
   }, []);
 
   // Calcular distância entre dois toques
-  const getDistance = (touch1: Touch, touch2: Touch): number => {
+  const getDistance = (touch1: React.Touch, touch2: React.Touch): number => {
     const dx = touch2.clientX - touch1.clientX;
     const dy = touch2.clientY - touch1.clientY;
     return Math.sqrt(dx * dx + dy * dy);
