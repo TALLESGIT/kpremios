@@ -78,7 +78,7 @@ interface VideoStreamProps {
 const VideoStream: React.FC<VideoStreamProps> = ({
   channelName,
   uid,
-  role = 'audience',
+  role = 'host',
   cameraDeviceId,
   onStreamReady,
   onStreamError,
@@ -917,8 +917,15 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     }
 
     try {
-      setAudioActivated(true);
-      await playRemoteAudio(remoteAudioTrackRef.current);
+      if (audioActivated) {
+        // Mute logic: stop playing
+        remoteAudioTrackRef.current.stop();
+        setAudioActivated(false);
+      } else {
+        // Unmute logic: play
+        await remoteAudioTrackRef.current.play();
+        setAudioActivated(true);
+      }
     } catch (error: any) {
       console.error('❌ Erro ao ativar áudio:', error);
       setAudioActivated(false); // Resetar se falhar
@@ -2329,7 +2336,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         onRotate={handleRotate}
         onPictureInPicture={handlePictureInPicture}
         isPictureInPicture={isPictureInPicture}
+        isPictureInPicture={isPictureInPicture}
         isActive={isActive}
+        onToggleAudio={handleActivateAudio}
+        isAudioEnabled={audioActivated}
       >
         <div
           className="flex-1 relative bg-black w-full h-full"
@@ -2429,19 +2439,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                 ) : null;
               })()}
 
-              {/* Botão para ativar áudio (Audience) - Aparece quando há áudio disponível mas não foi ativado */}
-              {hasAudioAvailable && !audioActivated && (
-                <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
-                  <button
-                    onClick={handleActivateAudio}
-                    className="pointer-events-auto bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg flex items-center gap-2 transition-colors"
-                    aria-label="Ativar áudio"
-                  >
-                    <Volume2 className="w-5 h-5" />
-                    Ativar Áudio
-                  </button>
-                </div>
-              )}
+
             </div>
           )}
 

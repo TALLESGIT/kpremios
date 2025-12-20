@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Maximize2, RotateCw, X, Minimize2, PictureInPicture, MessageSquare, Maximize } from 'lucide-react';
+import { Maximize2, RotateCw, X, Minimize2, PictureInPicture, MessageSquare, Maximize, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface MobileLiveControlsProps {
@@ -14,9 +14,12 @@ interface MobileLiveControlsProps {
   onTouchStart?: () => void;
   containerRef?: React.RefObject<HTMLDivElement>;
   isActive?: boolean; // Se a transmissão está ativa
+
   onToggleFit?: () => void;
   fitMode?: 'contain' | 'cover';
   isDocked?: boolean;
+  onToggleAudio?: () => void;
+  isAudioEnabled?: boolean;
 }
 
 const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
@@ -33,9 +36,11 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
   isActive = false,
   onToggleFit,
   fitMode = 'contain',
-  isDocked = false
+  isDocked = false,
+  onToggleAudio,
+  isAudioEnabled = false
 }) => {
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(false); // Default hidden on desktop
   const [isMobile, setIsMobile] = useState(false);
   const lastTapRef = useRef<number>(0);
   const timeoutRef = useRef<number | null>(null);
@@ -46,14 +51,9 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
       const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
         window.innerWidth <= 768;
       setIsMobile(mobile);
-      // Em desktop, controles ficam sempre visíveis (exceto em fullscreen)
+      // Em desktop, controles ficam ocultos por padrão (exceto se definido via props/hover)
       if (!mobile) {
-        // Se estiver em fullscreen, ocultar por padrão
-        if (isFullscreen) {
-          setVisible(false);
-        } else {
-          setVisible(true);
-        }
+        setVisible(false);
       }
     };
 
@@ -146,6 +146,11 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
           setVisible(true);
         }
       }}
+      onMouseLeave={() => {
+        if (!isMobile) {
+          setVisible(false);
+        }
+      }}
       className="absolute inset-0 z-50 pointer-events-none"
       style={{ touchAction: 'none' }}
     >
@@ -166,6 +171,25 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
               : "bottom-1 right-4"
               }`}
           >
+            {/* Botão de Áudio (Novo) */}
+            {onToggleAudio && (
+              <motion.button
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleAudio();
+                  showControls(); // Keep controls visible
+                }}
+                className={`bg-black/20 backdrop-blur-sm p-3 rounded-full hover:bg-black/40 transition-colors ${!isAudioEnabled ? 'text-amber-400' : 'text-white'}`}
+                aria-label={isAudioEnabled ? "Mutar" : "Ativar Áudio"}
+                title={isAudioEnabled ? "Mutar" : "Ativar Áudio"}
+              >
+                {isAudioEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+              </motion.button>
+            )}
+
             {/* Botão de Zoom/Preencher (Apenas Fullscreen Mobile) */}
             {isFullscreen && onToggleFit && (
               <motion.button

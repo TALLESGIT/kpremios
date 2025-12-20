@@ -6,7 +6,7 @@ import { Trash2, Play, Square, Radio } from 'lucide-react';
 import LiveChat from '../components/live/LiveChat';
 import AdminLivePanel from '../components/live/AdminLivePanel';
 import ModeratorManager from '../components/live/ModeratorManager';
-import ZKViewer from '../components/ZKViewer';
+import VideoStream from '../components/live/VideoStream';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 
@@ -24,8 +24,9 @@ const generateSlugFromTitle = (title: string): string => {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9\sx]/g, '')
-    .replace(/\s+/g, '')
+    .replace(/[^a-z0-9\s-]/g, '') // Mantém letras, números, espaços e hifens
+    .replace(/\s+/g, '-')       // Espaços viram hifens
+    .replace(/-+/g, '-')        // Remove hifens duplicados
     .trim();
 };
 
@@ -60,21 +61,36 @@ const AdminLiveStreamPage: React.FC = () => {
   const createStream = async (clear: boolean) => {
     if (!newStreamTitle.trim()) return;
     try {
-      const slug = `${generateSlugFromTitle(newStreamTitle)}_${Date.now()}`;
+      const baseSlug = generateSlugFromTitle(newStreamTitle);
+
+      // Verificação simples de duplicidade
+      let finalSlug = baseSlug;
+      const { data: existing } = await supabase
+        .from('live_streams')
+        .select('channel_name')
+        .ilike('channel_name', `${baseSlug}%`);
+
+      if (existing && existing.length > 0) {
+        finalSlug = `${baseSlug}-${existing.length + 1}`;
+      }
+
       const { data, error } = await supabase.from('live_streams').insert({
         title: newStreamTitle.trim(),
-        channel_name: slug,
+        channel_name: finalSlug,
         is_active: false,
         created_by: user?.id
       }).select().single();
+
       if (error) throw error;
       if (clear && streams.length > 0) await supabase.rpc('clear_stream_data', { p_stream_id: streams[0].id });
+
       toast.success('Live criada!');
       setIsCreating(false);
       setNewStreamTitle('');
       await loadStreams();
       setSelectedStream(data);
     } catch (err) {
+      console.error('Erro ao criar live:', err);
       toast.error('Erro ao criar');
     }
   };
@@ -171,6 +187,7 @@ const AdminLiveStreamPage: React.FC = () => {
                 <div className="h-8 w-[1px] bg-white/10 hidden md:block" />
                 <h2 className="text-xl font-black text-white uppercase italic truncate max-w-[200px] md:max-w-md">{selectedStream.title}</h2>
               </div>
+
               <div className="flex gap-4 w-full md:w-auto">
                 {!isStreaming ? (
                   <button onClick={startStream} className="flex-1 md:flex-none px-10 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 uppercase italic text-xs shadow-lg shadow-emerald-600/10">
@@ -187,17 +204,13 @@ const AdminLiveStreamPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               <div className="lg:col-span-8 space-y-8">
                 <div className="bg-black aspect-video rounded-3xl overflow-hidden border border-white/10 shadow-2xl relative group">
-                  <ZKViewer
-                    channel={selectedStream.channel_name}
-                    muteAudio={true}
-                    enabled={selectedStream.is_active}
+                  <VideoStream
+                    channelName={selectedStream.channel_name}
+                    role="audience"
+                    isActive={true}
+                    onStreamReady={() => console.log('Stream pronto')}
+                    onStreamError={(err) => toast.error('Erro no stream: ' + err.message)}
                   />
-                  <div className="absolute top-6 left-6 z-10">
-                    <div className="px-4 py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-                      <span className="text-[10px] font-black text-white uppercase tracking-widest">Preview Administrador</span>
-                    </div>
-                  </div>
                 </div>
                 <AdminLivePanel streamId={selectedStream.id} channelName={selectedStream.channel_name} isActive={selectedStream.is_active} />
               </div>

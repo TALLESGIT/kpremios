@@ -11,6 +11,8 @@ interface MobileVideoPlayerProps {
   isPictureInPicture?: boolean;
   children?: React.ReactNode;
   isActive?: boolean;
+  onToggleAudio?: () => void;
+  isAudioEnabled?: boolean;
 }
 
 const MobileVideoPlayer: React.FC<MobileVideoPlayerProps> = ({
@@ -21,7 +23,9 @@ const MobileVideoPlayer: React.FC<MobileVideoPlayerProps> = ({
   onPictureInPicture,
   isPictureInPicture = false,
   children,
-  isActive = false
+  isActive = false,
+  onToggleAudio,
+  isAudioEnabled = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -38,14 +42,14 @@ const MobileVideoPlayer: React.FC<MobileVideoPlayerProps> = ({
   // Detectar mobile
   useEffect(() => {
     const checkMobile = () => {
-      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
-                    window.innerWidth <= 768;
+      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+        window.innerWidth <= 768;
       setIsMobile(mobile);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    
+
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
@@ -99,7 +103,7 @@ const MobileVideoPlayer: React.FC<MobileVideoPlayerProps> = ({
       const touch1 = e.touches[0];
       const touch2 = e.touches[1];
       const distance = getDistance(touch1, touch2);
-      
+
       initialDistanceRef.current = distance;
       initialScaleRef.current = zoomScale;
       lastTouchRef.current = {
@@ -124,12 +128,12 @@ const MobileVideoPlayer: React.FC<MobileVideoPlayerProps> = ({
       const touch1 = e.touches[0];
       const touch2 = e.touches[1];
       const distance = getDistance(touch1, touch2);
-      
+
       const scale = initialScaleRef.current * (distance / initialDistanceRef.current);
       const newScale = Math.max(1, Math.min(scale, 3)); // Limitar entre 1x e 3x
-      
+
       setZoomScale(newScale);
-      
+
       // Ativar zoom lock quando scale > 1.05
       if (newScale > 1.05) {
         setZoomLocked(true);
@@ -146,14 +150,14 @@ const MobileVideoPlayer: React.FC<MobileVideoPlayerProps> = ({
       const touch = e.touches[0];
       const deltaX = touch.clientX - dragStartRef.current.x;
       const deltaY = touch.clientY - dragStartRef.current.y;
-      
+
       // Limitar arraste dentro dos bounds do vídeo
       const maxX = (containerRef.current.offsetWidth * (zoomScale - 1)) / 2;
       const maxY = (containerRef.current.offsetHeight * (zoomScale - 1)) / 2;
-      
+
       setPanX(prev => Math.max(-maxX, Math.min(maxX, prev + deltaX)));
       setPanY(prev => Math.max(-maxY, Math.min(maxY, prev + deltaY)));
-      
+
       dragStartRef.current = { x: touch.clientX, y: touch.clientY };
     }
   }, [isMobile, isDragging, zoomScale, isFullscreen, onFullscreen]);
@@ -168,7 +172,7 @@ const MobileVideoPlayer: React.FC<MobileVideoPlayerProps> = ({
   const swipeStartRef = useRef<{ y: number; time: number } | null>(null);
   const controlsVisibleRef = useRef(true);
   const [showControls, setShowControls] = useState(true);
-  
+
   const handleSwipeStart = useCallback((e: React.TouchEvent) => {
     // Só detectar swipe se não estiver fazendo pinch
     if (e.touches.length === 1 && !zoomLocked) {
@@ -182,12 +186,12 @@ const MobileVideoPlayer: React.FC<MobileVideoPlayerProps> = ({
   const handleSwipeEnd = useCallback((e: React.TouchEvent) => {
     if (!swipeStartRef.current || e.changedTouches.length === 0) return;
     if (e.touches.length > 0) return; // Ainda há toques ativos (pode ser pinch)
-    
+
     const endY = e.changedTouches[0].clientY;
     const deltaY = swipeStartRef.current.y - endY;
     const deltaTime = Date.now() - swipeStartRef.current.time;
     const velocity = Math.abs(deltaY) / deltaTime;
-    
+
     // Swipe rápido (velocidade > 0.3 px/ms) e distância > 60px
     if (velocity > 0.3 && Math.abs(deltaY) > 60) {
       if (deltaY > 0) {
@@ -200,7 +204,7 @@ const MobileVideoPlayer: React.FC<MobileVideoPlayerProps> = ({
         controlsVisibleRef.current = false;
       }
     }
-    
+
     swipeStartRef.current = null;
   }, []);
 
@@ -216,10 +220,10 @@ const MobileVideoPlayer: React.FC<MobileVideoPlayerProps> = ({
 
   // Encontrar elemento de vídeo automaticamente
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
-  
+
   useEffect(() => {
     if (!containerRef.current || !isMobile) return;
-    
+
     // Procurar elemento de vídeo dentro do container
     const videoElement = containerRef.current.querySelector('video') as HTMLVideoElement;
     if (videoElement && videoElement !== videoElementRef.current) {
@@ -259,7 +263,7 @@ const MobileVideoPlayer: React.FC<MobileVideoPlayerProps> = ({
       style={{ touchAction: isMobile ? 'none' : 'auto' }}
     >
       {children}
-      
+
       {/* Overlay de blur quando necessário (apenas mobile com zoom) */}
       {isMobile && (
         <motion.div
@@ -277,13 +281,15 @@ const MobileVideoPlayer: React.FC<MobileVideoPlayerProps> = ({
       {/* Controles - disponível em todos os dispositivos */}
       <MobileLiveControls
         onFullscreen={onFullscreen}
-        onRotate={zoomLocked ? () => {} : onRotate}
+        onRotate={zoomLocked ? () => { } : onRotate}
         onPictureInPicture={onPictureInPicture}
         isFullscreen={isFullscreen}
         isPictureInPicture={isPictureInPicture}
         isZoomLocked={zoomLocked}
         containerRef={containerRef}
         isActive={isActive}
+        onToggleAudio={onToggleAudio}
+        isAudioEnabled={isAudioEnabled}
       />
     </div>
   );
