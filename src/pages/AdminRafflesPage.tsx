@@ -364,7 +364,7 @@ export default function AdminRafflesPage() {
 
         {/* Header Section */}
         <div className="relative py-8 sm:py-12 lg:py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-3 tracking-tight">
@@ -386,7 +386,7 @@ export default function AdminRafflesPage() {
         </div>
 
         {/* Raffles List */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
           {raffles.length === 0 ? (
             <div className="glass-panel p-20 rounded-3xl text-center border border-white/5 bg-slate-800/50 backdrop-blur-xl max-w-2xl mx-auto">
               <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-blue-500/20">

@@ -261,7 +261,7 @@ const AdminZkTVPage: React.FC = () => {
         <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-blue-500/30">
             <Header />
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
                     <div>
                         <div className="flex items-center gap-2 text-blue-400 mb-2">

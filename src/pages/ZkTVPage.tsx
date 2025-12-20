@@ -67,9 +67,9 @@ const ZkTVPage: React.FC = () => {
             {/* Hero Section / Live Stream */}
             <section className="relative pt-24 pb-12 overflow-hidden">
                 {/* Background Glow */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full bg-blue-600/10 blur-[120px] rounded-full pointer-events-none -z-10" />
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-full bg-blue-600/10 blur-[120px] rounded-full pointer-events-none -z-10" />
 
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex flex-col lg:flex-row items-center gap-12">
                         <div className="flex-1 text-center lg:text-left">
                             <motion.div
@@ -146,7 +146,7 @@ const ZkTVPage: React.FC = () => {
 
             {/* Content Section */}
             <section className="py-12 relative">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
                     {/* Main Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 

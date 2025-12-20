@@ -100,7 +100,7 @@ const RegisterPage: React.FC = () => {
         } else if (profile?.is_admin) {
           navigate('/admin/dashboard');
         } else {
-          navigate('/user-dashboard');
+          navigate('/'); // Redirecionar para home após login
         }
       }
     } catch (error: any) {

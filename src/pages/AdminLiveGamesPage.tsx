@@ -171,7 +171,7 @@ const AdminLiveGamesPage: React.FC = () => {
           <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-900/20 blur-[120px]" />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
+        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
           {/* Header Section */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-16">
             <div>

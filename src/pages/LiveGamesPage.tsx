@@ -285,7 +285,7 @@ export default function LiveGamesPage() {
           <div className="absolute inset-0 bg-gradient-to-br from-primary-dark via-primary to-black opacity-90"></div>
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10"></div>
 
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center z-10">
+          <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center z-10">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -304,7 +304,7 @@ export default function LiveGamesPage() {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 -mt-8 relative z-20">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 -mt-8 relative z-20">
           {/* Filtros */}
           <div className="flex justify-center mb-8">
             <div className="glass-panel p-1.5 rounded-2xl flex flex-wrap gap-1 shadow-2xl">

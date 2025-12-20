@@ -193,7 +193,7 @@ const AdminUsersPage: React.FC = () => {
     <div className="min-h-screen bg-slate-900 flex flex-col selection:bg-blue-500/30">
       <Header />
 
-      <main className="flex-grow w-full py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-12">
+      <main className="flex-grow w-full py-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto space-y-12">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div className="space-y-4">

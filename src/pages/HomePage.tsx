@@ -126,7 +126,7 @@ function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-primary-dark to-black opacity-90"></div>
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-500/20 via-transparent to-transparent"></div>
 
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32 flex flex-col items-center text-center">
+          <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32 flex flex-col items-center text-center">
 
             {/* Stars Decoration */}
             <div className="flex gap-4 mb-6 animate-pulse">
@@ -204,7 +204,7 @@ function HomePage() {
 
         {/* Stats / Info Bar */}
         <div className="glass-panel border-y border-white/10 relative z-10 backdrop-blur-xl bg-white/5">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-2 lg:grid-cols-4 gap-8 text-center text-white">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-2 lg:grid-cols-4 gap-8 text-center text-white">
             <div className="transform hover:scale-105 transition-transform">
               <p className="text-4xl font-black text-accent">{activeRafflesCount}</p>
               <p className="text-xs sm:text-sm uppercase tracking-widest opacity-70">Sorteios Ativos</p>
@@ -225,7 +225,7 @@ function HomePage() {
         </div>
 
         {/* Main Content Areas */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16">
 
           {/* LIVE STREAM BANNER - MODERN & PROFESSIONAL */}
           <section className="relative group">

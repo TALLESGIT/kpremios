@@ -742,7 +742,7 @@ export default function AdminDashboardPage() {
             <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-yellow-300 rounded-full blur-3xl"></div>
           </div>
 
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="text-center sm:text-left">
               <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-white mb-2 sm:mb-4 tracking-tight" style={{
                 textShadow: '2px 2px 0px rgba(251, 191, 36, 0.8)'
@@ -752,7 +752,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 pt-4 sm:pt-6">
+        <div className="max-w-5xl mx-auto px-2 sm:px-4 lg:px-8 pt-4 sm:pt-6">
 
           {/* Enhanced Stats Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -1062,7 +1062,7 @@ export default function AdminDashboardPage() {
         </div >
 
         {/* Enhanced Confirmation Modals */}
-        < div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" >
+        < div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8" >
           {showResetConfirm && (
             <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">
               <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -1469,7 +1469,7 @@ Obrigado por participar! 🙏`;
                   <div className="fixed inset-0 transition-opacity">
                     <div className="absolute inset-0 bg-black/60"></div>
                   </div>
-                  <div className="inline-block align-bottom bg-white rounded-3xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full">
+                  <div className="inline-block align-bottom bg-white rounded-3xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold text-gray-900">📊 Monitoramento WhatsApp</h3>
                       <button
@@ -1494,7 +1494,7 @@ Obrigado por participar! 🙏`;
                   <div className="fixed inset-0 transition-opacity">
                     <div className="absolute inset-0 bg-black/60"></div>
                   </div>
-                  <div className="inline-block align-bottom bg-white rounded-3xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-7xl sm:w-full">
+                  <div className="inline-block align-bottom bg-white rounded-3xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold text-gray-900">🎮 Controle de Sorteios ao Vivo</h3>
                       <button
@@ -1518,7 +1518,7 @@ Obrigado por participar! 🙏`;
                   <div className="fixed inset-0 transition-opacity">
                     <div className="absolute inset-0 bg-black/60"></div>
                   </div>
-                  <div className="inline-block align-bottom bg-white rounded-3xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-7xl sm:w-full">
+                  <div className="inline-block align-bottom bg-white rounded-3xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold text-gray-900">👥 Gerenciamento de Usuários</h3>
                       <button

@@ -450,7 +450,7 @@ export default function AdminApprovalsPage() {
 
         {/* Header Section */}
         <div className="relative py-8 sm:py-12 lg:py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="relative z-10">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
@@ -476,7 +476,7 @@ export default function AdminApprovalsPage() {
         </div>
 
         {/* Filters and Controls */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
           <div className="glass-panel p-6 rounded-3xl border border-white/5 bg-slate-800/40 backdrop-blur-xl">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Search */}
@@ -526,7 +526,7 @@ export default function AdminApprovalsPage() {
         </div>
 
         {/* Requests List */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
           {filteredRequests.length === 0 ? (
             <div className="glass-panel p-20 rounded-3xl text-center border border-white/5">
               <div className="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-6">

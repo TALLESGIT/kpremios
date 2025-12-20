@@ -157,7 +157,7 @@ const FreeRafflesPage: React.FC = () => {
             <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-yellow-300 rounded-full blur-3xl"></div>
           </div>
           
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-4 mb-4">
@@ -191,7 +191,7 @@ const FreeRafflesPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
+        <div className="max-w-5xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
           {/* Filtros */}
           <div className="mb-6 sm:mb-8">
             <div className="flex flex-wrap gap-2 sm:gap-3">

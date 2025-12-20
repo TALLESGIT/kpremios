@@ -21,7 +21,7 @@ function WinnersPage() {
 
         {/* Hero Section */}
         <div className="relative py-12 sm:py-20 lg:py-24">
-          <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <div className="inline-flex p-4 rounded-3xl bg-blue-500/10 mb-6 ring-1 ring-blue-400/20 backdrop-blur-md shadow-2xl shadow-blue-500/10">
               <Trophy className="h-10 w-10 sm:h-12 sm:w-12 text-yellow-400" />
             </div>
@@ -38,7 +38,7 @@ function WinnersPage() {
         </div>
 
         {/* Winners List */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
           {drawResults.length === 0 ? (
             <div className="glass-panel p-12 sm:p-16 rounded-3xl text-center max-w-2xl mx-auto border border-white/5 bg-slate-800/50 backdrop-blur-xl">
               <div className="w-24 h-24 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
