@@ -6,6 +6,7 @@ import { Trash2, Play, Square, Radio } from 'lucide-react';
 import LiveChat from '../components/live/LiveChat';
 import AdminLivePanel from '../components/live/AdminLivePanel';
 import ModeratorManager from '../components/live/ModeratorManager';
+import ChatModerationControls from '../components/live/ChatModerationControls';
 import ZKViewer from '../components/ZKViewer';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
