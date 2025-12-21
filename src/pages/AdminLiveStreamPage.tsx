@@ -237,6 +237,7 @@ const AdminLiveStreamPage: React.FC = () => {
                   )}
                 </div>
                 <AdminLivePanel streamId={selectedStream.id} channelName={selectedStream.channel_name} isActive={selectedStream.is_active} />
+                <ChatModerationControls streamId={selectedStream.id} />
               </div>
               <div className="lg:col-span-4 h-[650px] overflow-hidden rounded-[2.5rem] border border-white/5 bg-slate-900 shadow-2xl">
                 <LiveChat streamId={selectedStream.id} isActive={selectedStream.is_active} />

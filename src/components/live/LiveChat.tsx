@@ -150,10 +150,34 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
           </div>
         )}
         {messages.map((msg) => (
-          <div key={msg.id} className="flex flex-col items-start gap-1">
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">{msg.user_email?.split('@')[0]}</span>
-            <div className="px-4 py-2 bg-white/5 border border-white/5 rounded-2xl max-w-full overflow-hidden">
-              <p className="text-xs text-white break-words">{msg.message}</p>
+          <div key={msg.id} className="flex flex-col items-start gap-1 group">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
+                {msg.user_email?.split('@')[0]}
+              </span>
+              {/* Badge de Moderador (quando implementarmos) */}
+              {isModerator && msg.user_id === user?.id && (
+                <span className="px-1.5 py-0.5 bg-blue-500/20 border border-blue-500/40 text-blue-300 text-[8px] font-black uppercase rounded">
+                  🛡️ MOD
+                </span>
+              )}
+            </div>
+            <div className="flex items-start gap-2 w-full">
+              <div className="px-4 py-2 bg-white/5 border border-white/5 rounded-2xl max-w-full overflow-hidden flex-1">
+                <p className="text-xs text-white break-words">{msg.message}</p>
+              </div>
+              {/* Botão deletar (apenas moderadores) */}
+              {isModerator && (
+                <button
+                  onClick={() => deleteMessage(msg.id)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/10 rounded-lg"
+                  title="Deletar mensagem"
+                >
+                  <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -168,6 +192,10 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
           >
             Entre para comentar
           </button>
+        ) : isBanned ? (
+          <div className="text-center py-3">
+            <p className="text-xs font-bold text-red-400 uppercase tracking-wide">🚫 Você foi silenciado</p>
+          </div>
         ) : !isActive ? (
           <div className="text-center py-3">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Chat disponível durante a transmissão</p>
