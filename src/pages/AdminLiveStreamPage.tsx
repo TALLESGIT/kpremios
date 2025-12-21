@@ -109,10 +109,11 @@ const AdminLiveStreamPage: React.FC = () => {
   const startStream = async () => {
     if (!selectedStream) return;
     try {
-      await supabase.from('live_streams').update({ is_active: true }).eq('id', selectedStream.id);
+      const { data, error } = await supabase.from('live_streams').update({ is_active: true }).eq('id', selectedStream.id).select().single();
+      if (error) throw error;
       setIsStreaming(true);
+      setSelectedStream(data); // Atualizar estado local instantaneamente
       toast.success('Ao vivo!');
-      await loadStreams();
     } catch (err) {
       toast.error('Erro ao iniciar');
     }
@@ -123,9 +124,10 @@ const AdminLiveStreamPage: React.FC = () => {
     try {
       await supabase.from('live_streams').update({ is_active: false, viewer_count: 0 }).eq('id', selectedStream.id);
       await supabase.rpc('end_all_active_viewer_sessions', { p_stream_id: selectedStream.id });
+      const { data } = await supabase.from('live_streams').select('*').eq('id', selectedStream.id).single();
       setIsStreaming(false);
+      if (data) setSelectedStream(data); // Atualizar estado local instantaneamente
       toast.success('Encerrada');
-      await loadStreams();
     } catch (err) {
       toast.error('Erro ao encerrar');
     }
