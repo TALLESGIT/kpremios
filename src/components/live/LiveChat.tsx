@@ -99,26 +99,49 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
   const handleSendMessage = async () => {
     if (!user || !newMessage.trim()) return;
 
-    // Verificar se pode enviar (bans + slow mode)
-    const { data: canSend } = await supabase.rpc('can_send_message', { p_user_id: user.id, p_stream_id: streamId });
-
-    if (!canSend.can_send) {
-      if (canSend.reason === 'banned') {
-        toast.error(canSend.message);
-        setIsBanned(true);
-      } else if (canSend.reason === 'slow_mode') {
-        toast.error(canSend.message);
-        setSlowModeSecondsRemaining(canSend.seconds_remaining);
-      }
-      return;
-    }
-
-    const msg = newMessage.trim();
-    setNewMessage('');
     try {
-      await supabase.from('live_chat_messages').insert({ stream_id: streamId, user_id: user.id, message: msg, user_email: user.email });
+      // Verificar se pode enviar (bans + slow mode)
+      const { data: canSend, error: rpcError } = await supabase.rpc('can_send_message', {
+        p_user_id: user.id,
+        p_stream_id: streamId
+      });
+
+      // Se houver erro ou retorno null, permitir envio (fallback)
+      if (rpcError) {
+        console.error('Erro ao verificar permissão de envio:', rpcError);
+        // Continuar e enviar mesmo assim
+      } else if (canSend && !canSend.can_send) {
+        // Verificação retornou que NÃO pode enviar
+        if (canSend.reason === 'banned') {
+          toast.error(canSend.message);
+          setIsBanned(true);
+          return;
+        } else if (canSend.reason === 'slow_mode') {
+          toast.error(canSend.message);
+          setSlowModeSecondsRemaining(canSend.seconds_remaining);
+          return;
+        }
+      }
+
+      // Pode enviar a mensagem
+      const msg = newMessage.trim();
+      setNewMessage('');
+
+      const { error: insertError } = await supabase.from('live_chat_messages').insert({
+        stream_id: streamId,
+        user_id: user.id,
+        message: msg,
+        user_email: user.email,
+        user_name: user.email?.split('@')[0] || 'Usuário'
+      });
+
+      if (insertError) {
+        console.error('Erro ao inserir mensagem:', insertError);
+        toast.error('Erro ao enviar mensagem: ' + insertError.message);
+      }
     } catch (err) {
-      toast.error('Erro ao enviar');
+      console.error('Erro ao enviar mensagem:', err);
+      toast.error('Erro ao enviar mensagem');
     }
   };
 

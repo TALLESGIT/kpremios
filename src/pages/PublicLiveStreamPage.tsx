@@ -97,14 +97,23 @@ const PublicLiveStreamPage: React.FC = () => {
   const trackViewer = async () => {
     if (!stream || !stream.is_active) return;
     try {
-      await supabase.from('viewer_sessions').upsert({
+      const { error } = await supabase.from('viewer_sessions').upsert({
         stream_id: stream.id,
         session_id: sessionId,
+        user_id: user?.id || null,
         is_active: true,
         user_agent: navigator.userAgent,
         last_heartbeat: new Date().toISOString()
       }, { onConflict: 'session_id,stream_id' });
-    } catch (e) { }
+      
+      if (error) {
+        console.error('Erro ao criar viewer_session:', error);
+      } else {
+        console.log('✅ Viewer session criada/atualizada:', sessionId);
+      }
+    } catch (e) {
+      console.error('Erro ao track viewer:', e);
+    }
   };
 
   const loadStream = async () => {
