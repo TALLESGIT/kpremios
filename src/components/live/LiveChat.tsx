@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { MessageSquare, Smile, Send, Pin } from 'lucide-react';
+import { MessageSquare, Smile, Send, Pin, Link2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
@@ -39,14 +39,19 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
   const [pinnedMessage, setPinnedMessage] = useState<ChatMessage | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isModerator, setIsModerator] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isBanned, setIsBanned] = useState(false);
   const [slowModeSecondsRemaining, setSlowModeSecondsRemaining] = useState(0);
+  const [showPinLinkModal, setShowPinLinkModal] = useState(false);
+  const [linkToPin, setLinkToPin] = useState('');
+  const [linkMessage, setLinkMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadMessages();
     checkModeratorStatus();
+    checkAdminStatus();
     checkBanStatus();
 
     const channel = supabase.channel(`live_chat_${streamId}`)
@@ -62,9 +67,18 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
           } else if (payload.eventType === 'UPDATE') {
             const updated = payload.new as ChatMessage;
             setMessages(prev => prev.map(m => m.id === updated.id ? updated : m));
-            if (updated.is_pinned) setPinnedMessage(updated);
+            if (updated.is_pinned) {
+              setPinnedMessage(updated);
+            } else if (pinnedMessage?.id === updated.id) {
+              // Se a mensagem fixada foi desfixada, remover
+              setPinnedMessage(null);
+            }
           } else if (payload.eventType === 'DELETE') {
-            setMessages(prev => prev.filter(m => m.id !== payload.old.id));
+            const deleted = payload.old as ChatMessage;
+            setMessages(prev => prev.filter(m => m.id !== deleted.id));
+            if (pinnedMessage?.id === deleted.id) {
+              setPinnedMessage(null);
+            }
           }
         }
       ).subscribe();
@@ -90,10 +104,57 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
     setIsModerator(data || false);
   };
 
+  const checkAdminStatus = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single();
+      
+      if (!error && data) {
+        setIsAdmin(data.is_admin || false);
+      }
+    } catch (err) {
+      console.error('Erro ao verificar status de admin:', err);
+    }
+  };
+
   const checkBanStatus = async () => {
     if (!user) return;
     const { data } = await supabase.rpc('is_user_banned', { p_user_id: user.id, p_stream_id: streamId });
     setIsBanned(data || false);
+  };
+
+  // Funções para validar conteúdo
+  const containsPhoneNumber = (text: string): boolean => {
+    // Padrões para números de telefone brasileiros e internacionais
+    const phonePatterns = [
+      /(\+55\s?)?(\(?\d{2}\)?\s?)?(\d{4,5}[-.\s]?\d{4})/g, // Brasil: (11) 98765-4321, 11 98765-4321, 11987654321
+      /(\+?\d{1,3}[-.\s]?)?\(?\d{2,3}\)?[-.\s]?\d{4,5}[-.\s]?\d{4}/g, // Internacional
+      /\d{10,}/g, // Sequências longas de números (pode ser telefone)
+    ];
+    
+    return phonePatterns.some(pattern => pattern.test(text));
+  };
+
+  const containsLink = (text: string): boolean => {
+    // Padrões para URLs e links
+    const linkPatterns = [
+      /https?:\/\/[^\s]+/gi, // http:// ou https://
+      /www\.[^\s]+/gi, // www.exemplo.com
+      /[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s]*/gi, // dominio.com, dominio.com.br
+      /bit\.ly\/[^\s]+/gi, // bit.ly
+      /t\.me\/[^\s]+/gi, // t.me
+      /wa\.me\/[^\s]+/gi, // wa.me
+    ];
+    
+    return linkPatterns.some(pattern => pattern.test(text));
+  };
+
+  const canSendRestrictedContent = (): boolean => {
+    return isAdmin || isModerator;
   };
 
   const handleSendMessage = async () => {
@@ -123,8 +184,22 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
         }
       }
 
-      // Pode enviar a mensagem
+      // Validar conteúdo restrito (telefones e links)
       const msg = newMessage.trim();
+      const hasPhone = containsPhoneNumber(msg);
+      const hasLink = containsLink(msg);
+
+      if (!canSendRestrictedContent() && (hasPhone || hasLink)) {
+        if (hasPhone && hasLink) {
+          toast.error('Você não pode enviar números de telefone e links. Apenas administradores e moderadores podem.');
+        } else if (hasPhone) {
+          toast.error('Você não pode enviar números de telefone. Apenas administradores e moderadores podem.');
+        } else if (hasLink) {
+          toast.error('Você não pode enviar links. Apenas administradores e moderadores podem.');
+        }
+        return;
+      }
+
       setNewMessage('');
 
       const { error: insertError } = await supabase.from('live_chat_messages').insert({
@@ -155,33 +230,130 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
     }
   };
 
+  const pinLink = async () => {
+    if (!linkToPin.trim()) {
+      toast.error('Por favor, insira um link válido');
+      return;
+    }
+
+    // Validar formato do link
+    let validLink = linkToPin.trim();
+    if (!validLink.startsWith('http://') && !validLink.startsWith('https://')) {
+      validLink = 'https://' + validLink;
+    }
+
+    try {
+      // Desfixar qualquer link anterior
+      await supabase
+        .from('live_chat_messages')
+        .update({ is_pinned: false, pinned_link: null })
+        .eq('stream_id', streamId)
+        .eq('is_pinned', true);
+
+      // Criar nova mensagem fixada com o link
+      const { error } = await supabase.from('live_chat_messages').insert({
+        stream_id: streamId,
+        user_id: user?.id || null,
+        message: linkMessage.trim() || 'Link compartilhado',
+        user_email: user?.email,
+        user_name: user?.email?.split('@')[0] || 'Admin',
+        is_pinned: true,
+        pinned_link: validLink
+      });
+
+      if (error) {
+        console.error('Erro ao fixar link:', error);
+        toast.error('Erro ao fixar link: ' + error.message);
+      } else {
+        toast.success('Link fixado com sucesso!');
+        setShowPinLinkModal(false);
+        setLinkToPin('');
+        setLinkMessage('');
+      }
+    } catch (err) {
+      console.error('Erro ao fixar link:', err);
+      toast.error('Erro ao fixar link');
+    }
+  };
+
+  const unpinLink = async () => {
+    if (!confirm('Desfixar este link?')) return;
+    try {
+      await supabase
+        .from('live_chat_messages')
+        .update({ is_pinned: false, pinned_link: null })
+        .eq('stream_id', streamId)
+        .eq('is_pinned', true);
+      
+      toast.success('Link desfixado');
+    } catch (err) {
+      console.error('Erro ao desfixar link:', err);
+      toast.error('Erro ao desfixar link');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-slate-900">
-      <div className="p-4 border-b border-white/5 bg-slate-800/40 flex items-center gap-3">
-        <MessageSquare className="w-5 h-5 text-blue-400" />
-        <h3 className="text-sm font-black text-white uppercase italic tracking-tight">Chat ao Vivo</h3>
+      <div className="p-4 border-b border-white/5 bg-slate-800/40 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <MessageSquare className="w-5 h-5 text-blue-400" />
+          <h3 className="text-sm font-black text-white uppercase italic tracking-tight">Chat ao Vivo</h3>
+        </div>
+        {(isAdmin || isModerator) && (
+          <button
+            onClick={() => setShowPinLinkModal(true)}
+            className="p-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg transition-all"
+            title="Fixar link no chat"
+          >
+            <Link2 className="w-4 h-4 text-blue-400" />
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
         {pinnedMessage && (
-          <div className="p-3 bg-blue-600/20 border border-blue-500/30 rounded-xl">
-            <div className="flex items-center gap-2 mb-1">
-              <Pin className="w-3 h-3 text-blue-400" />
-              <span className="text-[10px] font-black text-blue-300 uppercase tracking-widest">Fixado</span>
+          <div className="p-4 bg-gradient-to-r from-blue-600/30 to-blue-500/20 border-2 border-blue-500/50 rounded-xl shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Pin className="w-4 h-4 text-blue-400" />
+                <span className="text-[10px] font-black text-blue-300 uppercase tracking-widest">Link Fixado</span>
+              </div>
+              {(isAdmin || isModerator) && (
+                <button
+                  onClick={unpinLink}
+                  className="p-1 hover:bg-red-500/20 rounded transition-all"
+                  title="Desfixar link"
+                >
+                  <X className="w-3 h-3 text-red-400" />
+                </button>
+              )}
             </div>
-            <p className="text-xs text-white font-bold">{pinnedMessage.message}</p>
+            {pinnedMessage.message && (
+              <p className="text-xs text-white font-bold mb-2">{pinnedMessage.message}</p>
+            )}
+            {pinnedMessage.pinned_link && (
+              <a
+                href={pinnedMessage.pinned_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase rounded-lg transition-all shadow-lg"
+              >
+                <Link2 className="w-3 h-3" />
+                Acessar Link
+              </a>
+            )}
           </div>
         )}
-        {messages.map((msg) => (
+        {messages.filter(msg => !msg.is_pinned).map((msg) => (
           <div key={msg.id} className="flex flex-col items-start gap-1 group">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
                 {msg.user_email?.split('@')[0]}
               </span>
-              {/* Badge de Moderador (quando implementarmos) */}
-              {isModerator && msg.user_id === user?.id && (
+              {/* Badge de Moderador/Admin */}
+              {(isModerator || isAdmin) && msg.user_id === user?.id && (
                 <span className="px-1.5 py-0.5 bg-blue-500/20 border border-blue-500/40 text-blue-300 text-[8px] font-black uppercase rounded">
-                  🛡️ MOD
+                  {isAdmin ? '👑 ADMIN' : '🛡️ MOD'}
                 </span>
               )}
             </div>
@@ -248,6 +420,74 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
           </div>
         )}
       </div>
+
+      {/* Modal para fixar link */}
+      {showPinLinkModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-2xl border border-white/10 p-6 max-w-md w-full shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-black text-white uppercase">Fixar Link no Chat</h3>
+              <button
+                onClick={() => {
+                  setShowPinLinkModal(false);
+                  setLinkToPin('');
+                  setLinkMessage('');
+                }}
+                className="p-2 hover:bg-white/5 rounded-lg transition-all"
+              >
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
+                  Link (URL)
+                </label>
+                <input
+                  type="text"
+                  value={linkToPin}
+                  onChange={(e) => setLinkToPin(e.target.value)}
+                  placeholder="https://exemplo.com"
+                  className="w-full px-4 py-3 bg-slate-900 border border-white/10 rounded-xl text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
+                  Mensagem (opcional)
+                </label>
+                <input
+                  type="text"
+                  value={linkMessage}
+                  onChange={(e) => setLinkMessage(e.target.value)}
+                  placeholder="Descrição do link..."
+                  className="w-full px-4 py-3 bg-slate-900 border border-white/10 rounded-xl text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    setShowPinLinkModal(false);
+                    setLinkToPin('');
+                    setLinkMessage('');
+                  }}
+                  className="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-sm font-black uppercase transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={pinLink}
+                  className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-black uppercase transition-all shadow-lg shadow-blue-600/20"
+                >
+                  Fixar Link
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

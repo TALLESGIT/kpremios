@@ -27,6 +27,8 @@ const PublicLiveStreamPage: React.FC = () => {
   const { user } = useAuth();
   const [stream, setStream] = useState<LiveStream | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentViewerCount, setCurrentViewerCount] = useState(0);
+  const trackViewerExecutedRef = useRef(false);
   const [sessionId] = useState(() => {
     const key = `live_session_${channelName}`;
     const saved = localStorage.getItem(key);
@@ -58,46 +60,101 @@ const PublicLiveStreamPage: React.FC = () => {
   // Função para atualizar contador de viewers
   const updateViewerCount = useCallback(async (streamId: string) => {
     try {
+      console.log('📊 Atualizando viewer_count para stream:', streamId);
+      
       const { data: countData, error } = await supabase.rpc(
         'count_active_unique_viewers',
         { p_stream_id: streamId }
       );
 
-      if (!error && countData !== null) {
-        const activeCount = Number(countData) || 0;
+      if (error) {
+        console.error('❌ Erro ao contar viewers:', error);
+        // Fallback: contar diretamente
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+        const { data: sessions } = await supabase
+          .from('viewer_sessions')
+          .select('session_id')
+          .eq('stream_id', streamId)
+          .eq('is_active', true)
+          .gte('last_heartbeat', fiveMinutesAgo);
+
+        const uniqueSessions = new Set(sessions?.map(s => s.session_id) || []);
+        const activeCount = uniqueSessions.size;
+        
         await supabase
           .from('live_streams')
           .update({ viewer_count: activeCount })
           .eq('id', streamId);
+        
+        setCurrentViewerCount(activeCount);
+        setStream(prev => prev ? { ...prev, viewer_count: activeCount } : null);
+        console.log('✅ Viewer count atualizado (fallback):', activeCount);
+        return;
+      }
+
+      if (countData !== null) {
+        const activeCount = Number(countData) || 0;
+        console.log('✅ Viewer count (RPC):', activeCount);
+        
+        await supabase
+          .from('live_streams')
+          .update({ viewer_count: activeCount })
+          .eq('id', streamId);
+        
+        setCurrentViewerCount(activeCount);
+        setStream(prev => prev ? { ...prev, viewer_count: activeCount } : null);
       }
     } catch (e) {
-      console.error('Erro ao atualizar viewer_count:', e);
+      console.error('❌ Erro ao atualizar viewer_count:', e);
     }
   }, []);
 
   // Função para criar/atualizar viewer session
   const trackViewer = useCallback(async () => {
     if (!stream) return;
+    
     try {
-      const { error } = await supabase.from('viewer_sessions').upsert({
-        stream_id: stream.id,
-        session_id: sessionId,
-        user_id: user?.id || null,
-        is_active: stream.is_active,
-        user_agent: navigator.userAgent,
-        last_heartbeat: new Date().toISOString()
-      }, { onConflict: 'session_id,stream_id' });
+      const now = new Date().toISOString();
+
+      // Usar upsert diretamente (mais eficiente)
+      const { error } = await supabase
+        .from('viewer_sessions')
+        .upsert({
+          stream_id: stream.id,
+          session_id: sessionId,
+          user_id: user?.id || null,
+          is_active: stream.is_active,
+          user_agent: navigator.userAgent,
+          last_heartbeat: now,
+          started_at: now
+        }, {
+          onConflict: 'session_id,stream_id'
+        });
       
       if (error) {
-        console.error('❌ Erro ao criar viewer_session:', error);
-      } else {
-        console.log('✅ Viewer session criada/atualizada:', sessionId, 'is_active:', stream.is_active);
-        updateViewerCount(stream.id);
+        // Se upsert falhar, tentar update
+        const { error: updateError } = await supabase
+          .from('viewer_sessions')
+          .update({
+            is_active: stream.is_active,
+            last_heartbeat: now,
+            user_id: user?.id || null,
+            user_agent: navigator.userAgent
+          })
+          .eq('session_id', sessionId)
+          .eq('stream_id', stream.id);
+        
+        if (updateError) {
+          console.error('❌ Erro ao atualizar viewer_session:', updateError);
+        }
       }
-    } catch (e) {
-      console.error('Erro ao track viewer:', e);
+      
+      // Sempre atualizar contador após criar/atualizar sessão
+      updateViewerCount(stream.id);
+    } catch (e: any) {
+      console.error('❌ Erro geral ao track viewer:', e);
     }
-  }, [stream, sessionId, user, updateViewerCount]);
+  }, [stream, sessionId, user?.id, updateViewerCount]);
 
   // Função para atualizar heartbeat
   const updateHeartbeat = useCallback(async () => {
@@ -145,21 +202,62 @@ const PublicLiveStreamPage: React.FC = () => {
   }, [stream?.id, sessionId, trackViewer]);
 
   useEffect(() => {
-    if (stream) {
-      // Criar sessão imediatamente quando a página carrega
-      trackViewer();
-      
-      // Se a stream está ativa, manter heartbeat
-      if (stream.is_active) {
-        const heartbeat = setInterval(() => {
-          updateHeartbeat();
-        }, 30000);
-        return () => {
-          clearInterval(heartbeat);
-        };
-      }
-    }
-  }, [stream?.id, stream?.is_active, trackViewer, updateHeartbeat]);
+    if (!stream || trackViewerExecutedRef.current) return;
+    
+    // Marcar como executado para esta stream
+    trackViewerExecutedRef.current = true;
+    
+    // Inicializar contador
+    setCurrentViewerCount(stream.viewer_count || 0);
+    
+    // Criar sessão imediatamente quando a página carrega (apenas uma vez)
+    trackViewer();
+    
+    // Atualizar contador imediatamente
+    updateViewerCount(stream.id);
+    
+    // Reset quando stream mudar
+    return () => {
+      trackViewerExecutedRef.current = false;
+    };
+  }, [stream?.id, trackViewer, updateViewerCount]);
+
+  // Heartbeat separado para não recriar a sessão toda vez
+  useEffect(() => {
+    if (!stream || !stream.is_active) return;
+    
+    const heartbeat = setInterval(() => {
+      updateHeartbeat();
+      updateViewerCount(stream.id);
+    }, 30000);
+    
+    return () => {
+      clearInterval(heartbeat);
+    };
+  }, [stream?.id, stream?.is_active, updateHeartbeat, updateViewerCount]);
+
+  // Listener para atualizações do viewer_count em tempo real
+  useEffect(() => {
+    if (!stream) return;
+
+    const channel = supabase.channel(`viewer_count_${stream.id}`)
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'live_streams', filter: `id=eq.${stream.id}` },
+        (payload) => {
+          const updated = payload.new as LiveStream;
+          if (updated.viewer_count !== undefined) {
+            console.log('🔄 Viewer count atualizado via Realtime:', updated.viewer_count);
+            setCurrentViewerCount(updated.viewer_count);
+            setStream(prev => prev ? { ...prev, viewer_count: updated.viewer_count } : null);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [stream?.id]);
 
   const loadStream = async () => {
     setLoading(true);
@@ -288,7 +386,7 @@ const PublicLiveStreamPage: React.FC = () => {
               <div className="w-[1px] h-4 bg-white/10" />
               <div className="flex items-center gap-2">
                 <Eye className="w-4 h-4 text-slate-500" />
-                <span className="text-white font-black">{stream.viewer_count || 0}</span>
+                <span className="text-white font-black">{currentViewerCount || stream.viewer_count || 0}</span>
               </div>
             </div>
             <button 

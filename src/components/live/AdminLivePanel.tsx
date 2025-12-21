@@ -33,108 +33,107 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
     const baseUrl = window.location.origin;
     setStreamLink(`${baseUrl}/live/${channelName}`);
 
-    // Carregar estatísticas iniciais
+    // Carregar estatísticas iniciais imediatamente
     loadStats();
 
-    // Subscribe para atualizações em tempo real apenas se estiver ativa
-    let viewerChannel: any = null;
-    let messageChannel: any = null;
+    // Subscribe para atualizações em tempo real
+    const viewerChannel = supabase
+      .channel(`viewer_count_${streamId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'viewer_sessions',
+          filter: `stream_id=eq.${streamId}`,
+        },
+        () => {
+          console.log('🔄 Viewer session mudou, recarregando stats...');
+          loadStats();
+        }
+      )
+      .subscribe();
 
-    if (isActive) {
-      viewerChannel = supabase
-        .channel(`viewer_count_${streamId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'viewer_sessions',
-            filter: `stream_id=eq.${streamId}`,
-          },
-          () => {
-            loadStats();
-          }
-        )
-        .subscribe();
+    const messageChannel = supabase
+      .channel(`message_count_${streamId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'live_chat_messages',
+          filter: `stream_id=eq.${streamId}`,
+        },
+        () => {
+          loadMessageCount();
+        }
+      )
+      .subscribe();
 
-      messageChannel = supabase
-        .channel(`message_count_${streamId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'live_chat_messages',
-            filter: `stream_id=eq.${streamId}`,
-          },
-          () => {
-            loadMessageCount();
-          }
-        )
-        .subscribe();
-    }
-
-    // Atualizar contador de viewers periodicamente apenas se estiver ativa
+    // Atualizar estatísticas periodicamente
     const interval = setInterval(() => {
-      if (isActive) {
-        loadViewerCount();
-      }
-    }, 5000);
+      console.log('⏰ Atualizando estatísticas periodicamente...');
+      loadStats();
+    }, 10000); // A cada 10 segundos
 
     return () => {
-      if (viewerChannel) supabase.removeChannel(viewerChannel);
-      if (messageChannel) supabase.removeChannel(messageChannel);
+      supabase.removeChannel(viewerChannel);
+      supabase.removeChannel(messageChannel);
       clearInterval(interval);
     };
   }, [streamId, channelName, isActive]);
 
   const loadStats = async () => {
     try {
-      // Se a transmissão não está ativa, não atualizar estatísticas em tempo real
-      if (!isActive) {
-        // Carregar apenas estatísticas históricas (sessões encerradas)
-        const { data: viewerStats, error: viewerError } = await supabase.rpc(
-          'get_stream_statistics',
-          { p_stream_id: streamId }
-        );
-
-        if (!viewerError && viewerStats && viewerStats.length > 0) {
-          const statsData = viewerStats[0];
-          setStats((prev) => ({
-            ...prev,
-            totalViewers: Number(statsData.total_viewers) || 0,
-            activeViewers: 0, // Sempre 0 quando inativa
-            avgWatchTime: Number(statsData.avg_watch_time) || 0,
-            uniqueSessions: Number(statsData.unique_sessions) || 0,
-          }));
-        }
-        return;
-      }
-
-      // Carregar estatísticas de viewers (apenas quando ativa)
+      console.log('📊 Carregando estatísticas para stream:', streamId, 'isActive:', isActive);
+      
+      // Sempre carregar estatísticas, independente do status
       const { data: viewerStats, error: viewerError } = await supabase.rpc(
         'get_stream_statistics',
         { p_stream_id: streamId }
       );
 
-      if (viewerError) throw viewerError;
+      if (viewerError) {
+        console.error('❌ Erro ao carregar estatísticas:', viewerError);
+        throw viewerError;
+      }
+
+      console.log('📈 Estatísticas recebidas:', viewerStats);
 
       if (viewerStats && viewerStats.length > 0) {
         const statsData = viewerStats[0];
-        setStats((prev) => ({
-          ...prev,
+        const newStats = {
           totalViewers: Number(statsData.total_viewers) || 0,
-          activeViewers: Number(statsData.active_viewers) || 0,
+          activeViewers: isActive ? (Number(statsData.active_viewers) || 0) : 0,
           avgWatchTime: Number(statsData.avg_watch_time) || 0,
           uniqueSessions: Number(statsData.unique_sessions) || 0,
+        };
+        
+        console.log('✅ Estatísticas atualizadas:', newStats);
+        setStats((prev) => ({
+          ...prev,
+          ...newStats,
         }));
+      } else {
+        console.warn('⚠️ Nenhuma estatística retornada');
+        // Manter valores atuais se não houver dados
       }
 
       // Carregar contagem de mensagens
       await loadMessageCount();
-      await loadViewerCount();
+      
+      // Carregar contador de viewers ativos
+      if (isActive) {
+        await loadViewerCount();
+      } else {
+        setViewerCount(0);
+        setStats((prev) => ({
+          ...prev,
+          activeViewers: 0,
+        }));
+      }
     } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
+      console.error('❌ Erro ao carregar estatísticas:', error);
     }
   };
 
@@ -168,6 +167,8 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
         return;
       }
 
+      console.log('👥 Carregando contador de viewers ativos...');
+
       // Limpar sessões antigas primeiro
       await supabase.rpc('cleanup_inactive_viewer_sessions');
 
@@ -178,7 +179,7 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
       );
 
       if (error) {
-        console.error('❌ Erro ao contar viewers:', error);
+        console.error('❌ Erro ao contar viewers via RPC:', error);
         // Fallback: contar manualmente
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
         const { data: sessions, error: fallbackError } = await supabase
@@ -189,11 +190,14 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
           .gte('last_heartbeat', fiveMinutesAgo);
 
         if (fallbackError) {
+          console.error('❌ Erro no fallback:', fallbackError);
           throw fallbackError;
         }
 
         const uniqueSessions = new Set(sessions?.map(s => s.session_id) || []);
         const activeCount = uniqueSessions.size;
+
+        console.log('✅ Viewers ativos (fallback):', activeCount);
 
         await supabase
           .from('live_streams')
@@ -209,8 +213,9 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
       }
 
       const activeCount = Number(countData) || 0;
+      console.log('✅ Viewers ativos (RPC):', activeCount);
 
-      // Atualizar viewer_count na tabela live_streams apenas se estiver ativa
+      // Atualizar viewer_count na tabela live_streams
       await supabase
         .from('live_streams')
         .update({ viewer_count: activeCount })
@@ -222,7 +227,7 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
         activeViewers: activeCount,
       }));
     } catch (error) {
-      console.error('Erro ao carregar contador de viewers:', error);
+      console.error('❌ Erro ao carregar contador de viewers:', error);
     }
   };
 
