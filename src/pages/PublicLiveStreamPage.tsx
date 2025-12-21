@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
@@ -55,6 +55,63 @@ const PublicLiveStreamPage: React.FC = () => {
     }
   };
 
+  // Função para atualizar contador de viewers
+  const updateViewerCount = useCallback(async (streamId: string) => {
+    try {
+      const { data: countData, error } = await supabase.rpc(
+        'count_active_unique_viewers',
+        { p_stream_id: streamId }
+      );
+
+      if (!error && countData !== null) {
+        const activeCount = Number(countData) || 0;
+        await supabase
+          .from('live_streams')
+          .update({ viewer_count: activeCount })
+          .eq('id', streamId);
+      }
+    } catch (e) {
+      console.error('Erro ao atualizar viewer_count:', e);
+    }
+  }, []);
+
+  // Função para criar/atualizar viewer session
+  const trackViewer = useCallback(async () => {
+    if (!stream) return;
+    try {
+      const { error } = await supabase.from('viewer_sessions').upsert({
+        stream_id: stream.id,
+        session_id: sessionId,
+        user_id: user?.id || null,
+        is_active: stream.is_active,
+        user_agent: navigator.userAgent,
+        last_heartbeat: new Date().toISOString()
+      }, { onConflict: 'session_id,stream_id' });
+      
+      if (error) {
+        console.error('❌ Erro ao criar viewer_session:', error);
+      } else {
+        console.log('✅ Viewer session criada/atualizada:', sessionId, 'is_active:', stream.is_active);
+        updateViewerCount(stream.id);
+      }
+    } catch (e) {
+      console.error('Erro ao track viewer:', e);
+    }
+  }, [stream, sessionId, user, updateViewerCount]);
+
+  // Função para atualizar heartbeat
+  const updateHeartbeat = useCallback(async () => {
+    if (!stream || !stream.is_active) return;
+    try {
+      const { error } = await supabase.rpc('update_viewer_heartbeat', { p_session_id: sessionId });
+      if (error) {
+        console.error('Erro ao atualizar heartbeat:', error);
+      }
+    } catch (e) {
+      console.error('Erro no heartbeat:', e);
+    }
+  }, [stream, sessionId]);
+
   useEffect(() => {
     if (channelName) { loadStream(); loadZkTVData(); }
   }, [channelName]);
@@ -62,16 +119,21 @@ const PublicLiveStreamPage: React.FC = () => {
   useEffect(() => {
     if (!stream) return;
 
-    // Assinatura Realtime para mudanças na live (Ativa/Inativa e Contagem de Viewers)
+    // Assinatura Realtime para mudanças na live
     const channel = supabase.channel(`public_stream_${stream.id}`)
       .on('postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'live_streams', filter: `id=eq.${stream.id}` },
         (payload) => {
           const updated = payload.new as LiveStream;
           setStream(updated);
-          // Se a live foi encerrada, desativa chat docked
           if (!updated.is_active) {
             setIsChatOpen(false);
+            supabase.from('viewer_sessions')
+              .update({ is_active: false, ended_at: new Date().toISOString() })
+              .eq('session_id', sessionId)
+              .eq('stream_id', stream.id);
+          } else {
+            trackViewer();
           }
         }
       )
@@ -80,41 +142,24 @@ const PublicLiveStreamPage: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [stream?.id]);
+  }, [stream?.id, sessionId, trackViewer]);
 
   useEffect(() => {
-    if (stream && stream.is_active) {
+    if (stream) {
+      // Criar sessão imediatamente quando a página carrega
       trackViewer();
-      const heartbeat = setInterval(() => {
-        supabase.rpc('update_viewer_heartbeat', { p_session_id: sessionId });
-      }, 30000);
-      return () => {
-        clearInterval(heartbeat);
-      };
-    }
-  }, [stream?.id, stream?.is_active]);
-
-  const trackViewer = async () => {
-    if (!stream || !stream.is_active) return;
-    try {
-      const { error } = await supabase.from('viewer_sessions').upsert({
-        stream_id: stream.id,
-        session_id: sessionId,
-        user_id: user?.id || null,
-        is_active: true,
-        user_agent: navigator.userAgent,
-        last_heartbeat: new Date().toISOString()
-      }, { onConflict: 'session_id,stream_id' });
       
-      if (error) {
-        console.error('Erro ao criar viewer_session:', error);
-      } else {
-        console.log('✅ Viewer session criada/atualizada:', sessionId);
+      // Se a stream está ativa, manter heartbeat
+      if (stream.is_active) {
+        const heartbeat = setInterval(() => {
+          updateHeartbeat();
+        }, 30000);
+        return () => {
+          clearInterval(heartbeat);
+        };
       }
-    } catch (e) {
-      console.error('Erro ao track viewer:', e);
     }
-  };
+  }, [stream?.id, stream?.is_active, trackViewer, updateHeartbeat]);
 
   const loadStream = async () => {
     setLoading(true);
@@ -129,6 +174,41 @@ const PublicLiveStreamPage: React.FC = () => {
     const { data: table } = await supabase.from('cruzeiro_standings').select('*').order('position', { ascending: true });
     if (games) setUpcomingGames(games);
     if (table) setStandings(table);
+  };
+
+  // Função para compartilhar a live
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    const shareTitle = stream?.title || 'Transmissão ao Vivo';
+    const shareText = `Assista à transmissão ao vivo: ${shareTitle}`;
+
+    try {
+      // Tentar usar Web Share API (disponível em dispositivos móveis e alguns navegadores)
+      if (navigator.share) {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+        });
+        toast.success('Compartilhado com sucesso!');
+      } else {
+        // Fallback: copiar link para área de transferência
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success('Link copiado para a área de transferência!');
+      }
+    } catch (error: any) {
+      // Se o usuário cancelar o compartilhamento, não mostrar erro
+      if (error.name !== 'AbortError') {
+        // Se falhar, tentar copiar para área de transferência
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          toast.success('Link copiado para a área de transferência!');
+        } catch (clipboardError) {
+          console.error('Erro ao compartilhar:', clipboardError);
+          toast.error('Erro ao compartilhar. Tente copiar o link manualmente.');
+        }
+      }
+    }
   };
 
   useEffect(() => {
@@ -211,7 +291,13 @@ const PublicLiveStreamPage: React.FC = () => {
                 <span className="text-white font-black">{stream.viewer_count || 0}</span>
               </div>
             </div>
-            <button className="p-4 bg-blue-600 text-white rounded-2xl shadow-xl shadow-blue-600/20"><Share2 className="w-5 h-5" /></button>
+            <button 
+              onClick={handleShare}
+              className="p-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl shadow-xl shadow-blue-600/20 transition-all active:scale-95"
+              title="Compartilhar transmissão"
+            >
+              <Share2 className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
