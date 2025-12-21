@@ -119,7 +119,12 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
 
       <div className="p-4 bg-slate-800/40 border-t border-white/5">
         {!user ? (
-          <button onClick={() => navigate('/login')} className="w-full py-3 bg-blue-600 text-white rounded-xl text-xs font-black uppercase">Entre para comentar</button>
+          <button
+            onClick={() => navigate('/login', { state: { returnTo: window.location.pathname } })}
+            className="w-full py-3 bg-blue-600 text-white rounded-xl text-xs font-black uppercase"
+          >
+            Entre para comentar
+          </button>
         ) : !isActive ? (
           <div className="text-center py-3">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Chat disponível durante a transmissão</p>
