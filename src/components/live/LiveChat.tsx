@@ -38,11 +38,17 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
   const [newMessage, setNewMessage] = useState('');
   const [pinnedMessage, setPinnedMessage] = useState<ChatMessage | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isModerator, setIsModerator] = useState(false);
+  const [isBanned, setIsBanned] = useState(false);
+  const [slowModeSecondsRemaining, setSlowModeSecondsRemaining] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadMessages();
+    checkModeratorStatus();
+    checkBanStatus();
+
     const channel = supabase.channel(`live_chat_${streamId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'live_chat_messages', filter: `stream_id=eq.${streamId}` },
         (payload) => {
@@ -63,7 +69,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
         }
       ).subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [streamId]);
+  }, [streamId, user]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -78,14 +84,51 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
     }
   };
 
+  const checkModeratorStatus = async () => {
+    if (!user) return;
+    const { data } = await supabase.rpc('is_moderator', { p_user_id: user.id, p_stream_id: streamId });
+    setIsModerator(data || false);
+  };
+
+  const checkBanStatus = async () => {
+    if (!user) return;
+    const { data } = await supabase.rpc('is_user_banned', { p_user_id: user.id, p_stream_id: streamId });
+    setIsBanned(data || false);
+  };
+
   const handleSendMessage = async () => {
     if (!user || !newMessage.trim()) return;
+
+    // Verificar se pode enviar (bans + slow mode)
+    const { data: canSend } = await supabase.rpc('can_send_message', { p_user_id: user.id, p_stream_id: streamId });
+
+    if (!canSend.can_send) {
+      if (canSend.reason === 'banned') {
+        toast.error(canSend.message);
+        setIsBanned(true);
+      } else if (canSend.reason === 'slow_mode') {
+        toast.error(canSend.message);
+        setSlowModeSecondsRemaining(canSend.seconds_remaining);
+      }
+      return;
+    }
+
     const msg = newMessage.trim();
     setNewMessage('');
     try {
       await supabase.from('live_chat_messages').insert({ stream_id: streamId, user_id: user.id, message: msg, user_email: user.email });
     } catch (err) {
       toast.error('Erro ao enviar');
+    }
+  };
+
+  const deleteMessage = async (messageId: string) => {
+    if (!confirm('Deletar esta mensagem?')) return;
+    try {
+      await supabase.from('live_chat_messages').delete().eq('id', messageId);
+      toast.success('Mensagem removida');
+    } catch (err) {
+      toast.error('Erro ao deletar');
     }
   };
 
