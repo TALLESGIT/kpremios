@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import ZKViewer from '../components/ZKViewer';
 import LiveChat from '../components/live/LiveChat';
 import MobileLiveControls from '../components/live/MobileLiveControls';
+import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import { CruzeiroGame, CruzeiroStanding } from '../types';
@@ -415,6 +416,11 @@ const PublicLiveStreamPage: React.FC = () => {
                   fitMode={videoFitMode}
                   enabled={stream.is_active}
                 />
+
+                {/* Overlay de mensagens VIP na tela */}
+                {stream.is_active && (
+                  <VipMessageOverlay streamId={stream.id} isActive={stream.is_active} />
+                )}
 
                 {/* Overlay quando live encerrada */}
                 {!stream.is_active && (

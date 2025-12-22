@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase';
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [hasActiveLive, setHasActiveLive] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -68,6 +69,47 @@ function Header() {
     };
   }, [currentAppUser?.is_admin]);
 
+  // Verificar se há live ativa
+  useEffect(() => {
+    checkActiveLive();
+
+    // Subscription para atualizações em tempo real
+    const subscription = supabase
+      .channel('live-streams-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'live_streams'
+      }, () => {
+        checkActiveLive();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const checkActiveLive = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('live_streams')
+        .select('id, is_active')
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data) {
+        setHasActiveLive(true);
+      } else {
+        setHasActiveLive(false);
+      }
+    } catch (err) {
+      console.error('Erro ao verificar live:', err);
+      setHasActiveLive(false);
+    }
+  };
+
   const loadPendingCount = async () => {
     try {
       const count = await getPendingRequestsCount();
@@ -111,19 +153,34 @@ function Header() {
                 Ganhadores
               </Link>
 
-              {/* Live Games - disponível apenas para usuários não-admin */}
+              {/* Botão AO VIVO ou Lives Premiadas - dependendo se há live ativa */}
               {currentAppUser && !currentAppUser.is_admin && (
-                <Link
-                  to="/live-games"
-                  className={`relative px-5 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 border border-red-500/50 ${location.pathname.startsWith('/live-games')
-                      ? 'text-white bg-gradient-to-r from-red-600 to-red-700 shadow-lg shadow-red-600/40'
-                      : 'text-white bg-gradient-to-r from-red-600/80 to-red-700/80 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 hover:-translate-y-0.5'
-                    }`}
-                >
-                  <span className="flex items-center gap-2">
-                    🔴 Ao Vivo
-                  </span>
-                </Link>
+                <>
+                  {hasActiveLive ? (
+                    <Link
+                      to="/zk-tv"
+                      className={`relative px-5 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 border border-red-500/50 ${location.pathname.startsWith('/zk-tv')
+                          ? 'text-white bg-gradient-to-r from-red-600 to-red-700 shadow-lg shadow-red-600/40'
+                          : 'text-white bg-gradient-to-r from-red-600/80 to-red-700/80 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 hover:-translate-y-0.5'
+                        }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                        Ao Vivo
+                      </span>
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/live-games"
+                      className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname.startsWith('/live-games')
+                          ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
+                          : 'text-white/90 hover:text-white hover:bg-white/10'
+                        }`}
+                    >
+                      Lives Premiadas
+                    </Link>
+                  )}
+                </>
               )}
 
               {/* Admin buttons - Simplified mapping */}
@@ -276,6 +333,41 @@ function Header() {
                   </span>
                   Ganhadores
                 </Link>
+
+                {/* Botão AO VIVO ou Lives Premiadas no mobile */}
+                {currentAppUser && !currentAppUser.is_admin && (
+                  <>
+                    {hasActiveLive ? (
+                      <Link
+                        to="/zk-tv"
+                        className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all duration-300 border border-red-500/50 ${location.pathname.startsWith('/zk-tv')
+                            ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg'
+                            : 'text-white bg-gradient-to-r from-red-600/80 to-red-700/80 hover:from-red-500 hover:to-red-600'
+                          }`}
+                        onClick={closeMenu}
+                      >
+                        <span className="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-current/10">
+                          <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                        </span>
+                        Ao Vivo
+                      </Link>
+                    ) : (
+                      <Link
+                        to="/live-games"
+                        className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all duration-300 ${location.pathname.startsWith('/live-games')
+                            ? 'bg-white text-primary shadow-lg'
+                            : 'text-white hover:bg-white/10'
+                          }`}
+                        onClick={closeMenu}
+                      >
+                        <span className="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-current/10">
+                          🎮
+                        </span>
+                        Lives Premiadas
+                      </Link>
+                    )}
+                  </>
+                )}
 
                 {/* Mobile Admin Links */}
                 {currentAppUser && currentAppUser.is_admin && (

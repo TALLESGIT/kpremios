@@ -10,6 +10,7 @@ import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { ChevronDown, Play, Trophy, Ticket, MonitorPlay, Calendar, MapPin, Clock } from 'lucide-react';
 import { CruzeiroGame } from '../types';
+import AdvertisementCarousel from '../components/shared/AdvertisementCarousel';
 
 function HomePage() {
   const navigate = useNavigate();
@@ -23,6 +24,7 @@ function HomePage() {
   const [winnersCount, setWinnersCount] = useState(0);
   const [nextGame, setNextGame] = useState<CruzeiroGame | null>(null);
   const [loadingGame, setLoadingGame] = useState(true);
+  const [hasActiveLive, setHasActiveLive] = useState(false);
 
   // Verificar se o usuário está logado
   const isLoggedIn = user && currentUser;
@@ -32,7 +34,44 @@ function HomePage() {
     checkActiveRaffles();
     loadWinnersCount();
     loadNextGame();
+    checkActiveLive();
+    
+    // Subscribe para mudanças em live_streams
+    const channel = supabase
+      .channel('home-live-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'live_streams'
+      }, () => {
+        checkActiveLive();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
+
+  const checkActiveLive = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('live_streams')
+        .select('id, is_active')
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data) {
+        setHasActiveLive(true);
+      } else {
+        setHasActiveLive(false);
+      }
+    } catch (err) {
+      console.error('Erro ao verificar live:', err);
+      setHasActiveLive(false);
+    }
+  };
 
   const checkActiveRaffles = async () => {
     try {
@@ -230,9 +269,9 @@ function HomePage() {
           {/* LIVE STREAM BANNER - MODERN & PROFESSIONAL */}
           <section className="relative group">
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-blue-400 to-emerald-400 rounded-[2.5rem] blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-            <Link
-              to="/zk-tv"
-              className="relative block rounded-[2.5rem] overflow-hidden border border-white/10 glass-panel shadow-2xl transition-all duration-500 hover:shadow-blue-500/20"
+            <div
+              onClick={() => navigate('/zk-tv')}
+              className="relative block rounded-[2.5rem] overflow-hidden border border-white/10 glass-panel shadow-2xl transition-all duration-500 hover:shadow-blue-500/20 cursor-pointer"
             >
               <div className="absolute inset-0 bg-slate-900/40 opacity-60"></div>
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_50%,rgba(59,130,246,0.15),transparent)]"></div>
@@ -250,10 +289,12 @@ function HomePage() {
                   <div>
                     <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mb-4">
                       <span className="px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em]">ZK TV</span>
-                      <div className="flex items-center gap-2 px-3 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-full animate-pulse">
-                        <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                        <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.15em]">Ao Vivo</span>
-                      </div>
+                      {hasActiveLive && (
+                        <div className="flex items-center gap-2 px-3 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-full animate-pulse">
+                          <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                          <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.15em]">Ao Vivo</span>
+                        </div>
+                      )}
                     </div>
                     <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-4 italic tracking-tight uppercase leading-none">
                       Acompanhe <br className="hidden sm:block" />
@@ -276,19 +317,25 @@ function HomePage() {
                       +1.2k
                     </div>
                   </div>
-                  <button className="bg-white text-blue-900 px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-blue-50 transition-colors shadow-xl shadow-white/5 active:scale-95 duration-200">
-                    Entrar na Live
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/zk-tv');
+                    }}
+                    className="bg-white text-blue-900 px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-blue-50 transition-colors shadow-xl shadow-white/5 active:scale-95 duration-200"
+                  >
+                    {hasActiveLive ? 'Entrar na Live' : 'Acessar ZK TV'}
                   </button>
                 </div>
               </div>
 
               {/* Decorative scanline effect */}
               <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,255,0.02))] bg-[length:100%_2px,3px_100%] opacity-20"></div>
-            </Link>
+            </div>
           </section>
 
           {/* Cards Grid */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {/* Card 1: SORTEIOS */}
             <div className="glass-panel p-8 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-blue-600"></div>
@@ -323,22 +370,33 @@ function HomePage() {
               </div>
               <h3 className="text-2xl font-bold text-white mb-3">Tabela</h3>
               <p className="text-blue-200 mb-8 text-sm leading-relaxed">Acompanhe o Cabuloso no campeonato.</p>
-              <button className="btn btn-outline w-full border-green-400/30 hover:bg-green-500/20 text-green-300 hover:text-white rounded-xl">
+              <button 
+                onClick={() => navigate('/competicoes')}
+                className="btn btn-outline w-full border-green-400/30 hover:bg-green-500/20 text-green-300 hover:text-white rounded-xl"
+              >
                 VER TABELA
+              </button>
+            </div>
+
+            {/* Card 4: LIVES PREMIADAS */}
+            <div className="glass-panel p-8 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-400 to-purple-600"></div>
+              <div className="w-20 h-20 mx-auto bg-purple-500/20 rounded-full flex items-center justify-center mb-6 text-purple-300 group-hover:scale-110 transition-transform group-hover:bg-purple-500/30">
+                <Play className="w-10 h-10" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-3">Lives Premiadas</h3>
+              <p className="text-blue-200 mb-8 text-sm leading-relaxed">Participe dos jogos ao vivo. A emoção do Cruzeiro agora nas suas mãos.</p>
+              <button 
+                onClick={() => navigate('/live-games')}
+                className="btn btn-outline w-full border-purple-400/30 hover:bg-purple-500/20 text-purple-300 hover:text-white rounded-xl"
+              >
+                PARTICIPAR
               </button>
             </div>
           </section>
 
           {/* Banner Ad Space */}
-          <div className="rounded-2xl p-[1px] bg-gradient-to-r from-white/20 via-blue-400/50 to-white/20">
-            <div className="bg-gradient-to-r from-primary-dark to-blue-900 rounded-2xl p-8 sm:p-12 text-center relative overflow-hidden">
-              <div className="relative z-10 flex flex-col items-center">
-                <span className="text-blue-400 text-xs font-bold uppercase tracking-widest mb-2">Publicidade</span>
-                <h3 className="text-white font-black text-2xl sm:text-4xl uppercase tracking-widest mb-4 opacity-80">Seu anúncio aqui</h3>
-                <p className="text-blue-200 text-sm max-w-lg mx-auto">Destaque sua marca para a maior torcida de Minas Gerais. Entre em contato.</p>
-              </div>
-            </div>
-          </div>
+          <AdvertisementCarousel position="homepage" autoPlay={true} autoPlayInterval={5000} />
 
           {/* Number Selection Area (Legacy/Functional) */}
           {(isLoggedIn || (!isLoggedIn && hasActiveRaffle)) && (

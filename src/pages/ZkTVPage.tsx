@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import {
@@ -9,35 +9,257 @@ import {
     Play,
     Clock,
     MapPin,
-    Zap
+    Zap,
+    Maximize2,
+    Minimize2
 } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import ZKViewer from '../components/ZKViewer';
+import MobileLiveControls from '../components/live/MobileLiveControls';
 import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding } from '../types';
+
+interface LiveStream {
+    id: string;
+    title: string;
+    channel_name: string;
+    is_active: boolean;
+}
+
+interface QuickStats {
+    victories: number;
+    goalsFor: number;
+    winRate: number;
+    topScorer: string;
+}
 
 const ZkTVPage: React.FC = () => {
     const [settings, setSettings] = useState<CruzeiroSettings | null>(null);
     const [games, setGames] = useState<CruzeiroGame[]>([]);
     const [standings, setStandings] = useState<CruzeiroStanding[]>([]);
+    const [activeStream, setActiveStream] = useState<LiveStream | null>(null);
+    const [quickStats, setQuickStats] = useState<QuickStats>({
+        victories: 0,
+        goalsFor: 0,
+        winRate: 0,
+        topScorer: 'N/A'
+    });
     const [activeTab, setActiveTab] = useState<'games' | 'standings' | 'stats'>('games');
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+    const [isLandscape, setIsLandscape] = useState(false);
+    const [videoFitMode, setVideoFitMode] = useState<'contain' | 'cover'>('contain');
+    const videoContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         loadData();
+        loadActiveStream();
+        
+        // Detectar mobile
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+
+        // Detectar orientação
+        const checkOrientation = () => {
+            const landscape = window.innerWidth > window.innerHeight;
+            setIsLandscape(landscape);
+            
+            // Auto fullscreen no mobile quando girar para paisagem
+            if (isMobile && landscape && !isFullscreen && videoContainerRef.current && (activeStream?.is_active || settings?.is_live)) {
+                videoContainerRef.current.requestFullscreen().catch(e => {
+                    console.warn('Auto-fullscreen bloqueado:', e);
+                });
+            }
+        };
+        checkOrientation();
+        window.addEventListener('resize', checkOrientation);
+        window.addEventListener('orientationchange', checkOrientation);
+
+        // Listener para fullscreen
+        const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        
         // Subscribe to changes
         const settingsSub = supabase
             .channel('zk-tv-updates')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'cruzeiro_settings' }, () => loadSettings())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, () => loadActiveStream())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'cruzeiro_games' }, () => {
+                loadData();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'cruzeiro_standings' }, () => {
+                loadData();
+            })
             .subscribe();
 
         return () => {
             settingsSub.unsubscribe();
+            window.removeEventListener('resize', checkMobile);
+            window.removeEventListener('resize', checkOrientation);
+            window.removeEventListener('orientationchange', checkOrientation);
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
         };
-    }, []);
+    }, [isMobile, isFullscreen, activeStream, settings]);
+
+    // Handler para duplo clique - tela cheia
+    const handleDoubleClick = () => {
+        if (!videoContainerRef.current) return;
+        if (isFullscreen) {
+            document.exitFullscreen();
+        } else {
+            videoContainerRef.current.requestFullscreen();
+        }
+    };
+
+    // Handler para fullscreen
+    const handleFullscreen = () => {
+        if (!videoContainerRef.current) return;
+        if (isFullscreen) {
+            document.exitFullscreen();
+        } else {
+            videoContainerRef.current.requestFullscreen();
+        }
+    };
+
+    // Recalcular estatísticas quando games ou standings mudarem
+    useEffect(() => {
+        if (games.length > 0 || standings.length > 0) {
+            loadQuickStats();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [games.length, standings.length]);
 
     const loadSettings = async () => {
         const { data } = await supabase.from('cruzeiro_settings').select('*').single();
         if (data) setSettings(data);
+    };
+
+    const loadActiveStream = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('live_streams')
+                .select('id, title, channel_name, is_active')
+                .eq('is_active', true)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (!error && data) {
+                setActiveStream(data);
+            } else {
+                setActiveStream(null);
+            }
+        } catch (err) {
+            console.error('Erro ao carregar live ativa:', err);
+            setActiveStream(null);
+        }
+    };
+
+    const loadQuickStats = async () => {
+        try {
+            // Usar jogos já carregados
+            const finishedGames = games.filter(g => g.status === 'finished');
+            
+            // Se não há jogos carregados ainda, buscar do banco
+            if (finishedGames.length === 0 && games.length === 0) {
+                const { data: gamesData } = await supabase
+                    .from('cruzeiro_games')
+                    .select('*')
+                    .eq('status', 'finished');
+                
+                if (!gamesData || gamesData.length === 0) {
+                    setQuickStats({ victories: 0, goalsFor: 0, winRate: 0, topScorer: 'N/A' });
+                    return;
+                }
+                
+                // Calcular com dados do banco
+                const victories = gamesData.filter(game => {
+                    if (game.is_home) {
+                        return game.score_home && game.score_away && game.score_home > game.score_away;
+                    } else {
+                        return game.score_home && game.score_away && game.score_away > game.score_home;
+                    }
+                }).length;
+
+                const goalsFor = gamesData.reduce((total, game) => {
+                    if (game.is_home && game.score_home) {
+                        return total + game.score_home;
+                    } else if (!game.is_home && game.score_away) {
+                        return total + game.score_away;
+                    }
+                    return total;
+                }, 0);
+
+                const { data: standingsData } = await supabase
+                    .from('cruzeiro_standings')
+                    .select('*')
+                    .eq('is_cruzeiro', true)
+                    .maybeSingle();
+
+                let winRate = 0;
+                if (standingsData && standingsData.played > 0) {
+                    winRate = Math.round((standingsData.points / (standingsData.played * 3)) * 100);
+                } else if (gamesData.length > 0) {
+                    const draws = gamesData.filter(g => {
+                        if (g.is_home) return g.score_home === g.score_away;
+                        return g.score_away === g.score_home;
+                    }).length;
+                    const totalPoints = victories * 3 + draws;
+                    winRate = Math.round((totalPoints / (gamesData.length * 3)) * 100);
+                }
+
+                setQuickStats({
+                    victories,
+                    goalsFor,
+                    winRate,
+                    topScorer: 'Matheus P.'
+                });
+                return;
+            }
+
+            // Calcular com dados já carregados
+            const victories = finishedGames.filter(game => {
+                if (game.is_home) {
+                    return game.score_home && game.score_away && game.score_home > game.score_away;
+                } else {
+                    return game.score_home && game.score_away && game.score_away > game.score_home;
+                }
+            }).length;
+
+            const goalsFor = finishedGames.reduce((total, game) => {
+                if (game.is_home && game.score_home) {
+                    return total + game.score_home;
+                } else if (!game.is_home && game.score_away) {
+                    return total + game.score_away;
+                }
+                return total;
+            }, 0);
+
+            const cruzeiroStanding = standings.find(s => s.is_cruzeiro);
+            let winRate = 0;
+            if (cruzeiroStanding && cruzeiroStanding.played > 0) {
+                winRate = Math.round((cruzeiroStanding.points / (cruzeiroStanding.played * 3)) * 100);
+            } else if (finishedGames.length > 0) {
+                const draws = finishedGames.filter(g => {
+                    if (g.is_home) return g.score_home === g.score_away;
+                    return g.score_away === g.score_home;
+                }).length;
+                const totalPoints = victories * 3 + draws;
+                winRate = Math.round((totalPoints / (finishedGames.length * 3)) * 100);
+            }
+
+            setQuickStats({
+                victories,
+                goalsFor,
+                winRate,
+                topScorer: 'Matheus P.'
+            });
+        } catch (err) {
+            console.error('Erro ao carregar estatísticas:', err);
+        }
     };
 
     const loadData = async () => {
@@ -51,6 +273,9 @@ const ZkTVPage: React.FC = () => {
             if (settingsRes.data) setSettings(settingsRes.data);
             if (gamesRes.data) setGames(gamesRes.data);
             if (standingsRes.data) setStandings(standingsRes.data);
+            
+            // Recalcular stats após carregar todos os dados
+            setTimeout(() => loadQuickStats(), 200);
         } catch (error) {
             console.error('Error loading Cruzeiro data:', error);
         }
@@ -100,7 +325,7 @@ const ZkTVPage: React.FC = () => {
                                 próximos jogos e muito mais em um só lugar.
                             </motion.p>
 
-                            {settings?.is_live && (
+                            {(settings?.is_live || activeStream?.is_active) && (
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.9 }}
                                     animate={{ opacity: 1, scale: 1 }}
@@ -115,30 +340,83 @@ const ZkTVPage: React.FC = () => {
                         </div>
 
                         <motion.div
+                            ref={videoContainerRef}
+                            onDoubleClick={handleDoubleClick}
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className="w-full lg:w-[600px] aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative"
+                            className={`w-full lg:w-[600px] aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative cursor-pointer transition-all duration-500 ${
+                                isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : ''
+                            }`}
+                            title={isMobile ? "Toque duas vezes para tela cheia" : "Duplo clique para tela cheia"}
                         >
-                            {settings?.is_live && settings.live_url ? (
-                                settings.live_url.includes('/live/') ? (
-                                    <ZKViewer channel="ZkPremios" fitMode="cover" enabled={true} />
+                            <div className="relative w-full h-full">
+                                {(activeStream?.is_active || settings?.is_live) ? (
+                                    activeStream ? (
+                                        <ZKViewer 
+                                            channel={activeStream.channel_name} 
+                                            fitMode={videoFitMode} 
+                                            enabled={true} 
+                                        />
+                                    ) : settings?.live_url && settings.live_url.includes('/live/') ? (
+                                        <ZKViewer channel="ZkPremios" fitMode={videoFitMode} enabled={true} />
+                                    ) : settings?.live_url ? (
+                                        <iframe
+                                            src={settings.live_url}
+                                            className="w-full h-full border-0"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                        ></iframe>
+                                    ) : (
+                                        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm p-12 text-center">
+                                            <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center mb-6 border border-slate-700">
+                                                <Play className="w-8 h-8 text-slate-600" />
+                                            </div>
+                                            <h3 className="text-xl font-bold mb-2 text-slate-400">Aguardando Transmissão</h3>
+                                            <p className="text-slate-500 text-sm">A live será exibida aqui em breve...</p>
+                                        </div>
+                                    )
                                 ) : (
-                                    <iframe
-                                        src={settings.live_url}
-                                        className="w-full h-full border-0"
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                        allowFullScreen
-                                    ></iframe>
-                                )
-                            ) : (
-                                <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm p-12 text-center">
-                                    <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center mb-6 border border-slate-700">
-                                        <Play className="w-8 h-8 text-slate-600" />
+                                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm p-12 text-center">
+                                        <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center mb-6 border border-slate-700">
+                                            <Play className="w-8 h-8 text-slate-600" />
+                                        </div>
+                                        <h3 className="text-xl font-bold mb-2 text-slate-400">Transmissão Off-line</h3>
+                                        <p className="text-slate-500 text-sm">Nenhuma live ativa no momento. Fique atento às nossas notificações!</p>
                                     </div>
-                                    <h3 className="text-xl font-bold mb-2 text-slate-400">Transmissão Off-line</h3>
-                                    <p className="text-slate-500 text-sm">Nenhuma live ativa no momento. Fique atento às nossas notificações!</p>
-                                </div>
-                            )}
+                                )}
+
+                                {/* Controles Mobile e Desktop */}
+                                {(activeStream?.is_active || settings?.is_live) && (
+                                    <>
+                                        {/* Botão Fullscreen Desktop */}
+                                        {!isMobile && (
+                                            <button
+                                                onClick={handleFullscreen}
+                                                className="absolute bottom-4 right-4 p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all z-10 group"
+                                                title={isFullscreen ? "Sair da tela cheia" : "Tela cheia"}
+                                            >
+                                                {isFullscreen ? (
+                                                    <Minimize2 className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+                                                ) : (
+                                                    <Maximize2 className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+                                                )}
+                                            </button>
+                                        )}
+
+                                        {/* Controles Mobile */}
+                                        {isMobile && (
+                                            <MobileLiveControls
+                                                isActive={activeStream?.is_active || settings?.is_live || false}
+                                                isFullscreen={isFullscreen}
+                                                onFullscreen={handleFullscreen}
+                                                onRotate={() => setIsLandscape(!isLandscape)}
+                                                onToggleFit={() => setVideoFitMode(p => p === 'contain' ? 'cover' : 'contain')}
+                                                fitMode={videoFitMode}
+                                            />
+                                        )}
+                                    </>
+                                )}
+                            </div>
                         </motion.div>
                     </div>
                 </div>
@@ -206,19 +484,19 @@ const ZkTVPage: React.FC = () => {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
                                         <span className="block text-blue-200 text-xs font-bold uppercase mb-1">Vitórias</span>
-                                        <span className="text-2xl font-black text-white">12</span>
+                                        <span className="text-2xl font-black text-white">{quickStats.victories}</span>
                                     </div>
                                     <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
                                         <span className="block text-blue-200 text-xs font-bold uppercase mb-1">Gols Pró</span>
-                                        <span className="text-2xl font-black text-white">34</span>
+                                        <span className="text-2xl font-black text-white">{quickStats.goalsFor}</span>
                                     </div>
                                     <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
                                         <span className="block text-blue-200 text-xs font-bold uppercase mb-1">Aproveit.</span>
-                                        <span className="text-2xl font-black text-white">68%</span>
+                                        <span className="text-2xl font-black text-white">{quickStats.winRate}%</span>
                                     </div>
                                     <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
                                         <span className="block text-blue-200 text-xs font-bold uppercase mb-1">Artilheiro</span>
-                                        <span className="text-sm font-black text-white">Matheus P.</span>
+                                        <span className="text-sm font-black text-white">{quickStats.topScorer}</span>
                                     </div>
                                 </div>
                             </div>

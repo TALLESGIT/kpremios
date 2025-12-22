@@ -33,6 +33,13 @@ import FreeRafflesPage from './pages/FreeRafflesPage';
 import ZkTVPage from './pages/ZkTVPage';
 import AdminZkTVPage from './pages/admin/AdminZkTVPage';
 
+// Banners
+import AdminBannersPage from './pages/admin/AdminBannersPage';
+
+// Competições e Tabelas
+import CompetitionsPage from './pages/CompetitionsPage';
+import StandingsPage from './pages/StandingsPage';
+
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
@@ -175,6 +182,10 @@ function AppContent() {
           } />
 
           <Route path="/zk-tv" element={<ZkTVPage />} />
+          
+          {/* Competições e Tabelas */}
+          <Route path="/competicoes" element={<CompetitionsPage />} />
+          <Route path="/tabela/:competitionName" element={<StandingsPage />} />
 
           {/* Rotas antigas do admin */}
           <Route path="/admin/login" element={<AdminLoginPage />} />
@@ -250,6 +261,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <AdminZkTVPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/banners"
+            element={
+              <ProtectedRoute>
+                <AdminBannersPage />
               </ProtectedRoute>
             }
           />

@@ -92,6 +92,7 @@ const AdminZkTVPage: React.FC = () => {
 
     // Standings State
     const [standings, setStandings] = useState<CruzeiroStanding[]>([]);
+    const [selectedCompetition, setSelectedCompetition] = useState<string>('Campeonato Brasileiro - Série A');
     const [isAddingStanding, setIsAddingStanding] = useState(false);
     const [editingStanding, setEditingStanding] = useState<CruzeiroStanding | null>(null);
     const [standingForm, setStandingForm] = useState<Partial<CruzeiroStanding>>({
@@ -105,7 +106,7 @@ const AdminZkTVPage: React.FC = () => {
         goals_for: 0,
         goals_against: 0,
         is_cruzeiro: false,
-        competition: 'Série A'
+        competition: 'Campeonato Brasileiro - Série A'
     });
 
     useEffect(() => {
@@ -113,6 +114,29 @@ const AdminZkTVPage: React.FC = () => {
             loadData();
         }
     }, [currentUser]);
+
+    // Recarregar standings quando mudar competição
+    useEffect(() => {
+        if (currentUser?.is_admin) {
+            loadStandingsByCompetition();
+        }
+    }, [selectedCompetition, currentUser]);
+
+    const loadStandingsByCompetition = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('cruzeiro_standings')
+                .select('*')
+                .eq('competition', selectedCompetition)
+                .order('position', { ascending: true });
+
+            if (!error && data) {
+                setStandings(data);
+            }
+        } catch (err) {
+            console.error('Erro ao carregar tabela:', err);
+        }
+    };
 
     const loadData = async () => {
         try {
@@ -138,13 +162,17 @@ const AdminZkTVPage: React.FC = () => {
 
             if (gamesData) setGames(gamesData);
 
-            // Load Standings
+            // Load Standings (todas, filtramos depois)
             const { data: standingsData } = await supabase
                 .from('cruzeiro_standings')
                 .select('*')
                 .order('position', { ascending: true });
 
-            if (standingsData) setStandings(standingsData);
+            if (standingsData) {
+                // Filtrar por competição selecionada
+                const filtered = standingsData.filter(s => s.competition === selectedCompetition);
+                setStandings(filtered);
+            }
 
         } catch (error) {
             console.error('Error loading ZK TV data:', error);
@@ -217,15 +245,20 @@ const AdminZkTVPage: React.FC = () => {
     const handleSaveStanding = async () => {
         try {
             setSaving(true);
+            const payload = {
+                ...standingForm,
+                competition: standingForm.competition || selectedCompetition
+            };
+            
             const { error } = editingStanding
-                ? await supabase.from('cruzeiro_standings').update(standingForm).eq('id', editingStanding.id)
-                : await supabase.from('cruzeiro_standings').insert([standingForm]);
+                ? await supabase.from('cruzeiro_standings').update(payload).eq('id', editingStanding.id)
+                : await supabase.from('cruzeiro_standings').insert([payload]);
 
             if (error) throw error;
             toast.success('Classificação atualizada!');
             setIsAddingStanding(false);
             setEditingStanding(null);
-            loadData();
+            loadStandingsByCompetition();
         } catch (error) {
             toast.error('Erro ao salvar classificação');
         } finally {
@@ -239,7 +272,7 @@ const AdminZkTVPage: React.FC = () => {
             const { error } = await supabase.from('cruzeiro_standings').delete().eq('id', id);
             if (error) throw error;
             toast.success('Time removido!');
-            loadData();
+            loadStandingsByCompetition();
         } catch (error) {
             toast.error('Erro ao remover time');
         }
@@ -557,8 +590,30 @@ const AdminZkTVPage: React.FC = () => {
                                 exit={{ opacity: 0, y: -20 }}
                                 className="space-y-6"
                             >
-                                <div className="flex justify-between items-center">
-                                    <h3 className="text-xl font-bold">Tabela de Classificação</h3>
+                                <div className="space-y-4 mb-6">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                        <div>
+                                            <h3 className="text-xl font-bold mb-2">Tabela de Classificação</h3>
+                                            <p className="text-sm text-slate-400">Gerencie as tabelas de todas as competições</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <select
+                                                value={selectedCompetition}
+                                                onChange={(e) => {
+                                                    setSelectedCompetition(e.target.value);
+                                                    setStandingForm(prev => ({ ...prev, competition: e.target.value }));
+                                                }}
+                                                className="bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+                                            >
+                                                {COMPETITIONS.filter(c => c !== 'Amistoso').map(comp => (
+                                                    <option key={comp} value={comp}>{comp}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex justify-end mb-4">
                                     <button
                                         onClick={() => {
                                             setEditingStanding(null);
@@ -573,7 +628,7 @@ const AdminZkTVPage: React.FC = () => {
                                                 goals_for: 0,
                                                 goals_against: 0,
                                                 is_cruzeiro: false,
-                                                competition: 'Série A'
+                                                competition: selectedCompetition
                                             });
                                             setIsAddingStanding(true);
                                         }}
@@ -586,7 +641,24 @@ const AdminZkTVPage: React.FC = () => {
 
                                 {isAddingStanding && (
                                     <div className="bg-slate-900/80 border border-slate-700 p-8 rounded-3xl backdrop-blur-xl">
-                                        <h4 className="text-lg font-bold mb-6">Informações do Time</h4>
+                                        <div className="flex items-center justify-between mb-6">
+                                            <h4 className="text-lg font-bold">Informações do Time</h4>
+                                            <span className="text-xs font-bold text-blue-400 uppercase tracking-wider bg-blue-500/20 px-3 py-1 rounded-full">
+                                                {standingForm.competition || selectedCompetition}
+                                            </span>
+                                        </div>
+                                        <div className="mb-6">
+                                            <label className="block text-sm text-slate-400 mb-2">Competição</label>
+                                            <select
+                                                value={standingForm.competition || selectedCompetition}
+                                                onChange={(e) => setStandingForm({ ...standingForm, competition: e.target.value })}
+                                                className="w-full bg-slate-950 border border-slate-700 p-4 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                                            >
+                                                {COMPETITIONS.filter(c => c !== 'Amistoso').map(comp => (
+                                                    <option key={comp} value={comp}>{comp}</option>
+                                                ))}
+                                            </select>
+                                        </div>
                                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                                             <div className="md:col-span-2">
                                                 <label className="block text-sm text-slate-400 mb-2">Time</label>

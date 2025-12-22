@@ -5,7 +5,7 @@ import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import { Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, TrendingUp, Award, Settings, CheckCircle, MessageSquare, Trash2, Video, Tv } from 'lucide-react';
+import { Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, TrendingUp, Award, Settings, CheckCircle, MessageSquare, Trash2, Video, Tv, Image as ImageIcon } from 'lucide-react';
 
 import { WhatsAppTestPanel } from '../components/admin/WhatsAppTestPanel';
 import QuickTest from '../components/admin/QuickTest';
@@ -968,6 +968,27 @@ export default function AdminDashboardPage() {
                   >
                     Gerenciar ZK TV
                   </Link>
+                </div>
+
+                {/* Banners Card */}
+                <div className="glass-panel rounded-[3rem] p-1 bg-gradient-to-br from-purple-500/20 to-transparent border border-white/5">
+                  <div className="bg-slate-900/90 backdrop-blur-3xl rounded-[2.8rem] p-8">
+                    <div className="flex items-center gap-6 mb-8">
+                      <div className="w-16 h-16 bg-purple-500/10 rounded-[1.5rem] flex items-center justify-center border border-purple-500/20">
+                        <ImageIcon className="w-8 h-8 text-purple-400" />
+                      </div>
+                    </div>
+                    <h3 className="text-2xl font-black text-white mb-3 italic uppercase">Banners</h3>
+                    <p className="text-blue-200/60 text-sm font-medium mb-8 leading-relaxed">
+                      Gerencie os banners e anúncios exibidos na homepage. Crie slides, adicione imagens e links.
+                    </p>
+                    <Link
+                      to="/admin/banners"
+                      className="inline-flex items-center px-8 py-4 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-purple-600/20 uppercase italic text-xs tracking-wider"
+                    >
+                      Gerenciar Banners
+                    </Link>
+                  </div>
                 </div>
               </div>
             </section>

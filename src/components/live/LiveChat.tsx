@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { MessageSquare, Smile, Send, Pin, Link2, X } from 'lucide-react';
+import { MessageSquare, Smile, Send, Pin, Link2, X, Palette } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
@@ -11,8 +11,12 @@ interface ChatMessage {
   message: string;
   created_at: string;
   user_email?: string;
+  user_name?: string;
   is_pinned?: boolean;
   pinned_link?: string;
+  user_is_admin?: boolean;
+  user_is_vip?: boolean;
+  user_is_moderator?: boolean;
 }
 
 interface LiveChatProps {
@@ -31,6 +35,32 @@ const EMOJI_CATEGORIES = {
   }
 };
 
+// Emojis exclusivos para VIPs
+const VIP_EMOJIS = {
+  exclusive: {
+    title: '💎 VIP Exclusivos',
+    emojis: ['💎', '✨', '🌟', '👑', '⭐', '💫', '🔥', '🎯', '🏅', '🎖️', '💍', '🔮']
+  }
+};
+
+// Limites de caracteres
+const MAX_MESSAGE_LENGTH = 500; // Padrão
+const MAX_MESSAGE_LENGTH_VIP = 1500; // VIPs
+
+// Cores predefinidas para VIPs escolherem
+const VIP_COLOR_PRESETS = [
+  { name: 'Roxo Padrão', value: 'purple', hex: '#a855f7' },
+  { name: 'Rosa', value: 'pink', hex: '#ec4899' },
+  { name: 'Azul', value: 'blue', hex: '#3b82f6' },
+  { name: 'Ciano', value: 'cyan', hex: '#06b6d4' },
+  { name: 'Verde', value: 'green', hex: '#10b981' },
+  { name: 'Amarelo', value: 'yellow', hex: '#eab308' },
+  { name: 'Laranja', value: 'orange', hex: '#f97316' },
+  { name: 'Vermelho', value: 'red', hex: '#ef4444' },
+  { name: 'Dourado', value: 'gold', hex: '#fbbf24' },
+  { name: 'Prata', value: 'silver', hex: '#94a3b8' },
+];
+
 const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -40,19 +70,26 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isModerator, setIsModerator] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isVip, setIsVip] = useState(false);
   const [isBanned, setIsBanned] = useState(false);
+  const [userRoles, setUserRoles] = useState<{ [userId: string]: { isAdmin: boolean; isVip: boolean; isModerator: boolean } }>({});
   const [slowModeSecondsRemaining, setSlowModeSecondsRemaining] = useState(0);
   const [showPinLinkModal, setShowPinLinkModal] = useState(false);
   const [linkToPin, setLinkToPin] = useState('');
   const [linkMessage, setLinkMessage] = useState('');
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [vipCustomColor, setVipCustomColor] = useState<string>('purple'); // Cor padrão roxa
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const colorPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadMessages();
     checkModeratorStatus();
     checkAdminStatus();
+    checkVipStatus();
     checkBanStatus();
+    loadVipColor();
 
     const channel = supabase.channel(`live_chat_${streamId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'live_chat_messages', filter: `stream_id=eq.${streamId}` },
@@ -64,6 +101,10 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
               return [...prev, newMsg];
             });
             if (newMsg.is_pinned) setPinnedMessage(newMsg);
+            // Carregar role do novo usuário se necessário
+            if (newMsg.user_id && !userRoles[newMsg.user_id]) {
+              loadUserRoles([newMsg.user_id]);
+            }
           } else if (payload.eventType === 'UPDATE') {
             const updated = payload.new as ChatMessage;
             setMessages(prev => prev.map(m => m.id === updated.id ? updated : m));
@@ -89,12 +130,33 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Fechar color picker e emoji picker ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(event.target as Node)) {
+        setShowColorPicker(false);
+      }
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const loadMessages = async () => {
     const { data } = await supabase.from('live_chat_messages').select('*').eq('stream_id', streamId).order('created_at', { ascending: true }).limit(100);
     if (data) {
       setMessages(data);
       const pinned = data.find(m => m.is_pinned);
       if (pinned) setPinnedMessage(pinned);
+      
+      // Carregar roles dos usuários que enviaram mensagens
+      const userIds = data.filter(m => m.user_id).map(m => m.user_id!);
+      if (userIds.length > 0) {
+        loadUserRoles(userIds);
+      }
     }
   };
 
@@ -121,10 +183,81 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
     }
   };
 
+  const checkVipStatus = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('is_vip')
+        .eq('id', user.id)
+        .single();
+      
+      if (!error && data) {
+        setIsVip(data.is_vip || false);
+      }
+    } catch (err) {
+      console.error('Erro ao verificar status VIP:', err);
+    }
+  };
+
+  // Carregar cor personalizada do VIP do localStorage
+  const loadVipColor = () => {
+    if (!user) return;
+    const savedColor = localStorage.getItem(`vip_color_${user.id}`);
+    if (savedColor) {
+      setVipCustomColor(savedColor);
+    }
+  };
+
+  // Salvar cor personalizada do VIP
+  const saveVipColor = (color: string) => {
+    if (!user) return;
+    localStorage.setItem(`vip_color_${user.id}`, color);
+    setVipCustomColor(color);
+    setShowColorPicker(false);
+    toast.success('Cor personalizada salva!');
+  };
+
   const checkBanStatus = async () => {
     if (!user) return;
     const { data } = await supabase.rpc('is_user_banned', { p_user_id: user.id, p_stream_id: streamId });
     setIsBanned(data || false);
+  };
+
+  // Carregar roles de todos os usuários que enviaram mensagens
+  const loadUserRoles = async (userIds: string[]) => {
+    if (userIds.length === 0) return;
+    
+    try {
+      // Buscar admins e VIPs
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('id, is_admin, is_vip')
+        .in('id', userIds);
+      
+      // Buscar moderadores
+      const { data: moderatorsData } = await supabase
+        .from('stream_moderators')
+        .select('user_id')
+        .eq('stream_id', streamId)
+        .in('user_id', userIds);
+      
+      const moderatorIds = new Set(moderatorsData?.map(m => m.user_id) || []);
+      
+      const roles: { [userId: string]: { isAdmin: boolean; isVip: boolean; isModerator: boolean } } = {};
+      
+      usersData?.forEach(u => {
+        roles[u.id] = {
+          isAdmin: u.is_admin || false,
+          isVip: u.is_vip || false,
+          isModerator: moderatorIds.has(u.id)
+        };
+      });
+      
+      setUserRoles(prev => ({ ...prev, ...roles }));
+    } catch (err) {
+      console.error('Erro ao carregar roles dos usuários:', err);
+    }
   };
 
   // Funções para validar conteúdo
@@ -157,10 +290,132 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
     return isAdmin || isModerator;
   };
 
+  // Função para gerar classes CSS baseadas na cor escolhida
+  const getVipColorClasses = (colorValue: string) => {
+    const colorMap: { [key: string]: any } = {
+      purple: {
+        border: 'border-2 border-purple-500/60',
+        bg: 'bg-gradient-to-r from-purple-900/20 to-purple-800/10',
+        nameColor: 'text-purple-400',
+        badgeClass: 'bg-purple-500/20 border-purple-500/40 text-purple-300'
+      },
+      pink: {
+        border: 'border-2 border-pink-500/60',
+        bg: 'bg-gradient-to-r from-pink-900/20 to-pink-800/10',
+        nameColor: 'text-pink-400',
+        badgeClass: 'bg-pink-500/20 border-pink-500/40 text-pink-300'
+      },
+      blue: {
+        border: 'border-2 border-blue-500/60',
+        bg: 'bg-gradient-to-r from-blue-900/20 to-blue-800/10',
+        nameColor: 'text-blue-400',
+        badgeClass: 'bg-blue-500/20 border-blue-500/40 text-blue-300'
+      },
+      cyan: {
+        border: 'border-2 border-cyan-500/60',
+        bg: 'bg-gradient-to-r from-cyan-900/20 to-cyan-800/10',
+        nameColor: 'text-cyan-400',
+        badgeClass: 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
+      },
+      green: {
+        border: 'border-2 border-green-500/60',
+        bg: 'bg-gradient-to-r from-green-900/20 to-green-800/10',
+        nameColor: 'text-green-400',
+        badgeClass: 'bg-green-500/20 border-green-500/40 text-green-300'
+      },
+      yellow: {
+        border: 'border-2 border-yellow-500/60',
+        bg: 'bg-gradient-to-r from-yellow-900/20 to-yellow-800/10',
+        nameColor: 'text-yellow-400',
+        badgeClass: 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300'
+      },
+      orange: {
+        border: 'border-2 border-orange-500/60',
+        bg: 'bg-gradient-to-r from-orange-900/20 to-orange-800/10',
+        nameColor: 'text-orange-400',
+        badgeClass: 'bg-orange-500/20 border-orange-500/40 text-orange-300'
+      },
+      red: {
+        border: 'border-2 border-red-500/60',
+        bg: 'bg-gradient-to-r from-red-900/20 to-red-800/10',
+        nameColor: 'text-red-400',
+        badgeClass: 'bg-red-500/20 border-red-500/40 text-red-300'
+      },
+      gold: {
+        border: 'border-2 border-yellow-400/60',
+        bg: 'bg-gradient-to-r from-yellow-900/20 to-yellow-700/10',
+        nameColor: 'text-yellow-300',
+        badgeClass: 'bg-yellow-400/20 border-yellow-400/40 text-yellow-200'
+      },
+      silver: {
+        border: 'border-2 border-slate-400/60',
+        bg: 'bg-gradient-to-r from-slate-700/20 to-slate-600/10',
+        nameColor: 'text-slate-300',
+        badgeClass: 'bg-slate-400/20 border-slate-400/40 text-slate-200'
+      }
+    };
+
+    return colorMap[colorValue] || colorMap.purple;
+  };
+
+  // Função para obter estilos da mensagem baseado no role
+  const getMessageStyles = (msg: ChatMessage) => {
+    const roles = userRoles[msg.user_id || ''] || { isAdmin: false, isVip: false, isModerator: false };
+    
+    if (roles.isAdmin) {
+      return {
+        border: 'border-2 border-yellow-500/60',
+        bg: 'bg-gradient-to-r from-yellow-900/20 to-yellow-800/10',
+        nameColor: 'text-yellow-400',
+        badge: '👑 ADMIN',
+        badgeClass: 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300'
+      };
+    } else if (roles.isModerator) {
+      return {
+        border: 'border-2 border-blue-500/60',
+        bg: 'bg-gradient-to-r from-blue-900/20 to-blue-800/10',
+        nameColor: 'text-blue-400',
+        badge: '🛡️ MOD',
+        badgeClass: 'bg-blue-500/20 border-blue-500/40 text-blue-300'
+      };
+    } else if (roles.isVip) {
+      // Usar cor personalizada se for a mensagem do próprio usuário VIP
+      const isOwnMessage = msg.user_id === user?.id;
+      const colorToUse = isOwnMessage ? vipCustomColor : 'purple';
+      const colorConfig = VIP_COLOR_PRESETS.find(c => c.value === colorToUse) || VIP_COLOR_PRESETS[0];
+      
+      // Gerar classes dinâmicas baseadas na cor escolhida
+      const colorClasses = getVipColorClasses(colorConfig.value);
+      
+      return {
+        border: colorClasses.border,
+        bg: colorClasses.bg,
+        nameColor: colorClasses.nameColor,
+        badge: '💎 VIP',
+        badgeClass: colorClasses.badgeClass
+      };
+    }
+    
+    return {
+      border: 'border border-white/5',
+      bg: 'bg-white/5',
+      nameColor: 'text-slate-500',
+      badge: null,
+      badgeClass: ''
+    };
+  };
+
   const handleSendMessage = async () => {
     if (!user || !newMessage.trim()) return;
 
     try {
+      // Verificar limite de caracteres (VIPs têm limite maior)
+      const maxLength = isVip ? MAX_MESSAGE_LENGTH_VIP : MAX_MESSAGE_LENGTH;
+      if (newMessage.length > maxLength) {
+        toast.error(`Mensagem muito longa! Limite: ${maxLength} caracteres${isVip ? ' (VIP)' : ''}`);
+        return;
+      }
+
       // Verificar se pode enviar (bans + slow mode)
       const { data: canSend, error: rpcError } = await supabase.rpc('can_send_message', {
         p_user_id: user.id,
@@ -299,15 +554,57 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
           <MessageSquare className="w-5 h-5 text-blue-400" />
           <h3 className="text-sm font-black text-white uppercase italic tracking-tight">Chat ao Vivo</h3>
         </div>
-        {(isAdmin || isModerator) && (
-          <button
-            onClick={() => setShowPinLinkModal(true)}
-            className="p-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg transition-all"
-            title="Fixar link no chat"
-          >
-            <Link2 className="w-4 h-4 text-blue-400" />
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {(isAdmin || isModerator) && (
+            <button
+              onClick={() => setShowPinLinkModal(true)}
+              className="p-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg transition-all"
+              title="Fixar link no chat"
+            >
+              <Link2 className="w-4 h-4 text-blue-400" />
+            </button>
+          )}
+          {isVip && (
+            <div className="relative" ref={colorPickerRef}>
+              <button
+                onClick={() => setShowColorPicker(!showColorPicker)}
+                className="p-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg transition-all"
+                title="Escolher cor personalizada"
+              >
+                <Palette className="w-4 h-4 text-purple-400" />
+              </button>
+              {showColorPicker && (
+                <div className="absolute top-full right-0 mt-2 w-64 bg-slate-800 rounded-2xl border border-white/10 p-4 shadow-2xl z-50">
+                  <div className="mb-3">
+                    <p className="text-[10px] font-black text-purple-400 uppercase mb-3">💎 Escolher Cor VIP</p>
+                    <div className="grid grid-cols-5 gap-2">
+                      {VIP_COLOR_PRESETS.map((color) => (
+                        <button
+                          key={color.value}
+                          onClick={() => saveVipColor(color.value)}
+                          className={`w-10 h-10 rounded-lg border-2 transition-all hover:scale-110 ${
+                            vipCustomColor === color.value 
+                              ? 'border-white ring-2 ring-offset-2 ring-offset-slate-800 ring-white' 
+                              : 'border-white/20'
+                          }`}
+                          style={{ backgroundColor: color.hex }}
+                          title={color.name}
+                        >
+                          {vipCustomColor === color.value && (
+                            <span className="text-white text-xs">✓</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[8px] text-slate-400 mt-3 text-center">
+                      Suas mensagens aparecerão nesta cor
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
@@ -344,38 +641,50 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
             )}
           </div>
         )}
-        {messages.filter(msg => !msg.is_pinned).map((msg) => (
-          <div key={msg.id} className="flex flex-col items-start gap-1 group">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
-                {msg.user_email?.split('@')[0]}
-              </span>
-              {/* Badge de Moderador/Admin */}
-              {(isModerator || isAdmin) && msg.user_id === user?.id && (
-                <span className="px-1.5 py-0.5 bg-blue-500/20 border border-blue-500/40 text-blue-300 text-[8px] font-black uppercase rounded">
-                  {isAdmin ? '👑 ADMIN' : '🛡️ MOD'}
+        {messages.filter(msg => !msg.is_pinned).map((msg) => {
+          const styles = getMessageStyles(msg);
+          const roles = userRoles[msg.user_id || ''] || { isAdmin: false, isVip: false, isModerator: false };
+          
+          // Garantir que mensagens VIP sempre apareçam (prioridade de renderização)
+          const isVipMessage = roles.isVip;
+          
+          return (
+            <div 
+              key={msg.id} 
+              className={`flex flex-col items-start gap-1 group ${isVipMessage ? 'vip-message' : ''}`}
+              style={isVipMessage ? { order: -1 } : undefined} // VIPs aparecem primeiro
+            >
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] font-black ${styles.nameColor} uppercase tracking-tighter`}>
+                  {msg.user_name || msg.user_email?.split('@')[0] || 'Usuário'}
                 </span>
-              )}
-            </div>
-            <div className="flex items-start gap-2 w-full">
-              <div className="px-4 py-2 bg-white/5 border border-white/5 rounded-2xl max-w-full overflow-hidden flex-1">
-                <p className="text-xs text-white break-words">{msg.message}</p>
+                {/* Badge de Admin/Moderador/VIP */}
+                {styles.badge && (
+                  <span className={`px-1.5 py-0.5 ${styles.badgeClass} text-[8px] font-black uppercase rounded`}>
+                    {styles.badge}
+                  </span>
+                )}
               </div>
-              {/* Botão deletar (apenas moderadores) */}
-              {isModerator && (
-                <button
-                  onClick={() => deleteMessage(msg.id)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/10 rounded-lg"
-                  title="Deletar mensagem"
-                >
-                  <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              )}
+              <div className="flex items-start gap-2 w-full">
+                <div className={`px-4 py-2 ${styles.bg} ${styles.border} rounded-2xl max-w-full overflow-hidden flex-1 shadow-lg ${isVipMessage ? 'animate-pulse-subtle' : ''}`}>
+                  <p className="text-xs text-white break-words font-medium">{msg.message}</p>
+                </div>
+                {/* Botão deletar (apenas moderadores e admins) */}
+                {(isModerator || isAdmin) && (
+                  <button
+                    onClick={() => deleteMessage(msg.id)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/10 rounded-lg"
+                    title="Deletar mensagem"
+                  >
+                    <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         <div ref={messagesEndRef} />
       </div>
 
@@ -400,19 +709,63 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
             <div className="relative" ref={emojiPickerRef}>
               <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="w-10 h-10 flex items-center justify-center bg-slate-900/50 border border-white/5 rounded-xl text-slate-400"><Smile className="w-5 h-5" /></button>
               {showEmojiPicker && (
-                <div className="absolute bottom-full left-0 mb-3 w-64 bg-slate-800 rounded-2xl border border-white/10 p-3 shadow-2xl z-50">
+                <div className="absolute bottom-full left-0 mb-3 w-64 bg-slate-800 rounded-2xl border border-white/10 p-3 shadow-2xl z-50 max-h-96 overflow-y-auto">
+                  {/* Emojis VIP exclusivos (apenas para VIPs) */}
+                  {isVip && (
+                    <div className="mb-3 pb-3 border-b border-purple-500/20">
+                      <p className="text-[8px] font-black text-purple-400 uppercase mb-2 flex items-center gap-1">
+                        {VIP_EMOJIS.exclusive.title}
+                        <span className="text-[6px] text-purple-500">EXCLUSIVO</span>
+                      </p>
+                      <div className="grid grid-cols-6 gap-1">
+                        {VIP_EMOJIS.exclusive.emojis.map(e => (
+                          <button 
+                            key={e} 
+                            onClick={() => { setNewMessage(p => p + e); setShowEmojiPicker(false); }} 
+                            className="w-8 h-8 flex items-center justify-center text-lg hover:bg-purple-500/20 rounded-lg transition-all hover:scale-110"
+                            title="Emoji VIP exclusivo"
+                          >
+                            {e}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Emojis padrão */}
                   {Object.entries(EMOJI_CATEGORIES).map(([key, cat]) => (
                     <div key={key} className="mb-3">
                       <p className="text-[8px] font-black text-slate-500 uppercase mb-2">{cat.title}</p>
                       <div className="grid grid-cols-6 gap-1">
-                        {cat.emojis.map(e => <button key={e} onClick={() => { setNewMessage(p => p + e); setShowEmojiPicker(false); }} className="w-8 h-8 flex items-center justify-center text-lg hover:bg-white/5 rounded-lg">{e}</button>)}
+                        {cat.emojis.map(e => (
+                          <button 
+                            key={e} 
+                            onClick={() => { setNewMessage(p => p + e); setShowEmojiPicker(false); }} 
+                            className="w-8 h-8 flex items-center justify-center text-lg hover:bg-white/5 rounded-lg transition-all"
+                          >
+                            {e}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="Sua mensagem..." className="flex-1 px-4 py-2.5 bg-slate-900 border border-white/5 rounded-xl text-white text-xs font-bold" />
+            <div className="flex-1 relative">
+              <input 
+                type="text" 
+                value={newMessage} 
+                onChange={(e) => setNewMessage(e.target.value)} 
+                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} 
+                placeholder={isVip ? "Sua mensagem... (VIP: até 1500 caracteres)" : "Sua mensagem..."} 
+                maxLength={isVip ? MAX_MESSAGE_LENGTH_VIP : MAX_MESSAGE_LENGTH}
+                className="w-full px-4 py-2.5 bg-slate-900 border border-white/5 rounded-xl text-white text-xs font-bold" 
+              />
+              {/* Contador de caracteres */}
+              <div className="absolute right-2 bottom-1 text-[9px] text-slate-500">
+                {newMessage.length}/{isVip ? MAX_MESSAGE_LENGTH_VIP : MAX_MESSAGE_LENGTH}
+              </div>
+            </div>
             <button onClick={handleSendMessage} disabled={!newMessage.trim()} className="px-4 py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg shadow-blue-600/20 active:scale-95 transition-all flex items-center gap-2">
               <span className="md:hidden">Enviar</span>
               <Send className="w-4 h-4" />

@@ -143,39 +143,39 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen flex flex-col bg-slate-900">
       <Header />
-      <main className="flex-grow w-full">
+      <main className="flex-grow w-full relative overflow-hidden">
+        {/* Background Effects */}
+        <div className="fixed inset-0 pointer-events-none">
+          <div className="absolute top-0 left-0 w-full h-[500px] bg-blue-600/10 blur-[100px]" />
+          <div className="absolute bottom-0 right-0 w-full h-[500px] bg-blue-900/20 blur-[100px]" />
+          {/* Grid pattern overlay */}
+          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+        </div>
+
         {/* Hero Section */}
-        <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 py-12 sm:py-16 lg:py-20 relative overflow-hidden">
-          {/* Efeito de luz/brilho */}
-          <div className="absolute inset-0 opacity-20">
-            <div className="absolute top-0 left-1/4 w-96 h-96 bg-white rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-yellow-300 rounded-full blur-3xl"></div>
-          </div>
-          
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="text-center">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-2xl">
-                <Hash className="h-8 w-8 sm:h-10 sm:w-10 text-blue-600" />
-              </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-black text-white mb-4 sm:mb-6 tracking-tight" style={{
-                textShadow: '2px 2px 0px rgba(251, 191, 36, 0.8)'
-              }}>
-                MEUS NÚMEROS
-              </h1>
-              <p className="text-base sm:text-lg lg:text-xl text-blue-100 max-w-2xl mx-auto font-medium leading-relaxed px-2 sm:px-0">
-                Confira seus números selecionados e acompanhe sua participação
-              </p>
+        <div className="relative py-12 sm:py-20 lg:py-24">
+          <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div className="inline-flex p-4 rounded-3xl bg-blue-500/10 mb-6 ring-1 ring-blue-400/20 backdrop-blur-md shadow-2xl shadow-blue-500/10">
+              <Hash className="h-10 w-10 sm:h-12 sm:w-12 text-blue-400" />
             </div>
+
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-6 tracking-tight">
+              MEUS <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-200">NÚMEROS</span>
+            </h1>
+
+            <p className="text-lg sm:text-xl text-blue-200/80 max-w-2xl mx-auto font-medium leading-relaxed">
+              Confira seus números selecionados e acompanhe sua participação nos sorteios.
+            </p>
           </div>
         </div>
 
         {/* Dashboard */}
-        <div className="max-w-4xl mx-auto px-2 sm:px-4 lg:px-8 py-8 sm:py-12">
+        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
           {/* Banner de Ganhador */}
           {isWinner && (
-            <div className="mb-8 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-3xl shadow-2xl p-6 sm:p-8 text-white relative overflow-hidden">
+            <div className="mb-8 glass-panel bg-gradient-to-r from-emerald-500/20 to-emerald-600/20 border border-emerald-400/30 rounded-3xl shadow-2xl p-8 text-white relative overflow-hidden">
               {/* Confetes animados */}
               <div className="absolute inset-0 overflow-hidden">
                 {[...Array(20)].map((_, i) => (
@@ -235,7 +235,7 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
           )}
 
           {/* Botão de Atualização Manual */}
-          <div className="text-center mb-6">
+          <div className="text-center mb-8">
             <button
               onClick={async () => {
                 try {
@@ -265,25 +265,26 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                   alert('Erro ao atualizar dados.');
                 }
               }}
-              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="btn btn-outline border-white/20 hover:bg-white/10 text-white"
             >
               🔄 Atualizar Dados
             </button>
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4 sm:p-6 border-2 border-blue-300 backdrop-blur-sm shadow-lg">
-              <div className="flex items-center justify-between">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div className="glass-panel p-6 rounded-3xl relative overflow-hidden group hover:scale-[1.02] transition-transform">
+              <div className="absolute top-0 left-0 w-2 h-full bg-blue-500"></div>
+              <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-amber-200 text-sm font-bold">Números Ativos</p>
-                  <p className="text-2xl sm:text-3xl lg:text-4xl font-black text-amber-400">{totalNumbers}</p>
+                  <p className="text-blue-200 text-sm font-bold uppercase tracking-wider mb-1">Números Ativos</p>
+                  <p className="text-4xl font-black text-white">{totalNumbers}</p>
                 </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center">
-                  <Hash className="h-5 w-5 sm:h-6 sm:w-6 text-slate-900" />
+                <div className="w-12 h-12 bg-blue-500/20 rounded-2xl flex items-center justify-center text-blue-400">
+                  <Hash className="w-6 h-6" />
                 </div>
               </div>
-              <p className="text-amber-300 text-sm mt-2 font-medium">
+              <p className="text-blue-200/60 text-sm mt-2">
                 {userExtraNumbers.length > 0 ? 
                   `1 grátis + ${userExtraNumbers.length} extras` : 
                   '1 número grátis'
@@ -291,61 +292,61 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
               </p>
             </div>
             
-            <div className="bg-white rounded-2xl p-4 sm:p-6 border-2 border-blue-200 shadow-lg">
-              <div className="flex items-center justify-between">
+            <div className="glass-panel p-6 rounded-3xl relative overflow-hidden group hover:scale-[1.02] transition-transform">
+              <div className="absolute top-0 left-0 w-2 h-full bg-accent"></div>
+              <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-slate-300 text-sm font-bold">Chances de Ganhar</p>
-                  <p className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-100">
+                  <p className="text-yellow-200 text-sm font-bold uppercase tracking-wider mb-1">Chances de Ganhar</p>
+                  <p className="text-4xl font-black text-white">
                     {totalParticipants > 0 ? ((totalNumbers / totalParticipants) * 100).toFixed(1) : '0'}%
                   </p>
                 </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-400 to-blue-500 rounded-xl flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-slate-300" />
+                <div className="w-12 h-12 bg-accent/20 rounded-2xl flex items-center justify-center text-accent">
+                  <TrendingUp className="w-6 h-6" />
                 </div>
               </div>
-              <p className="text-slate-400 text-sm mt-2 font-medium">
+              <p className="text-yellow-200/60 text-sm mt-2">
                 {totalNumbers} de {totalParticipants} participando
               </p>
             </div>
             
-            <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/10 rounded-2xl p-4 sm:p-6 border border-emerald-400/30 backdrop-blur-sm shadow-lg">
-              <div className="flex items-center justify-between">
+            <div className="glass-panel p-6 rounded-3xl relative overflow-hidden group hover:scale-[1.02] transition-transform">
+              <div className="absolute top-0 left-0 w-2 h-full bg-green-500"></div>
+              <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-emerald-200 text-sm font-bold">Status</p>
-                  <p className="text-lg sm:text-xl lg:text-2xl font-black text-emerald-400">Ativo</p>
+                  <p className="text-green-200 text-sm font-bold uppercase tracking-wider mb-1">Status</p>
+                  <p className="text-2xl font-black text-white">Ativo</p>
                 </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center">
-                  <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-slate-900" />
+                <div className="w-12 h-12 bg-green-500/20 rounded-2xl flex items-center justify-center text-green-400">
+                  <Trophy className="w-6 h-6" />
                 </div>
               </div>
-              <p className="text-emerald-300 text-sm mt-2 font-medium">
+              <p className="text-green-200/60 text-sm mt-2">
                 Participando dos sorteios
               </p>
             </div>
           </div>
 
           {/* Main Number Card */}
-          <div className="bg-gradient-to-r from-slate-800/50 to-slate-700/50 rounded-3xl shadow-2xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 text-white backdrop-blur-sm border border-amber-400/20">
-            <div className="text-center">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-2xl shadow-amber-500/25">
-                <Hash className="h-6 w-6 sm:h-8 sm:w-8 text-slate-900" />
-              </div>
-              <h3 className="text-xl sm:text-2xl lg:text-3xl font-black mb-3 sm:mb-4 text-amber-100">Seu Número da Sorte</h3>
-              <div className="bg-gradient-to-r from-amber-500/20 to-amber-600/20 backdrop-blur-sm rounded-2xl p-4 sm:p-6 lg:p-8 inline-block mb-4 sm:mb-6 border border-amber-400/30">
-                <span className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black text-amber-400">
-                  {currentAppUser?.free_number}
-                </span>
-              </div>
-              <p className="text-slate-300 text-base sm:text-lg lg:text-xl font-medium">
-                Número gratuito garantido!
-              </p>
+          <div className="glass-panel p-8 rounded-3xl mb-8 text-center">
+            <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl">
+              <Hash className="w-8 h-8 text-white" />
             </div>
+            <h3 className="text-2xl font-bold text-white mb-4">Seu Número da Sorte</h3>
+            <div className="bg-gradient-to-r from-amber-500/20 to-amber-600/20 backdrop-blur-sm rounded-2xl p-8 inline-block mb-4 border border-amber-400/30">
+              <span className="text-6xl font-black text-amber-400">
+                {currentAppUser?.free_number}
+              </span>
+            </div>
+            <p className="text-blue-200/80 text-lg font-medium">
+              Número gratuito garantido!
+            </p>
           </div>
 
 
           {/* Request Extra Numbers - Card Melhorado */}
           {!currentRequest ? (
-            <div className="relative overflow-hidden bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 rounded-3xl shadow-2xl mb-8">
+            <div className="relative overflow-hidden glass-panel bg-gradient-to-br from-amber-500/20 via-amber-600/20 to-amber-700/20 border border-amber-400/30 rounded-3xl shadow-2xl mb-8">
               {/* Background Pattern */}
               <div className="absolute inset-0 opacity-10">
                 <div className="absolute inset-0" style={{
@@ -436,21 +437,21 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
               <div className="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-300 via-blue-400 to-blue-300"></div>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 border-l-4 border-blue-600">
+            <div className="glass-panel p-8 rounded-3xl mb-8 border-l-4 border-blue-500">
               <div className="flex items-start space-x-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-slate-900" />
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Calendar className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-amber-100 mb-2 sm:mb-3">
+                  <h3 className="text-xl font-bold text-white mb-3">
                     Solicitação em Análise
                   </h3>
-                  <div className="space-y-2 sm:space-y-3 text-sm sm:text-base text-slate-300 mb-4 sm:mb-6 font-medium">
+                  <div className="space-y-2 text-base text-blue-200/80 mb-4 font-medium">
                     <p>Valor: <strong className="text-white">R$ {currentRequest.payment_amount.toFixed(2)}</strong></p>
                     <p>Números solicitados: <strong className="text-white">{currentRequest.requested_quantity}</strong></p>
                     <p>Status: <strong className="text-amber-400 capitalize">{currentRequest.status}</strong></p>
                   </div>
-                  <p className="text-slate-400 text-sm sm:text-base font-medium">
+                  <p className="text-blue-200/60 text-sm font-medium">
                     Sua solicitação está sendo analisada. Você será notificado quando for aprovada.
                   </p>
                 </div>
@@ -460,8 +461,8 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
 
           {/* Requests History - Simplificado */}
           {requestsHistory.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 border-2 border-blue-200">
-              <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-amber-100 mb-6 sm:mb-8">
+            <div className="glass-panel p-8 rounded-3xl mb-8">
+              <h3 className="text-2xl font-bold text-white mb-6">
                 Histórico de Solicitações
               </h3>
               
@@ -469,15 +470,15 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
               {requestsHistory
                 .filter(req => req.status === 'approved')
                 .map((request, index) => (
-                  <div key={request.id} className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/10 border border-emerald-400/30 rounded-xl p-6 backdrop-blur-sm mb-4">
+                  <div key={request.id} className="bg-white/5 border border-emerald-400/30 rounded-xl p-6 mb-4 hover:bg-white/10 transition-colors">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center space-x-3">
                         <CheckCircle className="h-6 w-6 text-emerald-400" />
                         <div>
-                          <p className="font-bold text-white text-xl">
+                          <p className="font-bold text-white text-lg">
                             Aprovada
                           </p>
-                          <p className="text-slate-300 text-sm">
+                          <p className="text-blue-200/60 text-sm">
                             {new Date(request.created_at).toLocaleDateString('pt-BR', {
                               day: '2-digit',
                               month: '2-digit',
@@ -488,11 +489,11 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                           </p>
                           {/* Informações do sorteio */}
                           {request.raffle && (
-                            <div className="mt-2 p-2 bg-blue-50 rounded-lg">
-                              <p className="text-amber-300 text-sm font-medium">
+                            <div className="mt-2 p-2 bg-blue-500/10 rounded-lg border border-blue-400/20">
+                              <p className="text-blue-200 text-sm font-medium">
                                 Sorteio: {request.raffle.title}
                               </p>
-                              <p className="text-slate-400 text-xs">
+                              <p className="text-blue-200/60 text-xs">
                                 Prêmio: {request.raffle.prize}
                               </p>
                             </div>
@@ -500,10 +501,10 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-white font-bold text-xl">
+                        <p className="text-white font-bold text-lg">
                           R$ {request.payment_amount.toFixed(2)}
                         </p>
-                        <p className="text-slate-300 text-sm">
+                        <p className="text-blue-200/60 text-sm">
                           {request.assigned_numbers?.length || request.requested_quantity} números
                         </p>
                         {request.assigned_numbers && request.assigned_numbers.length !== request.requested_quantity && (
@@ -520,7 +521,7 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                         <p className="text-emerald-300 text-sm font-medium mb-3">
                           Números atribuídos ({request.assigned_numbers.length} números):
                         </p>
-                        <div className="bg-blue-50 rounded-lg p-4">
+                        <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
                           {/* Container com scroll - apenas no desktop */}
                           <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-emerald-500 scrollbar-track-slate-600">
                             <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2">
@@ -529,7 +530,7 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                                 .map((num, numIndex) => (
                                 <div
                                   key={numIndex}
-                                  className="h-8 w-full bg-emerald-500 rounded-lg text-xs font-bold text-slate-900 flex items-center justify-center shadow-sm hover:bg-emerald-400 transition-colors duration-200"
+                                  className="h-8 w-full bg-emerald-500 rounded-lg text-xs font-bold text-white flex items-center justify-center shadow-sm hover:bg-emerald-400 transition-colors duration-200"
                                 >
                                   {num}
                                 </div>
@@ -540,7 +541,7 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                           {/* Indicador de scroll - apenas no desktop */}
                           {request.assigned_numbers.length > 50 && (
                             <div className="mt-3 text-center hidden md:block">
-                              <p className="text-slate-400 text-xs">
+                              <p className="text-blue-200/60 text-xs">
                                 📜 Role para ver todos os {request.assigned_numbers.length} números
                               </p>
                             </div>
@@ -554,30 +555,30 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
           )}
 
           {/* User Info Card */}
-          <div className="bg-slate-800/50 rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-8 backdrop-blur-sm border border-slate-600/30">
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-amber-100 mb-6 sm:mb-8">
+          <div className="glass-panel p-8 rounded-3xl">
+            <h2 className="text-2xl font-bold text-white mb-6">
               Informações da Conta
             </h2>
-            <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
-              <div className="flex items-center space-x-3 sm:space-x-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center">
-                  <User className="h-4 w-4 sm:h-5 sm:w-5 text-slate-900" />
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center">
+                  <User className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-slate-400 font-medium">Nome Completo</p>
-                  <p className="font-black text-white text-lg sm:text-xl">
+                  <p className="text-sm text-blue-200/60 font-medium">Nome Completo</p>
+                  <p className="font-bold text-white text-lg">
                     {currentAppUser?.name}
                   </p>
                 </div>
               </div>
               
-              <div className="flex items-center space-x-3 sm:space-x-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-400 to-blue-500 rounded-xl flex items-center justify-center">
-                  <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-slate-300" />
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-400 to-blue-500 rounded-xl flex items-center justify-center">
+                  <Calendar className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-slate-400 font-medium">Data de Cadastro</p>
-                  <p className="font-black text-white text-sm sm:text-base">
+                  <p className="text-sm text-blue-200/60 font-medium">Data de Cadastro</p>
+                  <p className="font-bold text-white text-base">
                     {new Date(currentAppUser?.created_at || '').toLocaleDateString('pt-BR', {
                       day: '2-digit',
                       month: '2-digit',
