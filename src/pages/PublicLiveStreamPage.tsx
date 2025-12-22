@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Eye, Share2, X, Trophy, Calendar, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Eye, Share2, X, Trophy, Calendar, ChevronRight, MessageCircle, Crown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import ZKViewer from '../components/ZKViewer';
 import LiveChat from '../components/live/LiveChat';
 import MobileLiveControls from '../components/live/MobileLiveControls';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
+import VipSubscriptionModal from '../components/vip/VipSubscriptionModal';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import { CruzeiroGame, CruzeiroStanding } from '../types';
@@ -48,6 +50,15 @@ const PublicLiveStreamPage: React.FC = () => {
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const [upcomingGames, setUpcomingGames] = useState<CruzeiroGame[]>([]);
   const [standings, setStandings] = useState<CruzeiroStanding[]>([]);
+  const [isVip, setIsVip] = useState(false);
+  const [showVipModal, setShowVipModal] = useState(false);
+  
+  // Verificar status VIP
+  useEffect(() => {
+    if (user && currentUser) {
+      setIsVip(currentUser.is_vip || false);
+    }
+  }, [user, currentUser]);
 
   // Handler para duplo clique - tela cheia
   const handleDoubleClick = () => {
@@ -507,6 +518,34 @@ const PublicLiveStreamPage: React.FC = () => {
                   <VipMessageOverlay streamId={stream.id} isActive={stream.is_active} />
                 )}
 
+                {/* Botão Grupo VIP WhatsApp - Apenas para VIPs */}
+                {stream.is_active && isVip && (
+                  <div className="absolute bottom-4 right-4 z-40">
+                    <a
+                      href={import.meta.env.VITE_VIP_WHATSAPP_GROUP || 'https://chat.whatsapp.com/SEU_GRUPO_AQUI'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white rounded-xl font-black uppercase text-xs shadow-lg shadow-green-600/30 transition-all hover:scale-105"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                      <span className="hidden sm:inline">Grupo VIP</span>
+                    </a>
+                  </div>
+                )}
+
+                {/* Botão Assinar VIP - Apenas para não-VIPs */}
+                {stream.is_active && !isVip && user && (
+                  <div className="absolute bottom-4 right-4 z-40">
+                    <button
+                      onClick={() => setShowVipModal(true)}
+                      className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-xl font-black uppercase text-xs shadow-lg shadow-purple-600/30 transition-all hover:scale-105"
+                    >
+                      <Crown className="w-5 h-5" />
+                      <span className="hidden sm:inline">Assinar VIP</span>
+                    </button>
+                  </div>
+                )}
+
                 {/* Overlay quando live encerrada */}
                 {!stream.is_active && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-20">
@@ -576,6 +615,13 @@ const PublicLiveStreamPage: React.FC = () => {
         </div>
       </main>
       <Footer />
+      
+      {/* Modal de Assinatura VIP */}
+      <VipSubscriptionModal
+        isOpen={showVipModal}
+        onClose={() => setShowVipModal(false)}
+        monthlyPrice={10.00}
+      />
     </div>
   );
 };

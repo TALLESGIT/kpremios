@@ -254,6 +254,15 @@ const AdminLiveStreamPage: React.FC = () => {
         p_stream_id: selectedStream.id
       });
 
+      // Limpar todas as mensagens do chat ao encerrar
+      const { error: cleanupError } = await supabase.rpc('cleanup_chat_on_stream_end', {
+        p_stream_id: selectedStream.id
+      });
+      
+      if (cleanupError) {
+        console.error('Erro ao limpar chat:', cleanupError);
+      }
+
       // Atualizar viewer_count para 0
       const { data: updatedStream, error: updateError } = await supabase
         .from('live_streams')

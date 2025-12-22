@@ -27,6 +27,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
   const [currentMessage, setCurrentMessage] = useState<VipMessage | null>(null);
   const [userRoles, setUserRoles] = useState<{ [userId: string]: { isVip: boolean } }>({});
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [overlayMessagesCount, setOverlayMessagesCount] = useState(0);
   const userRolesRef = useRef<{ [userId: string]: { isVip: boolean } }>({});
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
   
@@ -192,8 +193,21 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
             }
           }
           
-          // Se for VIP, mostrar overlay (truncar mensagem se muito longa)
+          // Se for VIP, verificar limite de mensagens na tela (máximo 10 por live)
           if (isVip) {
+            // Verificar quantas mensagens VIP já apareceram na tela
+            const { data: currentCount, error: countError } = await supabase.rpc('count_vip_overlay_messages', {
+              p_stream_id: streamId
+            });
+            
+            const messagesShown = countError ? overlayMessagesCount : (currentCount || 0);
+            
+            // Se já mostrou 10 mensagens, não mostrar mais
+            if (messagesShown >= 10) {
+              console.log('Limite de mensagens VIP na tela atingido (10/10)');
+              return;
+            }
+            
             const truncatedMsg = truncateMessage(newMsg.message);
             const messageData: VipMessage = {
               id: newMsg.id,
@@ -208,6 +222,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
             };
             
             setCurrentMessage(messageData);
+            setOverlayMessagesCount(messagesShown + 1);
             
             // Se for mensagem TTS, reproduzir áudio
             if (messageData.message_type === 'tts' && messageData.tts_text) {

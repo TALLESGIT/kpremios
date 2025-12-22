@@ -64,6 +64,19 @@ const LoginPage: React.FC = () => {
       }
 
       if (data.user) {
+        // Tentar conceder VIP grátis se elegível (100 primeiros até 01/02/2026)
+        try {
+          const { data: vipGranted, error: vipError } = await supabase.rpc('grant_free_vip_if_eligible', {
+            p_user_id: data.user.id
+          });
+          if (vipGranted && !vipError) {
+            console.log('✅ VIP grátis concedido no login!');
+          }
+        } catch (vipError) {
+          console.error('Erro ao verificar VIP grátis:', vipError);
+          // Não falha o login se houver erro
+        }
+
         // Recarregar dados do usuário
         try {
           await reloadUserData();

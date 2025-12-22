@@ -89,12 +89,42 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
   const [vipCustomColor, setVipCustomColor] = useState<string>('purple'); // Cor padrão roxa
   const [isSendingAudio, setIsSendingAudio] = useState(false);
   const [lastAudioSentAt, setLastAudioSentAt] = useState<number>(0);
+  const [audioCountRemaining, setAudioCountRemaining] = useState<number>(3);
+  const [vipOverlayCountRemaining, setVipOverlayCountRemaining] = useState<number>(10);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const isInitialLoadRef = useRef(true);
   const userScrolledUpRef = useRef(false);
+
+  // Função para carregar contadores de limites VIP
+  const loadVipLimits = async () => {
+    if (!user || !isVip || !streamId) return;
+    
+    try {
+      // Contar áudios enviados pelo usuário nesta live
+      const { data: audioCount, error: audioError } = await supabase.rpc('count_user_audio_messages', {
+        p_user_id: user.id,
+        p_stream_id: streamId
+      });
+      
+      if (!audioError && audioCount !== null) {
+        setAudioCountRemaining(Math.max(0, 3 - audioCount));
+      }
+      
+      // Contar mensagens VIP na tela nesta live
+      const { data: overlayCount, error: overlayError } = await supabase.rpc('count_vip_overlay_messages', {
+        p_stream_id: streamId
+      });
+      
+      if (!overlayError && overlayCount !== null) {
+        setVipOverlayCountRemaining(Math.max(0, 10 - overlayCount));
+      }
+    } catch (err) {
+      console.error('Erro ao carregar limites VIP:', err);
+    }
+  };
 
   useEffect(() => {
     loadMessages();
@@ -103,6 +133,11 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
     checkVipStatus();
     checkBanStatus();
     loadVipColor();
+    
+    // Carregar limites VIP após verificar status
+    if (isVip) {
+      loadVipLimits();
+    }
 
     console.log(`🔌 Iniciando conexão Realtime para stream: ${streamId}`);
 
@@ -142,6 +177,19 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
             setMessages(prev => prev.filter(m => m.id !== deleted.id));
             if (pinnedMessage?.id === deleted.id) {
               setPinnedMessage(null);
+            }
+          }
+          
+          // Atualizar contadores VIP quando nova mensagem é inserida
+          if (payload.eventType === 'INSERT' && isVip) {
+            const newMsg = payload.new as ChatMessage;
+            if (newMsg.message_type === 'tts' && newMsg.user_id === user?.id) {
+              // Atualizar contador de áudios
+              loadVipLimits();
+            }
+            if (newMsg.user_id && userRoles[newMsg.user_id]?.isVip) {
+              // Atualizar contador de mensagens na tela
+              loadVipLimits();
             }
           }
         }
@@ -503,6 +551,17 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
       return;
     }
 
+    // Verificar limite de áudios por live (máximo 3)
+    const { data: audioCount, error: countError } = await supabase.rpc('count_user_audio_messages', {
+      p_user_id: user.id,
+      p_stream_id: streamId
+    });
+
+    if (!countError && audioCount !== null && audioCount >= 3) {
+      toast.error('Você já enviou 3 áudios nesta live. Limite atingido.');
+      return;
+    }
+
     // Rate limiting: máximo 1 áudio a cada 30 segundos
     const now = Date.now();
     const timeSinceLastAudio = now - lastAudioSentAt;
@@ -571,6 +630,9 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
         toast.error('Erro ao enviar mensagem de áudio: ' + insertError.message);
       } else {
         toast.success('Mensagem de áudio enviada!');
+        // Atualizar contador de áudios restantes
+        const remaining = Math.max(0, 3 - (audioCount || 0) - 1);
+        setAudioCountRemaining(remaining);
       }
     } catch (err) {
       console.error('Erro ao enviar mensagem de áudio:', err);
@@ -987,24 +1049,42 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
                 maxLength={isVip ? MAX_MESSAGE_LENGTH_VIP : MAX_MESSAGE_LENGTH}
                 className="w-full px-4 py-2.5 bg-slate-900 border border-white/5 rounded-xl text-white text-xs font-bold"
               />
-              {/* Contador de caracteres */}
-              <div className="absolute right-2 bottom-1 text-[9px] text-slate-500 flex flex-col items-end">
+              {/* Contador de caracteres e limites VIP */}
+              <div className="absolute right-2 bottom-1 text-[9px] text-slate-500 flex flex-col items-end gap-0.5">
                 {slowModeSecondsRemaining > 0 && (
                   <span className="text-red-400 animate-pulse font-black">Aguarde {slowModeSecondsRemaining}s</span>
+                )}
+                {isVip && vipOverlayCountRemaining > 0 && (
+                  <span className="text-purple-300 font-bold">💎 {vipOverlayCountRemaining} msgs na tela</span>
+                )}
+                {isVip && vipOverlayCountRemaining === 0 && (
+                  <span className="text-red-400 font-bold">💎 Limite tela atingido</span>
                 )}
                 <span>{newMessage.length}/{isVip ? MAX_MESSAGE_LENGTH_VIP : MAX_MESSAGE_LENGTH}</span>
               </div>
             </div>
             {/* Botão de áudio para VIPs */}
             {isVip && (
-              <button
-                onClick={handleSendAudioMessage}
-                disabled={!newMessage.trim() || isSendingAudio || newMessage.length > 500}
-                className="px-3 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg shadow-purple-600/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Enviar como áudio (TTS) - Máximo 500 caracteres"
-              >
-                <Mic className="w-4 h-4" />
-              </button>
+              <div className="flex flex-col items-center gap-1">
+                <button
+                  onClick={handleSendAudioMessage}
+                  disabled={!newMessage.trim() || isSendingAudio || newMessage.length > 500 || audioCountRemaining <= 0}
+                  className="px-3 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg shadow-purple-600/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={`Enviar como áudio (TTS) - Máximo 500 caracteres. Restam ${audioCountRemaining} áudios nesta live`}
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+                {audioCountRemaining > 0 && (
+                  <span className="text-[8px] text-purple-300 font-bold">
+                    Restam {audioCountRemaining} áudios
+                  </span>
+                )}
+                {audioCountRemaining === 0 && (
+                  <span className="text-[8px] text-red-400 font-bold">
+                    Limite atingido
+                  </span>
+                )}
+              </div>
             )}
             <button onClick={handleSendMessage} disabled={!newMessage.trim()} className="px-4 py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg shadow-blue-600/20 active:scale-95 transition-all flex items-center gap-2">
               <span className="md:hidden">Enviar</span>

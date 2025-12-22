@@ -123,12 +123,21 @@ const AdminLiveStreamPage: React.FC = () => {
   const stopStream = async () => {
     if (!selectedStream) return;
     try {
+      // Limpar todas as mensagens do chat ao encerrar
+      const { error: cleanupError } = await supabase.rpc('cleanup_chat_on_stream_end', {
+        p_stream_id: selectedStream.id
+      });
+      
+      if (cleanupError) {
+        console.error('Erro ao limpar chat:', cleanupError);
+      }
+      
       await supabase.from('live_streams').update({ is_active: false, viewer_count: 0 }).eq('id', selectedStream.id);
       await supabase.rpc('end_all_active_viewer_sessions', { p_stream_id: selectedStream.id });
       const { data } = await supabase.from('live_streams').select('*').eq('id', selectedStream.id).single();
       setIsStreaming(false);
       if (data) setSelectedStream(data); // Atualizar estado local instantaneamente
-      toast.success('Encerrada');
+      toast.success('Live encerrada e chat limpo');
     } catch (err) {
       toast.error('Erro ao encerrar');
     }
