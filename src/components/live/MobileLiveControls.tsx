@@ -20,6 +20,7 @@ interface MobileLiveControlsProps {
   isDocked?: boolean;
   onToggleAudio?: () => void;
   isAudioEnabled?: boolean;
+  onChatToggle?: () => void;
 }
 
 const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
@@ -38,7 +39,8 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
   fitMode = 'contain',
   isDocked = false,
   onToggleAudio,
-  isAudioEnabled = false
+  isAudioEnabled = false,
+  onChatToggle
 }) => {
   const [visible, setVisible] = useState(false); // Default hidden on desktop
   const [isMobile, setIsMobile] = useState(false);
@@ -229,9 +231,12 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
                 whileTap={{ scale: 0.9 }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  // Encontrar a função toggleChat via hack de evento ou disparar um evento customizado
-                  // Por simplicidade, vamos disparar um evento que a página de live escuta
-                  window.dispatchEvent(new CustomEvent('toggle-chat'));
+                  if (onChatToggle) {
+                    onChatToggle();
+                  } else {
+                    // Fallback: disparar evento customizado
+                    window.dispatchEvent(new CustomEvent('toggle-chat'));
+                  }
                   showControls();
                 }}
                 className="bg-black/20 backdrop-blur-sm text-white p-3 rounded-full hover:bg-black/40 transition-colors"

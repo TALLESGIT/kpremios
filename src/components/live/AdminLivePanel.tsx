@@ -105,7 +105,10 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
         const newStats = {
           totalViewers: Number(statsData.total_viewers) || 0,
           activeViewers: isActive ? (Number(statsData.active_viewers) || 0) : 0,
-          avgWatchTime: Number(statsData.avg_watch_time) || 0,
+          // Garantir que o tempo médio seja pelo menos 1 segundo se houver sessões
+          avgWatchTime: statsData.unique_sessions > 0 
+            ? Math.max(Number(statsData.avg_watch_time) || 0, 1) 
+            : 0,
           uniqueSessions: Number(statsData.unique_sessions) || 0,
         };
         
@@ -116,7 +119,16 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
         }));
       } else {
         console.warn('⚠️ Nenhuma estatística retornada');
-        // Manter valores atuais se não houver dados
+        // Se não houver dados mas houver stream, manter valores mínimos
+        if (streamId) {
+          setStats((prev) => ({
+            ...prev,
+            totalViewers: prev.totalViewers || 0,
+            activeViewers: 0,
+            avgWatchTime: prev.avgWatchTime || 0,
+            uniqueSessions: prev.uniqueSessions || 0,
+          }));
+        }
       }
 
       // Carregar contagem de mensagens
@@ -258,12 +270,19 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
   };
 
   const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
+    // Garantir que sempre mostre pelo menos 1 segundo se houver dados
+    const totalSeconds = Math.max(Math.floor(seconds || 0), 0);
+    
+    if (totalSeconds === 0) {
+      return '0s';
+    }
+    
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
 
     if (hours > 0) {
-      return `${hours}h ${minutes}m ${secs}s`;
+      return `${hours}h ${minutes}m`;
     } else if (minutes > 0) {
       return `${minutes}m ${secs}s`;
     } else {
@@ -326,11 +345,13 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
             </div>
             <span className="text-[11px] font-black text-blue-200/60 uppercase tracking-widest">Ativos</span>
           </div>
-          <p className="text-4xl font-black text-white italic">{viewerCount}</p>
+          <p className="text-4xl font-black text-white italic">
+            {isActive ? viewerCount : stats.activeViewers}
+          </p>
           <div className="mt-2 flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+            <div className={`w-1.5 h-1.5 rounded-full ${isActive && viewerCount > 0 ? 'bg-blue-500 animate-pulse' : 'bg-blue-500/40'}`} />
             <p className="text-[10px] text-blue-300 font-bold uppercase tracking-wider">
-              {stats.totalViewers} Acumulado
+              {stats.totalViewers > 0 ? stats.totalViewers : 0} Acumulado
             </p>
           </div>
         </div>
@@ -343,7 +364,7 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
             </div>
             <span className="text-[11px] font-black text-emerald-200/60 uppercase tracking-widest">Mensagens</span>
           </div>
-          <p className="text-4xl font-black text-white italic">{stats.totalMessages}</p>
+          <p className="text-4xl font-black text-white italic">{stats.totalMessages || 0}</p>
           <p className="mt-2 text-[10px] text-emerald-400/80 font-bold uppercase tracking-wider">No chat ao vivo</p>
         </div>
 
@@ -355,7 +376,7 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
             </div>
             <span className="text-[11px] font-black text-purple-200/60 uppercase tracking-widest">Sessões</span>
           </div>
-          <p className="text-4xl font-black text-white italic">{stats.uniqueSessions}</p>
+          <p className="text-4xl font-black text-white italic">{stats.uniqueSessions || 0}</p>
           <p className="mt-2 text-[10px] text-purple-400/80 font-bold uppercase tracking-wider">Únicas totais</p>
         </div>
 
@@ -368,7 +389,7 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
             <span className="text-[11px] font-black text-amber-200/60 uppercase tracking-widest">Retenção</span>
           </div>
           <p className="text-3xl font-black text-white italic">
-            {formatTime(stats.avgWatchTime)}
+            {stats.uniqueSessions > 0 ? formatTime(stats.avgWatchTime) : '0s'}
           </p>
           <p className="mt-2 text-[10px] text-amber-400/80 font-bold uppercase tracking-wider">Tempo médio</p>
         </div>

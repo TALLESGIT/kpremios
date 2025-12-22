@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import {
@@ -11,19 +11,25 @@ import {
     MapPin,
     Zap,
     Maximize2,
-    Minimize2
+    Minimize2,
+    Eye,
+    MessageSquare,
+    X
 } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import ZKViewer from '../components/ZKViewer';
 import MobileLiveControls from '../components/live/MobileLiveControls';
+import LiveChat from '../components/live/LiveChat';
 import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface LiveStream {
     id: string;
     title: string;
     channel_name: string;
     is_active: boolean;
+    viewer_count?: number;
 }
 
 interface QuickStats {
@@ -34,6 +40,7 @@ interface QuickStats {
 }
 
 const ZkTVPage: React.FC = () => {
+    const { user } = useAuth();
     const [settings, setSettings] = useState<CruzeiroSettings | null>(null);
     const [games, setGames] = useState<CruzeiroGame[]>([]);
     const [standings, setStandings] = useState<CruzeiroStanding[]>([]);
@@ -49,7 +56,90 @@ const ZkTVPage: React.FC = () => {
     const [isMobile, setIsMobile] = useState(false);
     const [isLandscape, setIsLandscape] = useState(false);
     const [videoFitMode, setVideoFitMode] = useState<'contain' | 'cover'>('contain');
+    const [isChatOpen, setIsChatOpen] = useState(false);
+    const [isDockedChat, setIsDockedChat] = useState(false);
+    const [currentViewerCount, setCurrentViewerCount] = useState(0);
+    const trackViewerExecutedRef = useRef(false);
     const videoContainerRef = useRef<HTMLDivElement>(null);
+    
+    const [sessionId] = useState(() => {
+        const key = `zk_tv_session`;
+        const saved = localStorage.getItem(key);
+        if (saved) return saved;
+        const newId = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem(key, newId);
+        return newId;
+    });
+
+    // Função para atualizar contador de viewers
+    const updateViewerCount = useCallback(async (streamId: string) => {
+        try {
+            const { data: countData, error } = await supabase.rpc(
+                'count_active_unique_viewers',
+                { p_stream_id: streamId }
+            );
+
+            if (error) {
+                console.error('❌ Erro ao contar viewers:', error);
+                return;
+            }
+
+            const activeCount = Number(countData) || 0;
+            setCurrentViewerCount(activeCount);
+            
+            // Atualizar na tabela
+            await supabase
+                .from('live_streams')
+                .update({ viewer_count: activeCount })
+                .eq('id', streamId);
+        } catch (e) {
+            console.error('❌ Erro ao atualizar viewer_count:', e);
+        }
+    }, []);
+
+    // Função para criar/atualizar viewer session
+    const trackViewer = useCallback(async (streamId: string) => {
+        if (!activeStream) return;
+        
+        try {
+            const now = new Date().toISOString();
+
+            const { error } = await supabase
+                .from('viewer_sessions')
+                .upsert({
+                    stream_id: streamId,
+                    session_id: sessionId,
+                    user_id: user?.id || null,
+                    is_active: activeStream.is_active,
+                    user_agent: navigator.userAgent,
+                    last_heartbeat: now,
+                    started_at: now
+                }, {
+                    onConflict: 'session_id,stream_id'
+                });
+            
+            if (error) {
+                const { error: updateError } = await supabase
+                    .from('viewer_sessions')
+                    .update({
+                        is_active: activeStream.is_active,
+                        last_heartbeat: now,
+                        user_id: user?.id || null,
+                        user_agent: navigator.userAgent
+                    })
+                    .eq('session_id', sessionId)
+                    .eq('stream_id', streamId);
+                
+                if (updateError) {
+                    console.error('❌ Erro ao atualizar viewer_session:', updateError);
+                }
+            }
+            
+            updateViewerCount(streamId);
+        } catch (e: any) {
+            console.error('❌ Erro geral ao track viewer:', e);
+        }
+    }, [activeStream, sessionId, user?.id, updateViewerCount]);
 
     useEffect(() => {
         loadData();
@@ -67,11 +157,11 @@ const ZkTVPage: React.FC = () => {
             const landscape = window.innerWidth > window.innerHeight;
             setIsLandscape(landscape);
             
-            // Auto fullscreen no mobile quando girar para paisagem
-            if (isMobile && landscape && !isFullscreen && videoContainerRef.current && (activeStream?.is_active || settings?.is_live)) {
-                videoContainerRef.current.requestFullscreen().catch(e => {
-                    console.warn('Auto-fullscreen bloqueado:', e);
-                });
+            // Em mobile fullscreen paisagem, ativar chat docked
+            if (isMobile && isFullscreen && landscape) {
+                setIsDockedChat(true);
+            } else if (!isFullscreen || !landscape) {
+                setIsDockedChat(false);
             }
         };
         checkOrientation();
@@ -79,7 +169,16 @@ const ZkTVPage: React.FC = () => {
         window.addEventListener('orientationchange', checkOrientation);
 
         // Listener para fullscreen
-        const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+        const handleFullscreenChange = () => {
+            const isFs = !!document.fullscreenElement;
+            setIsFullscreen(isFs);
+            // Em mobile fullscreen paisagem, ativar chat docked
+            if (isMobile && isFs && window.innerWidth > window.innerHeight) {
+                setIsDockedChat(true);
+            } else if (!isFs) {
+                setIsDockedChat(false);
+            }
+        };
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         
         // Subscribe to changes
@@ -102,7 +201,48 @@ const ZkTVPage: React.FC = () => {
             window.removeEventListener('orientationchange', checkOrientation);
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
         };
-    }, [isMobile, isFullscreen, activeStream, settings]);
+    }, [isMobile, isFullscreen]);
+
+    // Atualizar heartbeat periodicamente
+    useEffect(() => {
+        if (!activeStream?.is_active) return;
+
+        const heartbeatInterval = setInterval(async () => {
+            try {
+                await supabase.rpc('update_viewer_heartbeat', { p_session_id: sessionId });
+                if (activeStream?.id) {
+                    updateViewerCount(activeStream.id);
+                }
+            } catch (error) {
+                console.error('Erro ao atualizar heartbeat:', error);
+            }
+        }, 30000); // A cada 30 segundos
+
+        return () => clearInterval(heartbeatInterval);
+    }, [activeStream?.id, activeStream?.is_active, sessionId, updateViewerCount]);
+
+    // Listener para atualizações do viewer_count em tempo real
+    useEffect(() => {
+        if (!activeStream?.id) return;
+
+        const channel = supabase.channel(`viewer_count_${activeStream.id}`)
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'live_streams',
+                filter: `id=eq.${activeStream.id}`
+            }, (payload) => {
+                const updated = payload.new as any;
+                if (updated.viewer_count !== undefined) {
+                    setCurrentViewerCount(updated.viewer_count);
+                }
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [activeStream?.id]);
 
     // Handler para duplo clique - tela cheia
     const handleDoubleClick = () => {
@@ -141,7 +281,7 @@ const ZkTVPage: React.FC = () => {
         try {
             const { data, error } = await supabase
                 .from('live_streams')
-                .select('id, title, channel_name, is_active')
+                .select('id, title, channel_name, is_active, viewer_count')
                 .eq('is_active', true)
                 .order('created_at', { ascending: false })
                 .limit(1)
@@ -149,12 +289,21 @@ const ZkTVPage: React.FC = () => {
 
             if (!error && data) {
                 setActiveStream(data);
+                setCurrentViewerCount(data.viewer_count || 0);
+                // Iniciar tracking de viewer
+                if (!trackViewerExecutedRef.current) {
+                    trackViewer(data.id);
+                    trackViewerExecutedRef.current = true;
+                }
             } else {
                 setActiveStream(null);
+                setCurrentViewerCount(0);
+                trackViewerExecutedRef.current = false;
             }
         } catch (err) {
             console.error('Erro ao carregar live ativa:', err);
             setActiveStream(null);
+            setCurrentViewerCount(0);
         }
     };
 
@@ -285,6 +434,8 @@ const ZkTVPage: React.FC = () => {
     const recentGames = games.filter(g => new Date(g.date) <= new Date() && g.status === 'finished').reverse().slice(0, 3);
     const upcomingGames = games.filter(g => new Date(g.date) > new Date()).slice(0, 5);
 
+    const isLiveActive = activeStream?.is_active || settings?.is_live;
+
     return (
         <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-blue-500/30">
             <Header />
@@ -325,7 +476,7 @@ const ZkTVPage: React.FC = () => {
                                 próximos jogos e muito mais em um só lugar.
                             </motion.p>
 
-                            {(settings?.is_live || activeStream?.is_active) && (
+                            {isLiveActive && (
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.9 }}
                                     animate={{ opacity: 1, scale: 1 }}
@@ -346,11 +497,11 @@ const ZkTVPage: React.FC = () => {
                             animate={{ opacity: 1, x: 0 }}
                             className={`w-full lg:w-[600px] aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative cursor-pointer transition-all duration-500 ${
                                 isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : ''
-                            }`}
+                            } ${isDockedChat ? 'mobile-video-container docked-chat-active' : ''}`}
                             title={isMobile ? "Toque duas vezes para tela cheia" : "Duplo clique para tela cheia"}
                         >
-                            <div className="relative w-full h-full">
-                                {(activeStream?.is_active || settings?.is_live) ? (
+                            <div className="relative w-full h-full flex">
+                                {isLiveActive ? (
                                     activeStream ? (
                                         <ZKViewer 
                                             channel={activeStream.channel_name} 
@@ -385,9 +536,44 @@ const ZkTVPage: React.FC = () => {
                                     </div>
                                 )}
 
+                                {/* Status e Viewer Count */}
+                                {isLiveActive && (
+                                    <div className="absolute top-4 left-4 z-20">
+                                        <div className="px-6 py-3 bg-slate-800/80 backdrop-blur-md rounded-2xl border border-white/10 flex items-center gap-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                                                <span className="text-rose-400 text-xs font-black uppercase">
+                                                    {activeStream?.is_active ? 'Ao Vivo' : 'Offline'}
+                                                </span>
+                                            </div>
+                                            <div className="w-[1px] h-4 bg-white/10" />
+                                            <div className="flex items-center gap-2">
+                                                <Eye className="w-4 h-4 text-slate-400" />
+                                                <span className="text-white font-black">
+                                                    {activeStream?.is_active 
+                                                        ? (currentViewerCount || activeStream?.viewer_count || 0)
+                                                        : 0
+                                                    }
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Controles Mobile e Desktop */}
-                                {(activeStream?.is_active || settings?.is_live) && (
+                                {isLiveActive && (
                                     <>
+                                        {/* Botão Chat Desktop */}
+                                        {!isMobile && (
+                                            <button
+                                                onClick={() => setIsChatOpen(!isChatOpen)}
+                                                className="absolute bottom-4 left-4 p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all z-10 group"
+                                                title="Abrir chat"
+                                            >
+                                                <MessageSquare className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+                                            </button>
+                                        )}
+
                                         {/* Botão Fullscreen Desktop */}
                                         {!isMobile && (
                                             <button
@@ -406,21 +592,59 @@ const ZkTVPage: React.FC = () => {
                                         {/* Controles Mobile */}
                                         {isMobile && (
                                             <MobileLiveControls
-                                                isActive={activeStream?.is_active || settings?.is_live || false}
+                                                isActive={isLiveActive}
                                                 isFullscreen={isFullscreen}
                                                 onFullscreen={handleFullscreen}
                                                 onRotate={() => setIsLandscape(!isLandscape)}
                                                 onToggleFit={() => setVideoFitMode(p => p === 'contain' ? 'cover' : 'contain')}
                                                 fitMode={videoFitMode}
+                                                isDocked={isDockedChat}
+                                                onChatToggle={() => {
+                                                    if (isFullscreen && isLandscape) {
+                                                        setIsDockedChat(!isDockedChat);
+                                                    } else {
+                                                        setIsChatOpen(!isChatOpen);
+                                                    }
+                                                }}
                                             />
                                         )}
                                     </>
                                 )}
                             </div>
+
+                            {/* Chat Docked (Mobile Fullscreen Landscape) */}
+                            {isMobile && isFullscreen && isLandscape && isDockedChat && activeStream && (
+                                <div className="w-[300px] h-full bg-black/90 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl">
+                                    <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                                        <span className="text-[10px] font-black text-white uppercase italic tracking-widest">Chat</span>
+                                        <button onClick={() => setIsDockedChat(false)}>
+                                            <X className="w-4 h-4 text-white" />
+                                        </button>
+                                    </div>
+                                    <div className="flex-1 overflow-hidden">
+                                        <LiveChat streamId={activeStream.id} />
+                                    </div>
+                                </div>
+                            )}
                         </motion.div>
                     </div>
                 </div>
             </section>
+
+            {/* Chat Overlay (Desktop e Mobile não fullscreen) */}
+            {isChatOpen && activeStream && !isDockedChat && (
+                <div className={`fixed ${isMobile ? 'inset-0' : 'right-0 top-0 bottom-0 w-[400px]'} bg-black/95 backdrop-blur-md border-l border-white/10 z-[9999] flex flex-col shadow-2xl`}>
+                    <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                        <span className="text-sm font-black text-white uppercase italic tracking-widest">Chat da Transmissão</span>
+                        <button onClick={() => setIsChatOpen(false)}>
+                            <X className="w-5 h-5 text-white" />
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                        <LiveChat streamId={activeStream.id} />
+                    </div>
+                </div>
+            )}
 
             {/* Content Section */}
             <section className="py-12 relative">
