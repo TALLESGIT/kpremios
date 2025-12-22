@@ -59,7 +59,7 @@ interface IAgoraRTCClient {
   publish(track: ILocalVideoTrack | ILocalAudioTrack | any): Promise<void>;
   unpublish(track: ILocalVideoTrack | ILocalAudioTrack | any): Promise<void>;
   subscribe(user: IAgoraRTCRemoteUser, mediaType: 'audio' | 'video'): Promise<void>;
-  setClientRole(role: 'host' | 'audience'): Promise<void>;
+  setClientRole(role: 'host' | 'audience', options?: { level: number }): Promise<void>;
   on(event: string, callback: (...args: any[]) => void): void;
   removeAllListeners(): void;
 }
@@ -188,7 +188,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             }
           }
         } else {
-          await clientRef.current.setClientRole('audience');
+          await clientRef.current.setClientRole('audience', { level: 1 }); // Level 1 = Ultra Low Latency
         }
 
         console.log('✅ Reconexão bem-sucedida!');
@@ -224,6 +224,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       // Criar novo preview
       const track = await AgoraRTC.createCameraVideoTrack({
         cameraId: deviceId,
+        optimizationMode: 'latency',
         encoderConfig: {
           width: 1920,
           height: 1080,
@@ -683,8 +684,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         // Salvar informações para reconexão
         saveChannelInfo(channelName, appId, token, uid || null);
 
-        // Configurar role como audience
-        await clientRef.current.setClientRole('audience');
+        // Configurar role como audience com ultra baixa latência
+        await clientRef.current.setClientRole('audience', { level: 1 });
         console.log('✅ Audience: Conectado ao canal e aguardando stream');
         setReconnectAttempts(0); // Reset contador ao conectar
         reconnectTimeoutRef.current = null; // Limpar timeout de reconexão

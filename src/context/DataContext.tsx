@@ -1,14 +1,14 @@
 import { createContext, useContext, ReactNode, useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { User, RaffleNumber, ExtraNumberRequest, DrawResult } from '../types';
+import { User, RaffleNumber, ExtraNumberRequest, DrawResult, Raffle } from '../types';
 
 interface DataContextType {
   // User data
   currentUser: User | null;
-  
+
   // Numbers data
   numbers: RaffleNumber[];
-  
+
   // User actions
   registerUser: (name: string, email: string, whatsapp: string, password: string, selectedNumber: number) => Promise<void>;
   registerAdmin: (name: string, email: string, whatsapp: string, password: string) => Promise<void>;
@@ -16,22 +16,22 @@ interface DataContextType {
   registerRestaUmUser: (name: string, email: string, phone: string, password: string) => Promise<void>;
   selectFreeNumber: (selectedNumber: number) => Promise<boolean>;
   joinFreeRaffle: (raffleId: string) => Promise<{ success: boolean; message: string }>;
-  
+
   // Extra numbers
   requestExtraNumbers: (paymentAmount: number, quantity: number, paymentProofUrl?: string) => Promise<boolean>;
   getCurrentUserRequest: () => ExtraNumberRequest | null;
   getUserRequestsHistory: () => Promise<ExtraNumberRequest[]>;
-  
+
   // Numbers info
   getAvailableNumbersCount: () => Promise<number>;
   getTakenNumbersCount: () => Promise<number>;
   loadNumbers: () => Promise<void>;
-  
+
   // Admin functions
   resetAllNumbers: () => Promise<void>;
   cleanupOrphanedNumbers: () => Promise<void>;
   getPendingRequestsCount: () => Promise<number>;
-  
+
   // WhatsApp notifications
   notifyAllUsersAboutNewRaffle: (raffleData: {
     title: string;
@@ -40,21 +40,25 @@ interface DataContextType {
     endDate: string;
   }) => Promise<{ success: boolean; error?: string; notified?: number; total?: number; results?: any[] }>;
   notifyExtraNumbersApproved: (requestId: string) => Promise<{ success: boolean; error?: string }>;
-  sendBulkNotification: (users: Array<{whatsapp: string; name: string}>, type: string, data: any) => Promise<any>;
-  
+  sendBulkNotification: (users: Array<{ whatsapp: string; name: string }>, type: string, data: any) => Promise<any>;
+
   // Winners
   getDrawResults: () => DrawResult[];
-  
+
+  // Raffles
+  raffles: Raffle[];
+  loadRaffles: () => Promise<void>;
+
   // Loading states
   loading: boolean;
   numbersLoading: boolean;
-  
+
   // Force reload user data
   reloadUserData: () => Promise<void>;
-  
+
   // Clear all user data
   clearUserData: () => void;
-  
+
   // Auth management - removed setAuthUser as it's now passed as prop
 }
 
@@ -65,9 +69,10 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   const [numbers, setNumbers] = useState<RaffleNumber[]>([]);
   const [drawResults, setDrawResults] = useState<DrawResult[]>([]);
   const [currentUserRequest, setCurrentUserRequest] = useState<ExtraNumberRequest | null>(null);
+  const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [loading, setLoading] = useState(true);
   const [numbersLoading, setNumbersLoading] = useState(true);
-  
+
   // Use authUser directly from AuthContext
 
   // Função para gerar código de confirmação
@@ -81,11 +86,11 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       setLoading(false);
       return;
     }
-    
+
     try {
 
       setLoading(true);
-      
+
       // Verify authentication before making queries
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) {
@@ -94,21 +99,21 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         setLoading(false);
         return;
       }
-      
+
       if (!session || !session.user) {
 
         setCurrentUser(null);
         setLoading(false);
         return;
       }
-      
+
       // First try to load from users table (main system)
       let { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', authUser.id)
         .limit(1);
-      
+
       // If not found in users, try profiles table (Resta Um)
       if (!data || data.length === 0) {
 
@@ -117,21 +122,21 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           .select('*')
           .eq('id', authUser.id)
           .limit(1);
-        
+
         if (profileData && profileData.length > 0) {
 
           data = profileData;
           error = profileError;
         }
       }
-      
+
       // If we have data, set the current user
       if (data && data.length > 0) {
         setCurrentUser(data[0]);
         setLoading(false);
         return;
       }
-        
+
       // Only check for pending data if we don't have user data and there's an error
       if (error) {
 
@@ -140,16 +145,16 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         if (pendingUserData) {
 
           const userData = JSON.parse(pendingUserData);
-          
+
           // Try to create the user now that they are authenticated
           const { data: insertData, error: insertError } = await supabase
             .from('users')
-            .upsert(userData, { 
+            .upsert(userData, {
               onConflict: 'id',
-              ignoreDuplicates: false 
+              ignoreDuplicates: false
             })
             .select();
-            
+
           if (insertError) {
 
             setCurrentUser(null);
@@ -189,7 +194,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         message_sid: (result as any).message_uuid || 'mock-uuid',
         status: 'sent'
       });
-      
+
     } catch (error) {
 
       // Log do erro no banco
@@ -235,7 +240,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
     console.log('DataContext: Registrando listener para userDataUpdated');
     window.addEventListener('userDataUpdated', handleUserDataUpdate as EventListener);
-    
+
     return () => {
       console.log('DataContext: Removendo listener userDataUpdated');
       window.removeEventListener('userDataUpdated', handleUserDataUpdate as EventListener);
@@ -253,7 +258,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
   // Load numbers and draw results on component mount
   useEffect(() => {
-    console.log('DataContext - Carregando números e resultados...');
+    // console.log('DataContext - Carregando números e resultados...');
     loadNumbers();
     loadDrawResults();
   }, []);
@@ -288,76 +293,33 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   const loadNumbers = async () => {
     console.log('DataContext - Iniciando loadNumbers...');
     setNumbersLoading(true);
-    
+
     // Timeout de segurança para evitar carregamento infinito
     const timeoutId = setTimeout(() => {
       console.warn('DataContext - Timeout de segurança ativado, forçando numbersLoading = false');
       setNumbersLoading(false);
     }, 10000); // 10 segundos timeout
-    
+
     try {
 
       // Skip orphaned numbers cleanup for now to speed up loading
       console.log('DataContext - Pulando limpeza de números órfãos para acelerar carregamento...');
-      
+
       console.log('DataContext - Fazendo query no banco...');
-      
+
       // Check if there's an active raffle to determine how many numbers to load
-      // Adicionar um pequeno delay para garantir que o sorteio seja detectado
-      console.log('DataContext - Iniciando detecção de sorteio ativo...');
-      console.log('DataContext - Timestamp atual:', new Date().toISOString());
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      let maxNumbers = 0; // Default - 0 quando não há sorteio ativo
-      let retryCount = 0;
-      const maxRetries = 5; // Aumentar para 5 tentativas
-      
-      while (retryCount < maxRetries) {
-        console.log(`DataContext - Tentativa ${retryCount + 1} de detectar sorteio ativo...`);
-        
-        // Adicionar timestamp para evitar cache
-        const timestamp = Date.now();
-        console.log(`DataContext - Timestamp: ${timestamp}`);
-        console.log(`DataContext - Fazendo query para detectar sorteio ativo...`);
-        const { data: activeRaffles, error: raffleError } = await supabase
-          .from('raffles')
-          .select('total_numbers, title, id, created_at')
-          .eq('is_active', true)
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(1);
-        
-        console.log(`DataContext - Resultado da query:`, { activeRaffles, raffleError });
+      const { data: activeRaffle } = await supabase
+        .from('raffles')
+        .select('total_numbers')
+        .eq('is_active', true)
+        .maybeSingle();
 
-        if (raffleError) {
-          console.log(`DataContext - Tentativa ${retryCount + 1}: Erro na consulta:`, raffleError.message);
-          retryCount++;
-          if (retryCount < maxRetries) {
-            console.log(`DataContext - Tentando novamente em 500ms... (${retryCount}/${maxRetries})`);
-            await new Promise(resolve => setTimeout(resolve, 500));
-          } else {
-            console.log('DataContext - Erro persistente após 5 tentativas, usando padrão de 0 números');
-          }
-        } else if (activeRaffles && activeRaffles.length > 0) {
-          console.log(`DataContext - Tentativa ${retryCount + 1}: Sorteio ativo encontrado:`, activeRaffles);
-          maxNumbers = activeRaffles[0].total_numbers;
-          console.log(`DataContext - Sorteio ativo detectado: ${activeRaffles[0].title} com ${maxNumbers} números`);
-          console.log(`DataContext - ID do sorteio: ${activeRaffles[0].id}`);
-          console.log(`DataContext - Criado em: ${activeRaffles[0].created_at}`);
-          break;
-        } else {
-          console.log(`DataContext - Tentativa ${retryCount + 1}: Nenhum sorteio ativo encontrado`);
-          retryCount++;
-          if (retryCount < maxRetries) {
-            console.log(`DataContext - Tentando novamente em 500ms... (${retryCount}/${maxRetries})`);
-            await new Promise(resolve => setTimeout(resolve, 500));
-          } else {
-            console.log('DataContext - Nenhum sorteio ativo encontrado após 5 tentativas, usando padrão de 0 números');
-          }
-        }
+      const maxNumbers = activeRaffle?.total_numbers || 0;
+
+      // Log resumido no final se não encontrar nada
+      if (maxNumbers === 0) {
+        console.log('DataContext - Nenhum sorteio ativo encontrado.');
       }
-
-      console.log(`DataContext - Carregando até ${maxNumbers} números`);
 
       // Se não há sorteio ativo, não carregar números
       if (maxNumbers === 0) {
@@ -369,7 +331,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
       // Load all numbers needed for the active raffle using pagination
       console.log(`DataContext - Carregando números de 1 a ${maxNumbers} usando paginação`);
-      
+
       let allNumbers: any[] = [];
       let from = 0;
       const pageSize = 1000; // Supabase default limit
@@ -378,14 +340,14 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       while (hasMore && allNumbers.length < maxNumbers) {
         console.log(`DataContext - Iniciando lote: from=${from}, allNumbers.length=${allNumbers.length}, maxNumbers=${maxNumbers}`);
         console.log(`DataContext - Carregando lote: ${from} a ${from + pageSize - 1}`);
-        
+
         const { data, error } = await supabase
           .from('numbers')
           .select('number, is_available, selected_by, assigned_at')
           .lte('number', maxNumbers)
           .order('number', { ascending: true })
           .range(from, from + pageSize - 1);
-          
+
         if (error) {
           console.error('DataContext - Erro na query:', error);
           throw error;
@@ -398,7 +360,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           console.log(`DataContext - Calculando hasMore: data.length=${data.length}, pageSize=${pageSize}, allNumbers.length=${allNumbers.length}, maxNumbers=${maxNumbers}`);
           console.log(`DataContext - Lote carregado: ${data.length} números (total: ${allNumbers.length})`);
           console.log(`DataContext - hasMore: ${hasMore}, data.length: ${data.length}, pageSize: ${pageSize}, allNumbers.length: ${allNumbers.length}, maxNumbers: ${maxNumbers}`);
-          
+
           // Debug: verificar se estamos carregando os números corretos
           if (allNumbers.length > 0) {
             console.log(`DataContext - Primeiro número: ${allNumbers[0].number}, Último número: ${allNumbers[allNumbers.length - 1].number}`);
@@ -418,7 +380,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       console.error('DataContext - Erro ao carregar números:', error);
       // Set empty array as fallback
       setNumbers([]);
-      
+
       // Show user-friendly error message
       if (error instanceof Error && error.message.includes('fetch')) {
         console.error('DataContext - Erro de conexão detectado');
@@ -430,6 +392,20 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     }
   };
 
+  const loadRaffles = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('raffles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setRaffles(data || []);
+    } catch (error) {
+      console.error('DataContext - Erro ao carregar sorteios:', error);
+    }
+  }, []);
+
   const loadDrawResults = async () => {
     try {
       const { data, error } = await supabase
@@ -439,7 +415,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           users:winner_id (name, email)
         `)
         .order('draw_date', { ascending: false });
-        
+
       if (error) throw error;
       setDrawResults(data || []);
     } catch (error) {
@@ -452,7 +428,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       setCurrentUserRequest(null);
       return;
     }
-    
+
     // Skip authentication check if user is not authenticated
     if (!authUser) {
 
@@ -466,7 +442,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       setCurrentUserRequest(null);
       return;
     }
-    
+
     try {
 
       const { data, error } = await supabase
@@ -475,7 +451,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         .eq('user_id', authUser.id)
         .eq('status', 'pending')
         .limit(1);
-        
+
       if (error) {
 
         // Handle different types of errors gracefully
@@ -487,7 +463,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         setCurrentUserRequest(null);
         return;
       }
-      
+
       setCurrentUserRequest(data?.[0] || null);
     } catch (error) {
 
@@ -525,46 +501,46 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         .select('id')
         .eq('email', email)
         .maybeSingle();
-      
+
       if (existingEmail) {
         throw new Error('Este email já está cadastrado. Faça login ou use outro email.');
       }
-      
+
       const { data: existingWhatsapp } = await supabase
         .from('users')
         .select('id')
         .eq('whatsapp', whatsapp)
         .maybeSingle();
-      
+
       if (existingWhatsapp) {
         throw new Error('Este WhatsApp já está cadastrado. Use outro número.');
       }
-      
+
       const { data: existingName } = await supabase
         .from('users')
         .select('id')
         .eq('name', name)
         .maybeSingle();
-      
+
       if (existingName) {
         throw new Error('Este nome já está cadastrado. Use outro nome.');
       }
-      
+
       // Check if number is still available
       const { data: numberData, error: numberCheckError } = await supabase
         .from('numbers')
         .select('*')
         .eq('number', selectedNumber)
         .single();
-        
+
       if (numberCheckError) {
         throw new Error('Erro ao verificar disponibilidade do número');
       }
-        
+
       if (!numberData.is_available) {
         throw new Error('Este número não está mais disponível. Escolha outro.');
       }
-      
+
       // First, create the auth user
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
@@ -579,18 +555,18 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
       if (signUpError) {
 
-        if (signUpError.message.includes('already registered') || 
-            signUpError.message.includes('email-already-in-use') ||
-            signUpError.message.includes('User already registered')) {
+        if (signUpError.message.includes('already registered') ||
+          signUpError.message.includes('email-already-in-use') ||
+          signUpError.message.includes('User already registered')) {
           throw new Error('Este email já está cadastrado! Faça login em vez de se cadastrar novamente.');
         } else if (signUpError.message.includes('For security purposes, you can only request this after')) {
           const waitTime = signUpError.message.match(/(\d+) seconds?/)?.[1] || '60';
           throw new Error(`Por medidas de segurança, aguarde ${waitTime} segundos antes de tentar novamente.`);
         } else if (signUpError.message.includes('weak-password') ||
-                   signUpError.message.includes('Password should be at least')) {
+          signUpError.message.includes('Password should be at least')) {
           throw new Error('Senha muito fraca. Use pelo menos 6 caracteres.');
         } else if (signUpError.message.includes('invalid-email') ||
-                   signUpError.message.includes('Invalid email')) {
+          signUpError.message.includes('Invalid email')) {
           throw new Error('Email inválido');
         } else {
           throw new Error(`Erro na criação da conta: ${signUpError.message}`);
@@ -615,7 +591,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
-      
+
       localStorage.setItem('pendingUserData', JSON.stringify(userData));
 
       // Try to sign in the user immediately after signup
@@ -624,7 +600,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         email,
         password
       });
-      
+
       if (signInError) {
 
       } else {
@@ -633,18 +609,18 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         try {
           const { data: insertData, error: insertError } = await supabase
             .from('users')
-            .upsert(userData, { 
+            .upsert(userData, {
               onConflict: 'id',
-              ignoreDuplicates: false 
+              ignoreDuplicates: false
             })
             .select();
-            
+
           if (insertError) {
 
           } else {
 
             localStorage.removeItem('pendingUserData');
-            
+
             // Enviar notificação WhatsApp de confirmação de cadastro
             const confirmationCode = generateConfirmationCode();
             await sendWhatsAppNotification('registration', {
@@ -660,7 +636,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
         }
       }
-      
+
       // Now reserve the number
 
       const { data: numberUpdateData, error: numberError } = await supabase
@@ -673,7 +649,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         })
         .eq('number', selectedNumber)
         .select();
-        
+
       if (numberError) {
 
         throw new Error('Erro ao reservar o número. Tente novamente.');
@@ -684,14 +660,14 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         .from('users')
         .update({ free_number: selectedNumber })
         .eq('id', userId);
-        
+
       if (userUpdateError) {
 
         // Don't throw error here, as the number is already reserved
       } else {
 
       }
-      
+
       // Enviar notificação WhatsApp com o número atribuído
       await sendWhatsAppNotification('numbers_assigned', {
         id: userId,
@@ -707,26 +683,26 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         loadNumbers(),
         loadDrawResults()
       ]);
-      
+
       // Try to create user from localStorage if it exists (fallback)
       setTimeout(async () => {
         try {
 
           const pendingUserData = localStorage.getItem('pendingUserData');
-          
+
           if (pendingUserData) {
 
             const userData = JSON.parse(pendingUserData);
-            
+
             // Try upsert instead of insert to work around RLS issues
             const { data: insertData, error: insertError } = await supabase
               .from('users')
-              .upsert(userData, { 
+              .upsert(userData, {
                 onConflict: 'id',
-                ignoreDuplicates: false 
+                ignoreDuplicates: false
               })
               .select();
-              
+
             if (insertError) {
 
             } else {
@@ -741,10 +717,10 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
         }
       }, 5000);
-      
+
       // Note: Page refresh removed to allow error inspection
       // The user will need to manually refresh if needed
-      
+
     } catch (error) {
 
       throw error;
@@ -768,18 +744,18 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
       if (signUpError) {
 
-        if (signUpError.message.includes('already registered') || 
-            signUpError.message.includes('email-already-in-use') ||
-            signUpError.message.includes('User already registered')) {
+        if (signUpError.message.includes('already registered') ||
+          signUpError.message.includes('email-already-in-use') ||
+          signUpError.message.includes('User already registered')) {
           throw new Error('Este email já está cadastrado! Faça login em vez de se cadastrar novamente.');
         } else if (signUpError.message.includes('For security purposes, you can only request this after')) {
           const waitTime = signUpError.message.match(/(\d+) seconds?/)?.[1] || '60';
           throw new Error(`Por medidas de segurança, aguarde ${waitTime} segundos antes de tentar novamente.`);
         } else if (signUpError.message.includes('weak-password') ||
-                   signUpError.message.includes('Password should be at least')) {
+          signUpError.message.includes('Password should be at least')) {
           throw new Error('Senha muito fraca. Use pelo menos 6 caracteres.');
         } else if (signUpError.message.includes('invalid-email') ||
-                   signUpError.message.includes('Invalid email')) {
+          signUpError.message.includes('Invalid email')) {
           throw new Error('Email inválido');
         } else {
           throw new Error(`Erro na criação da conta: ${signUpError.message}`);
@@ -802,7 +778,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
-      
+
       localStorage.setItem('pendingAdminData', JSON.stringify(adminData));
 
       // Try to sign in the admin immediately after signup
@@ -811,7 +787,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         email,
         password
       });
-      
+
       if (signInError) {
 
       } else {
@@ -821,12 +797,12 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
           const { data: insertData, error: insertError } = await supabase
             .from('users')
-            .upsert(adminData, { 
+            .upsert(adminData, {
               onConflict: 'id',
-              ignoreDuplicates: false 
+              ignoreDuplicates: false
             })
             .select();
-            
+
           if (insertError) {
 
           } else {
@@ -844,25 +820,25 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         loadNumbers(),
         loadDrawResults()
       ]);
-      
+
       // Try to create admin from localStorage if it exists (fallback)
       setTimeout(async () => {
         try {
 
           const pendingAdminData = localStorage.getItem('pendingAdminData');
-          
+
           if (pendingAdminData) {
 
             const adminData = JSON.parse(pendingAdminData);
 
             const { data: insertData, error: insertError } = await supabase
               .from('users')
-              .upsert(adminData, { 
+              .upsert(adminData, {
                 onConflict: 'id',
-                ignoreDuplicates: false 
+                ignoreDuplicates: false
               })
               .select();
-              
+
             if (insertError) {
 
             } else {
@@ -876,7 +852,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
         }
       }, 2000);
-      
+
     } catch (error) {
 
       throw error;
@@ -891,15 +867,15 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         email,
         password
       });
-      
+
       if (signInError) {
         throw new Error('Email já cadastrado, mas senha incorreta. Use a senha correta ou escolha outro email.');
       }
-      
+
       if (!signInData.user) {
         throw new Error('Erro ao fazer login. Tente novamente.');
       }
-      
+
       const userId = signInData.user.id;
 
       // Check if user already exists in database
@@ -908,11 +884,11 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         .select('*')
         .eq('id', userId)
         .limit(1);
-      
+
       if (userCheckError) {
 
       }
-      
+
       if (existingUser && existingUser.length > 0) {
         // User exists, update to admin
         const { error: updateError } = await supabase
@@ -924,7 +900,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
             updated_at: new Date().toISOString()
           })
           .eq('id', userId);
-          
+
         if (updateError) {
 
           throw new Error('Erro ao converter usuário para admin');
@@ -941,28 +917,28 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
-        
+
         const { error: insertError } = await supabase
           .from('users')
-          .upsert(adminData, { 
+          .upsert(adminData, {
             onConflict: 'id',
-            ignoreDuplicates: false 
+            ignoreDuplicates: false
           });
-          
+
         if (insertError) {
 
           throw new Error('Erro ao criar usuário admin');
         }
 
       }
-      
+
       // Reload data
       await Promise.all([
         loadCurrentUser(),
         loadNumbers(),
         loadDrawResults()
       ]);
-      
+
     } catch (error) {
 
       throw error;
@@ -987,18 +963,18 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
       if (signUpError) {
 
-        if (signUpError.message.includes('already registered') || 
-            signUpError.message.includes('email-already-in-use') ||
-            signUpError.message.includes('User already registered')) {
+        if (signUpError.message.includes('already registered') ||
+          signUpError.message.includes('email-already-in-use') ||
+          signUpError.message.includes('User already registered')) {
           throw new Error('Este email já está cadastrado! Faça login em vez de se cadastrar novamente.');
         } else if (signUpError.message.includes('For security purposes, you can only request this after')) {
           const waitTime = signUpError.message.match(/(\d+) seconds?/)?.[1] || '60';
           throw new Error(`Por medidas de segurança, aguarde ${waitTime} segundos antes de tentar novamente.`);
         } else if (signUpError.message.includes('weak-password') ||
-                   signUpError.message.includes('Password should be at least')) {
+          signUpError.message.includes('Password should be at least')) {
           throw new Error('Senha muito fraca. Use pelo menos 6 caracteres.');
         } else if (signUpError.message.includes('invalid-email') ||
-                   signUpError.message.includes('Invalid email')) {
+          signUpError.message.includes('Invalid email')) {
           throw new Error('Email inválido');
         } else {
           throw new Error(`Erro na criação da conta: ${signUpError.message}`);
@@ -1021,7 +997,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
-      
+
       localStorage.setItem('pendingRestaUmData', JSON.stringify(userData));
 
       // Try to sign in the user immediately after signup
@@ -1030,7 +1006,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         email,
         password
       });
-      
+
       if (signInError) {
 
       } else {
@@ -1039,12 +1015,12 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         try {
           const { data: insertData, error: insertError } = await supabase
             .from('profiles')
-            .upsert(userData, { 
+            .upsert(userData, {
               onConflict: 'id',
-              ignoreDuplicates: false 
+              ignoreDuplicates: false
             })
             .select();
-            
+
           if (insertError) {
 
           } else {
@@ -1062,25 +1038,25 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         loadNumbers(),
         loadDrawResults()
       ]);
-      
+
       // Try to create user from localStorage if it exists (fallback)
       setTimeout(async () => {
         try {
 
           const pendingRestaUmData = localStorage.getItem('pendingRestaUmData');
-          
+
           if (pendingRestaUmData) {
 
             const userData = JSON.parse(pendingRestaUmData);
-            
+
             const { data: insertData, error: insertError } = await supabase
               .from('profiles')
-              .upsert(userData, { 
+              .upsert(userData, {
                 onConflict: 'id',
-                ignoreDuplicates: false 
+                ignoreDuplicates: false
               })
               .select();
-              
+
             if (insertError) {
 
             } else {
@@ -1093,7 +1069,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
         }
       }, 2000);
-      
+
     } catch (error) {
 
       throw error;
@@ -1106,7 +1082,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
       return false;
     }
-    
+
     try {
       // Verificar se o usuário já tem um número grátis
       const { data: userData, error: userError } = await supabase
@@ -1149,7 +1125,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           raffle_id: raffleId
         })
         .select();
-        
+
       if (error) {
 
         throw error;
@@ -1170,7 +1146,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   const getAvailableNumbersCount = async (): Promise<number> => {
     try {
       console.log('DataContext - Calculando números disponíveis...');
-      
+
       // Verificar se há sorteios ativos
       const { data: activeRaffles, error: raffleError } = await supabase
         .from('raffles')
@@ -1205,8 +1181,8 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         console.error('DataContext - Erro ao consultar números selecionados:', numbersError);
         return 0;
       }
-      const availableCount = Math.max(0, activeRaffle.total_numbers - takenCount);
-      
+      const availableCount = Math.max(0, activeRaffle.total_numbers - (takenCount ?? 0));
+
       console.log(`DataContext - Números disponíveis: ${availableCount} (Total: ${activeRaffle.total_numbers}, Selecionados: ${takenCount})`);
       return availableCount;
     } catch (error) {
@@ -1218,7 +1194,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   const getTakenNumbersCount = async (): Promise<number> => {
     try {
       console.log('DataContext - Calculando números selecionados...');
-      
+
       // Verificar se há sorteios ativos
       const { data: activeRaffles, error: raffleError } = await supabase
         .from('raffles')
@@ -1254,7 +1230,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         return 0;
       }
       console.log(`DataContext - Números selecionados encontrados: ${count}`);
-      return count;
+      return count ?? 0;
     } catch (error) {
       console.error('DataContext - Erro ao calcular números selecionados:', error);
       return 0;
@@ -1268,22 +1244,22 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   const resetAllNumbers = async (): Promise<void> => {
     try {
       console.log('Iniciando reset completo do sistema...');
-      
+
       // Use the optimized RPC function to reset only used numbers
       const { error: resetError } = await supabase
         .rpc('reset_system_safe');
-      
+
       if (resetError) {
         console.error('Erro no reset:', resetError);
         throw new Error('Erro ao resetar sistema');
       }
-      
+
       console.log('Reset completo realizado com sucesso!');
-      
+
       // Reload data
       await loadNumbers();
       await loadCurrentUser();
-      
+
     } catch (error) {
       console.error('Erro ao resetar números:', error);
       throw error;
@@ -1299,34 +1275,34 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         .select('number, selected_by')
         .eq('is_available', false)
         .not('selected_by', 'is', null);
-      
+
       if (orphanError) {
 
         return;
       }
-      
+
       if (!orphanedNumbers || orphanedNumbers.length === 0) {
 
         return;
       }
-      
+
       // Get all existing user IDs
       const { data: users, error: usersError } = await supabase
         .from('users')
         .select('id');
-      
+
       if (usersError) {
 
         return;
       }
-      
+
       const existingUserIds = new Set(users?.map(u => u.id) || []);
-      
+
       // Find numbers assigned to non-existent users
-      const numbersToClean = orphanedNumbers.filter(num => 
+      const numbersToClean = orphanedNumbers.filter(num =>
         num.selected_by && !existingUserIds.has(num.selected_by)
       );
-      
+
       if (numbersToClean.length === 0) {
 
         return;
@@ -1342,7 +1318,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           assigned_at: null
         })
         .in('number', numbersToClean.map(n => n.number));
-      
+
       if (cleanupError) {
 
         throw new Error('Erro ao limpar números órfãos');
@@ -1362,12 +1338,12 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         .from('extra_number_requests')
         .select('id', { count: 'exact' })
         .eq('status', 'pending');
-      
+
       if (error) {
 
         return 0;
       }
-      
+
       return data?.length || 0;
     } catch (error) {
 
@@ -1378,7 +1354,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   const selectFreeNumber = async (selectedNumber: number): Promise<boolean> => {
     // Get current authenticated user directly from Supabase
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+
     if (userError || !user || !user.id) {
       console.error('No authenticated user for number selection');
       return false;
@@ -1391,7 +1367,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         .select('*')
         .eq('number', selectedNumber)
         .single();
-        
+
       if (numberCheckError) {
         console.error('Error checking number availability:', numberCheckError);
         return false;
@@ -1413,7 +1389,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         })
         .eq('number', selectedNumber)
         .select();
-        
+
       if (numberError) {
         console.error('Error reserving number:', numberError);
         return false;
@@ -1424,7 +1400,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         .from('users')
         .update({ free_number: selectedNumber })
         .eq('id', user.id);
-        
+
       if (userUpdateError) {
         console.error('Error updating user free_number:', userUpdateError);
         // Don't return false here, as the number is already reserved
@@ -1444,7 +1420,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   const joinFreeRaffle = async (raffleId: string): Promise<{ success: boolean; message: string }> => {
     // Obter o usuário autenticado diretamente do Supabase
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+
     if (userError || !user) {
       return { success: false, message: 'Usuário não autenticado' };
     }
@@ -1558,12 +1534,12 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         .from('users')
         .select('id, name, whatsapp, email')
         .not('whatsapp', 'is', null);
-      
+
       if (error) {
 
         return { success: false, error: error.message };
       }
-      
+
       if (!users || users.length === 0) {
 
         return { success: true, notified: 0 };
@@ -1580,7 +1556,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           notifications.push({ user: user.name, success: false, error });
         }
       }
-      
+
       const result = {
         success: notifications.filter(n => n.success).length > 0,
         total: users.length,
@@ -1589,10 +1565,10 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         notifications
       };
 
-      return { 
-        success: true, 
-        notified: result.success, 
-        total: users.length, 
+      return {
+        success: true,
+        notified: result.success,
+        total: users.length,
         results: result.notifications.filter(n => !n.success).map(n => n.error)
       };
     } catch (error) {
@@ -1615,18 +1591,18 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         `)
         .eq('id', requestId)
         .single();
-      
+
       if (error || !requestData) {
 
         return { success: false, error: 'Request not found' };
       }
-      
+
       const user = requestData.users;
       if (!user) {
 
         return { success: false, error: 'User not found' };
       }
-      
+
       // Enviar notificação
       await sendWhatsAppNotification('extra_numbers_approved', {
         id: user.id,
@@ -1636,7 +1612,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         numbers: requestData.assigned_numbers || [],
         amount: requestData.payment_amount
       });
-      
+
       return { success: true };
     } catch (error) {
 
@@ -1646,8 +1622,8 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
 
   // Função para envio em massa de notificações via Vonage
   const sendBulkNotification = async (users: Array<{
-    [x: string]: string;whatsapp: string; name: string
-}>, type: string, data: any) => {
+    [x: string]: string; whatsapp: string; name: string
+  }>, type: string, data: any) => {
     try {
 
       const notifications = [];
@@ -1661,7 +1637,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
           notifications.push({ user: user.name, success: false, error });
         }
       }
-      
+
       const result = {
         success: notifications.filter(n => n.success).length,
         failed: notifications.filter(n => !n.success).length,
@@ -1679,7 +1655,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
     if (!authUser || !authUser.id) {
       return [];
     }
-    
+
     try {
       const { data, error } = await supabase
         .from('extra_number_requests')
@@ -1695,23 +1671,23 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         `)
         .eq('user_id', authUser.id)
         .order('created_at', { ascending: false });
-        
+
       if (error) {
 
         return [];
       }
-      
+
       // Filtrar solicitações cujos sorteios foram finalizados ou excluídos
       const filteredData = data?.filter(request => {
         // Se não há sorteio associado, manter a solicitação
         if (!request.raffle_id || !request.raffle) {
           return true;
         }
-        
+
         // Se o sorteio existe e está ativo, manter a solicitação
         return request.raffle.status === 'active';
       }) || [];
-      
+
       return filteredData;
     } catch (error) {
 
@@ -1756,7 +1732,9 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       reloadUserData,
       clearUserData,
       loading,
-      numbersLoading
+      numbersLoading,
+      raffles,
+      loadRaffles
     }}>
       {children}
     </DataContext.Provider>

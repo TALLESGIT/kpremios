@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, 
-  Trash2, 
-  User, 
-  Mail, 
-  Phone, 
+import {
+  Users,
+  Trash2,
+  User,
+  Mail,
+  Phone,
   Calendar,
   Search,
   AlertTriangle,
@@ -45,7 +45,7 @@ const UserManagementPanel: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const { data, error } = await supabase
         .from('users')
         .select('id, name, email, whatsapp, is_admin, created_at, free_number, extra_numbers')
@@ -76,10 +76,10 @@ const UserManagementPanel: React.FC = () => {
       // 1. Primeiro, liberar todos os números do usuário
       const { error: numbersError } = await supabase
         .from('numbers')
-        .update({ 
-          is_available: true, 
-          selected_by: null, 
-          assigned_at: null 
+        .update({
+          is_available: true,
+          selected_by: null,
+          assigned_at: null
         })
         .eq('selected_by', userId);
 
@@ -110,10 +110,10 @@ const UserManagementPanel: React.FC = () => {
       }
 
       setSuccess(`Usuário "${userName}" excluído com sucesso! Os números foram liberados.`);
-      
+
       // Recarregar lista de usuários
       await loadUsers();
-      
+
     } catch (err: any) {
       setError(`Erro ao excluir usuário: ${err.message}`);
     } finally {
@@ -123,12 +123,12 @@ const UserManagementPanel: React.FC = () => {
 
   // Filtrar usuários
   const filteredUsers = users.filter(user => {
-    const matchesSearch = 
+    const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.whatsapp.includes(searchTerm);
-    
-    const matchesFilter = 
+
+    const matchesFilter =
       filterAdmin === 'all' ||
       (filterAdmin === 'admin' && user.is_admin) ||
       (filterAdmin === 'user' && !user.is_admin);
@@ -151,16 +151,16 @@ const UserManagementPanel: React.FC = () => {
       // Remove caracteres não numéricos e adiciona código do país se necessário
       const cleanNumber = phoneNumber.replace(/\D/g, '');
       const whatsappNumber = cleanNumber.startsWith('55') ? cleanNumber : `55${cleanNumber}`;
-      
+
       // Mensagem padrão
-      const message = `Olá ${userName}! 👋\n\nSou administrador do ZK Premios e gostaria de entrar em contato com você.`;
-      
+      const message = `Olá ${userName}! 👋\n\nSou administrador da ZK Oficial e gostaria de entrar em contato com você.`;
+
       // URL do WhatsApp Web/App
       const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-      
+
       // Debug: mostrar no console
       console.log('Opening WhatsApp:', whatsappUrl);
-      
+
       // Abrir em nova aba
       window.open(whatsappUrl, '_blank');
     } catch (error) {
@@ -187,7 +187,7 @@ const UserManagementPanel: React.FC = () => {
               </p>
             </div>
           </div>
-          
+
           <button
             onClick={loadUsers}
             disabled={loading}
@@ -215,36 +215,33 @@ const UserManagementPanel: React.FC = () => {
               />
             </div>
           </div>
-          
+
           {/* Filtro de tipo */}
           <div className="flex gap-2">
             <button
               onClick={() => setFilterAdmin('all')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                filterAdmin === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${filterAdmin === 'all'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
             >
               Todos ({users.length})
             </button>
             <button
               onClick={() => setFilterAdmin('admin')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                filterAdmin === 'admin'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${filterAdmin === 'admin'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
             >
               Admins ({users.filter(u => u.is_admin).length})
             </button>
             <button
               onClick={() => setFilterAdmin('user')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                filterAdmin === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${filterAdmin === 'user'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
             >
               Usuários ({users.filter(u => !u.is_admin).length})
             </button>
@@ -282,7 +279,7 @@ const UserManagementPanel: React.FC = () => {
           <div className="text-center py-12">
             <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500">
-              {searchTerm || filterAdmin !== 'all' 
+              {searchTerm || filterAdmin !== 'all'
                 ? 'Nenhum usuário encontrado com os filtros aplicados.'
                 : 'Nenhum usuário cadastrado.'
               }
@@ -296,14 +293,13 @@ const UserManagementPanel: React.FC = () => {
                 className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200"
               >
                 <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-full ${
-                    user.is_admin 
-                      ? 'bg-purple-100 text-purple-600' 
-                      : 'bg-blue-100 text-blue-600'
-                  }`}>
+                  <div className={`p-3 rounded-full ${user.is_admin
+                    ? 'bg-purple-100 text-purple-600'
+                    : 'bg-blue-100 text-blue-600'
+                    }`}>
                     <User className="h-5 w-5" />
                   </div>
-                  
+
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="font-medium text-gray-900">{user.name}</h4>
@@ -313,28 +309,24 @@ const UserManagementPanel: React.FC = () => {
                         </span>
                       )}
                     </div>
-                    
+
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-gray-500">
                       <div className="flex items-center gap-1">
                         <Mail className="h-4 w-4" />
                         <span>{user.email}</span>
                       </div>
-                      
+
                       {user.whatsapp && (
                         <div className="flex items-center gap-1">
                           <Phone className="h-4 w-4 text-gray-400" />
                           <a
-                            href={`https://wa.me/55${user.whatsapp.replace(/\D/g, '')}?text=Olá ${user.name}! 👋 Sou administrador do ZK Premios e gostaria de entrar em contato com você.`}
+                            href={`https://wa.me/55${user.whatsapp.replace(/\D/g, '')}?text=Olá ${user.name}! 👋 Sou administrador da ZK Oficial e gostaria de entrar em contato com você.`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1 text-green-600 hover:text-green-700 hover:underline transition-colors duration-200 font-medium cursor-pointer"
                             onClick={(e) => {
                               e.preventDefault();
-                              const cleanNumber = user.whatsapp.replace(/\D/g, '');
-                              const whatsappNumber = cleanNumber.startsWith('55') ? cleanNumber : `55${cleanNumber}`;
-                              const message = `Olá ${user.name}! 👋\n\nSou administrador do ZK Premios e gostaria de entrar em contato com você.`;
-                              const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-                              window.open(whatsappUrl, '_blank');
+                              openWhatsApp(user.whatsapp, user.name);
                             }}
                           >
                             <MessageCircle className="h-4 w-4" />
@@ -342,13 +334,13 @@ const UserManagementPanel: React.FC = () => {
                           </a>
                         </div>
                       )}
-                      
+
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
                         <span>{formatDate(user.created_at)}</span>
                       </div>
                     </div>
-                    
+
                     {(user.free_number || (user.extra_numbers && user.extra_numbers.length > 0)) && (
                       <div className="mt-2 text-sm text-gray-600">
                         <span className="font-medium">Números:</span>
@@ -366,7 +358,7 @@ const UserManagementPanel: React.FC = () => {
                     )}
                   </div>
                 </div>
-                
+
                 {/* Botão de Exclusão */}
                 {!user.is_admin && (
                   <button
@@ -382,7 +374,7 @@ const UserManagementPanel: React.FC = () => {
                     Excluir
                   </button>
                 )}
-                
+
                 {user.is_admin && (
                   <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 bg-gray-100 rounded-lg">
                     <AlertTriangle className="h-4 w-4" />

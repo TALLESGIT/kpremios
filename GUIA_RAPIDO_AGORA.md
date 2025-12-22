@@ -26,7 +26,7 @@ npm install
 2. No dashboard, clique em **"Projects"**
 3. Clique em **"Create Project"**
 4. Preencha:
-   - **Project Name:** ZK Premios Live
+   - **Project Name:** ZK Oficial Live
    - **Use Case:** Live Streaming
 5. Clique em **"Create"**
 

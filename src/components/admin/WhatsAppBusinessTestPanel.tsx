@@ -3,7 +3,7 @@ import { useWhatsAppBusiness } from '../../hooks/useWhatsAppBusiness';
 
 const WhatsAppBusinessTestPanel: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState('+5533999030124');
-  const [testMessage, setTestMessage] = useState('Teste do WhatsApp Business API - ZK Premios 🚀');
+  const [testMessage, setTestMessage] = useState('Teste do WhatsApp Business API - ZK Oficial 🚀');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const {
@@ -68,7 +68,7 @@ const WhatsAppBusinessTestPanel: React.FC = () => {
         name: 'Usuário Teste',
         whatsapp: phoneNumber,
         raffleName: 'Sorteio Especial de Natal',
-        appUrl: 'https://zkpremios.com'
+        appUrl: 'https://zkoficial.com'
       });
     } catch (error) {
     }
@@ -212,7 +212,7 @@ const WhatsAppBusinessTestPanel: React.FC = () => {
           <p>3. <strong>Tokens:</strong> Obtenha o Phone Number ID e Access Token</p>
           <p>4. <strong>Variáveis:</strong> Adicione no arquivo .env:</p>
           <div className="bg-gray-800 text-green-400 p-2 rounded mt-2 font-mono text-xs">
-            VITE_WHATSAPP_PHONE_NUMBER_ID=seu_phone_number_id<br/>
+            VITE_WHATSAPP_PHONE_NUMBER_ID=seu_phone_number_id<br />
             VITE_WHATSAPP_ACCESS_TOKEN=seu_access_token
           </div>
         </div>

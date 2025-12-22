@@ -33,7 +33,7 @@ Isso instalará o `agora-rtc-sdk-ng` automaticamente.
 
 1. Faça login no dashboard
 2. Vá em **"Projects"** → **"Create Project"**
-3. Escolha um nome (ex: "ZK Premios Live")
+3. Escolha um nome (ex: "ZK Oficial Live")
 4. Copie o **App ID** gerado
 
 ---

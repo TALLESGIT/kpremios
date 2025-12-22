@@ -104,3 +104,18 @@ export interface CruzeiroStanding {
   competition: string;
   created_at: string;
 }
+
+export interface Raffle {
+  id: string;
+  title: string;
+  description: string;
+  prize: string;
+  total_numbers: number;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  status: 'active' | 'finished' | 'cancelled';
+  created_at: string;
+  updated_at: string;
+  prize_image?: string;
+}

@@ -1,50 +1,47 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import { Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, TrendingUp, Award, Settings, CheckCircle, MessageSquare, Trash2, Video, Tv, Image as ImageIcon } from 'lucide-react';
+import { Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, Settings, CheckCircle, MessageSquare, Trash2, Video, Tv, Image as ImageIcon } from 'lucide-react';
 
 import { WhatsAppTestPanel } from '../components/admin/WhatsAppTestPanel';
 import QuickTest from '../components/admin/QuickTest';
 import WhatsAppMonitoringPanelSimple from '../components/admin/WhatsAppMonitoringPanelSimple';
-import WhatsAppBusinessTestPanel from '../components/admin/WhatsAppBusinessTestPanel';
 import LiveRaffleControlPage from './admin/LiveRaffleControlPage';
 import UserManagementPanel from '../components/admin/UserManagementPanel';
 
 export default function AdminDashboardPage() {
-  const { signOut } = useAuth(); const {
+  const {
     currentUser,
-    numbers,
     getAvailableNumbersCount,
     getTakenNumbersCount,
+    getPendingRequestsCount,
     cleanupOrphanedNumbers,
-    getPendingRequestsCount
+    resetAllNumbers,
+    loadNumbers,
+    loadRaffles
   } = useData();
-  const navigate = useNavigate();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showDrawConfirm, setShowDrawConfirm] = useState(false);
   const [showResetNumbersConfirm, setShowResetNumbersConfirm] = useState(false);
   const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
   const [showFinishedRafflesCleanup, setShowFinishedRafflesCleanup] = useState(false);
-  const [realtimeNotification, setRealtimeNotification] = useState<{ message: string, type: 'success' | 'info' | 'warning' } | null>(null);
-  const [showRestaUmControl, setShowRestaUmControl] = useState(false);
   const [gameStatus, setGameStatus] = useState<'open' | 'closed'>('open');
   const [eliminatedNumbers, setEliminatedNumbers] = useState<number[]>([]);
   const [manualDrawNumber, setManualDrawNumber] = useState<string>('');
   const [showWhatsAppTest, setShowWhatsAppTest] = useState(false);
-  const [showWhatsAppBusinessTest, setShowWhatsAppBusinessTest] = useState(false);
   const [showQuickTest, setShowQuickTest] = useState(false);
   const [showWhatsAppMonitoring, setShowWhatsAppMonitoring] = useState(false);
   const [showLiveRaffleControl, setShowLiveRaffleControl] = useState(false);
   const [showUserManagement, setShowUserManagement] = useState(false);
+  const [showDrawAnimation, setShowDrawAnimation] = useState(false);
+  const [realtimeNotification, setRealtimeNotification] = useState<{ message: string, type: 'success' | 'info' | 'warning' } | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [availableNumbersCount, setAvailableNumbersCount] = useState(0);
   const [takenNumbersCount, setTakenNumbersCount] = useState(0);
   const [totalRaffleNumbers, setTotalRaffleNumbers] = useState(5000);
-  const [showDrawAnimation, setShowDrawAnimation] = useState(false);
   const [showDrawResult, setShowDrawResult] = useState(false);
   const [winnerData, setWinnerData] = useState<any>(null);
   const [countdown, setCountdown] = useState(0);
@@ -747,7 +744,7 @@ export default function AdminDashboardPage() {
               <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-white mb-2 sm:mb-4 tracking-tight" style={{
                 textShadow: '2px 2px 0px rgba(251, 191, 36, 0.8)'
               }}>PAINEL ADMINISTRATIVO</h1>
-              <p className="text-blue-100 text-sm sm:text-base lg:text-lg xl:text-xl font-medium">Gerencie o sistema de sorteios ZK Premios</p>
+              <p className="text-blue-100 text-sm sm:text-base lg:text-lg xl:text-xl font-medium">Gerencie o sistema de sorteios ZK Oficial</p>
             </div>
           </div>
         </div>
@@ -1618,14 +1615,4 @@ Obrigado por participar! 🙏`;
   );
 }
 
-function resetAllNumbers() {
-  throw new Error('Function not implemented.');
-}
-function loadNumbers() {
-  throw new Error('Function not implemented.');
-}
-
-function loadRaffles() {
-  throw new Error('Function not implemented.');
-}
 

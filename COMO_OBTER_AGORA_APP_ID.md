@@ -16,7 +16,7 @@
 1. Preencha o formulário:
    - **Email:** seu email
    - **Password:** sua senha
-   - **Company Name:** (opcional) ZK Premios
+   - **Company Name:** (opcional) ZK Oficial
 2. Clique em **"Sign Up"**
 3. **Confirme seu email** (verifique a caixa de entrada)
 
@@ -37,7 +37,7 @@
 2. No menu superior, clique em **"Projects"** ou **"Console"**
 3. Clique no botão **"+ Create"** ou **"Create Project"**
 4. Preencha:
-   - **Project Name:** `ZK Premios Live` (ou qualquer nome)
+   - **Project Name:** `ZK Oficial Live` (ou qualquer nome)
    - **Use Case:** Selecione **"Live Streaming"** ou **"Video"**
 5. Clique em **"Submit"** ou **"Create"**
 
@@ -51,7 +51,7 @@
 
 ```
 ┌─────────────────────────────────────┐
-│  Project: ZK Premios Live          │
+│  Project: ZK Oficial Live          │
 │                                     │
 │  App ID: a1b2c3d4e5f6g7h8i9j0     │ ← ESTE É O SEU APP ID!
 │  [Copy]                             │
@@ -83,7 +83,7 @@ VITE_AGORA_APP_ID=a1b2c3d4e5f6g7h8i9j0
 │  Agora.io Dashboard                                     │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│  Projects > ZK Premios Live                             │
+│  Projects > ZK Oficial Live                             │
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │
 │  │  Project Information                            │   │

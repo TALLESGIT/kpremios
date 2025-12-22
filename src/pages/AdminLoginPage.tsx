@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { LogIn, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import { ZKLogo } from '../components/shared/ZKLogo';
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
@@ -86,7 +85,7 @@ export default function AdminLoginPage() {
                     required
                     autoComplete="email"
                     className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
-                    placeholder="admin@zkpremios.com"
+                    placeholder="admin@zkoficial.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -135,7 +134,7 @@ export default function AdminLoginPage() {
 
               <div className="mt-8 text-center border-t border-white/5 pt-6">
                 <p className="text-xs text-white/40">
-                  Protegido por ZK Premios Security
+                  Protegido por ZK Oficial Security
                 </p>
               </div>
             </div>

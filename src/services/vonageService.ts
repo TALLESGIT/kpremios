@@ -35,12 +35,12 @@ class VonageWhatsAppService {
     this.applicationId = import.meta.env.VITE_VONAGE_APPLICATION_ID || '';
     this.privateKey = import.meta.env.VITE_VONAGE_PRIVATE_KEY || '';
     this.fromNumber = import.meta.env.VITE_VONAGE_WHATSAPP_FROM || '553182612947';
-    
+
     // Usar proxy local se estiver em desenvolvimento
     if (import.meta.env.DEV) {
       this.baseUrl = ''; // Vonage service desabilitado
     }
-    
+
     this.validateCredentials();
   }
 
@@ -65,17 +65,17 @@ class VonageWhatsAppService {
   private getJWTHeader(): string {
     // Para desenvolvimento, usar um JWT mock
     const header = { alg: 'HS256', typ: 'JWT' };
-    const payload = { 
+    const payload = {
       iss: this.apiKey,
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 3600,
       jti: Math.random().toString(36).substring(7)
     };
-    
+
     const encodedHeader = btoa(JSON.stringify(header));
     const encodedPayload = btoa(JSON.stringify(payload));
     const signature = 'mock_signature';
-    
+
     return `Bearer ${encodedHeader}.${encodedPayload}.${signature}`;
   }
 
@@ -89,7 +89,7 @@ class VonageWhatsAppService {
    */
   async sendMessage(data: VonageMessage): Promise<VonageResponse> {
     const realMode = import.meta.env.VITE_VONAGE_REAL_MODE === 'true';
-    
+
     if (!realMode) {
       // MODO SIMULAÇÃO - Para desenvolvimento e testes
       return this.simulateMessage(data);
@@ -104,7 +104,7 @@ class VonageWhatsAppService {
    */
   async sendImage(data: { to: string; imageUrl: string; caption?: string }): Promise<VonageResponse> {
     const realMode = import.meta.env.VITE_VONAGE_REAL_MODE === 'true';
-    
+
     if (!realMode) {
       // MODO SIMULAÇÃO - Para desenvolvimento e testes
       return this.simulateMessage({
@@ -168,7 +168,7 @@ class VonageWhatsAppService {
   async sendRegistrationConfirmation(userData: { name: string; whatsapp: string; confirmationCode: string }): Promise<VonageResponse> {
     const message = `🎉 Olá ${userData.name}!
 
-✅ Seu cadastro no ZK Premios foi realizado com sucesso!
+✅ Seu cadastro na ZK Oficial foi realizado com sucesso!
 
 🔐 Código de confirmação: ${userData.confirmationCode}
 
@@ -311,7 +311,7 @@ Parabéns! 🎊`;
   async checkMessageStatus(messageUuid: string): Promise<any> {
     try {
       const authHeader = this.getAuthHeader();
-      
+
       const response = await fetch(`${this.baseUrl}/${messageUuid}`, {
         method: 'GET',
         headers: {
@@ -338,7 +338,7 @@ Parabéns! 🎊`;
   /**
    * Envia notificações em massa
    */
-  async sendBulkNotification(users: Array<{whatsapp: string; name: string}>, type: string, data: any) {
+  async sendBulkNotification(users: Array<{ whatsapp: string; name: string }>, type: string, data: any) {
 
     const notifications = [];
     for (const user of users) {
@@ -370,13 +370,13 @@ Parabéns! 🎊`;
           case 'custom_message':
             result = await this.sendMessage({
               to: user.whatsapp,
-              message: data.customMessage || `Notificação do ZK Premios: ${type}`
+              message: data.customMessage || `Notificação da ZK Oficial: ${type}`
             });
             break;
           default:
             result = await this.sendMessage({
               to: user.whatsapp,
-              message: `Notificação do ZK Premios: ${type}`
+              message: `Notificação da ZK Oficial: ${type}`
             });
         }
         notifications.push({ user: user.name, success: true, result });

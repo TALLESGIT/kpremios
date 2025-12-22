@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { MessageSquare, Smile, Send, Pin, Link2, X, Palette } from 'lucide-react';
+import { MessageSquare, Smile, Send, Pin, Link2, X, Palette, Mic, Volume2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useData } from '../../context/DataContext';
 
 interface ChatMessage {
   id: string;
@@ -17,6 +18,10 @@ interface ChatMessage {
   user_is_admin?: boolean;
   user_is_vip?: boolean;
   user_is_moderator?: boolean;
+  message_type?: 'text' | 'audio' | 'tts';
+  tts_text?: string;
+  audio_url?: string;
+  audio_duration?: number;
 }
 
 interface LiveChatProps {
@@ -63,6 +68,9 @@ const VIP_COLOR_PRESETS = [
 
 const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
   const { user } = useAuth();
+  const userRef = useRef(user);
+  useEffect(() => { userRef.current = user; }, [user]);
+  const { currentUser } = useData();
   const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -79,9 +87,14 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
   const [linkMessage, setLinkMessage] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [vipCustomColor, setVipCustomColor] = useState<string>('purple'); // Cor padrão roxa
+  const [isSendingAudio, setIsSendingAudio] = useState(false);
+  const [lastAudioSentAt, setLastAudioSentAt] = useState<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
+  const isInitialLoadRef = useRef(true);
+  const userScrolledUpRef = useRef(false);
 
   useEffect(() => {
     loadMessages();
@@ -91,17 +104,28 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
     checkBanStatus();
     loadVipColor();
 
+    console.log(`🔌 Iniciando conexão Realtime para stream: ${streamId}`);
+
     const channel = supabase.channel(`live_chat_${streamId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_chat_messages', filter: `stream_id=eq.${streamId}` },
+      .on('postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'live_chat_messages',
+          filter: `stream_id=eq.${streamId}`
+        },
         (payload) => {
+          const newId = (payload.new as any)?.id;
+          console.log('📨 Realtime payload recebido:', payload.eventType, newId);
+
           if (payload.eventType === 'INSERT') {
             const newMsg = payload.new as ChatMessage;
             setMessages(prev => {
               if (prev.find(m => m.id === newMsg.id)) return prev;
-              return [...prev, newMsg];
+              const updated = [...prev, newMsg];
+              return updated.slice(-150); // Manter as últimas 150 mensagens para performance
             });
             if (newMsg.is_pinned) setPinnedMessage(newMsg);
-            // Carregar role do novo usuário se necessário
             if (newMsg.user_id && !userRoles[newMsg.user_id]) {
               loadUserRoles([newMsg.user_id]);
             }
@@ -111,7 +135,6 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
             if (updated.is_pinned) {
               setPinnedMessage(updated);
             } else if (pinnedMessage?.id === updated.id) {
-              // Se a mensagem fixada foi desfixada, remover
               setPinnedMessage(null);
             }
           } else if (payload.eventType === 'DELETE') {
@@ -122,13 +145,79 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
             }
           }
         }
-      ).subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [streamId, user]);
+      )
+      .subscribe((status) => {
+        console.log(`📡 Status da conexão Realtime: ${status}`);
+        if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Erro no canal Realtime, tentando reconectar...');
+          toast.error('Erro na conexão do chat. Tentando reconectar...');
+        }
+        if (status === 'TIMED_OUT') {
+          console.warn('⚠️ Conexão Realtime expirou');
+        }
+      });
+
+    return () => {
+      console.log('🔌 Fechando canal Realtime');
+      supabase.removeChannel(channel);
+    };
+  }, [streamId]); // user removed from dependencies
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Fazer scroll apenas dentro do container do chat, não na página inteira
+    if (messagesContainerRef.current && messagesEndRef.current) {
+      const container = messagesContainerRef.current;
+      const target = messagesEndRef.current;
+      
+      // Na primeira carga, fazer scroll para o final
+      if (isInitialLoadRef.current) {
+        isInitialLoadRef.current = false;
+        // Pequeno delay para garantir que o DOM está renderizado
+        setTimeout(() => {
+          if (container && target) {
+            container.scrollTop = container.scrollHeight;
+          }
+        }, 100);
+        return;
+      }
+      
+      // Se o usuário rolou para cima, não fazer scroll automático
+      if (userScrolledUpRef.current) {
+        return;
+      }
+      
+      // Verificar se o usuário está próximo do final (dentro de 100px)
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+      
+      // Só fazer scroll automático se estiver próximo do final
+      if (isNearBottom) {
+        const containerRect = container.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+        const scrollTop = container.scrollTop;
+        const targetTop = targetRect.top - containerRect.top + scrollTop;
+        
+        // Fazer scroll suave apenas dentro do container
+        container.scrollTo({
+          top: targetTop,
+          behavior: 'smooth'
+        });
+      }
+    }
   }, [messages]);
+
+  // Detectar quando o usuário rola para cima manualmente
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+      userScrolledUpRef.current = !isAtBottom;
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Fechar color picker e emoji picker ao clicar fora
   useEffect(() => {
@@ -151,7 +240,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
       setMessages(data);
       const pinned = data.find(m => m.is_pinned);
       if (pinned) setPinnedMessage(pinned);
-      
+
       // Carregar roles dos usuários que enviaram mensagens
       const userIds = data.filter(m => m.user_id).map(m => m.user_id!);
       if (userIds.length > 0) {
@@ -174,7 +263,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
         .select('is_admin')
         .eq('id', user.id)
         .single();
-      
+
       if (!error && data) {
         setIsAdmin(data.is_admin || false);
       }
@@ -191,7 +280,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
         .select('is_vip')
         .eq('id', user.id)
         .single();
-      
+
       if (!error && data) {
         setIsVip(data.is_vip || false);
       }
@@ -227,25 +316,25 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
   // Carregar roles de todos os usuários que enviaram mensagens
   const loadUserRoles = async (userIds: string[]) => {
     if (userIds.length === 0) return;
-    
+
     try {
       // Buscar admins e VIPs
       const { data: usersData } = await supabase
         .from('users')
         .select('id, is_admin, is_vip')
         .in('id', userIds);
-      
+
       // Buscar moderadores
       const { data: moderatorsData } = await supabase
         .from('stream_moderators')
         .select('user_id')
         .eq('stream_id', streamId)
         .in('user_id', userIds);
-      
+
       const moderatorIds = new Set(moderatorsData?.map(m => m.user_id) || []);
-      
+
       const roles: { [userId: string]: { isAdmin: boolean; isVip: boolean; isModerator: boolean } } = {};
-      
+
       usersData?.forEach(u => {
         roles[u.id] = {
           isAdmin: u.is_admin || false,
@@ -253,7 +342,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
           isModerator: moderatorIds.has(u.id)
         };
       });
-      
+
       setUserRoles(prev => ({ ...prev, ...roles }));
     } catch (err) {
       console.error('Erro ao carregar roles dos usuários:', err);
@@ -268,7 +357,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
       /(\+?\d{1,3}[-.\s]?)?\(?\d{2,3}\)?[-.\s]?\d{4,5}[-.\s]?\d{4}/g, // Internacional
       /\d{10,}/g, // Sequências longas de números (pode ser telefone)
     ];
-    
+
     return phonePatterns.some(pattern => pattern.test(text));
   };
 
@@ -282,7 +371,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
       /t\.me\/[^\s]+/gi, // t.me
       /wa\.me\/[^\s]+/gi, // wa.me
     ];
-    
+
     return linkPatterns.some(pattern => pattern.test(text));
   };
 
@@ -360,49 +449,135 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
 
   // Função para obter estilos da mensagem baseado no role
   const getMessageStyles = (msg: ChatMessage) => {
+    const hasLink = containsLink(msg.message);
     const roles = userRoles[msg.user_id || ''] || { isAdmin: false, isVip: false, isModerator: false };
-    
+
     if (roles.isAdmin) {
       return {
-        border: 'border-2 border-yellow-500/60',
-        bg: 'bg-gradient-to-r from-yellow-900/20 to-yellow-800/10',
+        border: hasLink ? 'border-2 border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.3)]' : 'border-2 border-yellow-500/60',
+        bg: hasLink ? 'bg-gradient-to-r from-yellow-600/30 to-yellow-500/20' : 'bg-gradient-to-r from-yellow-900/20 to-yellow-800/10',
         nameColor: 'text-yellow-400',
         badge: '👑 ADMIN',
-        badgeClass: 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300'
+        badgeClass: 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300',
+        isHighlighted: hasLink
       };
     } else if (roles.isModerator) {
       return {
-        border: 'border-2 border-blue-500/60',
-        bg: 'bg-gradient-to-r from-blue-900/20 to-blue-800/10',
+        border: hasLink ? 'border-2 border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'border-2 border-blue-500/60',
+        bg: hasLink ? 'bg-gradient-to-r from-blue-600/30 to-blue-500/20' : 'bg-gradient-to-r from-blue-900/20 to-blue-800/10',
         nameColor: 'text-blue-400',
         badge: '🛡️ MOD',
-        badgeClass: 'bg-blue-500/20 border-blue-500/40 text-blue-300'
+        badgeClass: 'bg-blue-500/20 border-blue-500/40 text-blue-300',
+        isHighlighted: hasLink
       };
     } else if (roles.isVip) {
-      // Usar cor personalizada se for a mensagem do próprio usuário VIP
       const isOwnMessage = msg.user_id === user?.id;
       const colorToUse = isOwnMessage ? vipCustomColor : 'purple';
       const colorConfig = VIP_COLOR_PRESETS.find(c => c.value === colorToUse) || VIP_COLOR_PRESETS[0];
-      
-      // Gerar classes dinâmicas baseadas na cor escolhida
       const colorClasses = getVipColorClasses(colorConfig.value);
-      
+
       return {
         border: colorClasses.border,
         bg: colorClasses.bg,
         nameColor: colorClasses.nameColor,
         badge: '💎 VIP',
-        badgeClass: colorClasses.badgeClass
+        badgeClass: colorClasses.badgeClass,
+        isHighlighted: false
       };
     }
-    
+
     return {
       border: 'border border-white/5',
       bg: 'bg-white/5',
       nameColor: 'text-slate-500',
       badge: null,
-      badgeClass: ''
+      badgeClass: '',
+      isHighlighted: false
     };
+  };
+
+  // Função para enviar mensagem com áudio (TTS) - apenas VIPs
+  const handleSendAudioMessage = async () => {
+    if (!user || !isVip || !newMessage.trim()) {
+      toast.error('Apenas VIPs podem enviar mensagens de áudio');
+      return;
+    }
+
+    // Rate limiting: máximo 1 áudio a cada 30 segundos
+    const now = Date.now();
+    const timeSinceLastAudio = now - lastAudioSentAt;
+    const MIN_AUDIO_INTERVAL = 30000; // 30 segundos
+
+    if (timeSinceLastAudio < MIN_AUDIO_INTERVAL) {
+      const secondsRemaining = Math.ceil((MIN_AUDIO_INTERVAL - timeSinceLastAudio) / 1000);
+      toast.error(`Aguarde ${secondsRemaining} segundos antes de enviar outro áudio`);
+      return;
+    }
+
+    // Limite de caracteres para TTS (máximo 500 caracteres para áudio)
+    const MAX_TTS_LENGTH = 500;
+    if (newMessage.length > MAX_TTS_LENGTH) {
+      toast.error(`Mensagem de áudio muito longa! Limite: ${MAX_TTS_LENGTH} caracteres`);
+      return;
+    }
+
+    try {
+      setIsSendingAudio(true);
+
+      // Verificar se pode enviar (bans + slow mode)
+      const { data: canSend, error: rpcError } = await supabase.rpc('can_send_message', {
+        p_user_id: user.id,
+        p_stream_id: streamId
+      });
+
+      if (rpcError) {
+        console.error('Erro ao verificar permissão de envio:', rpcError);
+      } else if (canSend && !canSend.can_send) {
+        if (canSend.reason === 'banned') {
+          toast.error(canSend.message);
+          setIsBanned(true);
+          setIsSendingAudio(false);
+          return;
+        } else if (canSend.reason === 'slow_mode') {
+          toast.error(canSend.message);
+          setSlowModeSecondsRemaining(canSend.seconds_remaining);
+          setIsSendingAudio(false);
+          return;
+        }
+      }
+
+      const msg = newMessage.trim();
+      setNewMessage('');
+      setLastAudioSentAt(now);
+
+      // Calcular duração estimada do áudio (aproximadamente 150 palavras por minuto)
+      const words = msg.split(' ').length;
+      const estimatedDuration = Math.ceil((words / 150) * 60); // em segundos
+
+      // Inserir mensagem com tipo TTS
+      const { error: insertError } = await supabase.from('live_chat_messages').insert({
+        stream_id: streamId,
+        user_id: user.id,
+        message: msg,
+        user_email: user.email,
+        user_name: (currentUser?.name || user.email?.split('@')[0] || 'Usuário').split(' ')[0],
+        message_type: 'tts',
+        tts_text: msg,
+        audio_duration: estimatedDuration
+      });
+
+      if (insertError) {
+        console.error('Erro ao inserir mensagem de áudio:', insertError);
+        toast.error('Erro ao enviar mensagem de áudio: ' + insertError.message);
+      } else {
+        toast.success('Mensagem de áudio enviada!');
+      }
+    } catch (err) {
+      console.error('Erro ao enviar mensagem de áudio:', err);
+      toast.error('Erro ao enviar mensagem de áudio');
+    } finally {
+      setIsSendingAudio(false);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -462,7 +637,8 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
         user_id: user.id,
         message: msg,
         user_email: user.email,
-        user_name: user.email?.split('@')[0] || 'Usuário'
+        user_name: (currentUser?.name || user.email?.split('@')[0] || 'Usuário').split(' ')[0],
+        message_type: 'text'
       });
 
       if (insertError) {
@@ -482,6 +658,33 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
       toast.success('Mensagem removida');
     } catch (err) {
       toast.error('Erro ao deletar');
+    }
+  };
+
+  const pinMessage = async (msg: ChatMessage) => {
+    try {
+      // Desfixar qualquer mensagem anterior
+      await supabase
+        .from('live_chat_messages')
+        .update({ is_pinned: false })
+        .eq('stream_id', streamId)
+        .eq('is_pinned', true);
+
+      // Fixar a nova mensagem
+      const { error } = await supabase
+        .from('live_chat_messages')
+        .update({ is_pinned: true })
+        .eq('id', msg.id);
+
+      if (error) {
+        console.error('Erro ao fixar mensagem:', error);
+        toast.error('Erro ao fixar: ' + error.message);
+      } else {
+        toast.success('Mensagem fixada com sucesso!');
+      }
+    } catch (err) {
+      console.error('Erro ao fixar mensagem:', err);
+      toast.error('Erro ao fixar mensagem');
     }
   };
 
@@ -511,7 +714,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
         user_id: user?.id || null,
         message: linkMessage.trim() || 'Link compartilhado',
         user_email: user?.email,
-        user_name: user?.email?.split('@')[0] || 'Admin',
+        user_name: (currentUser?.name || user?.email?.split('@')[0] || 'Admin').split(' ')[0],
         is_pinned: true,
         pinned_link: validLink
       });
@@ -539,7 +742,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
         .update({ is_pinned: false, pinned_link: null })
         .eq('stream_id', streamId)
         .eq('is_pinned', true);
-      
+
       toast.success('Link desfixado');
     } catch (err) {
       console.error('Erro ao desfixar link:', err);
@@ -582,11 +785,10 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
                         <button
                           key={color.value}
                           onClick={() => saveVipColor(color.value)}
-                          className={`w-10 h-10 rounded-lg border-2 transition-all hover:scale-110 ${
-                            vipCustomColor === color.value 
-                              ? 'border-white ring-2 ring-offset-2 ring-offset-slate-800 ring-white' 
-                              : 'border-white/20'
-                          }`}
+                          className={`w-10 h-10 rounded-lg border-2 transition-all hover:scale-110 ${vipCustomColor === color.value
+                            ? 'border-white ring-2 ring-offset-2 ring-offset-slate-800 ring-white'
+                            : 'border-white/20'
+                            }`}
                           style={{ backgroundColor: color.hex }}
                           title={color.name}
                         >
@@ -607,58 +809,72 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-        {pinnedMessage && (
-          <div className="p-4 bg-gradient-to-r from-blue-600/30 to-blue-500/20 border-2 border-blue-500/50 rounded-xl shadow-lg">
-            <div className="flex items-center justify-between mb-2">
+      {/* Área de Mensagem Fixada (Fixa no topo) */}
+      {pinnedMessage && (
+        <div className="px-4 py-2 border-b border-white/5 bg-slate-800/60 backdrop-blur-md sticky top-0 z-20">
+          <div className="p-3 bg-gradient-to-r from-blue-600/30 to-blue-500/20 border border-blue-500/30 rounded-xl shadow-lg">
+            <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2">
-                <Pin className="w-4 h-4 text-blue-400" />
-                <span className="text-[10px] font-black text-blue-300 uppercase tracking-widest">Link Fixado</span>
+                <Pin className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-[9px] font-black text-blue-300 uppercase tracking-widest">
+                  {pinnedMessage.pinned_link ? 'Link Fixado' : 'Mensagem Fixada'}
+                </span>
               </div>
               {(isAdmin || isModerator) && (
                 <button
                   onClick={unpinLink}
-                  className="p-1 hover:bg-red-500/20 rounded transition-all"
-                  title="Desfixar link"
+                  className="p-1 hover:bg-red-500/20 rounded-lg transition-all"
+                  title="Desfixar"
                 >
                   <X className="w-3 h-3 text-red-400" />
                 </button>
               )}
             </div>
-            {pinnedMessage.message && (
-              <p className="text-xs text-white font-bold mb-2">{pinnedMessage.message}</p>
-            )}
-            {pinnedMessage.pinned_link && (
-              <a
-                href={pinnedMessage.pinned_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase rounded-lg transition-all shadow-lg"
-              >
-                <Link2 className="w-3 h-3" />
-                Acessar Link
-              </a>
-            )}
+
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-white font-bold truncate">
+                  {pinnedMessage.message}
+                </p>
+              </div>
+
+              {pinnedMessage.pinned_link && (
+                <a
+                  href={pinnedMessage.pinned_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase rounded-lg transition-all shadow-lg"
+                >
+                  <Link2 className="w-3 h-3" />
+                  Abrir
+                </a>
+              )}
+            </div>
           </div>
-        )}
+        </div>
+      )}
+
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
         {messages.filter(msg => !msg.is_pinned).map((msg) => {
           const styles = getMessageStyles(msg);
           const roles = userRoles[msg.user_id || ''] || { isAdmin: false, isVip: false, isModerator: false };
-          
-          // Garantir que mensagens VIP sempre apareçam (prioridade de renderização)
           const isVipMessage = roles.isVip;
-          
+
           return (
-            <div 
-              key={msg.id} 
-              className={`flex flex-col items-start gap-1 group ${isVipMessage ? 'vip-message' : ''}`}
-              style={isVipMessage ? { order: -1 } : undefined} // VIPs aparecem primeiro
+            <div
+              key={msg.id}
+              className={`flex flex-col items-start gap-1 group ${isVipMessage ? 'vip-message' : ''} ${styles.isHighlighted ? 'highlight-message' : ''}`}
             >
               <div className="flex items-center gap-2">
                 <span className={`text-[10px] font-black ${styles.nameColor} uppercase tracking-tighter`}>
-                  {msg.user_name || msg.user_email?.split('@')[0] || 'Usuário'}
+                  {(msg.user_name || msg.user_email?.split('@')[0] || 'Usuário').split(' ')[0]}
                 </span>
-                {/* Badge de Admin/Moderador/VIP */}
+                {msg.message_type === 'tts' && (
+                  <span className="px-1.5 py-0.5 bg-purple-500/20 text-purple-300 text-[8px] font-black uppercase rounded flex items-center gap-1">
+                    <Volume2 className="w-2.5 h-2.5" />
+                    ÁUDIO
+                  </span>
+                )}
                 {styles.badge && (
                   <span className={`px-1.5 py-0.5 ${styles.badgeClass} text-[8px] font-black uppercase rounded`}>
                     {styles.badge}
@@ -666,20 +882,30 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
                 )}
               </div>
               <div className="flex items-start gap-2 w-full">
-                <div className={`px-4 py-2 ${styles.bg} ${styles.border} rounded-2xl max-w-full overflow-hidden flex-1 shadow-lg ${isVipMessage ? 'animate-pulse-subtle' : ''}`}>
+                <div
+                  className={`px-4 py-2 ${styles.bg} ${styles.border} rounded-2xl max-w-full overflow-hidden flex-1 shadow-lg transition-all ${styles.isHighlighted ? 'ring-2 ring-blue-500/50 scale-[1.02] origin-left' : ''}`}
+                >
                   <p className="text-xs text-white break-words font-medium">{msg.message}</p>
                 </div>
-                {/* Botão deletar (apenas moderadores e admins) */}
+
+                {/* Ações para ADMIN/MOD */}
                 {(isModerator || isAdmin) && (
-                  <button
-                    onClick={() => deleteMessage(msg.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/10 rounded-lg"
-                    title="Deletar mensagem"
-                  >
-                    <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
+                  <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => pinMessage(msg)}
+                      className="p-1.5 hover:bg-blue-500/10 rounded-lg text-blue-400"
+                      title="Fixar mensagem"
+                    >
+                      <Pin className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => deleteMessage(msg.id)}
+                      className="p-1.5 hover:bg-red-500/10 rounded-lg text-red-400"
+                      title="Deletar mensagem"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -719,9 +945,9 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
                       </p>
                       <div className="grid grid-cols-6 gap-1">
                         {VIP_EMOJIS.exclusive.emojis.map(e => (
-                          <button 
-                            key={e} 
-                            onClick={() => { setNewMessage(p => p + e); setShowEmojiPicker(false); }} 
+                          <button
+                            key={e}
+                            onClick={() => { setNewMessage(p => p + e); setShowEmojiPicker(false); }}
                             className="w-8 h-8 flex items-center justify-center text-lg hover:bg-purple-500/20 rounded-lg transition-all hover:scale-110"
                             title="Emoji VIP exclusivo"
                           >
@@ -737,9 +963,9 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
                       <p className="text-[8px] font-black text-slate-500 uppercase mb-2">{cat.title}</p>
                       <div className="grid grid-cols-6 gap-1">
                         {cat.emojis.map(e => (
-                          <button 
-                            key={e} 
-                            onClick={() => { setNewMessage(p => p + e); setShowEmojiPicker(false); }} 
+                          <button
+                            key={e}
+                            onClick={() => { setNewMessage(p => p + e); setShowEmojiPicker(false); }}
                             className="w-8 h-8 flex items-center justify-center text-lg hover:bg-white/5 rounded-lg transition-all"
                           >
                             {e}
@@ -752,20 +978,34 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
               )}
             </div>
             <div className="flex-1 relative">
-              <input 
-                type="text" 
-                value={newMessage} 
-                onChange={(e) => setNewMessage(e.target.value)} 
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} 
-                placeholder={isVip ? "Sua mensagem... (VIP: até 1500 caracteres)" : "Sua mensagem..."} 
+              <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder={isVip ? "Sua mensagem... (VIP: até 1500 caracteres)" : "Sua mensagem..."}
                 maxLength={isVip ? MAX_MESSAGE_LENGTH_VIP : MAX_MESSAGE_LENGTH}
-                className="w-full px-4 py-2.5 bg-slate-900 border border-white/5 rounded-xl text-white text-xs font-bold" 
+                className="w-full px-4 py-2.5 bg-slate-900 border border-white/5 rounded-xl text-white text-xs font-bold"
               />
               {/* Contador de caracteres */}
-              <div className="absolute right-2 bottom-1 text-[9px] text-slate-500">
-                {newMessage.length}/{isVip ? MAX_MESSAGE_LENGTH_VIP : MAX_MESSAGE_LENGTH}
+              <div className="absolute right-2 bottom-1 text-[9px] text-slate-500 flex flex-col items-end">
+                {slowModeSecondsRemaining > 0 && (
+                  <span className="text-red-400 animate-pulse font-black">Aguarde {slowModeSecondsRemaining}s</span>
+                )}
+                <span>{newMessage.length}/{isVip ? MAX_MESSAGE_LENGTH_VIP : MAX_MESSAGE_LENGTH}</span>
               </div>
             </div>
+            {/* Botão de áudio para VIPs */}
+            {isVip && (
+              <button
+                onClick={handleSendAudioMessage}
+                disabled={!newMessage.trim() || isSendingAudio || newMessage.length > 500}
+                className="px-3 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg shadow-purple-600/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Enviar como áudio (TTS) - Máximo 500 caracteres"
+              >
+                <Mic className="w-4 h-4" />
+              </button>
+            )}
             <button onClick={handleSendMessage} disabled={!newMessage.trim()} className="px-4 py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg shadow-blue-600/20 active:scale-95 transition-all flex items-center gap-2">
               <span className="md:hidden">Enviar</span>
               <Send className="w-4 h-4" />
@@ -791,7 +1031,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
                 <X className="w-5 h-5 text-slate-400" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
@@ -805,7 +1045,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
                   className="w-full px-4 py-3 bg-slate-900 border border-white/10 rounded-xl text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                   Mensagem (opcional)
@@ -818,7 +1058,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
                   className="w-full px-4 py-3 bg-slate-900 border border-white/10 rounded-xl text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              
+
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => {

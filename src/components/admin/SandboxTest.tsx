@@ -4,7 +4,7 @@ import { vonageWhatsAppService } from '../../services/vonageService';
 
 const SandboxTest: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState('+5533999030124');
-  const [message, setMessage] = useState('Teste do Vonage Sandbox - ZK Premios 🚀');
+  const [message, setMessage] = useState('Teste do Vonage Sandbox - ZK Oficial 🚀');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string; message_uuid?: string } | null>(null);
 
@@ -104,8 +104,8 @@ const SandboxTest: React.FC = () => {
         <div className="bg-blue-100 border border-blue-200 rounded-md p-3">
           <h3 className="font-medium text-blue-800 mb-2">⚙️ Configuração:</h3>
           <p className="text-sm text-blue-700">
-            <strong>Provider:</strong> Vonage<br/>
-            <strong>Empresa:</strong> NYSE<br/>
+            <strong>Provider:</strong> Vonage<br />
+            <strong>Empresa:</strong> NYSE<br />
             <strong>Status:</strong> Profissional
           </p>
         </div>
@@ -190,11 +190,10 @@ const SandboxTest: React.FC = () => {
       )}
 
       {result && (
-        <div className={`border rounded-md p-4 ${
-          result.success 
-            ? 'bg-green-50 border-green-200' 
-            : 'bg-red-50 border-red-200'
-        }`}>
+        <div className={`border rounded-md p-4 ${result.success
+          ? 'bg-green-50 border-green-200'
+          : 'bg-red-50 border-red-200'
+          }`}>
           <div className="flex items-start">
             {result.success ? (
               <CheckCircle className="h-5 w-5 text-green-600 mr-2 mt-0.5" />
@@ -202,14 +201,12 @@ const SandboxTest: React.FC = () => {
               <XCircle className="h-5 w-5 text-red-600 mr-2 mt-0.5" />
             )}
             <div>
-              <h4 className={`font-medium ${
-                result.success ? 'text-green-800' : 'text-red-800'
-              }`}>
+              <h4 className={`font-medium ${result.success ? 'text-green-800' : 'text-red-800'
+                }`}>
                 {result.success ? '✅ Sucesso!' : '❌ Erro'}
               </h4>
-              <p className={`text-sm mt-1 ${
-                result.success ? 'text-green-700' : 'text-red-700'
-              }`}>
+              <p className={`text-sm mt-1 ${result.success ? 'text-green-700' : 'text-red-700'
+                }`}>
                 {result.message}
               </p>
               {result.message_uuid && (

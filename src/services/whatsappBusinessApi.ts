@@ -29,7 +29,7 @@ class WhatsAppBusinessService {
     // Configurações do WhatsApp Business API
     this.phoneNumberId = import.meta.env.VITE_WHATSAPP_PHONE_NUMBER_ID || '';
     this.accessToken = import.meta.env.VITE_WHATSAPP_ACCESS_TOKEN || '';
-    
+
     this.validateCredentials();
   }
 
@@ -108,7 +108,7 @@ class WhatsAppBusinessService {
   async sendRegistrationConfirmation(userData: { name: string; whatsapp: string; confirmationCode: string }): Promise<WhatsAppResponse> {
     const message = `🎉 Olá ${userData.name}!
 
-✅ Seu cadastro no ZK Premios foi realizado com sucesso!
+✅ Seu cadastro na ZK Oficial foi realizado com sucesso!
 
 🔐 Código de confirmação: ${userData.confirmationCode}
 

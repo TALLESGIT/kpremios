@@ -128,7 +128,7 @@ function Header() {
             <Link to="/" className="flex-shrink-0 flex items-center group" onClick={closeMenu}>
               <ZKLogo size="md" className="group-hover:scale-105 transition-transform duration-300 drop-shadow-md" />
               <span className="ml-3 text-2xl font-display font-black text-white tracking-tight group-hover:text-accent transition-colors">
-                ZK Prêmios
+                ZK Oficial
               </span>
             </Link>
 
@@ -137,8 +137,8 @@ function Header() {
               <Link
                 to={currentAppUser?.is_admin ? "/admin/dashboard" : "/"}
                 className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${(currentAppUser?.is_admin ? location.pathname === '/admin/dashboard' : location.pathname === '/')
-                    ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
-                    : 'text-white/90 hover:text-white hover:bg-white/10'
+                  ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
+                  : 'text-white/90 hover:text-white hover:bg-white/10'
                   }`}
               >
                 Início
@@ -146,8 +146,8 @@ function Header() {
               <Link
                 to="/winners"
                 className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/winners'
-                    ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
-                    : 'text-white/90 hover:text-white hover:bg-white/10'
+                  ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
+                  : 'text-white/90 hover:text-white hover:bg-white/10'
                   }`}
               >
                 Ganhadores
@@ -160,8 +160,8 @@ function Header() {
                     <Link
                       to="/zk-tv"
                       className={`relative px-5 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 border border-red-500/50 ${location.pathname.startsWith('/zk-tv')
-                          ? 'text-white bg-gradient-to-r from-red-600 to-red-700 shadow-lg shadow-red-600/40'
-                          : 'text-white bg-gradient-to-r from-red-600/80 to-red-700/80 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 hover:-translate-y-0.5'
+                        ? 'text-white bg-gradient-to-r from-red-600 to-red-700 shadow-lg shadow-red-600/40'
+                        : 'text-white bg-gradient-to-r from-red-600/80 to-red-700/80 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 hover:-translate-y-0.5'
                         }`}
                     >
                       <span className="flex items-center gap-2">
@@ -173,8 +173,8 @@ function Header() {
                     <Link
                       to="/live-games"
                       className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname.startsWith('/live-games')
-                          ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
-                          : 'text-white/90 hover:text-white hover:bg-white/10'
+                        ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
+                        : 'text-white/90 hover:text-white hover:bg-white/10'
                         }`}
                     >
                       Lives Premiadas
@@ -195,8 +195,8 @@ function Header() {
                       key={item.path}
                       to={item.path}
                       className={`px-3 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 relative ${location.pathname.startsWith(item.path)
-                          ? 'bg-white/10 text-white shadow-sm border border-white/20'
-                          : 'text-white/80 hover:text-white hover:bg-white/5'
+                        ? 'bg-white/10 text-white shadow-sm border border-white/20'
+                        : 'text-white/80 hover:text-white hover:bg-white/5'
                         }`}
                     >
                       {item.label}
@@ -221,8 +221,8 @@ function Header() {
                 <Link
                   to="/my-numbers"
                   className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 border border-white/20 ${location.pathname === '/my-numbers'
-                      ? 'bg-white/10 text-white shadow-lg'
-                      : 'text-white hover:bg-white/10 hover:border-white/40'
+                    ? 'bg-white/10 text-white shadow-lg'
+                    : 'text-white hover:bg-white/10 hover:border-white/40'
                     }`}
                 >
                   Meus Números
@@ -293,7 +293,7 @@ function Header() {
                 <div className="flex items-center">
                   <ZKLogo size="sm" className="mr-3" />
                   <span className="text-xl font-display font-black text-white">
-                    ZK Prêmios
+                    ZK Oficial
                   </span>
                 </div>
                 <button
@@ -309,8 +309,8 @@ function Header() {
                 <Link
                   to={currentAppUser?.is_admin ? "/admin/dashboard" : "/"}
                   className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all duration-300 ${(currentAppUser?.is_admin ? location.pathname === '/admin/dashboard' : location.pathname === '/')
-                      ? 'bg-white text-primary shadow-lg'
-                      : 'text-white hover:bg-white/10'
+                    ? 'bg-white text-primary shadow-lg'
+                    : 'text-white hover:bg-white/10'
                     }`}
                   onClick={closeMenu}
                 >
@@ -323,8 +323,8 @@ function Header() {
                 <Link
                   to="/winners"
                   className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all duration-300 ${location.pathname === '/winners'
-                      ? 'bg-white text-primary shadow-lg'
-                      : 'text-white hover:bg-white/10'
+                    ? 'bg-white text-primary shadow-lg'
+                    : 'text-white hover:bg-white/10'
                     }`}
                   onClick={closeMenu}
                 >
@@ -341,8 +341,8 @@ function Header() {
                       <Link
                         to="/zk-tv"
                         className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all duration-300 border border-red-500/50 ${location.pathname.startsWith('/zk-tv')
-                            ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg'
-                            : 'text-white bg-gradient-to-r from-red-600/80 to-red-700/80 hover:from-red-500 hover:to-red-600'
+                          ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg'
+                          : 'text-white bg-gradient-to-r from-red-600/80 to-red-700/80 hover:from-red-500 hover:to-red-600'
                           }`}
                         onClick={closeMenu}
                       >
@@ -355,8 +355,8 @@ function Header() {
                       <Link
                         to="/live-games"
                         className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all duration-300 ${location.pathname.startsWith('/live-games')
-                            ? 'bg-white text-primary shadow-lg'
-                            : 'text-white hover:bg-white/10'
+                          ? 'bg-white text-primary shadow-lg'
+                          : 'text-white hover:bg-white/10'
                           }`}
                         onClick={closeMenu}
                       >

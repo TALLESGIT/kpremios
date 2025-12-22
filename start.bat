@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo   ZK Premios - Iniciando Projeto
+echo   ZK Oficial - Iniciando Projeto
 echo ========================================
 echo.
 

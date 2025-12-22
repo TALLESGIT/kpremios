@@ -51,27 +51,19 @@ const AdminLiveStreamPage: React.FC = () => {
 
   // Scroll para o topo quando a página carregar (após renderização)
   useEffect(() => {
-    // Forçar scroll para o topo imediatamente e após um pequeno delay
+    // Forçar scroll para o topo imediatamente
     window.scrollTo(0, 0);
-    const timer = setTimeout(() => {
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-    }, 100);
-    
-    return () => clearTimeout(timer);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
   }, []);
 
-  // Scroll para o topo quando selecionar um stream
+  // Scroll para o topo quando selecionar um stream (mas não quando a live inicia)
   useEffect(() => {
-    if (selectedStream) {
-      setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        document.documentElement.scrollTop = 0;
-        document.body.scrollTop = 0;
-      }, 100);
+    if (selectedStream && !isStreaming) {
+      // Só fazer scroll se não estiver transmitindo (para evitar scroll quando a live inicia)
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [selectedStream]);
+  }, [selectedStream?.id]); // Usar apenas o ID para evitar scroll quando is_active muda
 
   const loadStreams = async () => {
     try {

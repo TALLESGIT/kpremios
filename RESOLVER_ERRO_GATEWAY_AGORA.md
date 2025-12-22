@@ -125,7 +125,7 @@ O projeto está configurado para usar **token dinâmico**, mas você está tenta
 
 1. **Crie um novo projeto:**
    - Vá em "Projects" → "Create Project"
-   - Nome: "ZK Premios Live Dev"
+   - Nome: "ZK Oficial Live Dev"
    - **Use Case:** Live Streaming
    - **Authentication:** Selecione "App ID Only" ou "No Authentication"
 

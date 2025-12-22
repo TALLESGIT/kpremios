@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
@@ -52,9 +52,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         // Limpar sessões inválidas primeiro
         clearInvalidSessions();
-        
+
         const { data: { session }, error } = await supabase.auth.getSession();
-        
+
         if (error) {
           console.warn('Session error:', error.message);
           // Clear any invalid session data
@@ -106,16 +106,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         password,
       });
-      
+
       if (error) {
         console.warn('Sign in error:', error.message);
         return { error };
       }
-      
+
       if (data?.user) {
         console.log('Sign in successful:', data.user.email);
       }
-      
+
       return { error: null };
     } catch (err) {
       console.warn('Sign in exception:', err);
@@ -128,14 +128,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Limpar o estado do usuário imediatamente
       setUser(null);
       setLoading(false);
-      
+
       // Fazer logout do Supabase
       const { error } = await supabase.auth.signOut();
-      
+
       if (error) {
         console.warn('Sign out error:', error.message);
       }
-      
+
       // Limpar dados do localStorage relacionados ao Supabase
       try {
         localStorage.removeItem('sb-bukigyhhgrtgryklabjg-auth-token');
@@ -156,12 +156,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const value = {
+  const value = useMemo(() => ({
     user,
     loading,
     signIn,
     signOut,
-  };
+  }), [user, loading]);
 
   return (
     <AuthContext.Provider value={value}>

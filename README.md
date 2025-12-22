@@ -1,4 +1,4 @@
-# 🎯 ZK Prêmios - Sistema de Rifas e Sorteios
+# 🎯 ZK Oficial - Sistema de Rifas e Sorteios
 
 Sistema completo de rifas e sorteios online com integração WhatsApp e sorteios ao vivo.
 

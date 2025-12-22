@@ -24,7 +24,7 @@ class ChatApiWhatsAppService {
   constructor() {
     this.instanceId = import.meta.env.VITE_CHATAPI_INSTANCE_ID || '';
     this.apiToken = import.meta.env.VITE_CHATAPI_API_TOKEN || '';
-    
+
     this.validateCredentials();
   }
 
@@ -81,7 +81,7 @@ class ChatApiWhatsAppService {
   async sendRegistrationConfirmation(userData: { name: string; whatsapp: string; confirmationCode: string }): Promise<ChatApiResponse> {
     const message = `🎉 Olá ${userData.name}!
 
-✅ Seu cadastro no ZK Premios foi realizado com sucesso!
+✅ Seu cadastro na ZK Oficial foi realizado com sucesso!
 
 🔐 Código de confirmação: ${userData.confirmationCode}
 

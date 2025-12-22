@@ -12,7 +12,7 @@ const QuickTest: React.FC = () => {
     try {
       const accountSid = import.meta.env.VITE_TWILIO_ACCOUNT_SID;
       const authToken = import.meta.env.VITE_TWILIO_AUTH_TOKEN;
-      
+
       const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
         method: 'POST',
         headers: {
@@ -22,7 +22,7 @@ const QuickTest: React.FC = () => {
         body: new URLSearchParams({
           To: 'whatsapp:+5533999030124',
           From: import.meta.env.VITE_TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886',
-          Body: '🎉 Teste do ZK Premios funcionando! Sandbox configurado com sucesso! 🚀'
+          Body: '🎉 Teste da ZK Oficial funcionando! Sandbox configurado com sucesso! 🚀'
         })
       });
 
@@ -54,13 +54,13 @@ const QuickTest: React.FC = () => {
       <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
         🧪 Teste Rápido do Sandbox
       </h3>
-      
+
       <div className="space-y-4">
         <p className="text-sm text-gray-600 text-center">
           Clique no botão abaixo para enviar uma mensagem de teste para seu WhatsApp
         </p>
-        
-        <button 
+
+        <button
           onClick={sendQuickTest}
           disabled={isLoading}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-3 px-4 rounded-md flex items-center justify-center gap-2 font-medium"

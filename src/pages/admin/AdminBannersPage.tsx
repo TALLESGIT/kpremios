@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import Header from '../../components/shared/Header';
 import Footer from '../../components/shared/Footer';
-import { Plus, Edit, Trash2, Eye, EyeOff, Image as ImageIcon, Link as LinkIcon, Calendar, BarChart } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, EyeOff, Image as ImageIcon, BarChart, Upload, X as XIcon } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 interface Advertisement {
@@ -23,11 +22,11 @@ interface Advertisement {
 }
 
 export default function AdminBannersPage() {
-  const navigate = useNavigate();
   const [advertisements, setAdvertisements] = useState<Advertisement[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingAd, setEditingAd] = useState<Advertisement | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -97,6 +96,36 @@ export default function AdminBannersPage() {
     } catch (error: any) {
       console.error('Erro ao salvar banner:', error);
       toast.error('Erro ao salvar banner');
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('banners')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('banners')
+        .getPublicUrl(filePath);
+
+      setFormData({ ...formData, image_url: publicUrl });
+      toast.success('Imagem enviada com sucesso!');
+    } catch (error: any) {
+      console.error('Erro no upload:', error);
+      toast.error('Erro ao enviar imagem: ' + error.message);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -210,7 +239,7 @@ export default function AdminBannersPage() {
                   />
                 </div>
               )}
-              
+
               <div className="flex items-start justify-between mb-2">
                 <h3 className="text-xl font-bold text-white">{ad.title}</h3>
                 <button
@@ -293,16 +322,60 @@ export default function AdminBannersPage() {
                 </div>
 
                 <div>
-                  <label className="block text-white font-medium mb-2">URL da Imagem</label>
-                  <input
-                    type="url"
-                    value={formData.image_url}
-                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://exemplo.com/imagem.jpg"
-                  />
-                  <p className="text-blue-200/60 text-xs mt-1">
-                    Use uma URL de imagem hospedada (ex: Imgur, Cloudinary, etc)
+                  <label className="block text-white font-medium mb-2">Imagem do Banner *</label>
+
+                  <div className="flex flex-col gap-4">
+                    {formData.image_url ? (
+                      <div className="relative rounded-xl overflow-hidden group border border-white/10 aspect-video bg-slate-800">
+                        <img
+                          src={formData.image_url}
+                          alt="Preview"
+                          className="w-full h-full object-contain"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, image_url: '' })}
+                          className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <XIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center w-full">
+                        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-700 border-dashed rounded-xl cursor-pointer bg-slate-800 hover:bg-slate-750 transition-colors">
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <Upload className="w-8 h-8 text-blue-400 mb-2" />
+                            <p className="text-sm text-blue-200/60 font-medium">
+                              {uploading ? 'Enviando...' : 'Clique para fazer upload'}
+                            </p>
+                          </div>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={handleFileUpload}
+                            disabled={uploading}
+                          />
+                        </label>
+                      </div>
+                    )}
+
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <ImageIcon className="h-5 w-5 text-slate-500" />
+                      </div>
+                      <input
+                        type="url"
+                        value={formData.image_url}
+                        onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                        className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ou cole a URL da imagem aqui..."
+                      />
+                    </div>
+                  </div>
+
+                  <p className="text-blue-200/40 text-[10px] mt-2 italic uppercase">
+                    Formatos recomendados: JPG, PNG, WEBP. Tamanho ideal: 1920x600 para homepage.
                   </p>
                 </div>
 

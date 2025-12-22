@@ -16,7 +16,7 @@ class WhatsAppService {
   private formatPhoneNumber(phone: string): string {
     // Remove todos os caracteres não numéricos
     const cleanPhone = phone.replace(/\D/g, '');
-    
+
     // Adiciona o código do país se não tiver
     if (cleanPhone.startsWith('55') && cleanPhone.length === 13) {
       return `whatsapp:+${cleanPhone}`;
@@ -25,16 +25,16 @@ class WhatsAppService {
     } else if (cleanPhone.length === 10) {
       return `whatsapp:+55${cleanPhone}`;
     }
-    
+
     return `whatsapp:+${cleanPhone}`;
   }
 
   private getMessageTemplate(type: string, data: any): string {
     const baseUrl = import.meta.env.VITE_APP_URL || 'http://localhost:5173';
-    
+
     switch (type) {
       case 'registration':
-        return `🎉 *Bem-vindo ao ZK Premios!*
+        return `🎉 *Bem-vindo ao ZK Oficial!*
 
 Olá ${data.name}! 
 
@@ -95,17 +95,17 @@ Olá ${data.name}!
 🎯 Número sorteado: *${data.winningNumber}*
 🏆 Prêmio: ${data.prize}
 
-${data.isWinner ? 
-  `🎉 *PARABÉNS! VOCÊ GANHOU!* 🎉\nEntre em contato conosco para receber seu prêmio!` :
-  `Que pena! Não foi desta vez, mas continue participando dos nossos sorteios!`
-}
+${data.isWinner ?
+            `🎉 *PARABÉNS! VOCÊ GANHOU!* 🎉\nEntre em contato conosco para receber seu prêmio!` :
+            `Que pena! Não foi desta vez, mas continue participando dos nossos sorteios!`
+          }
 
 🔗 Veja o resultado completo: ${baseUrl}/winners
 
 Obrigado por participar! 🍀`;
 
       default:
-        return `Olá ${data.name}! Mensagem do ZK Premios.`;
+        return `Olá ${data.name}! Mensagem da ZK Oficial.`;
     }
   }
 
@@ -137,21 +137,21 @@ Obrigado por participar! 🍀`;
       const result = await response.json();
 
       if (response.ok) {
-        return { 
-          success: true, 
-          messageSid: result.sid 
+        return {
+          success: true,
+          messageSid: result.sid
         };
       } else {
-        return { 
-          success: false, 
-          error: result.message || 'Failed to send message' 
+        return {
+          success: false,
+          error: result.message || 'Failed to send message'
         };
       }
 
     } catch (error: any) {
-      return { 
-        success: false, 
-        error: error.message || 'Failed to send message' 
+      return {
+        success: false,
+        error: error.message || 'Failed to send message'
       };
     }
   }
@@ -225,9 +225,9 @@ Obrigado por participar! 🍀`;
   }
 
   // Método para enviar para múltiplos usuários
-  async sendBulkNotification(userDataList: any[], type: string, raffleData?: any) {
+  async sendBulkNotification(userDataList: any[], type: string) {
     const results = [];
-    
+
     for (const userData of userDataList) {
       try {
         const result = await this.sendMessage({
@@ -236,14 +236,14 @@ Obrigado por participar! 🍀`;
           type: type as any
         });
         results.push({ user: userData.email, success: result.success, error: result.error });
-        
+
         // Pequena pausa entre mensagens para evitar rate limiting
         await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (error) {
         results.push({ user: userData.email, success: false, error: 'Failed to send' });
       }
     }
-    
+
     return results;
   }
 }

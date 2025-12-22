@@ -207,10 +207,32 @@ const ZkTVPage: React.FC = () => {
     useEffect(() => {
         if (!activeStream?.is_active) return;
 
+        // Executar imediatamente ao montar
+        const executeHeartbeat = async () => {
+            try {
+                // Garantir que a sessão existe primeiro
+                if (activeStream?.id) {
+                    await trackViewer(activeStream.id);
+                    await supabase.rpc('update_viewer_heartbeat', { p_session_id: sessionId });
+                    updateViewerCount(activeStream.id);
+                }
+            } catch (error) {
+                console.error('Erro ao atualizar heartbeat:', error);
+                // Em caso de erro, tentar criar/atualizar a sessão
+                if (activeStream?.id) {
+                    await trackViewer(activeStream.id);
+                }
+            }
+        };
+
+        executeHeartbeat();
+
+        // Depois executar a cada 30 segundos
         const heartbeatInterval = setInterval(async () => {
             try {
-                await supabase.rpc('update_viewer_heartbeat', { p_session_id: sessionId });
                 if (activeStream?.id) {
+                    await trackViewer(activeStream.id);
+                    await supabase.rpc('update_viewer_heartbeat', { p_session_id: sessionId });
                     updateViewerCount(activeStream.id);
                 }
             } catch (error) {
@@ -219,7 +241,7 @@ const ZkTVPage: React.FC = () => {
         }, 30000); // A cada 30 segundos
 
         return () => clearInterval(heartbeatInterval);
-    }, [activeStream?.id, activeStream?.is_active, sessionId, updateViewerCount]);
+    }, [activeStream?.id, activeStream?.is_active, sessionId, updateViewerCount, trackViewer]);
 
     // Listener para atualizações do viewer_count em tempo real
     useEffect(() => {
@@ -290,10 +312,12 @@ const ZkTVPage: React.FC = () => {
             if (!error && data) {
                 setActiveStream(data);
                 setCurrentViewerCount(data.viewer_count || 0);
-                // Iniciar tracking de viewer
-                if (!trackViewerExecutedRef.current) {
+                // Sempre rastrear quando a stream estiver ativa
+                if (data.is_active) {
                     trackViewer(data.id);
-                    trackViewerExecutedRef.current = true;
+                    if (!trackViewerExecutedRef.current) {
+                        trackViewerExecutedRef.current = true;
+                    }
                 }
             } else {
                 setActiveStream(null);

@@ -43,7 +43,7 @@ function Footer() {
         </div>
         <div className="mt-8 md:mt-0 md:order-1">
           <p className="text-center text-base text-gray-400 flex items-center justify-center font-medium">
-            &copy; {year} ZK Premios. Feito com
+            &copy; {year} ZK Oficial. Feito com
             <Heart className="h-4 w-4 mx-1 text-red-500 animate-pulse" /> por <a href="https://wa.me/5533999030124" target="_blank" rel="noopener noreferrer" className="text-white hover:text-accent transition-colors duration-300 ml-1 font-bold">Tales Coelho</a>
           </p>
         </div>

@@ -30,12 +30,12 @@ class WhatsAppServiceEnhanced {
   private formatPhoneNumber(phone: string): string {
     // Remove todos os caracteres não numéricos
     const cleaned = phone.replace(/\D/g, '');
-    
+
     // Se não começar com 55 (Brasil), adiciona
     if (!cleaned.startsWith('55')) {
       return `whatsapp:+55${cleaned}`;
     }
-    
+
     return `whatsapp:+${cleaned}`;
   }
 
@@ -43,12 +43,12 @@ class WhatsAppServiceEnhanced {
     const baseUrl = import.meta.env.VITE_APP_URL || 'http://localhost:5173';
 
     if (!data) {
-      return `Olá! Mensagem do ZK Premios. Houve um erro ao gerar o conteúdo da mensagem.`;
+      return `Olá! Mensagem da ZK Oficial. Houve um erro ao gerar o conteúdo da mensagem.`;
     }
 
     switch (type) {
       case 'registration':
-        return `🎉 *Bem-vindo ao ZK Premios!*
+        return `🎉 *Bem-vindo ao ZK Oficial!*
 
 Olá ${data.name || 'usuário'}!
 
@@ -116,12 +116,12 @@ Olá ${data.name || 'usuário'}!
 
 ✅ Sistema WhatsApp funcionando perfeitamente!
 
-📱 Esta é uma mensagem de teste do ZK Premios.
+📱 Esta é uma mensagem de teste da ZK Oficial.
 
 🚀 Sistema operacional!`;
 
       default:
-        return `Olá ${data.name || 'usuário'}! Mensagem do ZK Premios.`;
+        return `Olá ${data.name || 'usuário'}! Mensagem da ZK Oficial.`;
     }
   }
 
@@ -201,10 +201,10 @@ Olá ${data.name || 'usuário'}!
 
     try {
       const result = await this.sendMessageWithRetry(messageData);
-      
+
       // Log da tentativa no banco de dados
       await this.logMessageAttempt(messageData, result);
-      
+
       return result;
     } catch (error) {
       return {
@@ -308,7 +308,7 @@ Olá ${data.name || 'usuário'}!
     const batchSize = 5;
     for (let i = 0; i < users.length; i += batchSize) {
       const batch = users.slice(i, i + batchSize);
-      
+
       const promises = batch.map(async (user) => {
         try {
           const result = await this.sendMessage({
@@ -317,7 +317,7 @@ Olá ${data.name || 'usuário'}!
             type,
             data: { ...data, name: user.name }
           });
-          
+
           if (result.success) {
             results.success++;
           } else {
@@ -331,7 +331,7 @@ Olá ${data.name || 'usuário'}!
       });
 
       await Promise.all(promises);
-      
+
       // Aguarda entre lotes para evitar rate limiting
       if (i + batchSize < users.length) {
         await new Promise(resolve => setTimeout(resolve, 1000));

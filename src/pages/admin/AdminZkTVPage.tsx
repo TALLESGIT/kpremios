@@ -245,22 +245,54 @@ const AdminZkTVPage: React.FC = () => {
     const handleSaveStanding = async () => {
         try {
             setSaving(true);
+            
+            // Validações
+            if (!standingForm.team || standingForm.team.trim() === '') {
+                toast.error('Nome do time é obrigatório');
+                return;
+            }
+            
+            if (!standingForm.position || standingForm.position < 1) {
+                toast.error('Posição deve ser maior que zero');
+                return;
+            }
+            
             const payload = {
                 ...standingForm,
-                competition: standingForm.competition || selectedCompetition
+                competition: standingForm.competition || selectedCompetition,
+                team: standingForm.team.trim()
             };
             
-            const { error } = editingStanding
+            const { error, data } = editingStanding
                 ? await supabase.from('cruzeiro_standings').update(payload).eq('id', editingStanding.id)
-                : await supabase.from('cruzeiro_standings').insert([payload]);
+                : await supabase.from('cruzeiro_standings').insert([payload]).select();
 
-            if (error) throw error;
+            if (error) {
+                console.error('Erro detalhado ao salvar classificação:', error);
+                toast.error(`Erro ao salvar: ${error.message || 'Erro desconhecido'}`);
+                return;
+            }
+            
             toast.success('Classificação atualizada!');
             setIsAddingStanding(false);
             setEditingStanding(null);
+            setStandingForm({
+                team: '',
+                position: 0,
+                points: 0,
+                played: 0,
+                won: 0,
+                drawn: 0,
+                lost: 0,
+                goals_for: 0,
+                goals_against: 0,
+                is_cruzeiro: false,
+                competition: selectedCompetition
+            });
             loadStandingsByCompetition();
-        } catch (error) {
-            toast.error('Erro ao salvar classificação');
+        } catch (error: any) {
+            console.error('Erro ao salvar classificação:', error);
+            toast.error(`Erro ao salvar classificação: ${error?.message || 'Erro desconhecido'}`);
         } finally {
             setSaving(false);
         }

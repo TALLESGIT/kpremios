@@ -1,44 +1,47 @@
 <!doctype html>
 <html lang="pt-br">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="/zk-logo.svg" />
-    <link rel="icon" type="image/svg+xml" href="/zk-logo.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="ZK Prêmios - Sistema de rifas e sorteios online" />
-    <meta name="keywords" content="rifas, sorteios, prêmios, ZK" />
-    <meta name="author" content="ZK Prêmios" />
-    <title>ZK Prêmios</title>
-  </head>
-  <body>
-    <div id="root"></div>
 
-    <!-- Canonical host (evita perder login entre www e não-www) -->
-    <script>
-      (function () {
-        try {
-          var host = window.location.hostname;
-          var isProdHost = host === 'itallozkpremios.com.br' || host === 'www.itallozkpremios.com.br';
-          if (!isProdHost) return;
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/x-icon" href="/zk-logo.svg" />
+  <link rel="icon" type="image/svg+xml" href="/zk-logo.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="ZK Oficial - Sistema de rifas e sorteios online" />
+  <meta name="keywords" content="rifas, sorteios, prêmios, ZK" />
+  <meta name="author" content="ZK Oficial" />
+  <title>ZK Oficial | Sorteios Exclusivos</title>
+</head>
 
-          // Escolha UM domínio canônico para manter o localStorage do login sempre no mesmo lugar
-          var canonicalHost = 'www.itallozkpremios.com.br';
-          if (host !== canonicalHost) {
-            var newUrl =
-              window.location.protocol +
-              '//' +
-              canonicalHost +
-              window.location.pathname +
-              window.location.search +
-              window.location.hash;
-            window.location.replace(newUrl);
-          }
-        } catch (e) {
-          // não bloquear o app
+<body>
+  <div id="root"></div>
+
+  <!-- Canonical host (evita perder login entre www e não-www) -->
+  <script>
+    (function () {
+      try {
+        var host = window.location.hostname;
+        var isProdHost = host === 'itallozkpremios.com.br' || host === 'www.itallozkpremios.com.br';
+        if (!isProdHost) return;
+
+        // Escolha UM domínio canônico para manter o localStorage do login sempre no mesmo lugar
+        var canonicalHost = 'www.itallozkpremios.com.br';
+        if (host !== canonicalHost) {
+          var newUrl =
+            window.location.protocol +
+            '//' +
+            canonicalHost +
+            window.location.pathname +
+            window.location.search +
+            window.location.hash;
+          window.location.replace(newUrl);
         }
-      })();
-    </script>
-    
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+      } catch (e) {
+        // não bloquear o app
+      }
+    })();
+  </script>
+
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>

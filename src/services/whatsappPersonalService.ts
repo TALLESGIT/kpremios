@@ -75,7 +75,7 @@ class WhatsAppPersonalService {
   async sendRegistrationConfirmation(userData: { name: string; whatsapp: string; confirmationCode: string }): Promise<WhatsAppResponse> {
     const message = `🎉 Olá ${userData.name}!
 
-✅ Seu cadastro no ZK Premios foi realizado com sucesso!
+✅ Seu cadastro na ZK Oficial foi realizado com sucesso!
 
 🔐 Código de confirmação: ${userData.confirmationCode}
 
@@ -217,7 +217,7 @@ Olá *${data.name}*! 🏆
 Entre em contato conosco imediatamente para receber seu prêmio!
 
 📱 *WhatsApp:* +55 33 99903-0124
-📧 *Email:* contato@kpremios.com
+📧 *Email:* contato@zkoficial.com
 
 *Parabéns e boa sorte!* 🍀✨`;
 
