@@ -40,6 +40,11 @@ CREATE INDEX IF NOT EXISTS idx_stream_polls_stream_id ON stream_polls(stream_id)
 CREATE INDEX IF NOT EXISTS idx_stream_polls_active ON stream_polls(stream_id, is_active) WHERE is_active = true;
 CREATE INDEX IF NOT EXISTS idx_stream_polls_pinned ON stream_polls(stream_id, is_pinned) WHERE is_pinned = true;
 
+-- Garantir que só há uma enquete ativa fixada por stream
+CREATE UNIQUE INDEX IF NOT EXISTS unique_pinned_poll_per_stream 
+ON stream_polls(stream_id) 
+WHERE is_active = true AND is_pinned = true;
+
 -- =====================================================
 -- 2. TABELA DE VOTOS
 -- =====================================================
