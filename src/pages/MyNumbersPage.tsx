@@ -1,4 +1,4 @@
-import { Hash, Calendar, User, Zap, Trophy, TrendingUp, Plus, CheckCircle, XCircle, Clock, Lock } from 'lucide-react';
+import { Hash, Calendar, User, Zap, Trophy, TrendingUp, Plus, CheckCircle, XCircle, Clock, Lock, Target, CheckCircle2 } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Header from '../components/shared/Header';
@@ -15,6 +15,8 @@ function MyNumbersPage() {
   const [showExtraModal, setShowExtraModal] = useState(false);
   const [requestsHistory, setRequestsHistory] = useState<ExtraNumberRequest[]>([]);
   const [currentRange, setCurrentRange] = useState(0);
+  const [poolBets, setPoolBets] = useState<any[]>([]);
+  const [loadingBets, setLoadingBets] = useState(true);
   
   const currentRequest = getCurrentUserRequest();
   const userExtraNumbers = currentAppUser?.extra_numbers || [];
@@ -56,6 +58,50 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
     
     loadHistory();
   }, [currentAppUser, getUserRequestsHistory]);
+
+  // Load pool bets
+  useEffect(() => {
+    const loadPoolBets = async () => {
+      if (!user || !currentAppUser) {
+        setLoadingBets(false);
+        return;
+      }
+
+      try {
+        setLoadingBets(true);
+        const { data, error } = await supabase
+          .from('pool_bets')
+          .select(`
+            *,
+            match_pools!inner (
+              id,
+              match_title,
+              home_team,
+              away_team,
+              is_active,
+              result_home_score,
+              result_away_score,
+              winners_count,
+              prize_per_winner,
+              total_pool_amount,
+              created_at
+            )
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setPoolBets(data || []);
+      } catch (err) {
+        console.error('Erro ao carregar palpites do bolão:', err);
+        setPoolBets([]);
+      } finally {
+        setLoadingBets(false);
+      }
+    };
+
+    loadPoolBets();
+  }, [user, currentAppUser]);
 
   // Real-time subscription for user requests updates
   useEffect(() => {
@@ -551,6 +597,146 @@ const isWinner = (currentAppUser as any)?.is_winner || false;
                     )}
                   </div>
                 ))}
+            </div>
+          )}
+
+          {/* Pool Bets Section */}
+          {poolBets.length > 0 && (
+            <div className="glass-panel p-8 rounded-3xl mb-8 border-l-4 border-emerald-500">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-gradient-to-r from-emerald-600 to-emerald-500 rounded-xl flex items-center justify-center">
+                  <Target className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-white uppercase">Meus Palpites do Bolão</h2>
+                  <p className="text-emerald-200/60 text-sm">Acompanhe suas apostas e resultados</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {poolBets.map((bet) => {
+                  const pool = bet.match_pools;
+                  const isFinished = pool.result_home_score !== null && pool.result_away_score !== null;
+                  const isWinner = bet.is_winner && bet.payment_status === 'approved';
+                  const isPending = bet.payment_status === 'pending';
+                  const isApproved = bet.payment_status === 'approved';
+
+                  return (
+                    <div
+                      key={bet.id}
+                      className={`bg-gradient-to-r rounded-2xl p-6 border-2 transition-all hover:scale-[1.02] ${
+                        isWinner
+                          ? 'from-yellow-500/20 to-yellow-600/20 border-yellow-500/50'
+                          : isFinished && !isWinner
+                          ? 'from-slate-800/50 to-slate-900/50 border-slate-700/50'
+                          : 'from-emerald-500/10 to-emerald-600/10 border-emerald-500/30'
+                      }`}
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        {/* Match Info */}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            {isWinner && (
+                              <Trophy className="w-5 h-5 text-yellow-400 animate-pulse" />
+                            )}
+                            {isPending && (
+                              <Clock className="w-5 h-5 text-blue-400" />
+                            )}
+                            {isApproved && !isFinished && (
+                              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                            )}
+                            <h3 className="text-lg font-black text-white">{pool.match_title}</h3>
+                          </div>
+                          
+                          <div className="flex items-center gap-4 mb-3">
+                            <div className="text-center">
+                              <p className="text-xs text-slate-400 mb-1">{pool.home_team}</p>
+                              <p className={`text-3xl font-black ${isWinner ? 'text-yellow-400' : 'text-white'}`}>
+                                {bet.predicted_home_score}
+                              </p>
+                            </div>
+                            <span className="text-slate-400 font-black text-xl">x</span>
+                            <div className="text-center">
+                              <p className="text-xs text-slate-400 mb-1">{pool.away_team}</p>
+                              <p className={`text-3xl font-black ${isWinner ? 'text-yellow-400' : 'text-white'}`}>
+                                {bet.predicted_away_score}
+                              </p>
+                            </div>
+                          </div>
+
+                          {isFinished && (
+                            <div className="mt-3 pt-3 border-t border-slate-700/50">
+                              <p className="text-xs text-slate-400 mb-1">Resultado Real</p>
+                              <div className="flex items-center gap-4">
+                                <span className="text-lg font-black text-slate-300">
+                                  {pool.result_home_score} x {pool.result_away_score}
+                                </span>
+                                {isWinner ? (
+                                  <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-black uppercase">
+                                    🏆 Ganhador!
+                                  </span>
+                                ) : (
+                                  <span className="px-3 py-1 bg-slate-700/50 text-slate-400 rounded-full text-xs font-bold">
+                                    Não acertou
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Status & Prize Info */}
+                        <div className="flex flex-col gap-3 md:items-end">
+                          <div className={`px-4 py-2 rounded-xl ${
+                            isPending
+                              ? 'bg-blue-500/20 text-blue-400'
+                              : isApproved && !isFinished
+                              ? 'bg-emerald-500/20 text-emerald-400'
+                              : isWinner
+                              ? 'bg-yellow-500/20 text-yellow-400'
+                              : 'bg-slate-700/50 text-slate-400'
+                          }`}>
+                            <p className="text-xs font-bold uppercase mb-1">Status</p>
+                            <p className="text-sm font-black">
+                              {isPending
+                                ? 'Aguardando Pagamento'
+                                : isApproved && !isFinished
+                                ? 'Aguardando Resultado'
+                                : isWinner
+                                ? 'Ganhador!'
+                                : 'Finalizado'}
+                            </p>
+                          </div>
+
+                          {isWinner && bet.prize_amount > 0 && (
+                            <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-3 text-center">
+                              <p className="text-xs text-yellow-200 mb-1">Seu Prêmio</p>
+                              <p className="text-2xl font-black text-yellow-400">
+                                R$ {bet.prize_amount.toFixed(2)}
+                              </p>
+                              {pool.winners_count > 1 && (
+                                <p className="text-xs text-yellow-200/60 mt-1">
+                                  Dividido entre {pool.winners_count} ganhador(es)
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="text-xs text-slate-400">
+                            {new Date(bet.created_at).toLocaleDateString('pt-BR', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
