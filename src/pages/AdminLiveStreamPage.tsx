@@ -124,7 +124,7 @@ const AdminLiveStreamPage: React.FC = () => {
     if (!selectedStream) return;
     try {
       // Limpar todas as mensagens do chat ao encerrar
-      const { error: cleanupError } = await supabase.rpc('cleanup_chat_on_stream_end', {
+      const { error: cleanupError } = await supabase.rpc('delete_all_chat_messages', {
         p_stream_id: selectedStream.id
       });
       
@@ -132,13 +132,29 @@ const AdminLiveStreamPage: React.FC = () => {
         console.error('Erro ao limpar chat:', cleanupError);
       }
       
-      await supabase.from('live_streams').update({ is_active: false, viewer_count: 0 }).eq('id', selectedStream.id);
+      // Atualizar stream para inativa - isso será detectado via Realtime por todos os usuários
+      const { error: updateError } = await supabase
+        .from('live_streams')
+        .update({ is_active: false, viewer_count: 0 })
+        .eq('id', selectedStream.id);
+      
+      if (updateError) {
+        console.error('Erro ao atualizar stream:', updateError);
+        toast.error('Erro ao encerrar stream');
+        return;
+      }
+      
+      // Encerrar todas as sessões de viewers
       await supabase.rpc('end_all_active_viewer_sessions', { p_stream_id: selectedStream.id });
+      
+      // Atualizar estado local
       const { data } = await supabase.from('live_streams').select('*').eq('id', selectedStream.id).single();
       setIsStreaming(false);
-      if (data) setSelectedStream(data); // Atualizar estado local instantaneamente
-      toast.success('Live encerrada e chat limpo');
+      if (data) setSelectedStream(data);
+      
+      toast.success('Live encerrada! Todos os usuários serão desconectados.');
     } catch (err) {
+      console.error('Erro ao encerrar:', err);
       toast.error('Erro ao encerrar');
     }
   };

@@ -159,7 +159,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
   useEffect(() => {
     if (!isActive || !streamId) return;
 
-    // Escutar novas mensagens em tempo real
+    // Escutar novas mensagens em tempo real (sem filtro de user_id para aparecer para todos)
     const channel = supabase.channel(`vip_overlay_${streamId}`)
       .on('postgres_changes', {
         event: 'INSERT',
@@ -168,6 +168,13 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
         filter: `stream_id=eq.${streamId}`
       }, async (payload) => {
         const newMsg = payload.new as any;
+        
+        console.log('📨 Nova mensagem recebida via Realtime:', {
+          id: newMsg.id,
+          user_id: newMsg.user_id,
+          message_type: newMsg.message_type,
+          stream_id: newMsg.stream_id
+        });
         
         // Verificar se o usuário é VIP
         if (newMsg.user_id) {

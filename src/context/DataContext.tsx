@@ -632,7 +632,9 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
               confirmationCode: confirmationCode
             });
             
-            // Tentar conceder VIP grátis se elegível (100 primeiros até 01/02/2026)
+            // TEMPORARIAMENTE DESATIVADO: Tentar conceder VIP grátis se elegível (100 primeiros até 01/02/2026)
+            // Desativado para testar pagamentos VIP
+            /*
             try {
               const { data: vipGranted, error: vipError } = await supabase.rpc('grant_free_vip_if_eligible', {
                 p_user_id: userId
@@ -642,6 +644,8 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
               }
             } catch (vipError) {
               console.error('Erro ao verificar VIP grátis:', vipError);
+            }
+            */
               // Não falha o cadastro se houver erro
             }
           }
