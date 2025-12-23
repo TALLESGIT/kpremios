@@ -30,6 +30,8 @@ const MIN_INTERVAL_AFTER_TTS = 3000; // 3 segundos após TTS terminar
 const MIN_INTERVAL_AFTER_TEXT = 2000; // 2 segundos após mensagem de texto
 
 const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActive }) => {
+  console.log('🎬 VipMessageOverlay: Componente renderizado', { streamId, isActive });
+  
   const [currentMessage, setCurrentMessage] = useState<VipMessage | null>(null);
   const [userRoles, setUserRoles] = useState<{ [userId: string]: { isVip: boolean } }>({});
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -236,9 +238,16 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
     // Atualizar timestamp da última mensagem processada
     lastMessageProcessedAtRef.current = Date.now();
 
-    console.log(`📨 Processando mensagem da fila: ${message.id} (${message.message_type})`);
+    console.log(`📨 VipMessageOverlay: Processando mensagem da fila:`, {
+      id: message.id,
+      message_type: message.message_type,
+      user_name: message.user_name,
+      message_preview: message.message.substring(0, 30) + '...',
+      queue_length: messageQueueRef.current.length
+    });
 
     // Exibir mensagem
+    console.log('🎬 VipMessageOverlay: Definindo currentMessage para exibição');
     setCurrentMessage(message);
 
     // Se for mensagem TTS, reproduzir áudio
@@ -286,13 +295,17 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
   const addMessageToQueue = (message: VipMessage) => {
     // Verificar se a mensagem já está na fila
     if (messageQueueRef.current.some(m => m.id === message.id)) {
-      console.log(`⚠️ Mensagem ${message.id} já está na fila, ignorando...`);
+      console.log(`⚠️ VipMessageOverlay: Mensagem ${message.id} já está na fila, ignorando...`);
       return;
     }
 
     // Adicionar à fila
     messageQueueRef.current.push(message);
-    console.log(`➕ Mensagem adicionada à fila. Total na fila: ${messageQueueRef.current.length}`);
+    console.log(`➕ VipMessageOverlay: Mensagem adicionada à fila. Total na fila: ${messageQueueRef.current.length}`, {
+      message_id: message.id,
+      user_name: message.user_name,
+      message_type: message.message_type
+    });
 
     // Iniciar processamento se não estiver processando
     processMessageQueue();
@@ -335,11 +348,13 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
       }, async (payload) => {
         const newMsg = payload.new as any;
 
-        console.log('📨 Nova mensagem recebida via Realtime:', {
+        console.log('📨 VipMessageOverlay: Nova mensagem recebida via Realtime:', {
           id: newMsg.id,
           user_id: newMsg.user_id,
           message_type: newMsg.message_type,
-          stream_id: newMsg.stream_id
+          stream_id: newMsg.stream_id,
+          message: newMsg.message?.substring(0, 50) + '...',
+          user_name: newMsg.user_name
         });
 
         // Verificar se o usuário é VIP
@@ -396,6 +411,8 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
 
           // Se for VIP, verificar limite de mensagens na tela (máximo 10 por live)
           if (isVip) {
+            console.log('✅ VipMessageOverlay: Usuário é VIP, processando mensagem para overlay');
+            
             // Verificar quantas mensagens VIP já apareceram na tela
             const { data: currentCount, error: countError } = await supabase.rpc('count_vip_overlay_messages', {
               p_stream_id: streamId
@@ -405,7 +422,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
 
             // Se já mostrou 10 mensagens, não mostrar mais
             if (messagesShown >= 10) {
-              console.log('Limite de mensagens VIP na tela atingido (10/10)');
+              console.log('⚠️ VipMessageOverlay: Limite de mensagens VIP na tela atingido (10/10)');
               return;
             }
 
@@ -422,9 +439,18 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
               audio_duration: newMsg.audio_duration
             };
 
+            console.log('➕ VipMessageOverlay: Adicionando mensagem VIP à fila:', {
+              id: messageData.id,
+              user_name: messageData.user_name,
+              message_type: messageData.message_type,
+              message_preview: messageData.message.substring(0, 30) + '...'
+            });
+
             // Adicionar à fila ao invés de exibir diretamente
             addMessageToQueue(messageData);
             setOverlayMessagesCount(messagesShown + 1);
+          } else {
+            console.log('❌ VipMessageOverlay: Usuário NÃO é VIP, ignorando mensagem para overlay');
           }
         }
       })
@@ -447,7 +473,28 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
     };
   }, [streamId, isActive]);
 
-  if (!currentMessage) return null;
+  // Log quando currentMessage muda
+  useEffect(() => {
+    if (currentMessage) {
+      console.log('🎬 VipMessageOverlay: currentMessage definido, overlay deve aparecer:', {
+        id: currentMessage.id,
+        user_name: currentMessage.user_name,
+        message_type: currentMessage.message_type
+      });
+    } else {
+      console.log('🎬 VipMessageOverlay: currentMessage é null, overlay não será exibido');
+    }
+  }, [currentMessage]);
+
+  if (!currentMessage) {
+    console.log('🎬 VipMessageOverlay: Renderizando null (sem mensagem atual)');
+    return null;
+  }
+
+  console.log('🎬 VipMessageOverlay: Renderizando overlay com mensagem:', {
+    id: currentMessage.id,
+    user_name: currentMessage.user_name
+  });
 
   return (
     <AnimatePresence mode="wait">

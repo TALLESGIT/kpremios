@@ -217,6 +217,23 @@ const ZkTVPage: React.FC = () => {
         };
     }, [isMobile, isFullscreen]);
 
+    // Log quando VipMessageOverlay deve ser renderizado
+    useEffect(() => {
+        if (activeStream?.is_active && activeStream?.id) {
+            console.log('🎬 ZkTVPage: Condições para renderizar VipMessageOverlay:', {
+                streamId: activeStream.id,
+                isActive: activeStream.is_active,
+                channel: activeStream.channel_name
+            });
+        } else {
+            console.log('⚠️ ZkTVPage: VipMessageOverlay NÃO será renderizado:', {
+                hasActiveStream: !!activeStream,
+                isActive: activeStream?.is_active,
+                hasId: !!activeStream?.id
+            });
+        }
+    }, [activeStream]);
+
     // Verificar status VIP
     const checkVipStatus = async () => {
         if (!user) {
