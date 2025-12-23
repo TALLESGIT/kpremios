@@ -84,10 +84,29 @@ class GoogleTTSService {
     return new Promise((resolve, reject) => {
       const audio = new Audio(audioDataUrl);
       
-      audio.onended = () => resolve();
-      audio.onerror = (error) => reject(error);
+      // Configurar volume máximo para garantir audibilidade
+      audio.volume = 1.0;
       
-      audio.play().catch(reject);
+      // Event listeners
+      audio.onended = () => {
+        console.log('✅ Áudio reproduzido com sucesso');
+        resolve();
+      };
+      
+      audio.onerror = (error) => {
+        console.error('❌ Erro ao reproduzir áudio:', error);
+        reject(error);
+      };
+      
+      // Tentar reproduzir
+      audio.play()
+        .then(() => {
+          console.log('🔊 Áudio iniciado');
+        })
+        .catch((error) => {
+          console.error('❌ Erro ao iniciar reprodução:', error);
+          reject(error);
+        });
     });
   }
 

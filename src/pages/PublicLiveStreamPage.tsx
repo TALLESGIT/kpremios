@@ -566,10 +566,16 @@ const PublicLiveStreamPage: React.FC = () => {
                 />
               </div>
               {isDockedChat && (
-                <div className="w-[300px] h-full bg-black/40 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl animate-in slide-in-from-right duration-300">
+                <div className={`h-full bg-black/40 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl animate-in slide-in-from-right duration-300 ${
+                  isMobile ? 'w-[400px] min-w-[350px] max-w-[45vw]' : 'w-[300px]'
+                }`}>
                   <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                    <span className="text-[10px] font-black text-white uppercase italic tracking-widest">Chat da Transmissão</span>
-                    <button onClick={() => setIsChatOpen(false)}><X className="w-4 h-4 text-white" /></button>
+                    <span className={`font-black text-white uppercase italic tracking-widest ${
+                      isMobile ? 'text-xs' : 'text-[10px]'
+                    }`}>Chat da Transmissão</span>
+                    <button onClick={() => setIsChatOpen(false)} className="p-1 hover:bg-white/10 rounded transition-colors">
+                      <X className={`text-white ${isMobile ? 'w-5 h-5' : 'w-4 h-4'}`} />
+                    </button>
                   </div>
                   <div className="flex-1 overflow-hidden"><LiveChat streamId={stream.id} /></div>
                 </div>

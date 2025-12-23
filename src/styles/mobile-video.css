@@ -108,12 +108,12 @@
     height: 100% !important;
   }
 
-  /* Chat docked - lado a lado com o vídeo */
+  /* Chat docked - lado a lado com o vídeo - AUMENTADO para melhor visualização */
   .mobile-video-container:fullscreen.docked-chat-active .chat-overlay-mobile {
     position: relative !important;
-    width: clamp(280px, 35vw, 380px) !important;
-    min-width: 280px !important;
-    max-width: 380px !important;
+    width: clamp(350px, 45vw, 450px) !important;
+    min-width: 350px !important;
+    max-width: 45vw !important;
     height: 100% !important;
     flex-shrink: 0 !important;
     z-index: 1 !important;

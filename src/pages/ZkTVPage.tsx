@@ -668,8 +668,8 @@ const ZkTVPage: React.FC = () => {
                                     </div>
                                 )}
 
-                                {/* Status e Viewer Count (Apenas Fullscreen) */}
-                                {isLiveActive && isFullscreen && (
+                                {/* Status e Viewer Count (Apenas Fullscreen Desktop - NÃO mostrar no mobile) */}
+                                {isLiveActive && isFullscreen && !isMobile && (
                                     <div className="absolute top-4 left-4 z-20">
                                         <div className="px-6 py-3 bg-slate-800/80 backdrop-blur-md rounded-2xl border border-white/10 flex items-center gap-4">
                                             <div className="flex items-center gap-2">
@@ -744,13 +744,13 @@ const ZkTVPage: React.FC = () => {
                                 )}
                             </div>
 
-                            {/* Chat Docked (Mobile Fullscreen Landscape) */}
+                            {/* Chat Docked (Mobile Fullscreen Landscape) - Aumentado para melhor visualização */}
                             {isMobile && isFullscreen && isLandscape && isDockedChat && activeStream && (
-                                <div className="w-[300px] h-full bg-black/90 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl">
+                                <div className="w-[400px] min-w-[350px] max-w-[45vw] h-full bg-black/90 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl">
                                     <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                                        <span className="text-[10px] font-black text-white uppercase italic tracking-widest">Chat</span>
-                                        <button onClick={() => setIsDockedChat(false)}>
-                                            <X className="w-4 h-4 text-white" />
+                                        <span className="text-xs font-black text-white uppercase italic tracking-widest">Chat ao Vivo</span>
+                                        <button onClick={() => setIsDockedChat(false)} className="p-1 hover:bg-white/10 rounded transition-colors">
+                                            <X className="w-5 h-5 text-white" />
                                         </button>
                                     </div>
                                     <div className="flex-1 overflow-hidden">
