@@ -103,7 +103,7 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border-2 border-purple-500/30 shadow-2xl max-w-md w-full overflow-hidden">
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border-2 border-purple-500/30 shadow-2xl max-w-sm w-full overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -119,7 +119,7 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
           {!showPixPayment ? (
             <>
               {/* Price */}
@@ -185,21 +185,21 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
           ) : (
             <>
               {/* PIX Payment Display */}
-              <div className="text-center space-y-4">
-                <div className="flex items-center justify-center gap-2 mb-4">
-                  <QrCode className="w-6 h-6 text-purple-400" />
-                  <h3 className="text-lg font-black text-purple-300 uppercase">
+              <div className="text-center space-y-3">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <QrCode className="w-5 h-5 text-purple-400" />
+                  <h3 className="text-base font-black text-purple-300 uppercase">
                     Pagamento PIX
                   </h3>
                 </div>
 
                 {/* QR Code */}
                 {pixQrCode && (
-                  <div className="bg-white p-4 rounded-xl mx-auto w-fit">
+                  <div className="bg-white p-3 rounded-xl mx-auto w-fit">
                     <img 
                       src={`data:image/png;base64,${pixQrCode}`} 
                       alt="QR Code PIX" 
-                      className="w-64 h-64"
+                      className="w-48 h-48"
                     />
                   </div>
                 )}
@@ -215,21 +215,21 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
                         type="text"
                         value={pixCode}
                         readOnly
-                        className="flex-1 px-4 py-3 bg-slate-800 border border-purple-500/30 rounded-xl text-white text-xs font-mono break-all"
+                        className="flex-1 px-3 py-2 bg-slate-800 border border-purple-500/30 rounded-lg text-white text-xs font-mono break-all"
                       />
                       <button
                         onClick={copyPixCode}
-                        className="px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-all flex items-center gap-2"
+                        className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-all flex items-center"
                         title="Copiar código PIX"
                       >
-                        <Copy className="w-5 h-5" />
+                        <Copy className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
                 )}
 
                 {/* Payment Info */}
-                <div className="bg-slate-700/50 rounded-xl p-4 border border-purple-500/20">
+                <div className="bg-slate-700/50 rounded-lg p-3 border border-purple-500/20">
                   <p className="text-xs text-slate-400 text-center">
                     📱 Escaneie o QR Code ou copie o código PIX
                     <br />
@@ -238,14 +238,14 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
                 </div>
 
                 {/* Actions */}
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2">
                   <button
                     onClick={() => {
                       setShowPixPayment(false);
                       setPixQrCode(null);
                       setPixCode(null);
                     }}
-                    className="w-full px-6 py-3 bg-slate-700/50 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-all"
+                    className="w-full px-6 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-all text-sm"
                   >
                     Voltar
                   </button>
