@@ -11,7 +11,7 @@ interface VipSubscriptionModalProps {
   monthlyPrice?: number;
 }
 
-const DEFAULT_VIP_PRICE = 10.00; // Valor padrão: R$ 10,00
+const DEFAULT_VIP_PRICE = 5.00; // Valor padrão: R$ 5,00
 
 const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({ 
   isOpen, 

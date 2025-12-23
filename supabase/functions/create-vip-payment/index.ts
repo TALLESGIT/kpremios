@@ -70,7 +70,7 @@ Deno.serve(async (req: Request) => {
     const vipMonthlyPrice = parseFloat(
       Deno.env.get('VIP_MONTHLY_PRICE') || 
       Deno.env.get('PREÇO_VIP_MENSAL') || 
-      '10.00'
+      '5.00'
     );
     
     // URL do app (suporta ambos os nomes)

@@ -623,7 +623,7 @@ const PublicLiveStreamPage: React.FC = () => {
       <VipSubscriptionModal
         isOpen={showVipModal}
         onClose={() => setShowVipModal(false)}
-        monthlyPrice={10.00}
+        monthlyPrice={5.00}
       />
     </div>
   );
