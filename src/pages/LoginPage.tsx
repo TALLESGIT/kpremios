@@ -36,16 +36,7 @@ const LoginPage: React.FC = () => {
     }
 
     try {
-      // Testar conexão com Supabase primeiro
-      const { data: testData, error: testError } = await supabase
-        .from('users')
-        .select('count')
-        .limit(1);
-
-      if (testError) {
-        setError('Erro de conexão com o servidor. Tente novamente.');
-        return;
-      }
+      // Fazer login diretamente (o próprio signInWithPassword já testa a conexão)
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password,
