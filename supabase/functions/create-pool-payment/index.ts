@@ -10,8 +10,15 @@ interface PoolPaymentRequest {
 }
 
 Deno.serve(async (req: Request) => {
+  // Log inicial para garantir que a função está sendo chamada
+  console.log('=== create-pool-payment INICIADA ===');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Headers:', Object.fromEntries(req.headers.entries()));
+  
   // Tratar requisições OPTIONS (CORS preflight)
   if (req.method === 'OPTIONS') {
+    console.log('OPTIONS request - retornando 204');
     return new Response(null, {
       status: 204,
       headers: {
@@ -24,6 +31,7 @@ Deno.serve(async (req: Request) => {
   }
 
   if (req.method !== 'POST') {
+    console.error('Method not allowed:', req.method);
     return new Response(
       JSON.stringify({ error: 'Method not allowed' }),
       { 
@@ -37,11 +45,16 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    console.log('Iniciando processamento da requisição POST');
     let requestBody: PoolPaymentRequest;
     try {
+      console.log('Fazendo parse do JSON do body...');
       requestBody = await req.json();
+      console.log('Body parseado com sucesso:', JSON.stringify(requestBody, null, 2));
     } catch (jsonError: any) {
-      console.error('Erro ao fazer parse do JSON:', jsonError);
+      console.error('❌ ERRO ao fazer parse do JSON:', jsonError);
+      console.error('Erro message:', jsonError.message);
+      console.error('Erro stack:', jsonError.stack);
       return new Response(
         JSON.stringify({ 
           error: 'Invalid JSON in request body',
@@ -58,8 +71,10 @@ Deno.serve(async (req: Request) => {
     }
 
     const { user_id, user_email, user_name, bet_id, pool_id, amount } = requestBody;
+    console.log('Dados extraídos:', { user_id, bet_id, pool_id, amount });
 
     if (!user_id || !bet_id || !pool_id) {
+      console.error('❌ Campos obrigatórios faltando:', { user_id: !!user_id, bet_id: !!bet_id, pool_id: !!pool_id });
       return new Response(
         JSON.stringify({ error: 'user_id, bet_id and pool_id are required' }),
         { 
@@ -73,10 +88,11 @@ Deno.serve(async (req: Request) => {
     }
 
     // Obter Access Token do Mercado Pago
+    console.log('Verificando MERCADO_PAGO_ACCESS_TOKEN...');
     const mercadoPagoToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN');
     
     if (!mercadoPagoToken) {
-      console.error('MERCADO_PAGO_ACCESS_TOKEN não configurada');
+      console.error('❌ MERCADO_PAGO_ACCESS_TOKEN não configurada');
       return new Response(
         JSON.stringify({ error: 'Payment service not configured' }),
         { 
@@ -88,6 +104,7 @@ Deno.serve(async (req: Request) => {
         }
       );
     }
+    console.log('✅ Token do Mercado Pago encontrado (primeiros 10 chars):', mercadoPagoToken.substring(0, 10) + '...');
 
     // Valor fixo do bolão: R$ 2,00
     const poolAmount = amount || 2.00;
@@ -113,6 +130,9 @@ Deno.serve(async (req: Request) => {
     };
 
     // Chamar API do Mercado Pago para criar pagamento PIX
+    console.log('📞 Chamando API do Mercado Pago...');
+    console.log('Payment data:', JSON.stringify(paymentData, null, 2));
+    
     const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
       headers: {
@@ -121,6 +141,11 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify(paymentData)
     });
+
+    console.log('📥 Resposta do Mercado Pago recebida');
+    console.log('Status:', mpResponse.status);
+    console.log('Status Text:', mpResponse.statusText);
+    console.log('OK?', mpResponse.ok);
 
     if (!mpResponse.ok) {
       let errorData: any;
@@ -215,6 +240,10 @@ Deno.serve(async (req: Request) => {
       console.warn('Aviso: Não foi possível atualizar payment_id na aposta:', updateError);
     }
 
+    console.log('✅ Pagamento criado com sucesso!');
+    console.log('Payment ID:', mpData.id);
+    console.log('Status:', mpData.status);
+    
     return new Response(
       JSON.stringify({
         payment_id: mpData.id,
@@ -236,16 +265,20 @@ Deno.serve(async (req: Request) => {
     );
 
   } catch (error: any) {
-    console.error('Erro na Edge Function:', error);
-    console.error('Stack trace:', error.stack);
+    console.error('❌❌❌ ERRO CRÍTICO na Edge Function ❌❌❌');
+    console.error('Tipo do erro:', error?.constructor?.name || typeof error);
+    console.error('Mensagem:', error?.message || 'Sem mensagem');
+    console.error('Stack trace:', error?.stack || 'Sem stack trace');
     console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    console.error('Error toString:', error?.toString());
+    console.error('=== FIM DO ERRO ===');
     
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',
-        message: error.message || 'Erro desconhecido',
-        details: error.toString(),
-        stack: import.meta.env.DEV ? error.stack : undefined
+        message: error?.message || 'Erro desconhecido',
+        details: error?.toString() || 'Erro sem detalhes',
+        stack: import.meta.env.DEV ? error?.stack : undefined
       }),
       { 
         status: 500, 
