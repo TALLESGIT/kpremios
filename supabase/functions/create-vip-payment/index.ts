@@ -84,40 +84,29 @@ Deno.serve(async (req: Request) => {
                        Deno.env.get('URL_SUPABASE') || 
                        'https://bukigyhhgrtgryklabjg.supabase.co';
     
-    // Criar preferência de pagamento no Mercado Pago
-    const preferenceData = {
-      items: [
-        {
-          title: 'Assinatura VIP - ZK Prêmios',
-          description: 'Acesso VIP mensal com benefícios exclusivos',
-          quantity: 1,
-          unit_price: vipMonthlyPrice,
-          currency_id: 'BRL'
-        }
-      ],
+    // Criar pagamento PIX diretamente no Mercado Pago
+    const paymentData = {
+      transaction_amount: vipMonthlyPrice,
+      description: 'Assinatura VIP - ZK Prêmios',
+      payment_method_id: 'pix',
       payer: {
         email: user_email || undefined,
-        name: user_name || undefined
+        first_name: user_name?.split(' ')[0] || undefined,
+        last_name: user_name?.split(' ').slice(1).join(' ') || undefined
       },
-      back_urls: {
-        success: `${appUrl}/vip/success`,
-        failure: `${appUrl}/vip/failure`,
-        pending: `${appUrl}/vip/pending`
-      },
-      auto_return: 'approved',
       external_reference: user_id, // ID do usuário para identificar pagamento
       notification_url: `${supabaseUrl}/functions/v1/mercadopago-webhook`,
       statement_descriptor: 'ZK Premios VIP'
     };
 
-    // Chamar API do Mercado Pago
-    const mpResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
+    // Chamar API do Mercado Pago para criar pagamento PIX
+    const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${mercadoPagoToken}`
       },
-      body: JSON.stringify(preferenceData)
+      body: JSON.stringify(paymentData)
     });
 
     if (!mpResponse.ok) {
@@ -125,7 +114,7 @@ Deno.serve(async (req: Request) => {
       console.error('Erro na API do Mercado Pago:', errorData);
       return new Response(
         JSON.stringify({ 
-          error: 'Failed to create payment preference',
+          error: 'Failed to create PIX payment',
           details: errorData 
         }),
         { 
@@ -140,9 +129,10 @@ Deno.serve(async (req: Request) => {
 
     const mpData = await mpResponse.json();
     
-    if (!mpData.init_point) {
+    // Verificar se o pagamento foi criado e tem dados do PIX
+    if (!mpData.id || !mpData.point_of_interaction?.transaction_data) {
       return new Response(
-        JSON.stringify({ error: 'No payment link received' }),
+        JSON.stringify({ error: 'No PIX payment data received' }),
         { 
           status: 500, 
           headers: { 
@@ -153,11 +143,16 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const pixData = mpData.point_of_interaction.transaction_data;
+    
     return new Response(
       JSON.stringify({
-        payment_link: mpData.init_point,
-        preference_id: mpData.id,
-        sandbox_init_point: mpData.sandbox_init_point
+        payment_id: mpData.id,
+        qr_code: pixData.qr_code_base64 || null, // QR Code em base64
+        qr_code_text: pixData.qr_code || null, // Código PIX copia-e-cola
+        ticket_url: pixData.ticket_url || null, // URL alternativa (se disponível)
+        status: mpData.status,
+        transaction_amount: mpData.transaction_amount
       }),
       {
         status: 200,

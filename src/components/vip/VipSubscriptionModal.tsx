@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { X, Crown, Check, Loader2 } from 'lucide-react';
+import { X, Crown, Check, Loader2, Copy, QrCode } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 
@@ -22,6 +22,9 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
   const { currentUser } = useData();
   const [loading, setLoading] = useState(false);
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
+  const [pixQrCode, setPixQrCode] = useState<string | null>(null);
+  const [pixCode, setPixCode] = useState<string | null>(null);
+  const [showPixPayment, setShowPixPayment] = useState(false);
 
   if (!isOpen) return null;
 
@@ -52,13 +55,19 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
         throw new Error('Resposta vazia da Edge Function');
       }
 
-      if (data.payment_link) {
-        // Abrir link de pagamento em nova aba
+      // Verificar se recebeu dados do PIX
+      if (data.qr_code && data.qr_code_text) {
+        setPixQrCode(data.qr_code);
+        setPixCode(data.qr_code_text);
+        setShowPixPayment(true);
+        toast.success('QR Code PIX gerado com sucesso!');
+      } else if (data.payment_link) {
+        // Fallback: se não tiver PIX, usar link de pagamento
         window.open(data.payment_link, '_blank');
         setPaymentLink(data.payment_link);
         toast.success('Redirecionando para o pagamento...');
       } else {
-        throw new Error(data.error || 'Link de pagamento não recebido');
+        throw new Error(data.error || 'Dados de pagamento não recebidos');
       }
     } catch (error: any) {
       console.error('Erro ao criar pagamento:', error);
@@ -66,6 +75,17 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
       toast.error(`Erro ao criar pagamento: ${errorMessage}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const copyPixCode = async () => {
+    if (pixCode) {
+      try {
+        await navigator.clipboard.writeText(pixCode);
+        toast.success('Código PIX copiado!');
+      } catch (err) {
+        toast.error('Erro ao copiar código');
+      }
     }
   };
 
@@ -100,76 +120,139 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
 
         {/* Content */}
         <div className="p-6 space-y-6">
-          {/* Price */}
-          <div className="text-center">
-            <div className="text-4xl font-black text-purple-400 mb-2">
-              R$ {monthlyPrice.toFixed(2).replace('.', ',')}
-            </div>
-            <p className="text-sm text-slate-400 font-bold">por mês</p>
-          </div>
-
-          {/* Benefits */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-black text-purple-300 uppercase mb-3">
-              Benefícios VIP:
-            </h3>
-            <div className="space-y-2">
-              {benefits.map((benefit, index) => (
-                <div key={index} className="flex items-center gap-2 text-sm text-slate-300">
-                  <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
-                  <span>{benefit}</span>
+          {!showPixPayment ? (
+            <>
+              {/* Price */}
+              <div className="text-center">
+                <div className="text-4xl font-black text-purple-400 mb-2">
+                  R$ {monthlyPrice.toFixed(2).replace('.', ',')}
                 </div>
-              ))}
-            </div>
-          </div>
+                <p className="text-sm text-slate-400 font-bold">por mês</p>
+              </div>
 
-          {/* Payment Info */}
-          <div className="bg-slate-700/50 rounded-xl p-4 border border-purple-500/20">
-            <p className="text-xs text-slate-400 text-center">
-              💳 Pagamento seguro via Mercado Pago
-              <br />
-              🔄 Renovação automática mensal
-            </p>
-          </div>
+              {/* Benefits */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-black text-purple-300 uppercase mb-3">
+                  Benefícios VIP:
+                </h3>
+                <div className="space-y-2">
+                  {benefits.map((benefit, index) => (
+                    <div key={index} className="flex items-center gap-2 text-sm text-slate-300">
+                      <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
+                      <span>{benefit}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-          {/* Actions */}
-          <div className="flex flex-col gap-3">
-            <button
-              onClick={handleSubscribe}
-              disabled={loading}
-              className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-black rounded-xl uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-600/20"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Processando...
-                </>
-              ) : (
-                <>
-                  <Crown className="w-5 h-5" />
-                  Assinar VIP Agora
-                </>
-              )}
-            </button>
-            
-            {paymentLink && (
-              <a
-                href={paymentLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition-all text-center"
-              >
-                Abrir Link de Pagamento
-              </a>
-            )}
+              {/* Payment Info */}
+              <div className="bg-slate-700/50 rounded-xl p-4 border border-purple-500/20">
+                <p className="text-xs text-slate-400 text-center">
+                  💳 Pagamento seguro via Mercado Pago
+                  <br />
+                  🔄 Renovação automática mensal
+                </p>
+              </div>
 
-            <button
-              onClick={onClose}
-              className="w-full px-6 py-3 bg-slate-700/50 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-all"
-            >
-              Cancelar
-            </button>
-          </div>
+              {/* Actions */}
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleSubscribe}
+                  disabled={loading}
+                  className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-black rounded-xl uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-600/20"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Processando...
+                    </>
+                  ) : (
+                    <>
+                      <Crown className="w-5 h-5" />
+                      Assinar VIP Agora
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={onClose}
+                  className="w-full px-6 py-3 bg-slate-700/50 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-all"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* PIX Payment Display */}
+              <div className="text-center space-y-4">
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <QrCode className="w-6 h-6 text-purple-400" />
+                  <h3 className="text-lg font-black text-purple-300 uppercase">
+                    Pagamento PIX
+                  </h3>
+                </div>
+
+                {/* QR Code */}
+                {pixQrCode && (
+                  <div className="bg-white p-4 rounded-xl mx-auto w-fit">
+                    <img 
+                      src={`data:image/png;base64,${pixQrCode}`} 
+                      alt="QR Code PIX" 
+                      className="w-64 h-64"
+                    />
+                  </div>
+                )}
+
+                {/* PIX Code Copy */}
+                {pixCode && (
+                  <div className="space-y-2">
+                    <label className="block text-xs font-black text-purple-300 uppercase">
+                      Código PIX (Copiar e Colar)
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={pixCode}
+                        readOnly
+                        className="flex-1 px-4 py-3 bg-slate-800 border border-purple-500/30 rounded-xl text-white text-xs font-mono break-all"
+                      />
+                      <button
+                        onClick={copyPixCode}
+                        className="px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-all flex items-center gap-2"
+                        title="Copiar código PIX"
+                      >
+                        <Copy className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Payment Info */}
+                <div className="bg-slate-700/50 rounded-xl p-4 border border-purple-500/20">
+                  <p className="text-xs text-slate-400 text-center">
+                    📱 Escaneie o QR Code ou copie o código PIX
+                    <br />
+                    ⏱️ O pagamento será processado automaticamente
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => {
+                      setShowPixPayment(false);
+                      setPixQrCode(null);
+                      setPixCode(null);
+                    }}
+                    className="w-full px-6 py-3 bg-slate-700/50 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-all"
+                  >
+                    Voltar
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
