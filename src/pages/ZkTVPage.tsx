@@ -14,15 +14,20 @@ import {
     Minimize2,
     Eye,
     MessageSquare,
-    X
+    X,
+    Crown,
+    Target
 } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import ZKViewer from '../components/ZKViewer';
 import MobileLiveControls from '../components/live/MobileLiveControls';
 import LiveChat from '../components/live/LiveChat';
+import VipSubscriptionModal from '../components/vip/VipSubscriptionModal';
+import PoolBetModal from '../components/pool/PoolBetModal';
 import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding } from '../types';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 interface LiveStream {
     id: string;
@@ -61,7 +66,13 @@ const ZkTVPage: React.FC = () => {
     const [currentViewerCount, setCurrentViewerCount] = useState(0);
     const trackViewerExecutedRef = useRef(false);
     const videoContainerRef = useRef<HTMLDivElement>(null);
-    
+
+    // Novos estados para VIP e Bolão
+    const [isVip, setIsVip] = useState(false);
+    const [showVipModal, setShowVipModal] = useState(false);
+    const [showPoolModal, setShowPoolModal] = useState(false);
+    const [activePool, setActivePool] = useState<any>(null);
+
     const [sessionId] = useState(() => {
         const key = `zk_tv_session`;
         const saved = localStorage.getItem(key);
@@ -86,7 +97,7 @@ const ZkTVPage: React.FC = () => {
 
             const activeCount = Number(countData) || 0;
             setCurrentViewerCount(activeCount);
-            
+
             // Atualizar na tabela
             await supabase
                 .from('live_streams')
@@ -100,7 +111,7 @@ const ZkTVPage: React.FC = () => {
     // Função para criar/atualizar viewer session
     const trackViewer = useCallback(async (streamId: string) => {
         if (!activeStream) return;
-        
+
         try {
             const now = new Date().toISOString();
 
@@ -117,7 +128,7 @@ const ZkTVPage: React.FC = () => {
                 }, {
                     onConflict: 'session_id,stream_id'
                 });
-            
+
             if (error) {
                 const { error: updateError } = await supabase
                     .from('viewer_sessions')
@@ -129,12 +140,12 @@ const ZkTVPage: React.FC = () => {
                     })
                     .eq('session_id', sessionId)
                     .eq('stream_id', streamId);
-                
+
                 if (updateError) {
                     console.error('❌ Erro ao atualizar viewer_session:', updateError);
                 }
             }
-            
+
             updateViewerCount(streamId);
         } catch (e: any) {
             console.error('❌ Erro geral ao track viewer:', e);
@@ -144,7 +155,9 @@ const ZkTVPage: React.FC = () => {
     useEffect(() => {
         loadData();
         loadActiveStream();
-        
+        checkVipStatus();
+        checkActivePool(); // Verificar bolão ao carregar
+
         // Detectar mobile
         const checkMobile = () => {
             setIsMobile(window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
@@ -156,7 +169,7 @@ const ZkTVPage: React.FC = () => {
         const checkOrientation = () => {
             const landscape = window.innerWidth > window.innerHeight;
             setIsLandscape(landscape);
-            
+
             // Em mobile fullscreen paisagem, ativar chat docked
             if (isMobile && isFullscreen && landscape) {
                 setIsDockedChat(true);
@@ -180,7 +193,7 @@ const ZkTVPage: React.FC = () => {
             }
         };
         document.addEventListener('fullscreenchange', handleFullscreenChange);
-        
+
         // Subscribe to changes
         const settingsSub = supabase
             .channel('zk-tv-updates')
@@ -202,6 +215,67 @@ const ZkTVPage: React.FC = () => {
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
         };
     }, [isMobile, isFullscreen]);
+
+    // Verificar status VIP
+    const checkVipStatus = async () => {
+        if (!user) {
+            setIsVip(false);
+            return;
+        }
+
+        try {
+            const { data, error } = await supabase
+                .from('users')
+                .select('is_vip')
+                .eq('id', user.id)
+                .single();
+
+            if (!error && data) {
+                setIsVip(data.is_vip || false);
+            }
+        } catch (error) {
+            console.error('Erro ao verificar VIP:', error);
+        }
+    };
+
+    // Verificar Bolão Ativo
+    const checkActivePool = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('match_pools')
+                .select('*')
+                .eq('is_active', true)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (!error && data) {
+                setActivePool(data);
+            } else {
+                setActivePool(null);
+            }
+        } catch (err) {
+            console.error('Erro ao verificar bolão:', err);
+        }
+    };
+
+    // Subscribe to pool updates
+    useEffect(() => {
+        const poolChannel = supabase
+            .channel('zktv-pool-updates')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'match_pools'
+            }, () => {
+                checkActivePool();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(poolChannel);
+        };
+    }, []);
 
     // Atualizar heartbeat periodicamente
     useEffect(() => {
@@ -335,19 +409,19 @@ const ZkTVPage: React.FC = () => {
         try {
             // Usar jogos já carregados
             const finishedGames = games.filter(g => g.status === 'finished');
-            
+
             // Se não há jogos carregados ainda, buscar do banco
             if (finishedGames.length === 0 && games.length === 0) {
                 const { data: gamesData } = await supabase
                     .from('cruzeiro_games')
                     .select('*')
                     .eq('status', 'finished');
-                
+
                 if (!gamesData || gamesData.length === 0) {
                     setQuickStats({ victories: 0, goalsFor: 0, winRate: 0, topScorer: 'N/A' });
                     return;
                 }
-                
+
                 // Calcular com dados do banco
                 const victories = gamesData.filter(game => {
                     if (game.is_home) {
@@ -446,7 +520,7 @@ const ZkTVPage: React.FC = () => {
             if (settingsRes.data) setSettings(settingsRes.data);
             if (gamesRes.data) setGames(gamesRes.data);
             if (standingsRes.data) setStandings(standingsRes.data);
-            
+
             // Recalcular stats após carregar todos os dados
             setTimeout(() => loadQuickStats(), 200);
         } catch (error) {
@@ -475,10 +549,34 @@ const ZkTVPage: React.FC = () => {
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-400 text-sm font-bold mb-6"
+                                className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mb-6"
                             >
-                                <Tv className="w-4 h-4" />
-                                ZK TV
+                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-400 text-sm font-bold">
+                                    <Tv className="w-4 h-4" />
+                                    ZK TV
+                                </div>
+
+                                {/* Botão Assinar VIP (Se não for VIP) */}
+                                {!isVip && (
+                                    <button
+                                        onClick={() => setShowVipModal(true)}
+                                        className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600/20 border border-purple-500/30 hover:bg-purple-600/40 rounded-full text-purple-300 text-sm font-bold transition-all hover:scale-105 active:scale-95"
+                                    >
+                                        <Crown className="w-4 h-4" />
+                                        ASSINAR VIP
+                                    </button>
+                                )}
+
+                                {/* Botão Bolão (Se houver bolão ativo) */}
+                                {activePool && (
+                                    <button
+                                        onClick={() => setShowPoolModal(true)}
+                                        className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/40 rounded-full text-emerald-400 text-sm font-bold transition-all hover:scale-105 active:scale-95"
+                                    >
+                                        <Target className="w-4 h-4" />
+                                        PARTICIPAR DO BOLÃO
+                                    </button>
+                                )}
                             </motion.div>
 
                             <motion.h1
@@ -519,18 +617,17 @@ const ZkTVPage: React.FC = () => {
                             onDoubleClick={handleDoubleClick}
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className={`w-full lg:w-[600px] aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative cursor-pointer transition-all duration-500 ${
-                                isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : ''
-                            } ${isDockedChat ? 'mobile-video-container docked-chat-active' : ''}`}
+                            className={`w-full lg:w-[600px] aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative cursor-pointer transition-all duration-500 ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : ''
+                                } ${isDockedChat ? 'mobile-video-container docked-chat-active' : ''}`}
                             title={isMobile ? "Toque duas vezes para tela cheia" : "Duplo clique para tela cheia"}
                         >
                             <div className="relative w-full h-full flex">
                                 {isLiveActive ? (
                                     activeStream ? (
-                                        <ZKViewer 
-                                            channel={activeStream.channel_name} 
-                                            fitMode={videoFitMode} 
-                                            enabled={true} 
+                                        <ZKViewer
+                                            channel={activeStream.channel_name}
+                                            fitMode={videoFitMode}
+                                            enabled={true}
                                         />
                                     ) : settings?.live_url && settings.live_url.includes('/live/') ? (
                                         <ZKViewer channel="ZkPremios" fitMode={videoFitMode} enabled={true} />
@@ -574,7 +671,7 @@ const ZkTVPage: React.FC = () => {
                                             <div className="flex items-center gap-2">
                                                 <Eye className="w-4 h-4 text-slate-400" />
                                                 <span className="text-white font-black">
-                                                    {activeStream?.is_active 
+                                                    {activeStream?.is_active
                                                         ? (currentViewerCount || activeStream?.viewer_count || 0)
                                                         : 0
                                                     }
@@ -877,6 +974,23 @@ const ZkTVPage: React.FC = () => {
             </section>
 
             <Footer />
+
+            {/* Modals */}
+            <VipSubscriptionModal
+                isOpen={showVipModal}
+                onClose={() => setShowVipModal(false)}
+            />
+
+            {activePool && (
+                <PoolBetModal
+                    isOpen={showPoolModal}
+                    onClose={() => setShowPoolModal(false)}
+                    poolId={activePool.id}
+                    matchTitle={activePool.match_title}
+                    homeTeam={activePool.home_team}
+                    awayTeam={activePool.away_team}
+                />
+            )}
         </div>
     );
 };
