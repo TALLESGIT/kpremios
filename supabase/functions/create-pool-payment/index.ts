@@ -37,7 +37,27 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { user_id, user_email, user_name, bet_id, pool_id, amount }: PoolPaymentRequest = await req.json();
+    let requestBody: PoolPaymentRequest;
+    try {
+      requestBody = await req.json();
+    } catch (jsonError: any) {
+      console.error('Erro ao fazer parse do JSON:', jsonError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid JSON in request body',
+          message: jsonError.message 
+        }),
+        { 
+          status: 400, 
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          } 
+        }
+      );
+    }
+
+    const { user_id, user_email, user_name, bet_id, pool_id, amount } = requestBody;
 
     if (!user_id || !bet_id || !pool_id) {
       return new Response(
@@ -103,15 +123,27 @@ Deno.serve(async (req: Request) => {
     });
 
     if (!mpResponse.ok) {
-      const errorData = await mpResponse.text();
-      console.error('Erro na API do Mercado Pago:', errorData);
+      let errorData: any;
+      try {
+        errorData = await mpResponse.json();
+      } catch {
+        errorData = await mpResponse.text();
+      }
+      
+      console.error('Erro na API do Mercado Pago:');
+      console.error('Status:', mpResponse.status);
+      console.error('Status Text:', mpResponse.statusText);
+      console.error('Response:', JSON.stringify(errorData, null, 2));
+      
       return new Response(
         JSON.stringify({ 
           error: 'Failed to create PIX payment',
-          details: errorData 
+          message: errorData?.message || errorData?.error || 'Erro ao criar pagamento no Mercado Pago',
+          details: errorData,
+          status: mpResponse.status
         }),
         { 
-          status: mpResponse.status, 
+          status: mpResponse.status >= 400 && mpResponse.status < 600 ? mpResponse.status : 500, 
           headers: { 
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*',
@@ -120,12 +152,38 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const mpData = await mpResponse.json();
+    let mpData: any;
+    try {
+      mpData = await mpResponse.json();
+    } catch (jsonError: any) {
+      console.error('Erro ao fazer parse da resposta do Mercado Pago:', jsonError);
+      const responseText = await mpResponse.text();
+      console.error('Resposta em texto:', responseText);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to parse Mercado Pago response',
+          message: jsonError.message,
+          rawResponse: responseText.substring(0, 500) // Limitar tamanho
+        }),
+        { 
+          status: 500, 
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          } 
+        }
+      );
+    }
     
     // Verificar se o pagamento foi criado e tem dados do PIX
     if (!mpData.id || !mpData.point_of_interaction?.transaction_data) {
+      console.error('Resposta do Mercado Pago sem dados PIX:', JSON.stringify(mpData, null, 2));
       return new Response(
-        JSON.stringify({ error: 'No PIX payment data received' }),
+        JSON.stringify({ 
+          error: 'No PIX payment data received',
+          message: 'O pagamento foi criado mas não contém dados do PIX',
+          receivedData: mpData
+        }),
         { 
           status: 500, 
           headers: { 
@@ -179,10 +237,15 @@ Deno.serve(async (req: Request) => {
 
   } catch (error: any) {
     console.error('Erro na Edge Function:', error);
+    console.error('Stack trace:', error.stack);
+    console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',
-        message: error.message 
+        message: error.message || 'Erro desconhecido',
+        details: error.toString(),
+        stack: import.meta.env.DEV ? error.stack : undefined
       }),
       { 
         status: 500, 

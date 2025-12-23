@@ -158,7 +158,7 @@ function WinnersPage() {
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <Trophy className="h-4 w-4 text-yellow-400" />
-                            <span className="text-xs font-medium text-yellow-200">Prêmio</span>
+                            <span className="text-xs font-medium text-yellow-200">Prêmio (70%)</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <UsersIcon className="h-3 w-3 text-slate-400" />
@@ -167,6 +167,9 @@ function WinnersPage() {
                         </div>
                         <p className="text-2xl font-black text-yellow-400">
                           R$ {bet.prize_amount?.toFixed(2) || pool.prize_per_winner?.toFixed(2) || '0.00'}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          de R$ {((pool.total_pool_amount || 0) * 0.70).toFixed(2)} distribuído
                         </p>
                       </div>
 

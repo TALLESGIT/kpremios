@@ -100,24 +100,77 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
       }
 
       // Criar pagamento PIX via Edge Function
-      const { data: paymentData, error: paymentError } = await supabase.functions.invoke('create-pool-payment', {
-        body: {
-          user_id: user.id,
-          user_email: user.email,
-          user_name: currentUser?.name || user.email?.split('@')[0] || 'Usuário',
-          bet_id: betData.id,
-          pool_id: poolId,
-          amount: 2.00
-        }
-      });
+      let paymentData: any;
+      let paymentError: any;
+      
+      try {
+        const result = await supabase.functions.invoke('create-pool-payment', {
+          body: {
+            user_id: user.id,
+            user_email: user.email,
+            user_name: currentUser?.name || user.email?.split('@')[0] || 'Usuário',
+            bet_id: betData.id,
+            pool_id: poolId,
+            amount: 2.00
+          }
+        });
+        
+        paymentData = result.data;
+        paymentError = result.error;
+      } catch (invokeError: any) {
+        console.error('Erro ao invocar Edge Function:', invokeError);
+        paymentError = invokeError;
+      }
 
       if (paymentError) {
+        console.error('Erro na Edge Function:', paymentError);
+        console.error('Tipo do erro:', typeof paymentError);
+        console.error('Detalhes completos do erro:', JSON.stringify(paymentError, Object.getOwnPropertyNames(paymentError), 2));
+        
+        // Tentar extrair detalhes do erro
+        let errorMessage = 'Erro ao criar pagamento';
+        let errorDetails: any = {};
+        
+        if (paymentError.message) {
+          errorMessage = paymentError.message;
+        }
+        
+        if (paymentError.context) {
+          errorDetails = paymentError.context;
+          if (paymentError.context.message) {
+            errorMessage = paymentError.context.message;
+          }
+          if (paymentError.context.error) {
+            errorMessage = paymentError.context.error;
+          }
+        }
+        
+        if (paymentError.error) {
+          errorMessage = paymentError.error;
+        }
+        
+        if (paymentError.details) {
+          errorDetails = { ...errorDetails, ...paymentError.details };
+        }
+        
+        console.error('Mensagem de erro extraída:', errorMessage);
+        console.error('Detalhes adicionais:', errorDetails);
+        
         // Se der erro no pagamento, remover a aposta criada
         await supabase.from('pool_bets').delete().eq('id', betData.id);
-        throw new Error(paymentError.message || 'Erro ao criar pagamento');
+        
+        // Construir mensagem de erro mais informativa
+        if (errorDetails.message) {
+          errorMessage = errorDetails.message;
+        } else if (errorDetails.error) {
+          errorMessage = errorDetails.error;
+        }
+        
+        throw new Error(errorMessage || 'Erro ao criar pagamento');
       }
 
       if (!paymentData) {
+        console.error('Resposta vazia da Edge Function');
         await supabase.from('pool_bets').delete().eq('id', betData.id);
         throw new Error('Resposta vazia da Edge Function');
       }
@@ -133,7 +186,24 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
       }
     } catch (error: any) {
       console.error('Erro ao criar aposta:', error);
-      toast.error(error.message || 'Erro ao participar do bolão. Tente novamente.');
+      console.error('Detalhes completos do erro:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response,
+        data: error.data
+      });
+      
+      // Mensagem de erro mais detalhada
+      let errorMessage = 'Erro ao participar do bolão. Tente novamente.';
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
