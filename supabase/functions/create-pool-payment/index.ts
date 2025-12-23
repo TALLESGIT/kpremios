@@ -138,17 +138,23 @@ Deno.serve(async (req: Request) => {
 
     const pixData = mpData.point_of_interaction.transaction_data;
 
-    // Atualizar aposta com payment_id
-    const supabaseClient = Deno.env.get('SUPABASE_URL') && Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-      ? await import('https://esm.sh/@supabase/supabase-js@2')
-        .then(m => m.createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!))
-      : null;
-
-    if (supabaseClient) {
-      await supabaseClient
-        .from('pool_bets')
-        .update({ payment_id: mpData.id.toString() })
-        .eq('id', bet_id);
+    // Atualizar aposta com payment_id (opcional - não crítico se falhar)
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') || Deno.env.get('URL_SUPABASE') || '';
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+      
+      if (supabaseUrl && supabaseServiceKey) {
+        const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+        const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+        
+        await supabaseClient
+          .from('pool_bets')
+          .update({ payment_id: mpData.id.toString() })
+          .eq('id', bet_id);
+      }
+    } catch (updateError) {
+      // Não falhar o pagamento se não conseguir atualizar o payment_id
+      console.warn('Aviso: Não foi possível atualizar payment_id na aposta:', updateError);
     }
 
     return new Response(

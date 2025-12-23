@@ -119,7 +119,7 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+        <div className="p-5 space-y-4 overflow-hidden">
           {!showPixPayment ? (
             <>
               {/* Price */}
