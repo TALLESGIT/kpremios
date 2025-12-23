@@ -38,6 +38,8 @@ function HomePage() {
     loadWinnersCount();
     loadNextGame();
     checkActiveLive();
+    // Verificar bolão independente da live (pode haver bolão sem live ativa)
+    checkActivePool();
     
     // Subscribe para mudanças em live_streams
     const liveChannel = supabase
@@ -48,6 +50,8 @@ function HomePage() {
         table: 'live_streams'
       }, () => {
         checkActiveLive();
+        // Verificar bolão novamente quando live mudar
+        checkActivePool();
       })
       .subscribe();
 
@@ -97,31 +101,19 @@ function HomePage() {
 
   const checkActivePool = async (streamId?: string) => {
     try {
-      // Se não tem streamId, buscar a live ativa primeiro
-      let activeStreamId = streamId;
-      if (!activeStreamId) {
-        const { data: activeStream } = await supabase
-          .from('live_streams')
-          .select('id')
-          .eq('is_active', true)
-          .limit(1)
-          .maybeSingle();
-        
-        if (!activeStream) {
-          setActivePool(null);
-          return;
-        }
-        activeStreamId = activeStream.id;
-      }
-
-      const { data, error } = await supabase
+      let query = supabase
         .from('match_pools')
         .select('*')
-        .eq('live_stream_id', activeStreamId)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
+
+      // Se tem streamId específico, filtrar por ele
+      if (streamId) {
+        query = query.eq('live_stream_id', streamId);
+      }
+
+      const { data, error } = await query.maybeSingle();
 
       if (!error && data) {
         console.log('✅ Bolão ativo encontrado:', {
@@ -135,7 +127,7 @@ function HomePage() {
         if (error) {
           console.error('❌ Erro ao buscar bolão:', error);
         } else {
-          console.log('❌ Nenhum bolão ativo encontrado para stream:', activeStreamId);
+          console.log('❌ Nenhum bolão ativo encontrado');
         }
         setActivePool(null);
       }
