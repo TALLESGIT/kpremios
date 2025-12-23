@@ -249,7 +249,7 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
                 <div className="bg-slate-900/50 p-4 rounded-xl">
                   <div className="flex items-center gap-2 mb-2">
                     <DollarSign className="w-4 h-4 text-green-400" />
-                    <p className="text-slate-400 text-xs">Prêmio Total (70%)</p>
+                    <p className="text-slate-400 text-xs">Prêmio Total</p>
                   </div>
                   <p className="text-2xl font-black text-white">R$ {(pool.total_pool_amount * 0.70).toFixed(2)}</p>
                   <p className="text-xs text-slate-500 mt-1">de R$ {pool.total_pool_amount.toFixed(2)} arrecadado</p>

@@ -158,7 +158,7 @@ function WinnersPage() {
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <Trophy className="h-4 w-4 text-yellow-400" />
-                            <span className="text-xs font-medium text-yellow-200">Prêmio (70%)</span>
+                            <span className="text-xs font-medium text-yellow-200">Prêmio</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <UsersIcon className="h-3 w-3 text-slate-400" />

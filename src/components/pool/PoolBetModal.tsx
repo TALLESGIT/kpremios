@@ -472,11 +472,8 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
                   <p className="text-xs text-slate-400 text-center mb-3">
                     💰 Valor da aposta: <span className="text-green-400 font-black">R$ 2,00</span>
                   </p>
-                  <p className="text-xs text-slate-400 text-center mb-2">
+                  <p className="text-xs text-slate-400 text-center">
                     🎯 Acerte o placar exato e divida o prêmio com outros ganhadores!
-                  </p>
-                  <p className="text-xs text-blue-300 text-center font-bold">
-                    💎 70% do valor arrecadado será distribuído entre os ganhadores
                   </p>
                 </div>
 
