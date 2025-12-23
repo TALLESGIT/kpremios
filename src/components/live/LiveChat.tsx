@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { MessageSquare, Smile, Send, Pin, Link2, X, Palette, Mic, Volume2 } from 'lucide-react';
+import { MessageSquare, Smile, Send, Pin, Link2, X, Palette, Mic, Volume2, Heart } from 'lucide-react';
+import PollDisplay from './PollDisplay';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
@@ -22,6 +23,7 @@ interface ChatMessage {
   tts_text?: string;
   audio_url?: string;
   audio_duration?: number;
+  likes_count?: number;
 }
 
 interface LiveChatProps {
@@ -91,6 +93,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
   const [lastAudioSentAt, setLastAudioSentAt] = useState<number>(0);
   const [audioCountRemaining, setAudioCountRemaining] = useState<number>(3);
   const [vipOverlayCountRemaining, setVipOverlayCountRemaining] = useState<number>(10);
+  const [likedMessages, setLikedMessages] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -171,6 +174,10 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
               setPinnedMessage(updated);
             } else if (pinnedMessage?.id === updated.id) {
               setPinnedMessage(null);
+            }
+            // Se likes_count mudou, atualizar
+            if (updated.likes_count !== undefined) {
+              // Não precisa fazer nada, já está atualizado no estado
             }
           } else if (payload.eventType === 'DELETE') {
             const deleted = payload.old as ChatMessage;
@@ -294,6 +301,78 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
       if (userIds.length > 0) {
         loadUserRoles(userIds);
       }
+
+      // Carregar likes do usuário atual
+      if (data.length > 0) {
+        loadUserLikes(data.map(m => m.id));
+      }
+    }
+  };
+
+  const loadUserLikes = async (messageIds: string[]) => {
+    if (!user && !sessionStorage.getItem('session_id')) return;
+
+    try {
+      const sessionId = sessionStorage.getItem('session_id') || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      if (!sessionStorage.getItem('session_id')) {
+        sessionStorage.setItem('session_id', sessionId);
+      }
+
+      const likedSet = new Set<string>();
+      
+      for (const msgId of messageIds) {
+        const { data } = await supabase.rpc('has_user_liked', {
+          p_message_id: msgId,
+          p_user_id: user?.id || null,
+          p_session_id: user?.id ? null : sessionId
+        });
+        
+        if (data) {
+          likedSet.add(msgId);
+        }
+      }
+      
+      setLikedMessages(likedSet);
+    } catch (error) {
+      console.error('Erro ao carregar likes:', error);
+    }
+  };
+
+  const handleToggleLike = async (messageId: string) => {
+    try {
+      const sessionId = sessionStorage.getItem('session_id') || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      if (!sessionStorage.getItem('session_id')) {
+        sessionStorage.setItem('session_id', sessionId);
+      }
+
+      const { data, error } = await supabase.rpc('toggle_message_like', {
+        p_message_id: messageId,
+        p_user_id: user?.id || null,
+        p_session_id: user?.id ? null : sessionId
+      });
+
+      if (error) throw error;
+
+      if (data && data.success) {
+        // Atualizar estado local
+        const newLikedMessages = new Set(likedMessages);
+        if (data.liked) {
+          newLikedMessages.add(messageId);
+        } else {
+          newLikedMessages.delete(messageId);
+        }
+        setLikedMessages(newLikedMessages);
+
+        // Atualizar contador na mensagem
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, likes_count: data.likes_count || 0 }
+            : msg
+        ));
+      }
+    } catch (error: any) {
+      console.error('Erro ao curtir mensagem:', error);
+      toast.error('Erro ao curtir mensagem');
     }
   };
 
@@ -905,6 +984,11 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
         </div>
       </div>
 
+      {/* Área de Enquete Fixada (Fixa no topo) */}
+      <div className="px-4 py-2 border-b border-white/5">
+        <PollDisplay streamId={streamId} />
+      </div>
+
       {/* Área de Mensagem Fixada (Fixa no topo) */}
       {pinnedMessage && (
         <div className="px-4 py-2 border-b border-white/5 bg-slate-800/60 backdrop-blur-md sticky top-0 z-20">
@@ -978,10 +1062,28 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
                 )}
               </div>
               <div className="flex items-start gap-2 w-full">
-                <div
-                  className={`px-4 py-2 ${styles.bg} ${styles.border} rounded-2xl max-w-full overflow-hidden flex-1 shadow-lg transition-all ${styles.isHighlighted ? 'ring-2 ring-blue-500/50 scale-[1.02] origin-left' : ''}`}
-                >
-                  <p className="text-xs text-white break-words font-medium">{msg.message}</p>
+                <div className="flex-1 flex items-start gap-2">
+                  <div
+                    className={`px-4 py-2 ${styles.bg} ${styles.border} rounded-2xl max-w-full overflow-hidden flex-1 shadow-lg transition-all ${styles.isHighlighted ? 'ring-2 ring-blue-500/50 scale-[1.02] origin-left' : ''}`}
+                  >
+                    <p className="text-xs text-white break-words font-medium">{msg.message}</p>
+                  </div>
+
+                  {/* Botão de Like */}
+                  <button
+                    onClick={() => handleToggleLike(msg.id)}
+                    className={`flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition-all ${
+                      likedMessages.has(msg.id)
+                        ? 'text-red-400 hover:bg-red-500/10'
+                        : 'text-slate-400 hover:bg-slate-700/50 hover:text-red-400'
+                    }`}
+                    title="Curtir"
+                  >
+                    <Heart className={`w-4 h-4 ${likedMessages.has(msg.id) ? 'fill-current' : ''}`} />
+                    {msg.likes_count && msg.likes_count > 0 && (
+                      <span className="text-[9px] font-bold">{msg.likes_count}</span>
+                    )}
+                  </button>
                 </div>
 
                 {/* Ações para ADMIN/MOD */}

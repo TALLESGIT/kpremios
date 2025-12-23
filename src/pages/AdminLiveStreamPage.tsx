@@ -7,6 +7,7 @@ import LiveChat from '../components/live/LiveChat';
 import AdminLivePanel from '../components/live/AdminLivePanel';
 import ModeratorManager from '../components/live/ModeratorManager';
 import ChatModerationControls from '../components/live/ChatModerationControls';
+import PollManager from '../components/live/PollManager';
 import ZKViewer from '../components/ZKViewer';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import Header from '../components/shared/Header';
@@ -270,6 +271,7 @@ const AdminLiveStreamPage: React.FC = () => {
                 </div>
                 <AdminLivePanel streamId={selectedStream.id} channelName={selectedStream.channel_name} isActive={selectedStream.is_active} />
                 <PoolManager streamId={selectedStream.id} />
+                <PollManager streamId={selectedStream.id} />
                 <ChatModerationControls streamId={selectedStream.id} />
               </div>
               <div className="lg:col-span-4 h-[650px] overflow-hidden rounded-[2.5rem] border border-white/5 bg-slate-900 shadow-2xl">
