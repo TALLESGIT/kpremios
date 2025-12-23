@@ -8,6 +8,7 @@ import AdminLivePanel from '../components/live/AdminLivePanel';
 import ModeratorManager from '../components/live/ModeratorManager';
 import ChatModerationControls from '../components/live/ChatModerationControls';
 import ZKViewer from '../components/ZKViewer';
+import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import PoolManager from '../components/pool/PoolManager';
@@ -254,6 +255,10 @@ const AdminLiveStreamPage: React.FC = () => {
                     enabled={true}
                     muteAudio={true}
                   />
+                  {/* Overlay de mensagens VIP na tela - Admin também deve ver */}
+                  {selectedStream.is_active && selectedStream.id && (
+                    <VipMessageOverlay streamId={selectedStream.id} isActive={selectedStream.is_active} />
+                  )}
                   {!isStreaming && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
                       <div className="text-center">

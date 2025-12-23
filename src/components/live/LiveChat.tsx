@@ -629,10 +629,25 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
         console.error('Erro ao inserir mensagem de áudio:', insertError);
         toast.error('Erro ao enviar mensagem de áudio: ' + insertError.message);
       } else {
-        toast.success('Mensagem de áudio enviada!');
         // Atualizar contador de áudios restantes
         const remaining = Math.max(0, 3 - (audioCount || 0) - 1);
         setAudioCountRemaining(remaining);
+        
+        // Recarregar limites VIP
+        await loadVipLimits();
+        
+        // Mostrar toast com contadores restantes
+        const messagesText = vipOverlayCountRemaining > 0 
+          ? `${vipOverlayCountRemaining} msgs na tela` 
+          : 'Limite de msgs na tela atingido';
+        const audioText = remaining > 0 
+          ? `${remaining} áudios restantes` 
+          : 'Limite de áudios atingido';
+        
+        toast.success(
+          `🔊 Áudio enviado! ${messagesText} | ${audioText}`,
+          { duration: 4000 }
+        );
       }
     } catch (err) {
       console.error('Erro ao enviar mensagem de áudio:', err);
@@ -706,6 +721,25 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
       if (insertError) {
         console.error('Erro ao inserir mensagem:', insertError);
         toast.error('Erro ao enviar mensagem: ' + insertError.message);
+      } else {
+        // Se for VIP, mostrar contadores restantes após enviar mensagem
+        if (isVip) {
+          // Recarregar limites VIP
+          await loadVipLimits();
+          
+          // Mostrar toast com contadores restantes
+          const messagesText = vipOverlayCountRemaining > 0 
+            ? `${vipOverlayCountRemaining} msgs na tela` 
+            : 'Limite de msgs na tela atingido';
+          const audioText = audioCountRemaining > 0 
+            ? `${audioCountRemaining} áudios restantes` 
+            : 'Limite de áudios atingido';
+          
+          toast.success(
+            `💎 Mensagem enviada! ${messagesText} | ${audioText}`,
+            { duration: 4000 }
+          );
+        }
       }
     } catch (err) {
       console.error('Erro ao enviar mensagem:', err);
@@ -1045,20 +1079,14 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder={isVip ? "Sua mensagem... (VIP: até 1500 caracteres)" : "Sua mensagem..."}
+                placeholder="Sua mensagem..."
                 maxLength={isVip ? MAX_MESSAGE_LENGTH_VIP : MAX_MESSAGE_LENGTH}
                 className="w-full px-4 py-2.5 bg-slate-900 border border-white/5 rounded-xl text-white text-xs font-bold"
               />
-              {/* Contador de caracteres e limites VIP */}
+              {/* Contador de caracteres */}
               <div className="absolute right-2 bottom-1 text-[9px] text-slate-500 flex flex-col items-end gap-0.5">
                 {slowModeSecondsRemaining > 0 && (
                   <span className="text-red-400 animate-pulse font-black">Aguarde {slowModeSecondsRemaining}s</span>
-                )}
-                {isVip && vipOverlayCountRemaining > 0 && (
-                  <span className="text-purple-300 font-bold">💎 {vipOverlayCountRemaining} msgs na tela</span>
-                )}
-                {isVip && vipOverlayCountRemaining === 0 && (
-                  <span className="text-red-400 font-bold">💎 Limite tela atingido</span>
                 )}
                 <span>{newMessage.length}/{isVip ? MAX_MESSAGE_LENGTH_VIP : MAX_MESSAGE_LENGTH}</span>
               </div>
