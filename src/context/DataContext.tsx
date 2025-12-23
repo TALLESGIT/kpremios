@@ -602,9 +602,9 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       });
 
       if (signInError) {
-
+        // Erro no login, mas usuário foi criado
+        console.warn('Erro ao fazer login após cadastro:', signInError);
       } else {
-
         // Try to create user immediately after successful sign in
         try {
           const { data: insertData, error: insertError } = await supabase
@@ -616,9 +616,8 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
             .select();
 
           if (insertError) {
-
+            console.error('Erro ao criar perfil:', insertError);
           } else {
-
             localStorage.removeItem('pendingUserData');
 
             // Enviar notificação WhatsApp de confirmação de cadastro
@@ -646,11 +645,9 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
               console.error('Erro ao verificar VIP grátis:', vipError);
             }
             */
-              // Não falha o cadastro se houver erro
-            }
           }
         } catch (error) {
-
+          console.error('Erro ao criar perfil do usuário:', error);
         }
       }
 
