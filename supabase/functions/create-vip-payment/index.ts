@@ -99,12 +99,16 @@ Deno.serve(async (req: Request) => {
       statement_descriptor: 'ZK Premios VIP'
     };
 
+    // Gerar ID de idempotência único para evitar duplicação
+    const idempotencyKey = crypto.randomUUID();
+    
     // Chamar API do Mercado Pago para criar pagamento PIX
     const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${mercadoPagoToken}`
+        'Authorization': `Bearer ${mercadoPagoToken}`,
+        'X-Idempotency-Key': idempotencyKey
       },
       body: JSON.stringify(paymentData)
     });

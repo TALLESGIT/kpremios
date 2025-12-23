@@ -129,6 +129,10 @@ Deno.serve(async (req: Request) => {
       statement_descriptor: 'ZK Premios Bola'
     };
 
+    // Gerar ID de idempotência único para evitar duplicação
+    const idempotencyKey = crypto.randomUUID();
+    console.log('🔑 Idempotency Key gerado:', idempotencyKey);
+    
     // Chamar API do Mercado Pago para criar pagamento PIX
     console.log('📞 Chamando API do Mercado Pago...');
     console.log('Payment data:', JSON.stringify(paymentData, null, 2));
@@ -137,7 +141,8 @@ Deno.serve(async (req: Request) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${mercadoPagoToken}`
+        'Authorization': `Bearer ${mercadoPagoToken}`,
+        'X-Idempotency-Key': idempotencyKey
       },
       body: JSON.stringify(paymentData)
     });
