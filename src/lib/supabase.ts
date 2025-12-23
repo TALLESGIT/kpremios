@@ -7,36 +7,21 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Please check your .env file.');
 }
 
-// Garantir que os valores são strings válidas
+// Garantir que os valores são strings válidas e não estão vazias
 const validUrl = String(supabaseUrl).trim();
 const validKey = String(supabaseAnonKey).trim();
 
-if (!validUrl || !validKey) {
+if (!validUrl || !validKey || validUrl === 'undefined' || validKey === 'undefined') {
   throw new Error('Invalid Supabase environment variables. Values must be non-empty strings.');
 }
 
-// Configurar headers apenas com valores válidos
-const globalHeaders: Record<string, string> = {
-  'X-Client-Info': 'zk-premios-app'
-};
-
-// Remover qualquer header com valor inválido
-Object.keys(globalHeaders).forEach((key) => {
-  const value = globalHeaders[key];
-  if (value === null || value === undefined || value === '') {
-    delete globalHeaders[key];
-  }
-});
-
+// Configuração mínima do Supabase sem headers customizados que podem causar problemas
 export const supabase = createClient(validUrl, validKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
     flowType: 'pkce'
-  },
-  global: {
-    headers: globalHeaders
   },
   realtime: {
     params: {

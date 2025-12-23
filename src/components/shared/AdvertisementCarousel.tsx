@@ -43,34 +43,60 @@ export default function AdvertisementCarousel({
     try {
       const now = new Date().toISOString();
       
-      // Buscar todos os anúncios ativos da posição
-      const { data, error } = await supabase
-        .from('advertisements')
-        .select('*')
-        .eq('position', position)
-        .eq('is_active', true)
-        .order('display_order', { ascending: true })
-        .order('created_at', { ascending: false });
+      // Verificar se o Supabase está configurado corretamente
+      if (!supabase) {
+        console.warn('Supabase client não está disponível');
+        setAdvertisements([]);
+        return;
+      }
+      
+      // Buscar todos os anúncios ativos da posição com tratamento de erro robusto
+      let queryResult;
+      try {
+        queryResult = await supabase
+          .from('advertisements')
+          .select('*')
+          .eq('position', position)
+          .eq('is_active', true)
+          .order('display_order', { ascending: true })
+          .order('created_at', { ascending: false });
+      } catch (queryError: any) {
+        // Se houver erro na query, logar e retornar array vazio
+        console.warn('Erro ao executar query de anúncios:', queryError?.message || queryError);
+        setAdvertisements([]);
+        return;
+      }
+
+      const { data, error } = queryResult;
 
       if (error) {
-        console.error('Erro na query de anúncios:', error);
-        throw error;
+        // Log do erro mas não quebrar a aplicação
+        console.warn('Erro na resposta de anúncios:', error.message || error);
+        setAdvertisements([]);
+        return;
       }
       
       // Filtrar por datas no cliente (mais seguro)
       const filteredAds = (data || []).filter((ad) => {
-        // start_date deve ser NULL ou <= agora
-        const startDateValid = !ad.start_date || new Date(ad.start_date) <= new Date(now);
-        // end_date deve ser NULL ou >= agora
-        const endDateValid = !ad.end_date || new Date(ad.end_date) >= new Date(now);
-        
-        return startDateValid && endDateValid;
+        try {
+          // start_date deve ser NULL ou <= agora
+          const startDateValid = !ad.start_date || new Date(ad.start_date) <= new Date(now);
+          // end_date deve ser NULL ou >= agora
+          const endDateValid = !ad.end_date || new Date(ad.end_date) >= new Date(now);
+          
+          return startDateValid && endDateValid;
+        } catch (filterError) {
+          // Se houver erro ao filtrar uma data, incluir o anúncio por segurança
+          console.warn('Erro ao filtrar data do anúncio:', filterError);
+          return true;
+        }
       });
       
       setAdvertisements(filteredAds);
     } catch (error: any) {
-      console.error('Erro ao carregar anúncios:', error);
-      // Não quebrar a aplicação se houver erro, apenas logar
+      // Capturar qualquer erro não esperado
+      console.warn('Erro geral ao carregar anúncios:', error?.message || error);
+      // Não quebrar a aplicação se houver erro, apenas logar e definir array vazio
       setAdvertisements([]);
     } finally {
       setLoading(false);
