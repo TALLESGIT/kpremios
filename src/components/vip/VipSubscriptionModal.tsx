@@ -34,39 +34,36 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
     try {
       setLoading(true);
 
-      // Chamar Edge Function para criar pagamento
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://bukigyhhgrtgryklabjg.supabase.co';
-      const response = await fetch(`${supabaseUrl}/functions/v1/create-vip-payment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify({
+      // Chamar Edge Function usando o cliente Supabase (gerencia autenticação e CORS automaticamente)
+      const { data, error } = await supabase.functions.invoke('create-vip-payment', {
+        body: {
           user_id: user.id,
           user_email: user.email,
-          user_name: currentUser?.name || user.email?.split('@')[0]
-        })
+          user_name: currentUser?.name || user.email?.split('@')[0] || 'Usuário'
+        }
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao criar pagamento');
+      if (error) {
+        console.error('Erro na Edge Function:', error);
+        throw new Error(error.message || 'Erro ao criar pagamento');
       }
 
-      const data = await response.json();
-      
+      if (!data) {
+        throw new Error('Resposta vazia da Edge Function');
+      }
+
       if (data.payment_link) {
         // Abrir link de pagamento em nova aba
         window.open(data.payment_link, '_blank');
         setPaymentLink(data.payment_link);
         toast.success('Redirecionando para o pagamento...');
       } else {
-        throw new Error('Link de pagamento não recebido');
+        throw new Error(data.error || 'Link de pagamento não recebido');
       }
     } catch (error: any) {
       console.error('Erro ao criar pagamento:', error);
-      toast.error(`Erro ao criar pagamento: ${error.message}`);
+      const errorMessage = error.message || 'Erro ao criar pagamento. Tente novamente.';
+      toast.error(`Erro ao criar pagamento: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
