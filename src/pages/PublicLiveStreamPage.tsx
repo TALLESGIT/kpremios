@@ -28,6 +28,7 @@ const PublicLiveStreamPage: React.FC = () => {
   const { channelName } = useParams<{ channelName: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { currentUser } = useData();
   const [stream, setStream] = useState<LiveStream | null>(null);
   const streamId = stream?.id; // Alias estável para efeitos
   const [loading, setLoading] = useState(true);
