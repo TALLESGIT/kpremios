@@ -4,11 +4,31 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-
   throw new Error('Missing Supabase environment variables. Please check your .env file.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+// Garantir que os valores são strings válidas
+const validUrl = String(supabaseUrl).trim();
+const validKey = String(supabaseAnonKey).trim();
+
+if (!validUrl || !validKey) {
+  throw new Error('Invalid Supabase environment variables. Values must be non-empty strings.');
+}
+
+// Configurar headers apenas com valores válidos
+const globalHeaders: Record<string, string> = {
+  'X-Client-Info': 'zk-premios-app'
+};
+
+// Remover qualquer header com valor inválido
+Object.keys(globalHeaders).forEach((key) => {
+  const value = globalHeaders[key];
+  if (value === null || value === undefined || value === '') {
+    delete globalHeaders[key];
+  }
+});
+
+export const supabase = createClient(validUrl, validKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
@@ -16,9 +36,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     flowType: 'pkce'
   },
   global: {
-    headers: {
-      'X-Client-Info': 'zk-premios-app'
-    }
+    headers: globalHeaders
   },
   realtime: {
     params: {

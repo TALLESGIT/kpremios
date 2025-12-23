@@ -41,20 +41,37 @@ export default function AdvertisementCarousel({
 
   const loadAdvertisements = async () => {
     try {
+      const now = new Date().toISOString();
+      
+      // Buscar todos os anúncios ativos da posição
       const { data, error } = await supabase
         .from('advertisements')
         .select('*')
         .eq('position', position)
         .eq('is_active', true)
-        .or(`start_date.is.null,start_date.lte.${new Date().toISOString()}`)
-        .or(`end_date.is.null,end_date.gte.${new Date().toISOString()}`)
         .order('display_order', { ascending: true })
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setAdvertisements(data || []);
-    } catch (error) {
+      if (error) {
+        console.error('Erro na query de anúncios:', error);
+        throw error;
+      }
+      
+      // Filtrar por datas no cliente (mais seguro)
+      const filteredAds = (data || []).filter((ad) => {
+        // start_date deve ser NULL ou <= agora
+        const startDateValid = !ad.start_date || new Date(ad.start_date) <= new Date(now);
+        // end_date deve ser NULL ou >= agora
+        const endDateValid = !ad.end_date || new Date(ad.end_date) >= new Date(now);
+        
+        return startDateValid && endDateValid;
+      });
+      
+      setAdvertisements(filteredAds);
+    } catch (error: any) {
       console.error('Erro ao carregar anúncios:', error);
+      // Não quebrar a aplicação se houver erro, apenas logar
+      setAdvertisements([]);
     } finally {
       setLoading(false);
     }
