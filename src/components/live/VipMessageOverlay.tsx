@@ -135,43 +135,72 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
           reject(error);
         };
 
-        // Tentar reproduzir com tratamento de erro
+        // Tentar reproduzir com tratamento de erro robusto
         try {
+          console.log('🔊 VipMessageOverlay: Tentando reproduzir áudio TTS...');
+          
+          // Configurar áudio para melhor compatibilidade
+          audio.preload = 'auto';
+          audio.crossOrigin = 'anonymous';
+          
           // Tentar reproduzir diretamente
           const playPromise = audio.play();
           
           if (playPromise !== undefined) {
             await playPromise;
-            console.log('🔊 Áudio TTS iniciado com sucesso');
+            console.log('✅ VipMessageOverlay: Áudio TTS iniciado com sucesso');
           }
         } catch (playError: any) {
-          // Se falhar por autoplay policy, tentar com user interaction
-          console.warn('⚠️ Autoplay bloqueado pelo navegador, tentando alternativas...', playError);
+          // Se falhar por autoplay policy, tentar múltiplas estratégias
+          console.warn('⚠️ VipMessageOverlay: Autoplay bloqueado, tentando estratégias alternativas...', playError);
           
-          // Tentar adicionar controles e forçar play
-          audio.controls = false;
-          audio.preload = 'auto';
+          // Estratégia 1: Aguardar e tentar novamente
+          await new Promise(resolve => setTimeout(resolve, 300));
           
-          // Tentar novamente após pequeno delay
-          setTimeout(async () => {
+          try {
+            const retryPromise = audio.play();
+            if (retryPromise !== undefined) {
+              await retryPromise;
+              console.log('✅ VipMessageOverlay: Áudio TTS iniciado (após retry 1)');
+            }
+          } catch (retryError1: any) {
+            console.warn('⚠️ VipMessageOverlay: Retry 1 falhou, tentando estratégia 2...', retryError1);
+            
+            // Estratégia 2: Tentar com interação do usuário simulada
             try {
-              // Tentar novamente
-              const retryPromise = audio.play();
-              if (retryPromise !== undefined) {
-                await retryPromise;
-                console.log('🔊 Áudio TTS iniciado (após retry)');
+              // Criar um botão invisível para "desbloquear" autoplay
+              const unlockButton = document.createElement('button');
+              unlockButton.style.display = 'none';
+              unlockButton.onclick = async () => {
+                try {
+                  await audio.play();
+                  console.log('✅ VipMessageOverlay: Áudio TTS iniciado (após interação simulada)');
+                } catch (e) {
+                  console.error('❌ VipMessageOverlay: Falha mesmo com interação:', e);
+                }
+              };
+              document.body.appendChild(unlockButton);
+              unlockButton.click();
+              document.body.removeChild(unlockButton);
+              
+              // Aguardar um pouco e tentar novamente
+              await new Promise(resolve => setTimeout(resolve, 200));
+              const finalPromise = audio.play();
+              if (finalPromise !== undefined) {
+                await finalPromise;
+                console.log('✅ VipMessageOverlay: Áudio TTS iniciado (estratégia final)');
               }
-            } catch (retryError: any) {
-              console.error('❌ Falha ao reproduzir áudio mesmo após retry:', retryError);
-              // Não rejeitar, apenas logar o erro - a mensagem ainda deve aparecer
-              console.warn('⚠️ Áudio não pôde ser reproduzido, mas a mensagem será exibida');
+            } catch (finalError: any) {
+              console.error('❌ VipMessageOverlay: Todas as estratégias falharam:', finalError);
+              console.warn('⚠️ VipMessageOverlay: Áudio não pôde ser reproduzido, mas a mensagem será exibida');
               restoreVideoVolume();
               currentAudioRef.current = null;
               setIsPlayingAudio(false);
               // Resolver mesmo com erro para não bloquear a fila
               resolve();
+              return;
             }
-          }, 500);
+          }
         }
 
       } catch (error) {
@@ -348,19 +377,24 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
       }, async (payload) => {
         const newMsg = payload.new as any;
 
-        console.log('📨 VipMessageOverlay: Nova mensagem recebida via Realtime:', {
+        console.log('📨 VipMessageOverlay: Nova mensagem recebida via Realtime (TODOS devem ver):', {
           id: newMsg.id,
           user_id: newMsg.user_id,
           message_type: newMsg.message_type,
           stream_id: newMsg.stream_id,
           message: newMsg.message?.substring(0, 50) + '...',
-          user_name: newMsg.user_name
+          user_name: newMsg.user_name,
+          is_vip_field: newMsg.is_vip
         });
 
-        // Verificar se o usuário é VIP
-        if (newMsg.user_id) {
+        // IMPORTANTE: Se for mensagem TTS, deve aparecer para TODOS, independente de verificação VIP
+        const isTtsMessage = newMsg.message_type === 'tts';
+        
+        // Verificar se o usuário é VIP (apenas se não for TTS, pois TTS já é garantido)
+        let isVip = false;
+        if (newMsg.user_id && !isTtsMessage) {
           // Verificar primeiro no cache
-          let isVip = userRolesRef.current[newMsg.user_id]?.isVip;
+          isVip = userRolesRef.current[newMsg.user_id]?.isVip;
 
           // Se não temos no cache, buscar diretamente
           if (isVip === undefined) {
@@ -406,12 +440,22 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
               isVip = false;
             }
           } else {
-            console.log(`✅ Status VIP do cache para ${newMsg.user_id}: ${isVip}`);
+            console.log(`✅ VipMessageOverlay: Status VIP do cache para ${newMsg.user_id}: ${isVip}`);
           }
+        }
+          
+        console.log('🔍 VipMessageOverlay: Decisão de exibição:', {
+          isVip,
+          isTtsMessage,
+          shouldShow: isVip || isTtsMessage,
+          message_type: newMsg.message_type,
+          user_id: newMsg.user_id
+        });
 
-          // Se for VIP, verificar limite de mensagens na tela (máximo 10 por live)
-          if (isVip) {
-            console.log('✅ VipMessageOverlay: Usuário é VIP, processando mensagem para overlay');
+        // Se for VIP OU se for mensagem TTS, processar para overlay
+        // IMPORTANTE: Mensagens TTS devem aparecer para TODOS os usuários
+        if (isVip || isTtsMessage) {
+          console.log('✅ VipMessageOverlay: Mensagem será exibida (VIP ou TTS)');
             
             // Verificar quantas mensagens VIP já apareceram na tela
             const { data: currentCount, error: countError } = await supabase.rpc('count_vip_overlay_messages', {
