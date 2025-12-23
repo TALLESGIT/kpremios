@@ -135,29 +135,41 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
 
         // Tentar reproduzir com tratamento de erro
         try {
-          await audio.play();
-          console.log('🔊 Áudio TTS iniciado');
+          // Tentar reproduzir diretamente
+          const playPromise = audio.play();
+          
+          if (playPromise !== undefined) {
+            await playPromise;
+            console.log('🔊 Áudio TTS iniciado com sucesso');
+          }
         } catch (playError: any) {
           // Se falhar por autoplay policy, tentar com user interaction
-          console.warn('⚠️ Autoplay bloqueado, tentando novamente...', playError);
+          console.warn('⚠️ Autoplay bloqueado pelo navegador, tentando alternativas...', playError);
           
-          // Criar um evento de clique temporário para desbloquear
-          const clickEvent = new MouseEvent('click', { bubbles: true });
-          document.dispatchEvent(clickEvent);
+          // Tentar adicionar controles e forçar play
+          audio.controls = false;
+          audio.preload = 'auto';
           
           // Tentar novamente após pequeno delay
           setTimeout(async () => {
             try {
-              await audio.play();
-              console.log('🔊 Áudio TTS iniciado (após interação)');
-            } catch (retryError) {
-              console.error('❌ Falha ao reproduzir áudio mesmo após interação:', retryError);
+              // Tentar novamente
+              const retryPromise = audio.play();
+              if (retryPromise !== undefined) {
+                await retryPromise;
+                console.log('🔊 Áudio TTS iniciado (após retry)');
+              }
+            } catch (retryError: any) {
+              console.error('❌ Falha ao reproduzir áudio mesmo após retry:', retryError);
+              // Não rejeitar, apenas logar o erro - a mensagem ainda deve aparecer
+              console.warn('⚠️ Áudio não pôde ser reproduzido, mas a mensagem será exibida');
               restoreVideoVolume();
               currentAudioRef.current = null;
               setIsPlayingAudio(false);
-              reject(retryError);
+              // Resolver mesmo com erro para não bloquear a fila
+              resolve();
             }
-          }, 100);
+          }, 500);
         }
 
       } catch (error) {
@@ -306,7 +318,12 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
   }, []);
 
   useEffect(() => {
-    if (!isActive || !streamId) return;
+    if (!isActive || !streamId) {
+      console.log('⚠️ VipMessageOverlay: Não ativo ou streamId ausente', { isActive, streamId });
+      return;
+    }
+
+    console.log(`🔌 VipMessageOverlay: Iniciando conexão Realtime para stream: ${streamId}`);
 
     // Escutar novas mensagens em tempo real (sem filtro de user_id para aparecer para todos)
     const channel = supabase.channel(`vip_overlay_${streamId}`)
@@ -411,9 +428,21 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
           }
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`📡 VipMessageOverlay: Status da conexão Realtime: ${status}`, { streamId });
+        if (status === 'CHANNEL_ERROR') {
+          console.error('❌ VipMessageOverlay: Erro no canal Realtime', { streamId });
+        }
+        if (status === 'TIMED_OUT') {
+          console.warn('⚠️ VipMessageOverlay: Conexão Realtime expirou', { streamId });
+        }
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ VipMessageOverlay: Conectado ao Realtime com sucesso', { streamId });
+        }
+      });
 
     return () => {
+      console.log(`🔌 VipMessageOverlay: Fechando canal Realtime`, { streamId });
       supabase.removeChannel(channel);
     };
   }, [streamId, isActive]);

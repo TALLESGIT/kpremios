@@ -23,6 +23,7 @@ import Footer from '../components/shared/Footer';
 import ZKViewer from '../components/ZKViewer';
 import MobileLiveControls from '../components/live/MobileLiveControls';
 import LiveChat from '../components/live/LiveChat';
+import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import VipSubscriptionModal from '../components/vip/VipSubscriptionModal';
 import PoolBetModal from '../components/pool/PoolBetModal';
 import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding } from '../types';
@@ -635,11 +636,17 @@ const ZkTVPage: React.FC = () => {
                             <div className="relative w-full h-full flex">
                                 {isLiveActive ? (
                                     activeStream ? (
-                                        <ZKViewer
-                                            channel={activeStream.channel_name}
-                                            fitMode={videoFitMode}
-                                            enabled={true}
-                                        />
+                                        <>
+                                            <ZKViewer
+                                                channel={activeStream.channel_name}
+                                                fitMode={videoFitMode}
+                                                enabled={true}
+                                            />
+                                            {/* Overlay de mensagens VIP na tela */}
+                                            {activeStream.is_active && activeStream.id && (
+                                                <VipMessageOverlay streamId={activeStream.id} isActive={activeStream.is_active} />
+                                            )}
+                                        </>
                                     ) : settings?.live_url && settings.live_url.includes('/live/') ? (
                                         <ZKViewer channel="ZkPremios" fitMode={videoFitMode} enabled={true} />
                                     ) : settings?.live_url ? (
