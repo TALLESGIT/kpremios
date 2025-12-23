@@ -8,9 +8,10 @@ import SuccessModal from '../components/shared/SuccessModal';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
-import { ChevronDown, Play, Trophy, Ticket, MonitorPlay, Calendar, MapPin, Clock } from 'lucide-react';
+import { ChevronDown, Play, Trophy, Ticket, MonitorPlay, Calendar, MapPin, Clock, Target } from 'lucide-react';
 import { CruzeiroGame } from '../types';
 import AdvertisementCarousel from '../components/shared/AdvertisementCarousel';
+import PoolBetModal from '../components/pool/PoolBetModal';
 
 function HomePage() {
   const navigate = useNavigate();
@@ -25,6 +26,8 @@ function HomePage() {
   const [nextGame, setNextGame] = useState<CruzeiroGame | null>(null);
   const [loadingGame, setLoadingGame] = useState(true);
   const [hasActiveLive, setHasActiveLive] = useState(false);
+  const [activePool, setActivePool] = useState<any>(null);
+  const [showPoolModal, setShowPoolModal] = useState(false);
 
   // Verificar se o usuário está logado
   const isLoggedIn = user && currentUser;
@@ -64,12 +67,37 @@ function HomePage() {
 
       if (!error && data) {
         setHasActiveLive(true);
+        // Verificar se há bolão ativo para esta live
+        checkActivePool(data.id);
       } else {
         setHasActiveLive(false);
+        setActivePool(null);
       }
     } catch (err) {
       console.error('Erro ao verificar live:', err);
       setHasActiveLive(false);
+      setActivePool(null);
+    }
+  };
+
+  const checkActivePool = async (streamId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('match_pools')
+        .select('*')
+        .eq('live_stream_id', streamId)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data) {
+        setActivePool(data);
+      } else {
+        setActivePool(null);
+      }
+    } catch (err) {
+      console.error('Erro ao verificar bolão:', err);
+      setActivePool(null);
     }
   };
 
@@ -270,8 +298,7 @@ function HomePage() {
           <section className="relative group">
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-blue-400 to-emerald-400 rounded-[2.5rem] blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
             <div
-              onClick={() => navigate('/zk-tv')}
-              className="relative block rounded-[2.5rem] overflow-hidden border border-white/10 glass-panel shadow-2xl transition-all duration-500 hover:shadow-blue-500/20 cursor-pointer"
+              className="relative block rounded-[2.5rem] overflow-hidden border border-white/10 glass-panel shadow-2xl transition-all duration-500 hover:shadow-blue-500/20"
             >
               <div className="absolute inset-0 bg-slate-900/40 opacity-60"></div>
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_50%,rgba(59,130,246,0.15),transparent)]"></div>
@@ -326,6 +353,20 @@ function HomePage() {
                   >
                     {hasActiveLive ? 'Entrar na Live' : 'Acessar ZK TV'}
                   </button>
+                  
+                  {/* Botão Participar do Bolão - Aparece apenas se houver bolão ativo */}
+                  {activePool && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowPoolModal(true);
+                      }}
+                      className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:from-emerald-500 hover:to-emerald-400 transition-all shadow-xl shadow-emerald-600/20 active:scale-95 duration-200 flex items-center gap-2"
+                    >
+                      <Target className="w-4 h-4" />
+                      Participar do Bolão
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -455,6 +496,18 @@ function HomePage() {
         showUpsell={true}
         onUpsellClick={handleUpsellClick}
       />
+
+      {/* Modal do Bolão */}
+      {activePool && (
+        <PoolBetModal
+          isOpen={showPoolModal}
+          onClose={() => setShowPoolModal(false)}
+          poolId={activePool.id}
+          matchTitle={activePool.match_title}
+          homeTeam={activePool.home_team}
+          awayTeam={activePool.away_team}
+        />
+      )}
 
       <Footer />
     </div>

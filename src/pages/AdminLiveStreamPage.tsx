@@ -10,6 +10,7 @@ import ChatModerationControls from '../components/live/ChatModerationControls';
 import ZKViewer from '../components/ZKViewer';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import PoolManager from '../components/pool/PoolManager';
 
 interface LiveStream {
   is_active: boolean;
@@ -263,6 +264,7 @@ const AdminLiveStreamPage: React.FC = () => {
                   )}
                 </div>
                 <AdminLivePanel streamId={selectedStream.id} channelName={selectedStream.channel_name} isActive={selectedStream.is_active} />
+                <PoolManager streamId={selectedStream.id} />
                 <ChatModerationControls streamId={selectedStream.id} />
               </div>
               <div className="lg:col-span-4 h-[650px] overflow-hidden rounded-[2.5rem] border border-white/5 bg-slate-900 shadow-2xl">
