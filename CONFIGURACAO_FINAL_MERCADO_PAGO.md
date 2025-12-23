@@ -25,9 +25,9 @@ Valor: APP_USR-3077926078115104-122218-6d18b1a798860969f263f9cf0e766895-26725888
 Nome: VIP_MONTHLY_PRICE ou PREÇO_VIP_MENSAL
 Valor: 10.00
 
-Nome: VITE_APP_URL
-Valor: https://seu-dominio.com
-(Substitua pela URL real do seu site)
+Nome: VITE_APP_URL ou URL_do_aplicativo_VITE
+Valor: https://www.zkoficial.com.br
+⚠️ Domínio de produção configurado
 
 Nome: SUPABASE_SERVICE_ROLE_KEY
 Valor: (sua service role key - pegue em Settings → API)

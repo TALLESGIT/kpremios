@@ -70,7 +70,7 @@ Agora você pode testar:
 Os valores que aparecem no Supabase são **hashes/criptografados** por segurança. Os valores reais são:
 - `MERCADO_PAGO_ACCESS_TOKEN` = `APP_USR-3077926078115104-122218-...`
 - `PREÇO_VIP_MENSAL` = `29.90` (provavelmente)
-- `URL_do_aplicativo_VITE` = URL do seu site
+- `URL_do_aplicativo_VITE` = `https://www.zkoficial.com.br`
 - `URL_SUPABASE` = `https://bukigyhhgrtgryklabjg.supabase.co`
 - `SUPABASE_SERVICE_ROLE_KEY` = sua service role key
 - `MERCADO_PAGO_WEBHOOK_SECRET` = `48c468b3203394e9f372afbe7a5a4af8b92c1ae8dd81d1eea49e0606ad7de405`

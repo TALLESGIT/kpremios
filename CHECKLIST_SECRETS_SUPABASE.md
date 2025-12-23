@@ -30,10 +30,11 @@ Valor: 10.00
 ⚠️ **Valor mensal do VIP: R$ 10,00**
 **Onde usar:** Edge Function `create-vip-payment` (valor mensal do VIP)
 
-### **3. VITE_APP_URL** ⚠️ OBRIGATÓRIO
+### **3. VITE_APP_URL** ou **URL_do_aplicativo_VITE** ⚠️ OBRIGATÓRIO
 ```
-Valor: https://seu-dominio.com
+Valor: https://www.zkoficial.com.br
 ```
+⚠️ **Domínio de produção configurado**
 **Onde usar:** Edge Function `create-vip-payment` (URLs de retorno após pagamento)
 **⚠️ IMPORTANTE:** Substitua pela URL real do seu site!
 
