@@ -117,6 +117,63 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
         
         paymentData = result.data;
         paymentError = result.error;
+        
+        // Se houver erro, tentar obter mais detalhes da resposta
+        if (paymentError) {
+          console.error('Erro retornado pelo Supabase SDK:', paymentError);
+          
+          // Tentar fazer uma chamada direta para obter mais detalhes
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.access_token) {
+              const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+              const response = await fetch(`${supabaseUrl}/functions/v1/create-pool-payment`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${session.access_token}`,
+                  'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+                },
+                body: JSON.stringify({
+                  user_id: user.id,
+                  user_email: user.email,
+                  user_name: currentUser?.name || user.email?.split('@')[0] || 'Usuário',
+                  bet_id: betData.id,
+                  pool_id: poolId,
+                  amount: 2.00
+                })
+              });
+              
+              if (!response.ok) {
+                let errorBody: any;
+                try {
+                  errorBody = await response.json();
+                } catch {
+                  errorBody = await response.text();
+                }
+                
+                console.error('Resposta HTTP de erro:', {
+                  status: response.status,
+                  statusText: response.statusText,
+                  body: errorBody
+                });
+                
+                // Adicionar detalhes ao erro
+                if (errorBody) {
+                  paymentError = {
+                    ...paymentError,
+                    httpStatus: response.status,
+                    httpStatusText: response.statusText,
+                    responseBody: errorBody,
+                    message: errorBody.message || errorBody.error || paymentError.message
+                  };
+                }
+              }
+            }
+          } catch (fetchError: any) {
+            console.error('Erro ao tentar obter detalhes via fetch direto:', fetchError);
+          }
+        }
       } catch (invokeError: any) {
         console.error('Erro ao invocar Edge Function:', invokeError);
         paymentError = invokeError;
