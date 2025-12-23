@@ -604,9 +604,20 @@ const ZkTVPage: React.FC = () => {
                                     animate={{ opacity: 1, scale: 1 }}
                                     className="flex items-center gap-4 justify-center lg:justify-start"
                                 >
-                                    <div className="flex items-center gap-2 px-6 py-3 bg-red-600 rounded-full font-bold animate-pulse shadow-lg shadow-red-600/20">
-                                        <Activity className="w-4 h-4" />
-                                        AO VIVO AGORA
+                                    <div className="flex items-center gap-4 px-6 py-3 bg-red-600 rounded-full font-bold shadow-lg shadow-red-600/20">
+                                        <div className="flex items-center gap-2 animate-pulse">
+                                            <Activity className="w-4 h-4" />
+                                            <span>AO VIVO AGORA</span>
+                                        </div>
+                                        {activeStream && (
+                                            <>
+                                                <div className="w-[1px] h-4 bg-white/30" />
+                                                <div className="flex items-center gap-2">
+                                                    <Eye className="w-4 h-4" />
+                                                    <span>{currentViewerCount}</span>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </motion.div>
                             )}
@@ -657,8 +668,8 @@ const ZkTVPage: React.FC = () => {
                                     </div>
                                 )}
 
-                                {/* Status e Viewer Count */}
-                                {isLiveActive && (
+                                {/* Status e Viewer Count (Apenas Fullscreen) */}
+                                {isLiveActive && isFullscreen && (
                                     <div className="absolute top-4 left-4 z-20">
                                         <div className="px-6 py-3 bg-slate-800/80 backdrop-blur-md rounded-2xl border border-white/10 flex items-center gap-4">
                                             <div className="flex items-center gap-2">
@@ -754,7 +765,7 @@ const ZkTVPage: React.FC = () => {
 
             {/* Chat Overlay (Desktop e Mobile não fullscreen) */}
             {isChatOpen && activeStream && !isDockedChat && (
-                <div className={`fixed ${isMobile ? 'inset-0' : 'right-0 top-0 bottom-0 w-[400px]'} bg-black/95 backdrop-blur-md border-l border-white/10 z-[9999] flex flex-col shadow-2xl`}>
+                <div className="fixed inset-0 md:inset-auto md:right-0 md:top-0 md:bottom-0 md:w-[450px] bg-black/95 backdrop-blur-md border-l border-white/10 z-[9999] flex flex-col shadow-2xl">
                     <div className="p-4 border-b border-white/10 flex items-center justify-between">
                         <span className="text-sm font-black text-white uppercase italic tracking-widest">Chat da Transmissão</span>
                         <button onClick={() => setIsChatOpen(false)}>
