@@ -40,7 +40,7 @@ function HomePage() {
     checkActiveLive();
     
     // Subscribe para mudanças em live_streams
-    const channel = supabase
+    const liveChannel = supabase
       .channel('home-live-updates')
       .on('postgres_changes', {
         event: '*',
@@ -51,8 +51,23 @@ function HomePage() {
       })
       .subscribe();
 
+    // Subscribe para mudanças em match_pools (bolões)
+    const poolChannel = supabase
+      .channel('home-pool-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'match_pools'
+      }, (payload) => {
+        console.log('📡 Mudança detectada em match_pools:', payload.eventType, payload.new);
+        // Verificar bolão novamente quando houver mudança
+        checkActivePool();
+      })
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(liveChannel);
+      supabase.removeChannel(poolChannel);
     };
   }, []);
 
@@ -80,19 +95,48 @@ function HomePage() {
     }
   };
 
-  const checkActivePool = async (streamId: string) => {
+  const checkActivePool = async (streamId?: string) => {
     try {
+      // Se não tem streamId, buscar a live ativa primeiro
+      let activeStreamId = streamId;
+      if (!activeStreamId) {
+        const { data: activeStream } = await supabase
+          .from('live_streams')
+          .select('id')
+          .eq('is_active', true)
+          .limit(1)
+          .maybeSingle();
+        
+        if (!activeStream) {
+          setActivePool(null);
+          return;
+        }
+        activeStreamId = activeStream.id;
+      }
+
       const { data, error } = await supabase
         .from('match_pools')
         .select('*')
-        .eq('live_stream_id', streamId)
+        .eq('live_stream_id', activeStreamId)
         .eq('is_active', true)
+        .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
       if (!error && data) {
+        console.log('✅ Bolão ativo encontrado:', {
+          id: data.id,
+          match_title: data.match_title,
+          is_active: data.is_active,
+          stream_id: data.live_stream_id
+        });
         setActivePool(data);
       } else {
+        if (error) {
+          console.error('❌ Erro ao buscar bolão:', error);
+        } else {
+          console.log('❌ Nenhum bolão ativo encontrado para stream:', activeStreamId);
+        }
         setActivePool(null);
       }
     } catch (err) {
@@ -355,7 +399,7 @@ function HomePage() {
                   </button>
                   
                   {/* Botão Participar do Bolão - Aparece apenas se houver bolão ativo */}
-                  {activePool && (
+                  {activePool && activePool.is_active && (
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
