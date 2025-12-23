@@ -457,45 +457,44 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
         if (isVip || isTtsMessage) {
           console.log('✅ VipMessageOverlay: Mensagem será exibida (VIP ou TTS)');
             
-            // Verificar quantas mensagens VIP já apareceram na tela
-            const { data: currentCount, error: countError } = await supabase.rpc('count_vip_overlay_messages', {
-              p_stream_id: streamId
-            });
+          // Verificar quantas mensagens VIP já apareceram na tela
+          const { data: currentCount, error: countError } = await supabase.rpc('count_vip_overlay_messages', {
+            p_stream_id: streamId
+          });
 
-            const messagesShown = countError ? overlayMessagesCount : (currentCount || 0);
+          const messagesShown = countError ? overlayMessagesCount : (currentCount || 0);
 
-            // Se já mostrou 10 mensagens, não mostrar mais
-            if (messagesShown >= 10) {
-              console.log('⚠️ VipMessageOverlay: Limite de mensagens VIP na tela atingido (10/10)');
-              return;
-            }
-
-            const truncatedMsg = truncateMessage(newMsg.message);
-            const messageData: VipMessage = {
-              id: newMsg.id,
-              user_id: newMsg.user_id,
-              message: truncatedMsg,
-              user_name: newMsg.user_name || newMsg.user_email?.split('@')[0] || 'VIP',
-              user_email: newMsg.user_email,
-              created_at: newMsg.created_at,
-              message_type: newMsg.message_type || 'text',
-              tts_text: newMsg.tts_text || newMsg.message,
-              audio_duration: newMsg.audio_duration
-            };
-
-            console.log('➕ VipMessageOverlay: Adicionando mensagem VIP à fila:', {
-              id: messageData.id,
-              user_name: messageData.user_name,
-              message_type: messageData.message_type,
-              message_preview: messageData.message.substring(0, 30) + '...'
-            });
-
-            // Adicionar à fila ao invés de exibir diretamente
-            addMessageToQueue(messageData);
-            setOverlayMessagesCount(messagesShown + 1);
-          } else {
-            console.log('❌ VipMessageOverlay: Usuário NÃO é VIP, ignorando mensagem para overlay');
+          // Se já mostrou 10 mensagens, não mostrar mais
+          if (messagesShown >= 10) {
+            console.log('⚠️ VipMessageOverlay: Limite de mensagens VIP na tela atingido (10/10)');
+            return;
           }
+
+          const truncatedMsg = truncateMessage(newMsg.message);
+          const messageData: VipMessage = {
+            id: newMsg.id,
+            user_id: newMsg.user_id,
+            message: truncatedMsg,
+            user_name: newMsg.user_name || newMsg.user_email?.split('@')[0] || 'VIP',
+            user_email: newMsg.user_email,
+            created_at: newMsg.created_at,
+            message_type: newMsg.message_type || 'text',
+            tts_text: newMsg.tts_text || newMsg.message,
+            audio_duration: newMsg.audio_duration
+          };
+
+          console.log('➕ VipMessageOverlay: Adicionando mensagem VIP à fila:', {
+            id: messageData.id,
+            user_name: messageData.user_name,
+            message_type: messageData.message_type,
+            message_preview: messageData.message.substring(0, 30) + '...'
+          });
+
+          // Adicionar à fila ao invés de exibir diretamente
+          addMessageToQueue(messageData);
+          setOverlayMessagesCount(messagesShown + 1);
+        } else {
+          console.log('❌ VipMessageOverlay: Usuário NÃO é VIP, ignorando mensagem para overlay');
         }
       })
       .subscribe((status) => {
