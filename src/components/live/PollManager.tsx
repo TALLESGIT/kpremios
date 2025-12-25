@@ -99,8 +99,16 @@ const PollManager: React.FC<PollManagerProps> = ({ streamId }) => {
     }
 
     try {
-      // Desativar outras enquetes fixadas se esta for fixada
-      const { error } = await supabase
+      // Desativar/desfixar outras enquetes fixadas antes de criar a nova
+      await supabase
+        .from('stream_polls')
+        .update({ is_pinned: false })
+        .eq('stream_id', streamId)
+        .eq('is_pinned', true)
+        .eq('is_active', true);
+
+      // Criar nova enquete ativa e fixada
+      const { data: newPoll, error } = await supabase
         .from('stream_polls')
         .insert({
           stream_id: streamId,
@@ -109,9 +117,21 @@ const PollManager: React.FC<PollManagerProps> = ({ streamId }) => {
           options: validOptions.map((opt, idx) => ({ id: idx + 1, text: opt.text.trim() })),
           is_active: true,
           is_pinned: true
-        });
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ PollManager: Erro ao criar enquete:', error);
+        throw error;
+      }
+
+      console.log('✅ PollManager: Enquete criada com sucesso:', {
+        id: newPoll?.id,
+        question: newPoll?.question,
+        is_active: newPoll?.is_active,
+        is_pinned: newPoll?.is_pinned
+      });
 
       toast.success('Enquete criada e fixada no chat!');
       setShowCreateModal(false);

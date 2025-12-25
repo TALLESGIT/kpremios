@@ -78,6 +78,7 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId }) => {
 
   const loadActivePoll = async () => {
     try {
+      console.log('🔍 PollDisplay: Carregando enquete ativa e fixada para stream:', streamId);
       const { data, error } = await supabase
         .from('stream_polls')
         .select('*')
@@ -86,24 +87,32 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId }) => {
         .eq('is_pinned', true)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
+        console.error('❌ PollDisplay: Erro ao buscar enquete:', error);
         throw error;
       }
 
       if (data) {
+        console.log('✅ PollDisplay: Enquete encontrada:', {
+          id: data.id,
+          question: data.question,
+          is_active: data.is_active,
+          is_pinned: data.is_pinned
+        });
         setActivePoll(data);
         await loadPollResults(data.id);
         await checkUserVote(data.id);
       } else {
+        console.log('⚠️ PollDisplay: Nenhuma enquete ativa e fixada encontrada');
         setActivePoll(null);
         setResults([]);
         setTotalVotes(0);
         setHasVoted(false);
       }
     } catch (error: any) {
-      console.error('Erro ao carregar enquete:', error);
+      console.error('❌ PollDisplay: Erro ao carregar enquete:', error);
     }
   };
 
