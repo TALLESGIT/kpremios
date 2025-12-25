@@ -67,6 +67,7 @@ const ZkTVPage: React.FC = () => {
     const [currentViewerCount, setCurrentViewerCount] = useState(0);
     const trackViewerExecutedRef = useRef(false);
     const videoContainerRef = useRef<HTMLDivElement>(null);
+    const activeStreamRef = useRef<LiveStream | null>(null);
 
     // Novos estados para VIP e Bolão
     const [isVip, setIsVip] = useState(false);
@@ -335,20 +336,53 @@ const ZkTVPage: React.FC = () => {
         return () => clearInterval(heartbeatInterval);
     }, [activeStream?.id, activeStream?.is_active, sessionId, updateViewerCount, trackViewer]);
 
-    // Listener para atualizações do viewer_count em tempo real
+    // Sincronizar ref com state
+    useEffect(() => {
+        activeStreamRef.current = activeStream;
+    }, [activeStream]);
+
+    // Listener para atualizações do viewer_count e status is_active em tempo real
     useEffect(() => {
         if (!activeStream?.id) return;
 
-        const channel = supabase.channel(`viewer_count_${activeStream.id}`)
+        const channel = supabase.channel(`stream_status_${activeStream.id}`)
             .on('postgres_changes', {
                 event: 'UPDATE',
                 schema: 'public',
                 table: 'live_streams',
                 filter: `id=eq.${activeStream.id}`
             }, (payload) => {
-                const updated = payload.new as any;
+                const updated = payload.new as LiveStream;
+                const current = activeStreamRef.current;
+                const wasActive = current?.is_active;
+
+                // Atualizar viewer_count se mudou
                 if (updated.viewer_count !== undefined) {
                     setCurrentViewerCount(updated.viewer_count);
+                }
+
+                // Detectar quando a live é encerrada
+                if (!updated.is_active && wasActive) {
+                    console.log('📡 ZkTVPage: Live encerrada detectada via Realtime');
+                    
+                    // Fechar chat se estiver aberto
+                    setIsChatOpen(false);
+                    
+                    // Marcar sessão como inativa
+                    supabase.from('viewer_sessions')
+                        .update({ is_active: false, ended_at: new Date().toISOString() })
+                        .eq('session_id', sessionId)
+                        .eq('stream_id', activeStream.id);
+                    
+                    // Atualizar estado local
+                    setActiveStream(prev => prev ? { ...prev, is_active: false } : null);
+                    
+                    // Mostrar notificação
+                    toast.error('A transmissão foi encerrada pelo administrador');
+                } else if (updated.is_active && !wasActive) {
+                    // Se a live voltou a ficar ativa
+                    console.log('📡 ZkTVPage: Live reativada detectada via Realtime');
+                    setActiveStream(prev => prev ? { ...prev, is_active: true } : null);
                 }
             })
             .subscribe();
@@ -356,7 +390,7 @@ const ZkTVPage: React.FC = () => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [activeStream?.id]);
+    }, [activeStream?.id, sessionId]);
 
     // Handler para duplo clique - tela cheia
     const handleDoubleClick = () => {

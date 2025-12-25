@@ -249,12 +249,16 @@ const PublicLiveStreamPage: React.FC = () => {
 
           // Lógica de tracking de sessão baseada na mudança de estado
           if (!updated.is_active && wasActive) {
+            console.log('📡 PublicLiveStreamPage: Live encerrada detectada via Realtime');
             setIsChatOpen(false);
             // Marcar sessão como inativa
             supabase.from('viewer_sessions')
               .update({ is_active: false, ended_at: new Date().toISOString() })
               .eq('session_id', sessionId)
               .eq('stream_id', streamId);
+            
+            // Mostrar notificação
+            toast.error('A transmissão foi encerrada pelo administrador');
           } else if (updated.is_active) {
             // Se está ativa (seja mudança ou já estava ativa), registrar/atualizar sessão
             console.log('✅ Realtime: Stream ativa, chamando trackViewer');
