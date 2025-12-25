@@ -135,7 +135,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
     checkAdminStatus();
     checkVipStatus();
     checkBanStatus();
-    loadVipColor();
+    loadVipColor(); // loadVipColor é async mas não precisa await aqui
     
     // Carregar limites VIP após verificar status
     if (isVip) {
@@ -426,10 +426,27 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
   };
 
   // Salvar cor personalizada do VIP
-  const saveVipColor = (color: string) => {
+  const saveVipColor = async (color: string) => {
     if (!user) return;
+    
+    // Salvar no localStorage
     localStorage.setItem(`vip_color_${user.id}`, color);
     setVipCustomColor(color);
+    
+    // Salvar no banco de dados também
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ vip_color: color })
+        .eq('id', user.id);
+      
+      if (error) {
+        console.error('Erro ao salvar cor VIP no banco:', error);
+      }
+    } catch (err) {
+      console.error('Erro ao salvar cor VIP:', err);
+    }
+    
     setShowColorPicker(false);
     toast.success('Cor personalizada salva!');
   };

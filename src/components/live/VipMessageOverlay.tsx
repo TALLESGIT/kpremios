@@ -4,6 +4,74 @@ import { supabase } from '../../lib/supabase';
 import { Volume2 } from 'lucide-react';
 import googleTtsService from '../../services/googleTtsService';
 
+// Função para obter classes CSS baseadas na cor escolhida
+const getVipColorClasses = (colorValue: string) => {
+  const colorMap: { [key: string]: any } = {
+    purple: {
+      bg: 'from-purple-900/60 via-purple-800/60 to-purple-900/60',
+      border: 'border-purple-500/40',
+      text: 'text-purple-300',
+      textLight: 'text-purple-200'
+    },
+    pink: {
+      bg: 'from-pink-900/60 via-pink-800/60 to-pink-900/60',
+      border: 'border-pink-500/40',
+      text: 'text-pink-300',
+      textLight: 'text-pink-200'
+    },
+    blue: {
+      bg: 'from-blue-900/60 via-blue-800/60 to-blue-900/60',
+      border: 'border-blue-500/40',
+      text: 'text-blue-300',
+      textLight: 'text-blue-200'
+    },
+    cyan: {
+      bg: 'from-cyan-900/60 via-cyan-800/60 to-cyan-900/60',
+      border: 'border-cyan-500/40',
+      text: 'text-cyan-300',
+      textLight: 'text-cyan-200'
+    },
+    green: {
+      bg: 'from-green-900/60 via-green-800/60 to-green-900/60',
+      border: 'border-green-500/40',
+      text: 'text-green-300',
+      textLight: 'text-green-200'
+    },
+    yellow: {
+      bg: 'from-yellow-900/60 via-yellow-800/60 to-yellow-900/60',
+      border: 'border-yellow-500/40',
+      text: 'text-yellow-300',
+      textLight: 'text-yellow-200'
+    },
+    orange: {
+      bg: 'from-orange-900/60 via-orange-800/60 to-orange-900/60',
+      border: 'border-orange-500/40',
+      text: 'text-orange-300',
+      textLight: 'text-orange-200'
+    },
+    red: {
+      bg: 'from-red-900/60 via-red-800/60 to-red-900/60',
+      border: 'border-red-500/40',
+      text: 'text-red-300',
+      textLight: 'text-red-200'
+    },
+    gold: {
+      bg: 'from-yellow-900/60 via-yellow-700/60 to-yellow-900/60',
+      border: 'border-yellow-400/40',
+      text: 'text-yellow-300',
+      textLight: 'text-yellow-200'
+    },
+    silver: {
+      bg: 'from-slate-700/60 via-slate-600/60 to-slate-700/60',
+      border: 'border-slate-400/40',
+      text: 'text-slate-300',
+      textLight: 'text-slate-200'
+    }
+  };
+
+  return colorMap[colorValue] || colorMap.purple;
+};
+
 interface VipMessage {
   id: string;
   user_id: string;
@@ -14,6 +82,7 @@ interface VipMessage {
   message_type?: 'text' | 'audio' | 'tts';
   tts_text?: string;
   audio_duration?: number;
+  vip_color?: string; // Cor personalizada do VIP
 }
 
 interface VipMessageOverlayProps {
@@ -33,11 +102,11 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
   console.log('🎬 VipMessageOverlay: Componente renderizado', { streamId, isActive });
   
   const [currentMessage, setCurrentMessage] = useState<VipMessage | null>(null);
-  const [userRoles, setUserRoles] = useState<{ [userId: string]: { isVip: boolean } }>({});
+  const [userRoles, setUserRoles] = useState<{ [userId: string]: { isVip: boolean; vipColor?: string } }>({});
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [overlayMessagesCount, setOverlayMessagesCount] = useState(0);
   const [queueWaitTime, setQueueWaitTime] = useState<number | null>(null);
-  const userRolesRef = useRef<{ [userId: string]: { isVip: boolean } }>({});
+  const userRolesRef = useRef<{ [userId: string]: { isVip: boolean; vipColor?: string } }>({});
   
   // FILA DE MENSAGENS VIP - Processa uma de cada vez
   const messageQueueRef = useRef<VipMessage[]>([]);
@@ -410,17 +479,23 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
                 try {
                   const { data: userData, error: userError } = await supabase
                     .from('users')
-                    .select('is_vip')
+                    .select('is_vip, vip_color')
                     .eq('id', newMsg.user_id)
                     .single();
 
                   if (userError) {
                     console.warn('Consulta direta também falhou (pode ser usuário anônimo):', userError);
-                    // Se falhar, verificar se a mensagem tem message_type='tts' ou se é de um VIP conhecido
-                    // Por enquanto, vamos assumir false se não conseguir verificar
                     isVip = false;
                   } else {
                     isVip = userData?.is_vip || false;
+                    // Atualizar cache com cor VIP
+                    setUserRoles(prev => ({ 
+                      ...prev, 
+                      [newMsg.user_id]: { 
+                        isVip: isVip || false,
+                        vipColor: userData?.vip_color || 'purple'
+                      } 
+                    }));
                   }
                 } catch (fallbackErr) {
                   console.error('Erro no fallback de verificação VIP:', fallbackErr);
@@ -428,10 +503,40 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
                 }
               } else {
                 isVip = data || false;
+                // Buscar cor VIP se for VIP
+                if (isVip) {
+                  try {
+                    const { data: userData } = await supabase
+                      .from('users')
+                      .select('vip_color')
+                      .eq('id', newMsg.user_id)
+                      .single();
+                    
+                    if (userData?.vip_color) {
+                      setUserRoles(prev => ({ 
+                        ...prev, 
+                        [newMsg.user_id]: { 
+                          isVip: true,
+                          vipColor: userData.vip_color
+                        } 
+                      }));
+                    }
+                  } catch (err) {
+                    console.error('Erro ao buscar cor VIP:', err);
+                  }
+                }
               }
 
-              // Atualizar cache
-              setUserRoles(prev => ({ ...prev, [newMsg.user_id]: { isVip: isVip || false } }));
+              // Atualizar cache se ainda não foi atualizado
+              if (!userRolesRef.current[newMsg.user_id]) {
+                setUserRoles(prev => ({ 
+                  ...prev, 
+                  [newMsg.user_id]: { 
+                    isVip: isVip || false,
+                    vipColor: prev[newMsg.user_id]?.vipColor || 'purple'
+                  } 
+                }));
+              }
               
               console.log(`✅ Status VIP verificado para ${newMsg.user_id}: ${isVip}`);
             } catch (err) {
@@ -471,6 +576,9 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
           }
 
           const truncatedMsg = truncateMessage(newMsg.message);
+          // Buscar cor VIP do cache ou usar padrão
+          const vipColor = userRolesRef.current[newMsg.user_id]?.vipColor || 'purple';
+          
           const messageData: VipMessage = {
             id: newMsg.id,
             user_id: newMsg.user_id,
@@ -480,7 +588,8 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
             created_at: newMsg.created_at,
             message_type: newMsg.message_type || 'text',
             tts_text: newMsg.tts_text || newMsg.message,
-            audio_duration: newMsg.audio_duration
+            audio_duration: newMsg.audio_duration,
+            vip_color: vipColor
           };
 
           console.log('➕ VipMessageOverlay: Adicionando mensagem VIP à fila:', {
@@ -574,45 +683,52 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
           paddingRight: '1rem'
         }}
       >
-        <div className="bg-gradient-to-r from-purple-900/60 via-purple-800/60 to-purple-900/60 backdrop-blur-md border-2 border-purple-500/40 rounded-2xl px-5 py-3 shadow-2xl w-full max-w-lg mx-auto">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-purple-300 text-xs font-black uppercase tracking-wider flex items-center gap-1">
-              <span className="text-lg animate-pulse">💎</span> VIP
-            </span>
-            {currentMessage.message_type === 'tts' && (
-              <span className="text-purple-200 text-xs font-bold flex items-center gap-1">
-                <Volume2 className={`w-3 h-3 ${isPlayingAudio ? 'animate-pulse' : ''}`} />
-                ÁUDIO
-              </span>
-            )}
-            <span className="text-white text-sm font-bold truncate max-w-[200px]">
-              {currentMessage.user_name}
-            </span>
-            {/* Mostrar tamanho da fila e tempo de espera se houver mensagens aguardando */}
-            {messageQueueRef.current.length > 0 && (
-              <span className="text-purple-300 text-[10px] font-bold flex items-center gap-1">
-                <span>+{messageQueueRef.current.length} na fila</span>
-                {queueWaitTime !== null && (
-                  <span className="text-purple-400 animate-pulse">
-                    (⏳ {queueWaitTime}s)
+        {(() => {
+          const vipColor = currentMessage.vip_color || 'purple';
+          const colorClasses = getVipColorClasses(vipColor);
+          
+          return (
+            <div className={`bg-gradient-to-r ${colorClasses.bg} backdrop-blur-md border-2 ${colorClasses.border} rounded-2xl px-5 py-3 shadow-2xl w-full max-w-lg mx-auto`}>
+              <div className="flex items-center gap-3 mb-2">
+                <span className={`${colorClasses.text} text-xs font-black uppercase tracking-wider flex items-center gap-1`}>
+                  <span className="text-lg animate-pulse">💎</span> VIP
+                </span>
+                {currentMessage.message_type === 'tts' && (
+                  <span className={`${colorClasses.textLight} text-xs font-bold flex items-center gap-1`}>
+                    <Volume2 className={`w-3 h-3 ${isPlayingAudio ? 'animate-pulse' : ''}`} />
+                    ÁUDIO
                   </span>
                 )}
-              </span>
-            )}
-          </div>
-          <p
-            className="text-white text-sm font-medium leading-relaxed break-words"
-            style={{
-              display: '-webkit-box',
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              maxHeight: '4.5rem'
-            }}
-          >
-            {currentMessage.message}
-          </p>
-        </div>
+                <span className="text-white text-sm font-bold truncate max-w-[200px]">
+                  {currentMessage.user_name}
+                </span>
+                {/* Mostrar tamanho da fila e tempo de espera se houver mensagens aguardando */}
+                {messageQueueRef.current.length > 0 && (
+                  <span className={`${colorClasses.text} text-[10px] font-bold flex items-center gap-1`}>
+                    <span>+{messageQueueRef.current.length} na fila</span>
+                    {queueWaitTime !== null && (
+                      <span className={`${colorClasses.textLight} animate-pulse`}>
+                        (⏳ {queueWaitTime}s)
+                      </span>
+                    )}
+                  </span>
+                )}
+              </div>
+              <p
+                className="text-white text-sm font-medium leading-relaxed break-words"
+                style={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  maxHeight: '4.5rem'
+                }}
+              >
+                {currentMessage.message}
+              </p>
+            </div>
+          );
+        })()}
       </motion.div>
     </AnimatePresence>
   );
