@@ -788,6 +788,58 @@ export default function AdminDashboardPage() {
           {/* DASHBOARD SECTIONS */}
           <div className="space-y-16 pb-20">
 
+            {/* 🎥 Ferramentas de Live */}
+            <section className="mb-12">
+              <div className="flex items-center gap-4 mb-6 px-2">
+                <div className="w-1.5 h-10 bg-gradient-to-b from-red-500 to-red-700 rounded-full"></div>
+                <div>
+                  <h2 className="text-2xl font-black text-white italic uppercase tracking-tight">Ferramentas de Live</h2>
+                  <p className="text-red-300/40 text-[10px] font-black uppercase tracking-[0.3em]">Gestão de Transmissão</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Reporter Link Card */}
+                <div className="glass-panel p-6 rounded-2xl border border-white/5 bg-slate-800/40 relative overflow-hidden group hover:border-blue-500/30 transition-all duration-300">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all duration-500 group-hover:bg-blue-500/20"></div>
+
+                  <div className="flex justify-between items-start mb-4 relative z-10">
+                    <div className="p-3 bg-slate-900 rounded-xl border border-white/10 shadow-lg">
+                      <Video className="w-6 h-6 text-blue-400" />
+                    </div>
+                    <div className="px-3 py-1 bg-blue-500/20 rounded-full border border-blue-500/20">
+                      <span className="text-[10px] uppercase font-bold text-blue-300 tracking-wider">Novo</span>
+                    </div>
+                  </div>
+
+                  <h3 className="text-xl font-bold text-white mb-2">Link do Repórter Externo</h3>
+                  <p className="text-slate-400 text-sm mb-6">Compartilhe este link com seus repórteres para que eles entrem ao vivo na transmissão via celular.</p>
+
+                  <div className="flex gap-2 relative z-10">
+                    <div className="flex-1 bg-slate-950/50 border border-white/5 rounded-lg px-4 py-3 text-slate-300 font-mono text-xs truncate select-all">
+                      {window.location.origin}/reporter
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/reporter`);
+                        alert('Link copiado para a área de transferência!');
+                      }}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"
+                    >
+                      <span className="hidden sm:inline">Copiar</span>
+                    </button>
+                    <Link
+                      to="/reporter"
+                      target="_blank"
+                      className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      Abrir
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </section>
+
             {/* 🎯 Gestão de Sorteios */}
             <section>
               <div className="flex items-center gap-4 mb-8 px-2">
