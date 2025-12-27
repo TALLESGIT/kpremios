@@ -6,6 +6,7 @@ export interface User {
   free_number?: number;
   extra_numbers: number[];
   is_admin: boolean;
+  is_vip?: boolean;
   created_at: string;
   updated_at: string;
 }

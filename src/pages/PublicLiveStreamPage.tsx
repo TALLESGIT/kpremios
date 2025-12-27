@@ -53,7 +53,7 @@ const PublicLiveStreamPage: React.FC = () => {
   const [standings, setStandings] = useState<CruzeiroStanding[]>([]);
   const [isVip, setIsVip] = useState(false);
   const [showVipModal, setShowVipModal] = useState(false);
-  
+
   // Verificar status VIP
   useEffect(() => {
     if (user && currentUser) {
@@ -141,7 +141,7 @@ const PublicLiveStreamPage: React.FC = () => {
         .maybeSingle();
 
       let data, error;
-      
+
       if (existingSession) {
         // Se existe, fazer update
         console.log('🔄 trackViewer: Sessão existente encontrada, atualizando...', existingSession);
@@ -151,12 +151,12 @@ const PublicLiveStreamPage: React.FC = () => {
           user_id: user?.id || null,
           user_agent: navigator.userAgent
         };
-        
+
         // Se estava inativa e agora está ativa, reativar (mas manter started_at original)
         if (!existingSession.is_active && currentStream.is_active) {
           updateData.ended_at = null; // Limpar ended_at se reativando
         }
-        
+
         const result = await supabase
           .from('viewer_sessions')
           .update(updateData)
@@ -201,7 +201,7 @@ const PublicLiveStreamPage: React.FC = () => {
     try {
       // Primeiro, garantir que a sessão existe
       await trackViewer();
-      
+
       // Depois atualizar o heartbeat
       const { error } = await supabase.rpc('update_viewer_heartbeat', { p_session_id: sessionId });
       if (error) {
@@ -256,7 +256,7 @@ const PublicLiveStreamPage: React.FC = () => {
               .update({ is_active: false, ended_at: new Date().toISOString() })
               .eq('session_id', sessionId)
               .eq('stream_id', streamId);
-            
+
             // Mostrar notificação
             toast.error('A transmissão foi encerrada pelo administrador');
           } else if (updated.is_active) {
@@ -296,15 +296,15 @@ const PublicLiveStreamPage: React.FC = () => {
     } else {
       console.log('ℹ️ useEffect stream: Stream inativa, pulando tracking');
     }
-    
+
     setCurrentViewerCount(stream.viewer_count || 0);
-    
+
     // Marcar como executado apenas uma vez por stream.id
     if (!trackViewerExecutedRef.current) {
       trackViewerExecutedRef.current = true;
     }
 
-    return () => { 
+    return () => {
       // Reset apenas quando mudar de stream
       if (stream.id !== streamRef.current?.id) {
         trackViewerExecutedRef.current = false;
@@ -337,7 +337,7 @@ const PublicLiveStreamPage: React.FC = () => {
     setLoading(true);
     console.log('📥 loadStream: Carregando stream para channel:', channelName);
     const { data, error } = await supabase.from('live_streams').select('*').eq('channel_name', channelName).maybeSingle();
-    
+
     if (error) {
       console.error('❌ loadStream: Erro ao carregar stream:', error);
       toast.error('Erro ao carregar transmissão');
@@ -345,7 +345,7 @@ const PublicLiveStreamPage: React.FC = () => {
       setLoading(false);
       return;
     }
-    
+
     if (!data) {
       console.warn('⚠️ loadStream: Stream não encontrada');
       toast.error('Transmissão não encontrada');
@@ -353,13 +353,13 @@ const PublicLiveStreamPage: React.FC = () => {
       setLoading(false);
       return;
     }
-    
+
     console.log('✅ loadStream: Stream carregada', {
       id: data.id,
       is_active: data.is_active,
       channel_name: data.channel_name
     });
-    
+
     setStream(data);
     setLoading(false);
   };
@@ -454,7 +454,23 @@ const PublicLiveStreamPage: React.FC = () => {
     else if (!isFullscreen) setVideoFitMode('contain');
   }, [isMobile, isFullscreen, isLandscape, isChatOpen]);
 
-  if (loading || !stream) return null;
+  if (loading || !stream) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          {loading ? (
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+          ) : (
+            <div className="text-white text-center">
+              <h2 className="text-2xl font-bold mb-2">Transmissão não encontrada</h2>
+              <button onClick={() => navigate('/')} className="text-blue-400 hover:text-blue-300">Voltar para Home</button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const isDockedChat = isMobile && isFullscreen && isLandscape && isChatOpen;
 
@@ -529,13 +545,13 @@ const PublicLiveStreamPage: React.FC = () => {
               ref={videoContainerRef}
               onDoubleClick={handleDoubleClick}
               className={`relative bg-black shadow-2xl overflow-hidden transition-all duration-500 isolate cursor-pointer
-                ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : 'rounded-3xl border border-white/10 aspect-video'}
+                ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : 'rounded-3xl border border-white/10 aspect-video min-h-[300px]'}
                 ${isDockedChat ? 'flex' : ''}`}
               title="Duplo clique para tela cheia"
             >
               <div className={`relative h-full ${isDockedChat ? 'flex-1' : 'w-full'}`}>
                 <ZKViewer
-                  channel={stream.channel_name}
+                  channel="ZkPremios" // STRICT ARCHITECTURE: Always connect to main channel ZkPremios
                   fitMode={videoFitMode}
                   enabled={stream.is_active}
                 />
@@ -570,13 +586,11 @@ const PublicLiveStreamPage: React.FC = () => {
                 />
               </div>
               {isDockedChat && (
-                <div className={`h-full bg-black/40 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl animate-in slide-in-from-right duration-300 ${
-                  isMobile ? 'w-[400px] min-w-[350px] max-w-[45vw]' : 'w-[300px]'
-                }`}>
+                <div className={`h-full bg-black/40 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl animate-in slide-in-from-right duration-300 ${isMobile ? 'w-[400px] min-w-[350px] max-w-[45vw]' : 'w-[300px]'
+                  }`}>
                   <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                    <span className={`font-black text-white uppercase italic tracking-widest ${
-                      isMobile ? 'text-xs' : 'text-[10px]'
-                    }`}>Chat da Transmissão</span>
+                    <span className={`font-black text-white uppercase italic tracking-widest ${isMobile ? 'text-xs' : 'text-[10px]'
+                      }`}>Chat da Transmissão</span>
                     <button onClick={() => setIsChatOpen(false)} className="p-1 hover:bg-white/10 rounded transition-colors">
                       <X className={`text-white ${isMobile ? 'w-5 h-5' : 'w-4 h-4'}`} />
                     </button>
@@ -622,7 +636,7 @@ const PublicLiveStreamPage: React.FC = () => {
         </div>
       </main>
       <Footer />
-      
+
       {/* Modal de Assinatura VIP */}
       <VipSubscriptionModal
         isOpen={showVipModal}

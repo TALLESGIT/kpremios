@@ -339,16 +339,15 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
         });
 
         await client.setClientRole('audience');
-        const fixedChannel = 'ZkPremios';
+        // Usar o canal passado por prop (IMPORTANTE para suportar _backstage)
         console.log('🔌 ZKViewer: Conectando ao canal...', {
-          channel: fixedChannel,
-          originalChannel: channel,
+          channel: channel,
           hasToken: !!agoraToken,
           tokenPreview: agoraToken ? agoraToken.substring(0, 20) + '...' : 'null'
         });
-        await client.join(agoraAppId, fixedChannel, agoraToken, null);
+        await client.join(agoraAppId, channel, agoraToken, null);
         console.log('✅ ZKViewer: Conectado ao canal!', {
-          channel: fixedChannel,
+          channel: channel,
           connectionTime: new Date().toISOString()
         });
       } catch (err) {
