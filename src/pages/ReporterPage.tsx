@@ -107,26 +107,61 @@ export default function ReporterPage() {
 
 
 
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Toggle Fullscreen on Double Click
+  const handleDoubleClick = () => {
+    if (!videoRef.current) return;
+    
+    // Encontrar o container pai para tela cheia (o div com a classe relative group...)
+    const container = videoRef.current.parentElement;
+    if (!container) return;
+
+    if (!document.fullscreenElement) {
+      container.requestFullscreen().catch(err => {
+        console.error(`Erro ao tentar entrar em tela cheia: ${err.message}`);
+      });
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
   return (
     <div className="min-h-screen bg-neutral-950 text-white font-sans flex flex-col items-center justify-center p-4 selection:bg-blue-500/30">
       <motion.div
-        className="w-full max-w-lg space-y-6"
+        className={`w-full ${isFullscreen ? '' : 'max-w-lg space-y-6'}`}
       >
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold uppercase tracking-widest">
-            <ShieldCheck className="w-3 h-3" />
-            ZK Studio Mobile
+        {!isFullscreen && (
+          <div className="text-center space-y-2">
+            <div className="inline-flex items-center justify-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold uppercase tracking-widest">
+              <ShieldCheck className="w-3 h-3" />
+              ZK Studio Mobile
+            </div>
+            <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
+              Painel do Repórter
+            </h1>
+            <p className="text-neutral-500 text-sm font-medium">
+              {isConnected ? '📡 Enviando sinal para o Estúdio' : '🔒 Aguardando conexão'}
+            </p>
           </div>
-          <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-            Painel do Repórter
-          </h1>
-          <p className="text-neutral-500 text-sm font-medium">
-            {isConnected ? '📡 Enviando sinal para o Estúdio' : '🔒 Aguardando conexão'}
-          </p>
-        </div>
+        )}
 
-        <div className={`relative group rounded-2xl overflow-hidden border transition-colors duration-500 shadow-2xl shadow-black/50 aspect-video min-h-[300px]
-          ${isConnected ? 'border-green-500 shadow-green-500/20' : 'border-neutral-800'} `}>
+        <div 
+          onDoubleClick={handleDoubleClick}
+          className={`relative group overflow-hidden border transition-all duration-500 shadow-2xl shadow-black/50 aspect-video 
+          ${isConnected ? 'border-green-500 shadow-green-500/20' : 'border-neutral-800'}
+          ${isFullscreen ? 'fixed inset-0 z-50 w-screen h-screen rounded-none' : 'rounded-2xl min-h-[300px]'}`}
+        >
 
           <div ref={videoRef} className="w-full h-full bg-neutral-900" />
 

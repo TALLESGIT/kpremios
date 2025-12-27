@@ -392,24 +392,22 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
   // Desconectar IMEDIATAMENTE quando enabled virar false (admin encerrou no site)
   useEffect(() => {
     if (!enabled && clientRef.current) {
-      console.log('🛑 ZKViewer: enabled=false - Desconectando IMEDIATAMENTE do Agora (admin encerrou no site)!');
+      console.log('🛑 ZKViewer: enabled=false - Desconectando IMEDIATAMENTE do Agora (admin encerrou no live)!');
       setIsLive(false);
       setError(null); // Limpar erro ao forçar desconexão
 
-      videoTrackRef.current?.stop();
-      videoTrackRef.current = null;
-
-      audioTrackRef.current?.stop();
-      audioTrackRef.current = null;
-
-      if (clientRef.current) {
-        clientRef.current.removeAllListeners();
-        clientRef.current.leave().catch((err: any) => {
-          console.error('Erro ao desconectar do Agora:', err);
-        });
-        clientRef.current = null;
+      // 1. Parar e limpar faixas locais/remotas imediatamente
+      if (videoTrackRef.current) {
+        try { videoTrackRef.current.stop(); } catch (e) { console.error('Erro ao parar videoTrack:', e); }
+        videoTrackRef.current = null;
       }
 
+      if (audioTrackRef.current) {
+        try { audioTrackRef.current.stop(); } catch (e) { console.error('Erro ao parar audioTrack:', e); }
+        audioTrackRef.current = null;
+      }
+
+      // 2. Limpar background blur
       if (bgTrackRef.current) {
         try { bgTrackRef.current.stop(); } catch { /* ignore */ }
         bgTrackRef.current = null;
@@ -422,11 +420,33 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
         bgVideoElRef.current.remove();
         bgVideoElRef.current = null;
       }
+
+      // 3. Forçar saída do cliente
+      const client = clientRef.current;
+      clientRef.current = null; // Evitar uso posterior
+
+      try {
+        client.removeAllListeners();
+        client.leave().then(() => {
+          console.log('✅ ZKViewer: Saiu do canal com sucesso');
+        }).catch((err: any) => {
+          console.error('Erro ao desconectar do Agora (client.leave):', err);
+        });
+      } catch (e) {
+        console.error('Erro crítico ao tentar desconectar:', e);
+      }
     }
   }, [enabled]);
 
   if (error) {
-    return <div>{error}</div>;
+    return (
+      <div className="flex items-center justify-center w-full h-full bg-black text-white">
+        <div className="text-center">
+          <p className="mb-2">⚠️ {error}</p>
+          {/* Botão de reconectar se necessário */}
+        </div>
+      </div>
+    );
   }
 
   return (

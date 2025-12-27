@@ -364,19 +364,19 @@ const ZkTVPage: React.FC = () => {
                 // Detectar quando a live é encerrada
                 if (!updated.is_active && wasActive) {
                     console.log('📡 ZkTVPage: Live encerrada detectada via Realtime');
-                    
+
                     // Fechar chat se estiver aberto
                     setIsChatOpen(false);
-                    
+
                     // Marcar sessão como inativa
                     supabase.from('viewer_sessions')
                         .update({ is_active: false, ended_at: new Date().toISOString() })
                         .eq('session_id', sessionId)
                         .eq('stream_id', activeStream.id);
-                    
+
                     // Atualizar estado local
                     setActiveStream(prev => prev ? { ...prev, is_active: false } : null);
-                    
+
                     // Mostrar notificação
                     toast.error('A transmissão foi encerrada pelo administrador');
                 } else if (updated.is_active && !wasActive) {
@@ -691,7 +691,7 @@ const ZkTVPage: React.FC = () => {
                                             <ZKViewer
                                                 channel={activeStream.channel_name}
                                                 fitMode={videoFitMode}
-                                                enabled={true}
+                                                enabled={activeStream.is_active}
                                             />
                                             {/* Overlay de mensagens VIP na tela */}
                                             {activeStream.is_active && activeStream.id && (

@@ -477,14 +477,14 @@ const PublicLiveStreamPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col">
       <Header />
-      <main className="flex-1 max-w-5xl mx-auto w-full p-4 lg:p-12 space-y-12">
-        <div className="flex flex-col md:flex-row justify-between items-start gap-8">
+      <main className="flex-1 max-w-5xl mx-auto w-full p-0 sm:p-4 lg:p-12 space-y-8 sm:space-y-12">
+        <div className="flex flex-col md:flex-row justify-between items-start gap-4 sm:gap-8 px-4 sm:px-0 pt-4 sm:pt-0">
           <div className="space-y-4">
             <button onClick={() => navigate('/')} className="flex items-center gap-2 text-slate-500 font-bold uppercase text-[10px] tracking-widest hover:text-white transition-colors">
               <ArrowLeft className="w-4 h-4" /> Voltar
             </button>
             <div>
-              <h1 className="text-4xl lg:text-5xl font-black text-white italic uppercase tracking-tighter">{stream.title}</h1>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white italic uppercase tracking-tighter">{stream.title}</h1>
               <p className="text-blue-400 font-bold text-xs uppercase tracking-[0.3em]">{stream.channel_name}</p>
             </div>
           </div>
@@ -545,7 +545,7 @@ const PublicLiveStreamPage: React.FC = () => {
               ref={videoContainerRef}
               onDoubleClick={handleDoubleClick}
               className={`relative bg-black shadow-2xl overflow-hidden transition-all duration-500 isolate cursor-pointer
-                ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : 'rounded-3xl border border-white/10 aspect-video min-h-[300px]'}
+                ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : 'sm:rounded-3xl border-y sm:border border-white/10 aspect-video min-h-[220px] sm:min-h-[300px]'}
                 ${isDockedChat ? 'flex' : ''}`}
               title="Duplo clique para tela cheia"
             >
