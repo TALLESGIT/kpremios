@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import AgoraRTC, { IAgoraRTCClient, IMicrophoneAudioTrack, ICameraVideoTrack } from 'agora-rtc-sdk-ng';
-import { Mic, MicOff, Video, VideoOff, ShieldCheck, Wifi } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, ShieldCheck, Wifi, RefreshCcw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 
@@ -19,11 +19,23 @@ export default function ReporterPage() {
 
   const videoRef = useRef<HTMLDivElement>(null);
 
+  const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
+  const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
+
   // Inicializar Cliente Agora
   useEffect(() => {
     console.log("[REPORTER] Inicializando ZK Studio Mobile.");
     const agoraClient = AgoraRTC.createClient({ mode: "live", codec: "h264" });
     setClient(agoraClient);
+
+    // Listener para retorno de áudio do estúdio
+    agoraClient.on("user-published", async (user, mediaType) => {
+      if (mediaType === "audio") {
+        await agoraClient.subscribe(user, mediaType);
+        user.audioTrack?.play();
+        toast.success("Retorno de áudio do estúdio conectado!");
+      }
+    });
 
     return () => {
       if (localAudioTrack) localAudioTrack.close();
@@ -32,7 +44,7 @@ export default function ReporterPage() {
     };
   }, []);
 
-  // Inicializar Mídia Local
+  // Inicializar Mídia Local e listar câmeras
   const initLocalMedia = async () => {
     try {
       const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
@@ -43,6 +55,14 @@ export default function ReporterPage() {
       setLocalAudioTrack(audioTrack);
       setLocalVideoTrack(videoTrack);
 
+      // Listar câmeras
+      const devices = await AgoraRTC.getCameras();
+      setCameras(devices);
+      // Tentar encontrar a câmera atual para definir o índice correto
+      const currentTrackLabel = videoTrack.getTrackLabel();
+      const index = devices.findIndex(d => d.label === currentTrackLabel);
+      if (index !== -1) setCurrentCameraIndex(index);
+
       if (videoRef.current) {
         videoTrack.play(videoRef.current);
       }
@@ -51,6 +71,22 @@ export default function ReporterPage() {
       if (err.code === "PERMISSION_DENIED") {
         toast.error("Permissão de câmera/microfone negada.");
       }
+    }
+  };
+
+  const handleSwitchCamera = async () => {
+    if (cameras.length < 2 || !localVideoTrack) return;
+
+    const nextIndex = (currentCameraIndex + 1) % cameras.length;
+    const nextDevice = cameras[nextIndex];
+
+    try {
+      await localVideoTrack.setDevice(nextDevice.deviceId);
+      setCurrentCameraIndex(nextIndex);
+      toast.success(`Câmera alterada para: ${nextDevice.label || 'Camera ' + (nextIndex + 1)}`);
+    } catch (e) {
+      console.error("Erro ao trocar câmera:", e);
+      toast.error("Erro ao trocar câmera");
     }
   };
 
@@ -112,7 +148,7 @@ export default function ReporterPage() {
   // Toggle Fullscreen on Double Click
   const handleDoubleClick = () => {
     if (!videoRef.current) return;
-    
+
     // Encontrar o container pai para tela cheia (o div com a classe relative group...)
     const container = videoRef.current.parentElement;
     if (!container) return;
@@ -156,7 +192,7 @@ export default function ReporterPage() {
           </div>
         )}
 
-        <div 
+        <div
           onDoubleClick={handleDoubleClick}
           className={`relative group overflow-hidden border transition-all duration-500 shadow-2xl shadow-black/50 aspect-video 
           ${isConnected ? 'border-green-500 shadow-green-500/20' : 'border-neutral-800'}
@@ -209,6 +245,16 @@ export default function ReporterPage() {
               >
                 {isCamOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
               </button>
+
+              {cameras.length > 1 && (
+                <button
+                  onClick={handleSwitchCamera}
+                  className="p-4 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 text-white transition-all"
+                  title="Trocar Câmera"
+                >
+                  <RefreshCcw className="w-6 h-6" />
+                </button>
+              )}
             </div>
           </div>
         </div>

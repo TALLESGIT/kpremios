@@ -8,7 +8,7 @@ import SuccessModal from '../components/shared/SuccessModal';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
-import { ChevronDown, Play, Trophy, Ticket, MonitorPlay, Calendar, MapPin, Clock, Target } from 'lucide-react';
+import { ChevronDown, Play, Trophy, Ticket, MonitorPlay, Calendar, MapPin, Clock, Target, MessageCircle } from 'lucide-react';
 import { CruzeiroGame } from '../types';
 import AdvertisementCarousel from '../components/shared/AdvertisementCarousel';
 import PoolBetModal from '../components/pool/PoolBetModal';
@@ -40,7 +40,7 @@ function HomePage() {
     checkActiveLive();
     // Verificar bolão independente da live (pode haver bolão sem live ativa)
     checkActivePool();
-    
+
     // Subscribe para mudanças em live_streams
     const liveChannel = supabase
       .channel('home-live-updates')
@@ -262,6 +262,18 @@ function HomePage() {
               </Link>
             </div>
 
+            <div className="mt-8">
+              <a
+                href="https://whatsapp.com/channel/0029Vb9wQUfCsU9TJrWZcM3L"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-full font-bold uppercase tracking-widest text-sm shadow-lg shadow-green-600/30 transition-all hover:scale-105"
+              >
+                <MessageCircle className="w-5 h-5" />
+                Grupo de Suporte
+              </a>
+            </div>
+
             {/* Floating Prizes (Visual Only) */}
             <div className="absolute -bottom-16 opacity-10 pointer-events-none w-full flex justify-between px-4">
               <span className="text-9xl transform -rotate-12 blur-sm">🦊</span>
@@ -380,7 +392,7 @@ function HomePage() {
                       +1.2k
                     </div>
                   </div>
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       navigate('/zk-tv');
@@ -389,10 +401,10 @@ function HomePage() {
                   >
                     {hasActiveLive ? 'Entrar na Live' : 'Acessar ZK TV'}
                   </button>
-                  
+
                   {/* Botão Participar do Bolão - Aparece apenas se houver bolão ativo */}
                   {activePool && activePool.is_active && (
-                    <button 
+                    <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setShowPoolModal(true);
@@ -447,7 +459,7 @@ function HomePage() {
               </div>
               <h3 className="text-2xl font-bold text-white mb-3">Tabela</h3>
               <p className="text-blue-200 mb-8 text-sm leading-relaxed">Acompanhe o Cabuloso no campeonato.</p>
-              <button 
+              <button
                 onClick={() => navigate('/competicoes')}
                 className="btn btn-outline w-full border-green-400/30 hover:bg-green-500/20 text-green-300 hover:text-white rounded-xl"
               >
@@ -461,9 +473,9 @@ function HomePage() {
               <div className="w-20 h-20 mx-auto bg-purple-500/20 rounded-full flex items-center justify-center mb-6 text-purple-300 group-hover:scale-110 transition-transform group-hover:bg-purple-500/30">
                 <Play className="w-10 h-10" />
               </div>
-              <h3 className="text-2xl font-bold text-white mb-3">Lives Premiadas</h3>
+              <h3 className="text-2xl font-bold text-white mb-3">Lives Resta Um</h3>
               <p className="text-blue-200 mb-8 text-sm leading-relaxed">Participe dos jogos ao vivo. A emoção do Cruzeiro agora nas suas mãos.</p>
-              <button 
+              <button
                 onClick={() => navigate('/live-games')}
                 className="btn btn-outline w-full border-purple-400/30 hover:bg-purple-500/20 text-purple-300 hover:text-white rounded-xl"
               >
