@@ -16,7 +16,8 @@ import {
     MessageSquare,
     X,
     Crown,
-    Target
+    Target,
+    Bell
 } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
@@ -620,7 +621,6 @@ const ZkTVPage: React.FC = () => {
                                 )}
 
                                 {/* Botão Bolão (Se houver bolão ativo) */}
-                                {activePool && (
                                     <button
                                         onClick={() => setShowPoolModal(true)}
                                         className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/40 rounded-full text-emerald-400 text-sm font-bold transition-all hover:scale-105 active:scale-95"
@@ -629,6 +629,17 @@ const ZkTVPage: React.FC = () => {
                                         PARTICIPAR DO BOLÃO
                                     </button>
                                 )}
+
+                                {/* Botão Notificações WhatsApp */}
+                                <a
+                                    href="https://whatsapp.com/channel/0029Vb9wQUfCsU9TJrWZcM3L"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600/20 border border-green-500/30 hover:bg-green-600/40 rounded-full text-green-400 text-sm font-bold transition-all hover:scale-105 active:scale-95"
+                                >
+                                    <Bell className="w-4 h-4" />
+                                    RECEBER NOTIFICAÇÕES
+                                </a>
                             </motion.div>
 
                             <motion.h1
