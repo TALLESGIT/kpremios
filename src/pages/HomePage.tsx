@@ -270,7 +270,7 @@ function HomePage() {
                 className="inline-flex items-center gap-2 px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-full font-bold uppercase tracking-widest text-sm shadow-lg shadow-green-600/30 transition-all hover:scale-105"
               >
                 <MessageCircle className="w-5 h-5" />
-                Grupo de Suporte
+                PARA CENTRAL DE SUPORTE
               </a>
             </div>
 

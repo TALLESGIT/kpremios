@@ -621,13 +621,13 @@ const ZkTVPage: React.FC = () => {
                                 )}
 
                                 {/* Botão Bolão (Se houver bolão ativo) */}
-                                    <button
-                                        onClick={() => setShowPoolModal(true)}
-                                        className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/40 rounded-full text-emerald-400 text-sm font-bold transition-all hover:scale-105 active:scale-95"
-                                    >
-                                        <Target className="w-4 h-4" />
-                                        PARTICIPAR DO BOLÃO
-                                    </button>
+                                <button
+                                    onClick={() => setShowPoolModal(true)}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/40 rounded-full text-emerald-400 text-sm font-bold transition-all hover:scale-105 active:scale-95"
+                                >
+                                    <Target className="w-4 h-4" />
+                                    PARTICIPAR DO BOLÃO
+                                </button>
                                 )}
 
                                 {/* Botão Notificações WhatsApp */}
