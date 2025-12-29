@@ -628,7 +628,7 @@ const ZkTVPage: React.FC = () => {
                                     <Target className="w-4 h-4" />
                                     PARTICIPAR DO BOLÃO
                                 </button>
-                                )}
+
 
                                 {/* Botão Notificações WhatsApp */}
                                 <a
