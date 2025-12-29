@@ -372,12 +372,9 @@ function HomePage() {
                       )}
                     </div>
                     <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-4 italic tracking-tight uppercase leading-none">
-                      Acompanhe <br className="hidden sm:block" />
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-white to-blue-400">Tudo ao Vivo</span>
+                      ASSISTA TODOS OS <br className="hidden sm:block" />
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-white to-blue-400">JOGOS AO VIVO</span>
                     </h2>
-                    <p className="text-blue-100/60 text-lg font-medium max-w-lg">
-                      Transmissões premium com estatísticas em tempo real, tabelas e prêmios exclusivos durante os jogos.
-                    </p>
                   </div>
                 </div>
 
