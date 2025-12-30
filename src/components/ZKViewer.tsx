@@ -338,7 +338,8 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
           }
         });
 
-        await client.setClientRole('audience');
+        // Configurar para BAIXA LATÊNCIA (reduz delay e tela preta inicial)
+        await client.setClientRole('audience', { level: 1 });
         // Usar o canal passado por prop (IMPORTANTE para suportar _backstage)
         console.log('🔌 ZKViewer: Conectando ao canal...', {
           channel: channel,
