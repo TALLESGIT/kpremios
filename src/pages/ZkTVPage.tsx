@@ -585,7 +585,7 @@ const ZkTVPage: React.FC = () => {
     const recentGames = games.filter(g => new Date(g.date) <= new Date() && g.status === 'finished').reverse().slice(0, 3);
     const upcomingGames = games.filter(g => new Date(g.date) > new Date()).slice(0, 5);
 
-    const isLiveActive = activeStream?.is_active || settings?.is_live;
+    const isLiveActive = activeStream ? activeStream.is_active : !!settings?.is_live;
 
     return (
         <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-blue-500/30">
