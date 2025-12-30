@@ -661,29 +661,7 @@ const ZkTVPage: React.FC = () => {
                                 próximos jogos e muito mais em um só lugar.
                             </motion.p>
 
-                            {isLiveActive && (
-                                <motion.div
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="flex items-center gap-4 justify-center lg:justify-start"
-                                >
-                                    <div className="flex items-center gap-4 px-6 py-3 bg-red-600 rounded-full font-bold shadow-lg shadow-red-600/20">
-                                        <div className="flex items-center gap-2 animate-pulse">
-                                            <Activity className="w-4 h-4" />
-                                            <span>AO VIVO AGORA</span>
-                                        </div>
-                                        {activeStream && (
-                                            <>
-                                                <div className="w-[1px] h-4 bg-white/30" />
-                                                <div className="flex items-center gap-2">
-                                                    <Eye className="w-4 h-4" />
-                                                    <span>{currentViewerCount}</span>
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                </motion.div>
-                            )}
+
                         </div>
 
                         <motion.div
@@ -822,8 +800,27 @@ const ZkTVPage: React.FC = () => {
                                             <X className="w-5 h-5 text-white" />
                                         </button>
                                     </div>
-                                    <div className="flex-1 overflow-hidden">
-                                        <LiveChat streamId={activeStream.id} />
+                                    <div className="flex-1 overflow-hidden flex flex-col">
+                                        {activePool && (
+                                            <div className="p-3 bg-emerald-600/20 border-b border-emerald-500/20 flex flex-col gap-2 shrink-0">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-emerald-400 font-bold text-xs uppercase tracking-wider flex items-center gap-2">
+                                                        <Target className="w-3 h-3" />
+                                                        Bolão Ativo
+                                                    </span>
+                                                    <span className="text-white font-bold text-xs truncate max-w-[150px]">{activePool.match_title}</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => setShowPoolModal(true)}
+                                                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors shadow-lg shadow-emerald-600/20"
+                                                >
+                                                    PARTICIPAR AGORA
+                                                </button>
+                                            </div>
+                                        )}
+                                        <div className="flex-1 overflow-hidden">
+                                            <LiveChat streamId={activeStream.id} />
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -841,8 +838,27 @@ const ZkTVPage: React.FC = () => {
                             <X className="w-5 h-5 text-white" />
                         </button>
                     </div>
-                    <div className="flex-1 overflow-hidden">
-                        <LiveChat streamId={activeStream.id} />
+                    <div className="flex-1 overflow-hidden flex flex-col">
+                        {activePool && (
+                            <div className="p-3 bg-emerald-600/20 border-b border-emerald-500/20 flex flex-col gap-2 shrink-0">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-emerald-400 font-bold text-xs uppercase tracking-wider flex items-center gap-2">
+                                        <Target className="w-3 h-3" />
+                                        Bolão Ativo
+                                    </span>
+                                    <span className="text-white font-bold text-xs truncate max-w-[150px]">{activePool.match_title}</span>
+                                </div>
+                                <button
+                                    onClick={() => setShowPoolModal(true)}
+                                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors shadow-lg shadow-emerald-600/20"
+                                >
+                                    PARTICIPAR AGORA
+                                </button>
+                            </div>
+                        )}
+                        <div className="flex-1 overflow-hidden">
+                            <LiveChat streamId={activeStream.id} />
+                        </div>
                     </div>
                 </div>
             )}
