@@ -490,25 +490,11 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
       />
 
       {/* ⏳ OVERLAY "AGUARDANDO" - SIMPLES E LIMPO */}
+      {/* ⏳ OVERLAY "CONECTANDO" */}
       {!isLive && (
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          zIndex: 2,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          pointerEvents: 'none',
-          backgroundColor: 'rgba(0, 0, 0, 0.85)'
-        }}>
-          <div style={{
-            color: 'white',
-            fontSize: '16px',
-            textAlign: 'center',
-            opacity: 0.9
-          }}>
-            ⏳ Aguardando transmissão...
-          </div>
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/90 pb-10">
+          <div className="w-10 h-10 border-2 border-white/10 border-t-rose-500 rounded-full animate-spin mb-4" />
+          <p className="text-white/80 text-sm font-medium animate-pulse tracking-wide">CONECTANDO AO VIVO...</p>
         </div>
       )}
 
