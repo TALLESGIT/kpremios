@@ -147,6 +147,7 @@ export default function ReporterPage() {
         return;
       }
 
+      await client.setClientRole('host');
       await client.join(appId, BACKSTAGE_CHANNEL, token, null);
       await client.publish([localAudioTrack, localVideoTrack]);
 
