@@ -357,7 +357,7 @@ const ZkTVPage: React.FC = () => {
                 const currentStream = activeStreamRef.current;
                 if (payload.eventType === 'UPDATE' && currentStream?.id === payload.new.id) {
                     const newVal = payload.new as LiveStream;
-                    if (!newVal.is_active && currentStream.is_active) {
+                    if (!newVal.is_active && currentStream?.is_active) {
                         console.log('🛑 Live encerrada! Desconectando imediatamente...');
                         setActiveStream(prev => prev ? { ...prev, is_active: false } : null);
                         setIsChatOpen(false);
