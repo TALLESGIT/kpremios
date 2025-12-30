@@ -226,8 +226,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         cameraId: deviceId,
         optimizationMode: 'latency',
         encoderConfig: {
-          width: 1920,
-          height: 1080,
+          width: 1280,
+          height: 720,
           frameRate: 30,
         },
       });
@@ -1330,10 +1330,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             const videoTrack = await AgoraRTC.createCameraVideoTrack({
               cameraId: selectedCamera,
               encoderConfig: {
-                width: 1920,
-                height: 1080,
+                width: 1280,
+                height: 720,
                 frameRate: 30,
-                bitrateMax: 4000,
+                bitrateMax: 2500,
               },
             });
 
