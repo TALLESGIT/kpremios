@@ -5,7 +5,7 @@ import { Mic, MicOff, Video, VideoOff, ShieldCheck, Wifi, RefreshCcw } from 'luc
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 
-const APP_ID = "1e4cb25acbd349c6a540d0c0e1b13931";
+
 const BACKSTAGE_CHANNEL = "ZkPremios_backstage";
 
 export default function ReporterPage() {
@@ -126,10 +126,16 @@ export default function ReporterPage() {
         return;
       }
 
-      await client.setClientRole("host");
+      const appId = import.meta.env.VITE_AGORA_APP_ID;
+      const token = import.meta.env.VITE_AGORA_TOKEN || null;
+
+      if (!appId) {
+        toast.error("Agora App ID não configurado");
+        return;
+      }
 
       console.log(`[REPORTER] Enviando sinal para ZK STUDIO(Canal: ${BACKSTAGE_CHANNEL})`);
-      await client.join(APP_ID, BACKSTAGE_CHANNEL, null, null);
+      await client.join(appId, BACKSTAGE_CHANNEL, token, null);
       await client.publish([localAudioTrack, localVideoTrack]);
 
       setIsConnected(true);
