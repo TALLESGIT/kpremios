@@ -355,9 +355,24 @@ const ZkTVPage: React.FC = () => {
 
                 // Otimização: Se for o stream atual sendo encerrado, atualizar UI imediatamente
                 const currentStream = activeStreamRef.current;
+
+                // DETECÇÃO DE START DE LIVE (INSERT ou UPDATE para active=true)
+                const newVal = payload.new as LiveStream;
+                if ((payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') && newVal.is_active) {
+                    // Se não tem stream atual, ou é um stream NOVO, ou o atual foi reativado
+                    // Use optional chaining just in case
+                    if (!currentStream?.is_active || currentStream.id !== newVal.id) {
+                        console.log('⚡ Live iniciada/reativada! Conectando imediatamente...', newVal);
+                        setActiveStream(newVal);
+                    }
+                }
+
                 if (payload.eventType === 'UPDATE' && currentStream?.id === payload.new.id) {
-                    const newVal = payload.new as LiveStream;
-                    if (!newVal.is_active && currentStream?.is_active) {
+                    // Reusing newVal declaration is fine if scopes are correct, but I declared it above.
+                    // const newVal = payload.new as LiveStream; -> Remove this redeclaration in target?
+                    // Wait, I am rewriting the block. I can structure it cleanly.
+
+                    if (!newVal.is_active && currentStream.is_active) {
                         console.log('🛑 Live encerrada! Desconectando imediatamente...');
                         setActiveStream(prev => prev ? { ...prev, is_active: false } : null);
                         setIsChatOpen(false);
