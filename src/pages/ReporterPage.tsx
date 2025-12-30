@@ -135,6 +135,18 @@ export default function ReporterPage() {
       }
 
       console.log(`[REPORTER] Enviando sinal para ZK STUDIO(Canal: ${BACKSTAGE_CHANNEL})`);
+
+      // Verificar estado real da conexão antes de tentar conectar
+      if (client.connectionState === 'CONNECTED' || client.connectionState === 'CONNECTING') {
+        console.log('[REPORTER] Já conectado ou conectando. Atualizando estado local.');
+        setIsConnected(true);
+        // Se já estiver conectado, apenas garantir que as tracks estão publicadas
+        if (client.localTracks.length === 0) {
+          await client.publish([localAudioTrack, localVideoTrack]);
+        }
+        return;
+      }
+
       await client.join(appId, BACKSTAGE_CHANNEL, token, null);
       await client.publish([localAudioTrack, localVideoTrack]);
 

@@ -413,6 +413,25 @@ const ZkTVPage: React.FC = () => {
         }
     };
 
+    // Handler para Picture-in-Picture
+    const togglePiP = async () => {
+        const video = videoContainerRef.current?.querySelector('video');
+        if (video && document.pictureInPictureEnabled) {
+            try {
+                if (document.pictureInPictureElement) {
+                    await document.exitPictureInPicture();
+                } else {
+                    await video.requestPictureInPicture();
+                }
+            } catch (err) {
+                console.error('Erro ao alternar PiP:', err);
+                toast.error('Recurso não suportado neste navegador');
+            }
+        } else {
+            toast('Para transmitir, use o menu do seu navegador (Cast/Transmitir).', { icon: '📺' });
+        }
+    };
+
     // Recalcular estatísticas quando games ou standings mudarem
     useEffect(() => {
         if (games.length > 0 || standings.length > 0) {
@@ -794,23 +813,7 @@ const ZkTVPage: React.FC = () => {
                                             <div className="absolute bottom-4 right-4 flex gap-2 z-10">
                                                 {/* Botão Picture-in-Picture / Cast Hint */}
                                                 <button
-                                                    onClick={async () => {
-                                                        const video = videoContainerRef.current?.querySelector('video');
-                                                        if (video && document.pictureInPictureEnabled) {
-                                                            try {
-                                                                if (document.pictureInPictureElement) {
-                                                                    await document.exitPictureInPicture();
-                                                                } else {
-                                                                    await video.requestPictureInPicture();
-                                                                }
-                                                            } catch (err) {
-                                                                console.error('Erro ao alternar PiP:', err);
-                                                                toast.error('Recurso não suportado neste navegador');
-                                                            }
-                                                        } else {
-                                                            toast('Para transmitir, use o menu do seu navegador (Cast/Transmitir).', { icon: '📺' });
-                                                        }
-                                                    }}
+                                                    onClick={togglePiP}
                                                     className="p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all group"
                                                     title="Mini Player / Transmitir"
                                                 >
@@ -841,6 +844,8 @@ const ZkTVPage: React.FC = () => {
                                                 onToggleFit={() => setVideoFitMode(p => p === 'contain' ? 'cover' : 'contain')}
                                                 fitMode={videoFitMode}
                                                 isDocked={isDockedChat}
+                                                onPictureInPicture={togglePiP}
+                                                isPictureInPicture={!!document.pictureInPictureElement}
                                                 onChatToggle={() => {
                                                     if (isFullscreen && isLandscape) {
                                                         setIsDockedChat(!isDockedChat);
