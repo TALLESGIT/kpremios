@@ -224,7 +224,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       // Criar novo preview
       const track = await AgoraRTC.createCameraVideoTrack({
         cameraId: deviceId,
-        optimizationMode: 'latency',
+        optimizationMode: 'motion',
         encoderConfig: {
           width: 1280,
           height: 720,
