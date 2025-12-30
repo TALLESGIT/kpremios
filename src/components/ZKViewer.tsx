@@ -218,6 +218,14 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
                 const attachBgFromFg = () => {
                   if (!bgRef.current || !fgRef.current) return false;
 
+                  // Otimização: Em mobile, DESATIVAR o blur effect para economizar recursos (decoder/cpu)
+                  // Isso resolve o problema de tela preta/travamento em dispositivos mais fracos
+                  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                  if (isMobile) {
+                    console.log('📱 ZKViewer: Mobile detectado, desativando background blur para performance');
+                    return false;
+                  }
+
                   const fgVideo = fgRef.current.querySelector('video') as HTMLVideoElement | null;
                   const srcObj = fgVideo?.srcObject;
                   if (!(srcObj instanceof MediaStream)) return false;
