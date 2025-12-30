@@ -342,56 +342,48 @@ const ZkTVPage: React.FC = () => {
         activeStreamRef.current = activeStream;
     }, [activeStream]);
 
-    // Listener para atualizações do viewer_count e status is_active em tempo real
+    // Listener GLOBAL para atualizações na tabela live_streams (Início, Fim, Viewer Count)
     useEffect(() => {
-        if (!activeStream?.id) return;
-
-        const channel = supabase.channel(`stream_status_${activeStream.id}`)
+        // Subscrever a qualquer mudança na tabela live_streams
+        const channel = supabase.channel('global-streams-changes')
             .on('postgres_changes', {
-                event: 'UPDATE',
+                event: '*',
                 schema: 'public',
-                table: 'live_streams',
-                filter: `id=eq.${activeStream.id}`
+                table: 'live_streams'
             }, (payload) => {
-                const updated = payload.new as LiveStream;
-                const current = activeStreamRef.current;
-                const wasActive = current?.is_active;
+                console.log('📡 ZkTVPage: Mudança detectada na tabela live_streams:', payload);
 
-                // Atualizar viewer_count se mudou
-                if (updated.viewer_count !== undefined) {
-                    setCurrentViewerCount(updated.viewer_count);
+                // Otimização: Se for o stream atual sendo encerrado, atualizar UI imediatamente
+                if (payload.eventType === 'UPDATE' && activeStreamRef.current?.id === payload.new.id) {
+                    const newVal = payload.new as LiveStream;
+                    if (!newVal.is_active && activeStreamRef.current.is_active) {
+                        console.log('🛑 Live encerrada! Desconectando imediatamente...');
+                        setActiveStream(prev => prev ? { ...prev, is_active: false } : null);
+                        setIsChatOpen(false);
+                        toast.error('A transmissão foi encerrada.');
+
+                        // Atualizar sessão (opcional, pois loadActiveStream fará isso eventualmente, mas aqui é instantâneo)
+                        if (sessionId) {
+                            supabase.from('viewer_sessions')
+                                .update({ is_active: false, ended_at: new Date().toISOString() })
+                                .eq('session_id', sessionId)
+                                .eq('stream_id', activeStreamRef.current.id)
+                                .then();
+                        }
+                    } else if (newVal.viewer_count !== undefined) {
+                        setCurrentViewerCount(newVal.viewer_count);
+                    }
                 }
 
-                // Detectar quando a live é encerrada
-                if (!updated.is_active && wasActive) {
-                    console.log('📡 ZkTVPage: Live encerrada detectada via Realtime');
-
-                    // Fechar chat se estiver aberto
-                    setIsChatOpen(false);
-
-                    // Marcar sessão como inativa
-                    supabase.from('viewer_sessions')
-                        .update({ is_active: false, ended_at: new Date().toISOString() })
-                        .eq('session_id', sessionId)
-                        .eq('stream_id', activeStream.id);
-
-                    // Atualizar estado local
-                    setActiveStream(prev => prev ? { ...prev, is_active: false } : null);
-
-                    // Mostrar notificação
-                    toast.error('A transmissão foi encerrada pelo administrador');
-                } else if (updated.is_active && !wasActive) {
-                    // Se a live voltou a ficar ativa
-                    console.log('📡 ZkTVPage: Live reativada detectada via Realtime');
-                    setActiveStream(prev => prev ? { ...prev, is_active: true } : null);
-                }
+                // Recarregar qual é a stream ativa (pega a mais recente)
+                loadActiveStream();
             })
             .subscribe();
 
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [activeStream?.id, sessionId]);
+    }, [sessionId]); // Removida dependência de activeStream.id para ser verdadeiramente global
 
     // Handler para duplo clique - tela cheia
     const handleDoubleClick = () => {
