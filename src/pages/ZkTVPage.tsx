@@ -354,20 +354,21 @@ const ZkTVPage: React.FC = () => {
                 console.log('📡 ZkTVPage: Mudança detectada na tabela live_streams:', payload);
 
                 // Otimização: Se for o stream atual sendo encerrado, atualizar UI imediatamente
-                if (payload.eventType === 'UPDATE' && activeStreamRef.current?.id === payload.new.id) {
+                const currentStream = activeStreamRef.current;
+                if (payload.eventType === 'UPDATE' && currentStream?.id === payload.new.id) {
                     const newVal = payload.new as LiveStream;
-                    if (!newVal.is_active && activeStreamRef.current.is_active) {
+                    if (!newVal.is_active && currentStream.is_active) {
                         console.log('🛑 Live encerrada! Desconectando imediatamente...');
                         setActiveStream(prev => prev ? { ...prev, is_active: false } : null);
                         setIsChatOpen(false);
                         toast.error('A transmissão foi encerrada.');
 
                         // Atualizar sessão (opcional, pois loadActiveStream fará isso eventualmente, mas aqui é instantâneo)
-                        if (sessionId) {
+                        if (sessionId && currentStream.id) {
                             supabase.from('viewer_sessions')
                                 .update({ is_active: false, ended_at: new Date().toISOString() })
                                 .eq('session_id', sessionId)
-                                .eq('stream_id', activeStreamRef.current.id)
+                                .eq('stream_id', currentStream.id)
                                 .then();
                         }
                     } else if (newVal.viewer_count !== undefined) {
