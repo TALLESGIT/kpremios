@@ -22,6 +22,8 @@ interface LiveStream {
   channel_name: string;
   created_at: string;
   viewer_count?: number;
+  hls_url?: string | null;
+  started_at?: string | null;
 }
 
 const generateSlugFromTitle = (title: string): string => {
@@ -114,7 +116,23 @@ const AdminLiveStreamPage: React.FC = () => {
   const startStream = async () => {
     if (!selectedStream) return;
     try {
-      const { data, error } = await supabase.from('live_streams').update({ is_active: true }).eq('id', selectedStream.id).select().single();
+      // ⚠️ IMPORTANTE: Substitua pela URL real do .m3u8 do Agora quando a live inicia
+      // Esta URL deve ser obtida do Agora quando a transmissão começa
+      const hlsUrl = selectedStream.channel_name === 'zktv' 
+        ? 'https://SUA_URL_DO_AGORA.m3u8' // TODO: Substituir pela URL real do Agora
+        : null;
+
+      const { data, error } = await supabase
+        .from('live_streams')
+        .update({ 
+          is_active: true,
+          hls_url: hlsUrl,
+          started_at: new Date().toISOString()
+        })
+        .eq('id', selectedStream.id)
+        .select()
+        .single();
+      
       if (error) throw error;
       setIsStreaming(true);
       setSelectedStream(data);
@@ -133,7 +151,11 @@ const AdminLiveStreamPage: React.FC = () => {
       // Atualizar stream
       const { error: updateError } = await supabase
         .from('live_streams')
-        .update({ is_active: false, viewer_count: 0 })
+        .update({ 
+          is_active: false, 
+          viewer_count: 0,
+          hls_url: null // Limpar URL quando encerrar
+        })
         .eq('id', selectedStream.id);
 
       if (updateError) throw updateError;
