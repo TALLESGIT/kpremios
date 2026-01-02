@@ -785,23 +785,25 @@ const ZkTVPage: React.FC = () => {
                                             )}
                                         </AnimatePresence>
                                     </>
-                                ) : settings?.live_url && settings.live_url.includes('/live/') ? (
-                                    <ZKViewer channel="ZkPremios" fitMode={videoFitMode} enabled={true} />
-                                ) : settings?.live_url ? (
-                                    <iframe
-                                        src={settings.live_url}
-                                        className="w-full h-full border-0"
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                        allowFullScreen
-                                    ></iframe>
                                 ) : (
-                                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm p-12 text-center">
-                                        <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center mb-6 border border-slate-700">
-                                            <Play className="w-8 h-8 text-slate-600" />
+                                    settings?.live_url && settings.live_url.includes('/live/') ? (
+                                        <ZKViewer channel="ZkPremios" fitMode={videoFitMode} enabled={true} />
+                                    ) : settings?.live_url ? (
+                                        <iframe
+                                            src={settings.live_url}
+                                            className="w-full h-full border-0"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                        ></iframe>
+                                    ) : (
+                                        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm p-12 text-center">
+                                            <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center mb-6 border border-slate-700">
+                                                <Play className="w-8 h-8 text-slate-600" />
+                                            </div>
+                                            <h3 className="text-xl font-bold mb-2 text-slate-400">Aguardando Transmissão</h3>
+                                            <p className="text-slate-500 text-sm">A live será exibida aqui em breve...</p>
                                         </div>
-                                        <h3 className="text-xl font-bold mb-2 text-slate-400">Aguardando Transmissão</h3>
-                                        <p className="text-slate-500 text-sm">A live será exibida aqui em breve...</p>
-                                    </div>
+                                    )
                                 )}
 
                                 {/* Status e Viewer Count (Apenas Fullscreen Desktop - NÃO mostrar no mobile) */}
