@@ -644,7 +644,9 @@ const ZkTVPage: React.FC = () => {
     const recentGames = games.filter(g => new Date(g.date) <= new Date() && g.status === 'finished').reverse().slice(0, 3);
     const upcomingGames = games.filter(g => new Date(g.date) > new Date()).slice(0, 5);
 
-    const isLiveActive = activeStream ? activeStream.is_active : !!settings?.is_live;
+    // Na página ZK TV, sempre mostrar a live se houver stream zktv
+    // Mesmo que is_active = false, tenta mostrar (pode estar transmitindo mas status não sincronizado)
+    const isLiveActive = activeStream ? (activeStream.is_active || activeStream.channel_name === 'zktv') : !!settings?.is_live;
 
     return (
         <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-blue-500/30">
@@ -733,19 +735,19 @@ const ZkTVPage: React.FC = () => {
                             title={isMobile ? "Toque duas vezes para tela cheia" : "Duplo clique para tela cheia"}
                         >
                             <div className="relative w-full h-full flex">
-                                {isLiveActive ? (
-                                    activeStream ? (
-                                        <>
-                                            {/* LiveViewer inteligente: escolhe HLS (mobile) ou RTC (desktop) automaticamente */}
-                                            <LiveViewer
-                                                channelName={activeStream.channel_name}
-                                                fitMode={videoFitMode}
-                                                showOfflineMessage={false}
-                                            />
-                                            {/* Overlay de mensagens VIP na tela */}
-                                            {activeStream.is_active && activeStream.id && (
-                                                <VipMessageOverlay streamId={activeStream.id} isActive={activeStream.is_active} />
-                                            )}
+                                {activeStream ? (
+                                    <>
+                                        {/* LiveViewer inteligente: escolhe HLS (mobile) ou RTC (desktop) automaticamente */}
+                                        {/* showOfflineMessage=false para sempre tentar mostrar o player, mesmo se is_active=false */}
+                                        <LiveViewer
+                                            channelName={activeStream.channel_name}
+                                            fitMode={videoFitMode}
+                                            showOfflineMessage={false}
+                                        />
+                                        {/* Overlay de mensagens VIP na tela - só mostra se realmente ativa */}
+                                        {activeStream.is_active && activeStream.id && (
+                                            <VipMessageOverlay streamId={activeStream.id} isActive={activeStream.is_active} />
+                                        )}
 
                                             {/* Overlay de Bolão Ativo */}
                                             <AnimatePresence>
