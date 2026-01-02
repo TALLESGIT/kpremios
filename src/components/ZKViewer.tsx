@@ -388,17 +388,22 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
             setError('Conexão demorou muito. Tentando novamente...');
             // Tentar reconectar após timeout
             setTimeout(() => {
-              if (mounted && clientRef.current) {
+              if (mounted && enabled) {
                 console.log('🔄 ZKViewer: Tentando reconectar após timeout...');
+                setReconnectCount(prev => prev + 1);
+                setError(null);
                 init();
               }
             }, 2000);
           }
-        }, CONNECTION_TIMEOUT);
+        }, CONNECTION_TIMEOUT) as unknown as NodeJS.Timeout;
+        
+        setConnectionTimeout(timeoutId);
         
         try {
           await client.join(agoraAppId, channel, agoraToken, null);
           clearTimeout(timeoutId);
+          setConnectionTimeout(null);
           const connectionTime = Date.now() - startTime;
           console.log('✅ ZKViewer: Conectado ao canal!', {
             channel: channel,
