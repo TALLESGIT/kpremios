@@ -22,6 +22,7 @@ import {
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import ZKViewer from '../components/ZKViewer';
+import { LiveViewer } from '../components/LiveViewer';
 import MobileLiveControls from '../components/live/MobileLiveControls';
 import LiveChat from '../components/live/LiveChat';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
@@ -372,7 +373,7 @@ const ZkTVPage: React.FC = () => {
                     // const newVal = payload.new as LiveStream; -> Remove this redeclaration in target?
                     // Wait, I am rewriting the block. I can structure it cleanly.
 
-                    if (!newVal.is_active && currentStream.is_active) {
+                    if (!newVal.is_active && currentStream && currentStream.is_active) {
                         console.log('🛑 Live encerrada! Desconectando imediatamente...');
                         setActiveStream(prev => prev ? { ...prev, is_active: false } : null);
                         setIsChatOpen(false);
@@ -704,10 +705,11 @@ const ZkTVPage: React.FC = () => {
                                 {isLiveActive ? (
                                     activeStream ? (
                                         <>
-                                            <ZKViewer
-                                                channel={activeStream.channel_name}
+                                            {/* LiveViewer inteligente: escolhe HLS (mobile) ou RTC (desktop) automaticamente */}
+                                            <LiveViewer
+                                                channelName={activeStream.channel_name}
                                                 fitMode={videoFitMode}
-                                                enabled={activeStream.is_active}
+                                                showOfflineMessage={false}
                                             />
                                             {/* Overlay de mensagens VIP na tela */}
                                             {activeStream.is_active && activeStream.id && (
