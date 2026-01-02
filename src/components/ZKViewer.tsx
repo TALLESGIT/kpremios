@@ -525,6 +525,20 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
     }
   }, [enabled]);
 
+  // Atualizar contador de tempo de conexão em tempo real
+  useEffect(() => {
+    if (!connectionStartTime || isLive) {
+      setConnectionElapsedTime(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setConnectionElapsedTime(Math.floor((Date.now() - connectionStartTime) / 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [connectionStartTime, isLive]);
+
   if (error) {
     return (
       <div className="flex items-center justify-center w-full h-full bg-black text-white">
