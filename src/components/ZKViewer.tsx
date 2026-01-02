@@ -26,6 +26,7 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
   const [reconnectCount, setReconnectCount] = useState(0);
   const [connectionTimeout, setConnectionTimeout] = useState<NodeJS.Timeout | null>(null);
   const [connectionStartTime, setConnectionStartTime] = useState<number | null>(null);
+  const [connectionElapsedTime, setConnectionElapsedTime] = useState<number>(0);
 
   // manter o valor atual do fitMode acessível dentro do MutationObserver sem recriar o client
   useEffect(() => {
@@ -585,9 +586,9 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
           {reconnectCount > 0 && (
             <p className="text-white/50 text-xs mt-2">Tentativa {reconnectCount + 1}...</p>
           )}
-          {connectionStartTime && (
+          {connectionStartTime && connectionElapsedTime > 0 && (
             <p className="text-white/40 text-xs mt-1">
-              {(Math.floor((Date.now() - connectionStartTime) / 1000))}s
+              {connectionElapsedTime}s
             </p>
           )}
         </div>
