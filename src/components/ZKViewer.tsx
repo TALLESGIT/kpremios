@@ -24,6 +24,8 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
   const [isLive, setIsLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reconnectCount, setReconnectCount] = useState(0);
+  const [connectionTimeout, setConnectionTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [connectionStartTime, setConnectionStartTime] = useState<number | null>(null);
 
   // manter o valor atual do fitMode acessível dentro do MutationObserver sem recriar o client
   useEffect(() => {
@@ -174,7 +176,25 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
             if (mediaType === 'video') {
               // 🔥 FIX CIRÚRGICO: setIsLive ANTES de qualquer outra coisa
               setIsLive(true);
-              console.log('🔴 ZKViewer: isLive = TRUE');
+              setError(null); // Limpar qualquer erro anterior
+              
+              // Limpar timeout de conexão se ainda estiver ativo
+              if (connectionTimeout) {
+                clearTimeout(connectionTimeout);
+                setConnectionTimeout(null);
+              }
+              
+              // Log tempo de conexão
+              if (connectionStartTime) {
+                const totalTime = Date.now() - connectionStartTime;
+                console.log('🔴 ZKViewer: isLive = TRUE', {
+                  connectionTime: `${totalTime}ms`,
+                  timestamp: new Date().toISOString()
+                });
+                setConnectionStartTime(null);
+              } else {
+                console.log('🔴 ZKViewer: isLive = TRUE');
+              }
 
               if (user.videoTrack) {
                 videoTrackRef.current = user.videoTrack;
@@ -348,20 +368,72 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
 
         // Configurar para BAIXA LATÊNCIA (reduz delay e tela preta inicial)
         await client.setClientRole('audience', { level: 1 });
+        
         // Usar o canal passado por prop (IMPORTANTE para suportar _backstage)
         console.log('🔌 ZKViewer: Conectando ao canal...', {
           channel: channel,
           hasToken: !!agoraToken,
           tokenPreview: agoraToken ? agoraToken.substring(0, 20) + '...' : 'null'
         });
-        await client.join(agoraAppId, channel, agoraToken, null);
-        console.log('✅ ZKViewer: Conectado ao canal!', {
-          channel: channel,
-          connectionTime: new Date().toISOString()
-        });
-      } catch (err) {
-        console.error(err);
-        setError('Erro ao conectar à transmissão');
+        
+        // Marcar início da conexão para timeout
+        const startTime = Date.now();
+        setConnectionStartTime(startTime);
+        
+        // Timeout de conexão: 15 segundos
+        const CONNECTION_TIMEOUT = 15000;
+        const timeoutId = setTimeout(() => {
+          if (!isLive && mounted) {
+            console.error('⏱️ ZKViewer: Timeout de conexão (15s) - tentando reconectar...');
+            setError('Conexão demorou muito. Tentando novamente...');
+            // Tentar reconectar após timeout
+            setTimeout(() => {
+              if (mounted && clientRef.current) {
+                console.log('🔄 ZKViewer: Tentando reconectar após timeout...');
+                init();
+              }
+            }, 2000);
+          }
+        }, CONNECTION_TIMEOUT);
+        
+        try {
+          await client.join(agoraAppId, channel, agoraToken, null);
+          clearTimeout(timeoutId);
+          const connectionTime = Date.now() - startTime;
+          console.log('✅ ZKViewer: Conectado ao canal!', {
+            channel: channel,
+            connectionTime: `${connectionTime}ms`,
+            timestamp: new Date().toISOString()
+          });
+          
+          // Se demorou mais de 5s, avisar
+          if (connectionTime > 5000) {
+            console.warn('⚠️ ZKViewer: Conexão demorou', connectionTime, 'ms');
+          }
+        } catch (joinError: any) {
+          clearTimeout(timeoutId);
+          throw joinError;
+        }
+      } catch (err: any) {
+        console.error('❌ ZKViewer: Erro ao conectar:', err);
+        if (mounted) {
+          const errorMessage = err?.message || err?.code || 'Erro ao conectar à transmissão';
+          setError(errorMessage);
+          
+          // Tentar reconectar automaticamente após 3 segundos (máximo 3 tentativas)
+          if (reconnectCount < 3) {
+            console.log(`🔄 ZKViewer: Tentando reconectar (${reconnectCount + 1}/3) em 3s...`);
+            setTimeout(() => {
+              if (mounted && enabled) {
+                setReconnectCount(prev => prev + 1);
+                setError(null);
+                init();
+              }
+            }, 3000);
+          } else {
+            setError('Não foi possível conectar após várias tentativas. Recarregue a página.');
+          }
+        }
       }
     };
 
