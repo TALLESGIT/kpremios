@@ -52,9 +52,50 @@ export function LiveViewer({
     );
   }
 
-  // Offline state
-  if (!data || status === 'OFFLINE' || !data.is_active) {
+  // Offline state - mas ainda tenta mostrar o player se houver dados
+  if (!data) {
     if (!showOfflineMessage) return null;
+    
+    return (
+      <div className={`flex items-center justify-center h-full bg-black ${className}`}>
+        <div className="text-center space-y-4 px-8">
+          <div className="text-6xl">📡</div>
+          <h2 className="text-2xl font-black text-white uppercase italic">Live Offline</h2>
+          <p className="text-slate-400 text-sm font-bold">A transmissão não está disponível no momento</p>
+          <div className="w-16 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Se a live não está ativa, mas temos dados, ainda tenta mostrar (pode estar iniciando)
+  if (status === 'OFFLINE' || !data.is_active) {
+    // Mesmo offline, tenta mostrar o player (pode estar iniciando ou com problema de status)
+    console.log('⚠️ LiveViewer: Stream marcada como offline, mas tentando mostrar player...');
+    
+    // Se não mostrar mensagem offline, tenta usar o player mesmo assim
+    if (!showOfflineMessage) {
+      const hasHlsUrl = data.hls_url && data.hls_url.trim() !== '';
+      
+      if (isMobile && hasHlsUrl) {
+        return (
+          <div className={`relative w-full h-full ${className}`}>
+            <HLSViewer hlsUrl={data.hls_url!} fitMode={fitMode} />
+          </div>
+        );
+      }
+      
+      return (
+        <div className={`relative w-full h-full ${className}`}>
+          <ZKViewer
+            channel={data.channel_name}
+            fitMode={fitMode}
+            enabled={true} // Tenta mesmo se is_active = false
+            muteAudio={false}
+          />
+        </div>
+      );
+    }
     
     return (
       <div className={`flex items-center justify-center h-full bg-black ${className}`}>

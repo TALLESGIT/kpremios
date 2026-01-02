@@ -456,13 +456,30 @@ const ZkTVPage: React.FC = () => {
 
     const loadActiveStream = async () => {
         try {
-            const { data, error } = await supabase
+            // Primeiro, tentar buscar stream ativa
+            let { data, error } = await supabase
                 .from('live_streams')
                 .select('id, title, channel_name, is_active, viewer_count')
                 .eq('is_active', true)
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .maybeSingle();
+
+            // Se não encontrar stream ativa, buscar a stream zktv (mesmo que inativa)
+            if (!data || error) {
+                console.log('⚠️ Nenhuma stream ativa encontrada, buscando stream zktv...');
+                const { data: zktvData, error: zktvError } = await supabase
+                    .from('live_streams')
+                    .select('id, title, channel_name, is_active, viewer_count')
+                    .eq('channel_name', 'zktv')
+                    .maybeSingle();
+                
+                if (!zktvError && zktvData) {
+                    data = zktvData;
+                    error = null;
+                    console.log('✅ Stream zktv encontrada:', zktvData);
+                }
+            }
 
             if (!error && data) {
                 setActiveStream(data);
