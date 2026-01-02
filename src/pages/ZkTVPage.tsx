@@ -31,6 +31,7 @@ import PoolBetModal from '../components/pool/PoolBetModal';
 import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding } from '../types';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { updateLiveTitle } from '../services/liveTitleService';
 
 interface LiveStream {
     id: string;
@@ -202,9 +203,22 @@ const ZkTVPage: React.FC = () => {
         const settingsSub = supabase
             .channel('zk-tv-updates')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'cruzeiro_settings' }, () => loadSettings())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, () => loadActiveStream())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, () => {
+                loadActiveStream();
+                // Atualizar título quando live stream muda
+                loadActiveStream().then(() => {
+                    // Recarregar dados para pegar novo título
+                    loadData();
+                });
+            })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'cruzeiro_games' }, () => {
                 loadData();
+                // Quando jogo muda, atualizar título da live se estiver ativa
+                if (activeStream?.is_active && activeStream?.id) {
+                    updateLiveTitle(activeStream.id, activeStream.channel_name).catch(err => {
+                        console.error('Erro ao atualizar título da live:', err);
+                    });
+                }
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'cruzeiro_standings' }, () => {
                 loadData();

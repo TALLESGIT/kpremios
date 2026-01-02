@@ -13,6 +13,7 @@ import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import PoolManager from '../components/pool/PoolManager';
+import { updateLiveTitle } from '../services/liveTitleService';
 
 interface LiveStream {
   is_active: boolean;
@@ -22,8 +23,6 @@ interface LiveStream {
   channel_name: string;
   created_at: string;
   viewer_count?: number;
-  hls_url?: string | null;
-  started_at?: string | null;
 }
 
 const generateSlugFromTitle = (title: string): string => {
@@ -116,23 +115,10 @@ const AdminLiveStreamPage: React.FC = () => {
   const startStream = async () => {
     if (!selectedStream) return;
     try {
-      // ⚠️ IMPORTANTE: Substitua pela URL real do .m3u8 do Agora quando a live inicia
-      // Esta URL deve ser obtida do Agora quando a transmissão começa
-      const hlsUrl = selectedStream.channel_name === 'zktv' 
-        ? 'https://SUA_URL_DO_AGORA.m3u8' // TODO: Substituir pela URL real do Agora
-        : null;
-
-      const { data, error } = await supabase
-        .from('live_streams')
-        .update({ 
-          is_active: true,
-          hls_url: hlsUrl,
-          started_at: new Date().toISOString()
-        })
-        .eq('id', selectedStream.id)
-        .select()
-        .single();
+      // Atualizar título baseado no jogo do Cruzeiro antes de iniciar
+      await updateLiveTitle(selectedStream.id, selectedStream.channel_name);
       
+      const { data, error } = await supabase.from('live_streams').update({ is_active: true }).eq('id', selectedStream.id).select().single();
       if (error) throw error;
       setIsStreaming(true);
       setSelectedStream(data);
@@ -151,11 +137,7 @@ const AdminLiveStreamPage: React.FC = () => {
       // Atualizar stream
       const { error: updateError } = await supabase
         .from('live_streams')
-        .update({ 
-          is_active: false, 
-          viewer_count: 0,
-          hls_url: null // Limpar URL quando encerrar
-        })
+        .update({ is_active: false, viewer_count: 0 })
         .eq('id', selectedStream.id);
 
       if (updateError) throw updateError;
