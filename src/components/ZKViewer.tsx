@@ -579,7 +579,17 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
       {!isLive && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/90 pb-10">
           <div className="w-10 h-10 border-2 border-white/10 border-t-rose-500 rounded-full animate-spin mb-4" />
-          <p className="text-white/80 text-sm font-medium animate-pulse tracking-wide">CONECTANDO AO VIVO...</p>
+          <p className="text-white/80 text-sm font-medium animate-pulse tracking-wide">
+            {connectionStartTime ? 'CONECTANDO AO VIVO...' : 'AGUARDANDO TRANSMISSÃO...'}
+          </p>
+          {reconnectCount > 0 && (
+            <p className="text-white/50 text-xs mt-2">Tentativa {reconnectCount + 1}...</p>
+          )}
+          {connectionStartTime && (
+            <p className="text-white/40 text-xs mt-1">
+              {(Math.floor((Date.now() - connectionStartTime) / 1000))}s
+            </p>
+          )}
         </div>
       )}
 
