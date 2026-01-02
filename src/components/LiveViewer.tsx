@@ -85,10 +85,13 @@ export function LiveViewer({
         );
       }
       
+      // Para zktv, usar "ZkPremios" como canal do Agora
+      const agoraChannel = data.channel_name === 'zktv' ? 'ZkPremios' : data.channel_name;
+      
       return (
         <div className={`relative w-full h-full ${className}`}>
           <ZKViewer
-            channel={data.channel_name}
+            channel={agoraChannel}
             fitMode={fitMode}
             enabled={true} // Tenta mesmo se is_active = false
             muteAudio={false}
@@ -123,11 +126,21 @@ export function LiveViewer({
   }
 
   // Desktop ou sem HLS → usar ZKViewer (RTC)
-  console.log('🖥️ LiveViewer: Usando ZKViewer (RTC)');
+  // IMPORTANTE: Para zktv, sempre usar "ZkPremios" como canal do Agora
+  // O channel_name no banco é "zktv", mas o canal do Agora é "ZkPremios"
+  const agoraChannel = data.channel_name === 'zktv' ? 'ZkPremios' : data.channel_name;
+  
+  console.log('🖥️ LiveViewer: Usando ZKViewer (RTC)', {
+    channel_name: data.channel_name,
+    agoraChannel: agoraChannel,
+    is_active: data.is_active,
+    hasHlsUrl
+  });
+  
   return (
     <div className={`relative w-full h-full ${className}`}>
       <ZKViewer
-        channel={data.channel_name}
+        channel={agoraChannel}
         fitMode={fitMode}
         enabled={data.is_active}
         muteAudio={false}
