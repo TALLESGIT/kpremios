@@ -77,7 +77,9 @@ export function LiveViewer({
     if (!showOfflineMessage) {
       const hasHlsUrl = data.hls_url && data.hls_url.trim() !== '';
       
+      // SEMPRE preferir HLS em mobile se disponível (mais rápido e confiável)
       if (isMobile && hasHlsUrl) {
+        console.log('📱 LiveViewer: Mobile detectado, usando HLS (mais rápido)');
         return (
           <div className={`relative w-full h-full ${className}`}>
             <HLSViewer hlsUrl={data.hls_url!} fitMode={fitMode} />
