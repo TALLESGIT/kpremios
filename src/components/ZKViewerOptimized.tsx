@@ -10,15 +10,16 @@ interface ZKViewerOptimizedProps {
   channel: string;
   token?: string | null;
   initialInteracted?: boolean;
+  fitMode?: 'contain' | 'cover';
 }
 
 const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
   channel,
   token = null,
   initialInteracted = false,
+  fitMode = 'contain',
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const hasJoinedRef = useRef(false);
 
@@ -27,6 +28,45 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
 
   const [needsInteraction, setNeedsInteraction] = useState(true);
   const [connected, setConnected] = useState(false);
+  const fitModeRef = useRef(fitMode);
+
+  // Manter fitMode atualizado para o observer
+  useEffect(() => {
+    fitModeRef.current = fitMode;
+    if (containerRef.current) {
+      const videos = containerRef.current.querySelectorAll('video');
+      videos.forEach((v) => {
+        v.style.objectFit = fitMode;
+      });
+    }
+  }, [fitMode]);
+
+  // Observer para forçar estilos corretos no vídeo do Agora
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      if (!containerRef.current) return;
+      const videos = containerRef.current.querySelectorAll('video');
+      videos.forEach((video) => {
+        const desired = fitModeRef.current;
+        if (video.style.objectFit !== desired) video.style.objectFit = desired;
+        if (video.style.width !== '100%') video.style.width = '100%';
+        if (video.style.height !== '100%') video.style.height = '100%';
+        if (video.style.position !== 'absolute') video.style.position = 'absolute';
+        if (video.style.inset !== '0px') (video.style as any).inset = '0';
+      });
+    });
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style'],
+      });
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   // ---------------------------
   // CREATE CLIENT (ONCE)
@@ -43,6 +83,13 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
 
     client.on('user-published', handleUserPublished);
     client.on('user-unpublished', handleUserUnpublished);
+
+    // Monitorar qualidade de rede
+    client.on('network-quality', (stats) => {
+      if (stats.downlinkNetworkQuality > 3) {
+        console.warn('⚠️ Qualidade de recepção baixa:', stats.downlinkNetworkQuality);
+      }
+    });
 
     return () => {
       client.removeAllListeners();
@@ -68,6 +115,10 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
       }
 
       await clientRef.current.setClientRole('audience');
+
+      // Otimização de latência: level 1 = ultra low latency
+      await clientRef.current.setClientRole('audience', { level: 1 });
+
       await clientRef.current.join(appId, channel, token || null, null);
 
       setConnected(true);
@@ -86,26 +137,44 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
   ) => {
     if (!clientRef.current) return;
 
-    await clientRef.current.subscribe(user, mediaType);
+    console.log('🎬 ZKViewer: Usuário publicou', { uid: user.uid, mediaType });
 
-    if (mediaType === 'video' && user.videoTrack && containerRef.current) {
-      videoTrackRef.current = user.videoTrack;
+    try {
+      await clientRef.current.subscribe(user, mediaType);
 
-      // PLAY VIDEO MUTED (ALWAYS)
-      await user.videoTrack.play(containerRef.current);
-      // Mutar o elemento de vídeo diretamente
-      const videoEl = containerRef.current.querySelector('video');
-      if (videoEl) {
-        videoEl.muted = true;
+      if (mediaType === 'video' && user.videoTrack && containerRef.current) {
+        videoTrackRef.current = user.videoTrack;
+
+        // FORÇAR QUALIDADE ALTA E EVITAR FALLBACK
+        try {
+          await clientRef.current.setRemoteVideoStreamType(user.uid, 0);
+          clientRef.current.setStreamFallbackOption(user.uid, 0);
+        } catch (e) {
+          console.warn('⚠️ Erro ao configurar stream fallback:', e);
+        }
+
+        // PLAY VIDEO MUTED (ALWAYS)
+        await user.videoTrack.play(containerRef.current);
+
+        // Garantir que o elemento de vídeo gerado pelo Agora tenha os estilos corretos
+        const videoEl = containerRef.current.querySelector('video');
+        if (videoEl) {
+          videoEl.muted = true;
+          videoEl.style.objectFit = fitModeRef.current;
+          videoEl.style.width = '100%';
+          videoEl.style.height = '100%';
+        }
+
+        console.log('✅ Vídeo conectado e reproduzindo (mutado)');
+        setNeedsInteraction(true);
       }
 
-      console.log('🎥 Vídeo recebido (mutado)');
-      setNeedsInteraction(true);
-    }
-
-    if (mediaType === 'audio' && user.audioTrack) {
-      audioTrackRef.current = user.audioTrack;
-      console.log('🔇 Áudio recebido (aguardando clique)');
+      if (mediaType === 'audio' && user.audioTrack) {
+        audioTrackRef.current = user.audioTrack;
+        console.log('🔊 Áudio recebido e pronto para ativar');
+      }
+    } catch (err) {
+      console.error('❌ Erro ao processar stream publicada:', err);
     }
   };
 
@@ -116,6 +185,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
     _user: IAgoraRTCRemoteUser,
     mediaType: 'video' | 'audio'
   ) => {
+    console.log('📴 ZKViewer: Usuário parou de publicar', mediaType);
     if (mediaType === 'video') {
       videoTrackRef.current = null;
     }
@@ -128,18 +198,32 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
   // USER CLICK (PLAY)
   // ---------------------------
   const handleUserInteraction = () => {
-    console.log('▶️ Usuário clicou para assistir');
+    console.log('▶️ Ativando áudio e vídeo após interação');
 
     AgoraRTC.resumeAudioContext();
 
     // garante vídeo
     if (videoTrackRef.current && containerRef.current) {
-      videoTrackRef.current.play(containerRef.current);
+      try {
+        const result = videoTrackRef.current.play(containerRef.current);
+        if (result && typeof (result as any).catch === 'function') {
+          (result as any).catch((e: any) => console.error('Erro no play de vídeo:', e));
+        }
+      } catch (err) {
+        console.error('Erro ao dar play no vídeo:', err);
+      }
     }
 
     // libera áudio
     if (audioTrackRef.current) {
-      audioTrackRef.current.play();
+      try {
+        const result = audioTrackRef.current.play();
+        if (result && typeof (result as any).catch === 'function') {
+          (result as any).catch((e: any) => console.error('Erro no play de áudio:', e));
+        }
+      } catch (err) {
+        console.error('Erro ao dar play no áudio:', err);
+      }
     }
 
     setNeedsInteraction(false);

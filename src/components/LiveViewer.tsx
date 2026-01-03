@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useLiveStatus } from '../hooks/useLiveStatus';
 import { HLSViewer } from './HLSViewer';
 import ZKViewerOptimized from './ZKViewerOptimized';
@@ -70,6 +69,7 @@ export function LiveViewer({
 
   const hasHlsUrl = data.hls_url && data.hls_url.trim() !== '';
   const isActuallyLive = status === 'LIVE' && data.is_active;
+
   // FORÇAR ZkPremios: O estúdio do administrador sempre transmite para este canal, 
   // independentemente do slug da live no link.
   const agoraChannel = 'ZkPremios';
@@ -102,7 +102,7 @@ export function LiveViewer({
       hasHlsUrl
     });
 
-    return <ZKViewerOptimized channel={agoraChannel} />;
+    return <ZKViewerOptimized channel={agoraChannel} fitMode={fitMode} />;
   };
 
   return (
@@ -111,4 +111,3 @@ export function LiveViewer({
     </div>
   );
 }
-
