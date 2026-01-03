@@ -86,7 +86,12 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
       videoTrackRef.current = user.videoTrack;
 
       // PLAY VIDEO MUTED (ALWAYS)
-      user.videoTrack.play(containerRef.current, { muted: true });
+      await user.videoTrack.play(containerRef.current);
+      // Mutar o elemento de vídeo diretamente
+      const videoEl = containerRef.current.querySelector('video');
+      if (videoEl) {
+        videoEl.muted = true;
+      }
 
       console.log('🎥 Vídeo recebido (mutado)');
       setNeedsInteraction(true);
@@ -102,7 +107,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
   // USER UNPUBLISHED
   // ---------------------------
   const handleUserUnpublished = (
-    user: IAgoraRTCRemoteUser,
+    _user: IAgoraRTCRemoteUser,
     mediaType: 'video' | 'audio'
   ) => {
     if (mediaType === 'video') {
