@@ -550,10 +550,8 @@ const PublicLiveStreamPage: React.FC = () => {
               title="Duplo clique para tela cheia"
             >
               <div className={`relative h-full ${isDockedChat ? 'flex-1' : 'w-full'}`}>
-                <ZKViewer
+                <ZKViewerOptimized
                   channel="ZkPremios" // STRICT ARCHITECTURE: Always connect to main channel ZkPremios
-                  fitMode={videoFitMode}
-                  enabled={stream.is_active}
                 />
 
                 {/* Overlay de mensagens VIP na tela */}
