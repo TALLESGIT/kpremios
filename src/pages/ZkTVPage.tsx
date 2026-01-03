@@ -735,12 +735,10 @@ const ZkTVPage: React.FC = () => {
 
                         </div>
 
-                        <motion.div
+                        <div
                             ref={videoContainerRef}
                             onDoubleClick={handleDoubleClick}
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className={`w-full lg:w-[600px] aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative cursor-pointer transition-all duration-500 ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : ''
+                            className={`w-full lg:w-[600px] aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative cursor-pointer ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : ''
                                 } ${isDockedChat ? 'mobile-video-container docked-chat-active' : ''}`}
                             title={isMobile ? "Toque duas vezes para tela cheia" : "Duplo clique para tela cheia"}
                         >
@@ -938,7 +936,7 @@ const ZkTVPage: React.FC = () => {
                                     </div>
                                 </div>
                             )}
-                        </motion.div>
+                        </div>
                     </div>
                 </div>
             </section>

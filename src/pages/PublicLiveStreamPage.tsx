@@ -544,7 +544,7 @@ const PublicLiveStreamPage: React.FC = () => {
             <div
               ref={videoContainerRef}
               onDoubleClick={handleDoubleClick}
-              className={`relative bg-black shadow-2xl overflow-hidden transition-all duration-500 isolate cursor-pointer
+              className={`relative bg-black shadow-2xl overflow-hidden isolate cursor-pointer
                 ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : 'sm:rounded-3xl border-y sm:border border-white/10 aspect-video min-h-[220px] sm:min-h-[300px]'}
                 ${isDockedChat ? 'flex' : ''}`}
               title="Duplo clique para tela cheia"
