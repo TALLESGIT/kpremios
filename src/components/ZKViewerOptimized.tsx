@@ -106,6 +106,11 @@ export default function ZKViewerOptimized({
         videoEl.className = 'zk-video-element';
         // IMPORTANTE: Vídeo sempre inicia MUTADO
         videoEl.muted = muted;
+        // Garantir que vídeo seja visível
+        videoEl.style.display = 'block';
+        videoEl.style.visibility = 'visible';
+        videoEl.style.opacity = '1';
+        console.log('✅ ZKViewerOptimized: Vídeo configurado e visível (mutado:', muted, ')');
       }
       
       setHasVideo(true);
