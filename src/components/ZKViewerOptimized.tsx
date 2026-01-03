@@ -439,6 +439,7 @@ export default function ZKViewerOptimized({
           inset: 0;
           width: 100%;
           height: 100%;
+          z-index: 1; /* Vídeo abaixo do overlay */
         }
 
         .zk-video-container :global(video) {
@@ -448,6 +449,8 @@ export default function ZKViewerOptimized({
           height: 100%;
           object-fit: contain;
           background: black;
+          z-index: 1;
+          display: block; /* Garantir que vídeo seja visível */
         }
 
         .zk-viewer-overlay {
@@ -492,8 +495,9 @@ export default function ZKViewerOptimized({
         }
 
         .zk-viewer-interaction {
-          background: rgba(0, 0, 0, 0.85);
-          backdrop-filter: blur(8px);
+          background: rgba(0, 0, 0, 0.75); /* Menos opaco para ver vídeo atrás */
+          backdrop-filter: blur(4px);
+          z-index: 20 !important; /* Prioridade máxima para botão de interação */
         }
 
         .zk-viewer-play-button {
