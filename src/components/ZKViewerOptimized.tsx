@@ -381,18 +381,9 @@ export default function ZKViewerOptimized({
         </div>
       )}
 
-      {connectionState === 'connected' && !hasVideo && !error && (
-        <div className="zk-viewer-overlay">
-          <div className="zk-viewer-waiting">
-            <div className="zk-viewer-icon">📺</div>
-            <p>Aguardando transmissão...</p>
-            <small>O ZK Studio Pro deve estar transmitindo no canal: <strong>{channel}</strong></small>
-          </div>
-        </div>
-      )}
-
       {/* Overlay profissional de interação - estilo YouTube/Twitch */}
       {/* SEMPRE mostrar quando needsInteraction=true, independente de ter vídeo ou não */}
+      {/* PRIORIDADE: Este overlay deve aparecer sobre todos os outros */}
       {needsInteraction && !userInteracted && (
         <div className="zk-viewer-overlay zk-viewer-interaction">
           <button 
@@ -408,6 +399,17 @@ export default function ZKViewerOptimized({
                 : 'Aguardando transmissão...'}
             </small>
           </button>
+        </div>
+      )}
+
+      {/* Overlay "Aguardando transmissão" - só aparece se não precisa interação */}
+      {connectionState === 'connected' && !hasVideo && !error && !needsInteraction && (
+        <div className="zk-viewer-overlay">
+          <div className="zk-viewer-waiting">
+            <div className="zk-viewer-icon">📺</div>
+            <p>Aguardando transmissão...</p>
+            <small>O ZK Studio Pro deve estar transmitindo no canal: <strong>{channel}</strong></small>
+          </div>
         </div>
       )}
 
@@ -460,6 +462,10 @@ export default function ZKViewerOptimized({
           text-align: center;
           padding: 20px;
           z-index: 10;
+        }
+
+        .zk-viewer-interaction {
+          z-index: 20 !important; /* Prioridade máxima para botão de interação */
         }
 
         .zk-viewer-spinner {
