@@ -252,6 +252,11 @@ export default function ZKViewerOptimized({
               videoTrackRef.current = user.videoTrack;
               // Vídeo sempre inicia MUTADO (até usuário interagir)
               await playVideo(user.videoTrack, true);
+              // IMPORTANTE: Garantir que needsInteraction seja true quando vídeo inicia
+              if (!userInteracted) {
+                setNeedsInteraction(true);
+                console.log('👆 ZKViewer: Vídeo recebido, mostrando botão de interação');
+              }
             }
 
             if (mediaType === 'audio' && user.audioTrack) {
@@ -262,6 +267,10 @@ export default function ZKViewerOptimized({
                 await playAudio(user.audioTrack);
               } else {
                 console.log('🔇 ZKViewer: Áudio recebido, aguardando interação do usuário');
+                // Garantir que o botão apareça se ainda não interagiu
+                if (!userInteracted) {
+                  setNeedsInteraction(true);
+                }
               }
             }
           } catch (err) {
