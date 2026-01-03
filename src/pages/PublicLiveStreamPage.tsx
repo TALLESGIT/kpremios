@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import { ArrowLeft, Eye, Share2, X, Trophy, Calendar, ChevronRight, MessageCircle, Crown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import ZKViewerOptimized from '../components/ZKViewerOptimized';
+import { LiveViewer } from '../components/LiveViewer';
 import LiveChat from '../components/live/LiveChat';
 import MobileLiveControls from '../components/live/MobileLiveControls';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
@@ -550,8 +550,8 @@ const PublicLiveStreamPage: React.FC = () => {
               title="Duplo clique para tela cheia"
             >
               <div className={`relative h-full ${isDockedChat ? 'flex-1' : 'w-full'}`}>
-                <ZKViewerOptimized
-                  channel="ZkPremios" // STRICT ARCHITECTURE: Always connect to main channel ZkPremios
+                <LiveViewer
+                  channelName="ZkPremios" // STRICT ARCHITECTURE: Always connect to main channel ZkPremios
                 />
 
                 {/* Overlay de mensagens VIP na tela */}

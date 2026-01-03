@@ -21,7 +21,6 @@ import {
 } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import ZKViewerOptimized from '../components/ZKViewerOptimized';
 import { LiveViewer } from '../components/LiveViewer';
 import MobileLiveControls from '../components/live/MobileLiveControls';
 import LiveChat from '../components/live/LiveChat';
@@ -487,7 +486,7 @@ const ZkTVPage: React.FC = () => {
                     .select('id, title, channel_name, is_active, viewer_count')
                     .eq('channel_name', 'zktv')
                     .maybeSingle();
-                
+
                 if (!zktvError && zktvData) {
                     data = zktvData;
                     error = null;
@@ -787,7 +786,7 @@ const ZkTVPage: React.FC = () => {
                                     </>
                                 ) : (
                                     settings?.live_url && settings.live_url.includes('/live/') ? (
-                                        <ZKViewerOptimized channel="ZkPremios" />
+                                        <LiveViewer channelName="ZkPremios" showOfflineMessage={false} />
                                     ) : settings?.live_url ? (
                                         <iframe
                                             src={settings.live_url}
