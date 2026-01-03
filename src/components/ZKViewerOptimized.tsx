@@ -300,6 +300,11 @@ export default function ZKViewerOptimized({
             videoTrackRef.current = user.videoTrack;
             // Vídeo sempre inicia MUTADO
             await playVideo(user.videoTrack, true);
+            // IMPORTANTE: Garantir que needsInteraction seja true quando vídeo inicia
+            if (!userInteracted) {
+              setNeedsInteraction(true);
+              console.log('👆 ZKViewer: Vídeo encontrado no canal, mostrando botão de interação');
+            }
           }
           if (user.hasAudio && user.audioTrack) {
             await client.subscribe(user, 'audio');
@@ -309,6 +314,10 @@ export default function ZKViewerOptimized({
               await playAudio(user.audioTrack);
             } else {
               console.log('🔇 ZKViewer: Áudio disponível, aguardando interação');
+              // Garantir que o botão apareça
+              if (!userInteracted) {
+                setNeedsInteraction(true);
+              }
             }
           }
         }
@@ -365,7 +374,8 @@ export default function ZKViewerOptimized({
       )}
 
       {/* Overlay profissional de interação - estilo YouTube/Twitch */}
-      {needsInteraction && hasVideo && (
+      {/* SEMPRE mostrar quando needsInteraction=true, independente de ter vídeo ou não */}
+      {needsInteraction && !userInteracted && (
         <div className="zk-viewer-overlay zk-viewer-interaction">
           <button 
             onClick={handleUserInteraction}
@@ -374,22 +384,11 @@ export default function ZKViewerOptimized({
           >
             <span className="zk-viewer-play-icon">▶</span>
             <span className="zk-viewer-play-text">Toque para assistir</span>
-            <small className="zk-viewer-play-hint">Clique para ativar o áudio e começar a transmissão</small>
-          </button>
-        </div>
-      )}
-
-      {/* Overlay quando ainda não tem vídeo mas precisa interação */}
-      {needsInteraction && !hasVideo && connectionState === 'connected' && (
-        <div className="zk-viewer-overlay zk-viewer-interaction">
-          <button 
-            onClick={handleUserInteraction}
-            className="zk-viewer-play-button"
-            aria-label="Tocar para assistir"
-          >
-            <span className="zk-viewer-play-icon">▶</span>
-            <span className="zk-viewer-play-text">Toque para assistir</span>
-            <small className="zk-viewer-play-hint">Aguardando transmissão...</small>
+            <small className="zk-viewer-play-hint">
+              {hasVideo 
+                ? 'Clique para ativar o áudio e começar a transmissão' 
+                : 'Aguardando transmissão...'}
+            </small>
           </button>
         </div>
       )}
