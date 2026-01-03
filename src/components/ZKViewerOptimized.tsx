@@ -43,6 +43,15 @@ export default function ZKViewerOptimized({
   const [userInteracted, setUserInteracted] = useState(false); // Flag para saber se usuário já interagiu
   const [error, setError] = useState<string | null>(null);
 
+  // Debug: Log quando needsInteraction muda
+  useEffect(() => {
+    console.log('👆 ZKViewer: needsInteraction mudou para:', needsInteraction, {
+      hasVideo,
+      userInteracted,
+      connectionState
+    });
+  }, [needsInteraction, hasVideo, userInteracted, connectionState]);
+
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<IAgoraRTCClient | null>(null);
