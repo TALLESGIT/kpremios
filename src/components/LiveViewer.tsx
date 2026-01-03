@@ -12,7 +12,7 @@ interface LiveViewerProps {
 /**
  * Componente inteligente que decide qual player usar:
  * - Mobile + HLS URL disponível → HLSViewer (rápido, compatível)
- * - Desktop ou sem HLS → ZKViewer (RTC, baixa latência)
+ * - Desktop ou sem HLS → ZKViewerOptimized (RTC, baixa latência com interação do usuário)
  */
 export function LiveViewer({
   channelName = 'zktv',
