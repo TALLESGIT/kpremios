@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import { ArrowLeft, Eye, Share2, X, Trophy, Calendar, ChevronRight, MessageCircle, Crown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import ZKViewer from '../components/ZKViewer';
+import ZKViewerOptimized from '../components/ZKViewerOptimized';
 import LiveChat from '../components/live/LiveChat';
 import MobileLiveControls from '../components/live/MobileLiveControls';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';

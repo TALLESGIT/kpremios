@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import ZKViewer from '../components/ZKViewer';
+import ZKViewerOptimized from '../components/ZKViewerOptimized';
 import { LiveViewer } from '../components/LiveViewer';
 import MobileLiveControls from '../components/live/MobileLiveControls';
 import LiveChat from '../components/live/LiveChat';
@@ -787,7 +787,7 @@ const ZkTVPage: React.FC = () => {
                                     </>
                                 ) : (
                                     settings?.live_url && settings.live_url.includes('/live/') ? (
-                                        <ZKViewer channel="ZkPremios" fitMode={videoFitMode} enabled={true} />
+                                        <ZKViewerOptimized channel="ZkPremios" />
                                     ) : settings?.live_url ? (
                                         <iframe
                                             src={settings.live_url}
