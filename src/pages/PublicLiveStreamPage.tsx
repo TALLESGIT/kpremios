@@ -551,7 +551,7 @@ const PublicLiveStreamPage: React.FC = () => {
             >
               <div className={`relative h-full ${isDockedChat ? 'flex-1' : 'w-full'}`}>
                 <LiveViewer
-                  channelName="ZkPremios" // STRICT ARCHITECTURE: Always connect to main channel ZkPremios
+                  channelName={channelName} // Dynamic channel from params
                 />
 
                 {/* Overlay de mensagens VIP na tela */}

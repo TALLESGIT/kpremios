@@ -24,7 +24,6 @@ export function LiveViewer({
   const { data, status, loading, error } = useLiveStatus(channelName);
   const [initialPlayRequested, setInitialPlayRequested] = useState(false);
 
-  // Detectar se é mobile
   const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
     navigator.userAgent
   );
@@ -54,7 +53,7 @@ export function LiveViewer({
     );
   }
 
-  // Offline state - mas ainda tenta mostrar o player se houver dados
+  // Offline state - total sem dados
   if (!data) {
     if (!showOfflineMessage) return null;
 
@@ -71,48 +70,7 @@ export function LiveViewer({
   }
 
   const hasHlsUrl = data.hls_url && data.hls_url.trim() !== '';
-
-  // Se a live não está ativa, mas temos dados, ainda tenta mostrar (pode estar iniciando)
-  if (status === 'OFFLINE' || !data.is_active) {
-    // Mesmo offline, tenta mostrar o player (pode estar iniciando ou com problema de status)
-    console.log('⚠️ LiveViewer: Stream marcada como offline, mas tentando mostrar player...');
-
-    // Se não mostrar mensagem offline, tenta usar o player mesmo assim
-    if (!showOfflineMessage) {
-      // SEMPRE preferir HLS em mobile se disponível (mais rápido e confiável)
-      if (isMobile && hasHlsUrl) {
-        console.log('📱 LiveViewer: Mobile detectado, usando HLS (mais rápido)');
-        return (
-          <div className={`relative w-full h-full ${className}`}>
-            <HLSViewer hlsUrl={data.hls_url!} fitMode={fitMode} />
-          </div>
-        );
-      }
-
-      // Para zktv, usar "ZkPremios" como canal do Agora
-      const agoraChannel = data.channel_name === 'zktv' ? 'ZkPremios' : data.channel_name;
-
-      return (
-        <div className={`relative w-full h-full ${className}`}>
-          <ZKViewerOptimized
-            channel={agoraChannel}
-          />
-        </div>
-      );
-    }
-
-    return (
-      <div className={`flex items-center justify-center h-full bg-black ${className}`}>
-        <div className="text-center space-y-4 px-8">
-          <div className="text-6xl">📡</div>
-          <h2 className="text-2xl font-black text-white uppercase italic">Live Offline</h2>
-          <p className="text-slate-400 text-sm font-bold">A transmissão não está disponível no momento</p>
-          <div className="w-16 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent mx-auto"></div>
-        </div>
-      </div>
-    );
-  }
-
+  const isActuallyLive = status === 'LIVE' && data.is_active;
   const agoraChannel = data.channel_name === 'zktv' ? 'ZkPremios' : data.channel_name;
 
   const handleInteraction = () => {
@@ -120,7 +78,21 @@ export function LiveViewer({
   };
 
   const renderContent = () => {
-    // SEMPRE preferir HLS em mobile se disponível (mais rápido e confiável)
+    // Se a live estiver offline e showOfflineMessage=true, mostrar mensagem offline
+    if (!isActuallyLive && showOfflineMessage) {
+      return (
+        <div className="flex items-center justify-center h-full bg-black">
+          <div className="text-center space-y-4 px-8">
+            <div className="text-6xl">📡</div>
+            <h2 className="text-2xl font-black text-white uppercase italic">Live Offline</h2>
+            <p className="text-slate-400 text-sm font-bold">A transmissão não está disponível no momento</p>
+            <div className="w-16 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent mx-auto"></div>
+          </div>
+        </div>
+      );
+    }
+
+    // Caso contrário (está live OU showOfflineMessage=false), mostrar o player
     if (isMobile && hasHlsUrl) {
       console.log('📱 LiveViewer: Usando HLS para mobile');
       return <HLSViewer hlsUrl={data.hls_url!} fitMode={fitMode} initialInteracted={initialPlayRequested} />;
@@ -141,13 +113,12 @@ export function LiveViewer({
       {renderContent()}
 
       {/* 🚀 OVERLAY INICIAL DE PLAY - CRÍTICO PARA AUTOPLAY EM MOBILE/DESKTOP */}
-      {!initialPlayRequested && (
+      {isActuallyLive && !initialPlayRequested && (
         <div
           className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] cursor-pointer transition-all hover:bg-black/30"
           onClick={handleInteraction}
         >
           <div className="relative group/play">
-            {/* Efeito de pulso no background do botão */}
             <div className="absolute inset-0 bg-rose-500/20 rounded-full animate-ping group-hover/play:bg-rose-500/30" />
 
             <button

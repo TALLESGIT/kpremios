@@ -786,7 +786,7 @@ const ZkTVPage: React.FC = () => {
                                     </>
                                 ) : (
                                     settings?.live_url && settings.live_url.includes('/live/') ? (
-                                        <LiveViewer channelName="ZkPremios" showOfflineMessage={false} />
+                                        <LiveViewer channelName="zktv" showOfflineMessage={false} />
                                     ) : settings?.live_url ? (
                                         <iframe
                                             src={settings.live_url}
