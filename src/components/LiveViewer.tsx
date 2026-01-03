@@ -22,7 +22,6 @@ export function LiveViewer({
   showOfflineMessage = true,
 }: LiveViewerProps) {
   const { data, status, loading, error } = useLiveStatus(channelName);
-  const [initialPlayRequested, setInitialPlayRequested] = useState(false);
 
   const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
     navigator.userAgent
@@ -75,10 +74,6 @@ export function LiveViewer({
   // independentemente do slug da live no link.
   const agoraChannel = 'ZkPremios';
 
-  const handleInteraction = () => {
-    setInitialPlayRequested(true);
-  };
-
   const renderContent = () => {
     // Se a live estiver offline e showOfflineMessage=true, mostrar mensagem offline
     if (!isActuallyLive && showOfflineMessage) {
@@ -97,7 +92,7 @@ export function LiveViewer({
     // Caso contrário (está live OU showOfflineMessage=false), mostrar o player
     if (isMobile && hasHlsUrl) {
       console.log('📱 LiveViewer: Usando HLS para mobile');
-      return <HLSViewer hlsUrl={data.hls_url!} fitMode={fitMode} initialInteracted={initialPlayRequested} />;
+      return <HLSViewer hlsUrl={data.hls_url!} fitMode={fitMode} />;
     }
 
     console.log('🖥️ LiveViewer: Usando ZKViewerOptimized (RTC)', {
@@ -107,43 +102,12 @@ export function LiveViewer({
       hasHlsUrl
     });
 
-    return <ZKViewerOptimized channel={agoraChannel} initialInteracted={initialPlayRequested} />;
+    return <ZKViewerOptimized channel={agoraChannel} />;
   };
 
   return (
     <div className={`relative w-full h-full bg-black overflow-hidden group ${className}`}>
       {renderContent()}
-
-      {/* 🚀 OVERLAY INICIAL DE PLAY - CRÍTICO PARA AUTOPLAY EM MOBILE/DESKTOP */}
-      {isActuallyLive && !initialPlayRequested && (
-        <div
-          className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] cursor-pointer transition-all hover:bg-black/30"
-          onClick={handleInteraction}
-        >
-          <div className="relative group/play">
-            <div className="absolute inset-0 bg-rose-500/20 rounded-full animate-ping group-hover/play:bg-rose-500/30" />
-
-            <button
-              onClick={handleInteraction}
-              className="relative w-24 h-24 bg-gradient-to-br from-rose-500 to-rose-600 text-white rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(225,29,72,0.4)] transition-all group-hover/play:scale-110 group-hover/play:rotate-3 active:scale-95"
-            >
-              <div className="ml-1.5 border-t-[12px] border-t-transparent border-l-[20px] border-l-white border-b-[12px] border-b-transparent" />
-            </button>
-          </div>
-
-          <div className="mt-8 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <span className="text-white text-2xl font-black uppercase italic tracking-tighter drop-shadow-lg">
-              Toque para assistir
-            </span>
-            <div className="flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full border border-white/10 backdrop-blur-md">
-              <div className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
-              <span className="text-white/80 text-[10px] font-bold uppercase tracking-widest">
-                AO VIVO AGORA
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
