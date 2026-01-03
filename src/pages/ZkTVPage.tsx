@@ -706,9 +706,18 @@ const ZkTVPage: React.FC = () => {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.1 }}
-                                className="text-5xl md:text-7xl font-black tracking-tight mb-6"
+                                className="text-5xl md:text-7xl font-black tracking-tight mb-6 uppercase italic"
                             >
-                                ZK <span className="text-blue-500">TV</span>
+                                {activeStream?.is_active ? (
+                                    <>
+                                        {activeStream.title.split(' x ')[0]}
+                                        <span className="text-blue-500">
+                                            {activeStream.title.includes(' x ') ? ` x ${activeStream.title.split(' x ')[1]}` : ''}
+                                        </span>
+                                    </>
+                                ) : (
+                                    <>ZK <span className="text-blue-500">TV</span></>
+                                )}
                             </motion.h1>
 
                             <motion.p
@@ -717,8 +726,10 @@ const ZkTVPage: React.FC = () => {
                                 transition={{ delay: 0.2 }}
                                 className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto lg:mx-0 mb-8 leading-relaxed"
                             >
-                                Acompanhe tudo sobre o Maior de Minas. Transmissões ao vivo, estatísticas,
-                                próximos jogos e muito mais em um só lugar.
+                                {activeStream?.is_active
+                                    ? `Assista agora: ${activeStream.title}. Acompanhe ao vivo com a melhor qualidade e interatividade.`
+                                    : 'Acompanhe tudo sobre o Maior de Minas. Transmissões ao vivo, estatísticas, próximos jogos e muito mais em um só lugar.'
+                                }
                             </motion.p>
 
 

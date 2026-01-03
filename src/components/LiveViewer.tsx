@@ -71,7 +71,9 @@ export function LiveViewer({
 
   const hasHlsUrl = data.hls_url && data.hls_url.trim() !== '';
   const isActuallyLive = status === 'LIVE' && data.is_active;
-  const agoraChannel = data.channel_name === 'zktv' ? 'ZkPremios' : data.channel_name;
+  // FORÇAR ZkPremios: O estúdio do administrador sempre transmite para este canal, 
+  // independentemente do slug da live no link.
+  const agoraChannel = 'ZkPremios';
 
   const handleInteraction = () => {
     setInitialPlayRequested(true);

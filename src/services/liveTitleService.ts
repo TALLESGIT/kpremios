@@ -59,6 +59,13 @@ export async function getActiveGame(): Promise<CruzeiroGame | null> {
 export async function updateLiveTitle(streamId?: string, channelName: string = 'zktv'): Promise<boolean> {
   try {
     const activeGame = await getActiveGame();
+
+    // Se não há jogo ativo/próximo, não sobrescrever o título customizado do admin
+    if (!activeGame) {
+      console.log('ℹ️ liveTitleService: Nenhum jogo encontrado, mantendo título atual.');
+      return false;
+    }
+
     const newTitle = generateLiveTitle(activeGame);
 
     // Se não tem streamId, buscar pelo channel_name
