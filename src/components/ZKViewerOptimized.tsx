@@ -7,15 +7,15 @@ import AgoraRTC, {
 } from 'agora-rtc-sdk-ng';
 
 interface ZKViewerOptimizedProps {
-  appId: string;
   channel: string;
   token?: string | null;
+  initialInteracted?: boolean;
 }
 
 const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
-  appId,
   channel,
   token = null,
+  initialInteracted = false,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -61,6 +61,12 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
 
       hasJoinedRef.current = true;
 
+      const appId = import.meta.env.VITE_AGORA_APP_ID;
+      if (!appId) {
+        console.error('❌ Agora App ID not configured');
+        return;
+      }
+
       await clientRef.current.setClientRole('audience');
       await clientRef.current.join(appId, channel, token || null, null);
 
@@ -69,7 +75,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
     };
 
     joinChannel().catch(console.error);
-  }, [appId, channel, token]);
+  }, [channel, token]);
 
   // ---------------------------
   // USER PUBLISHED
@@ -140,6 +146,16 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
   };
 
   // ---------------------------
+  // AUTO RESUME ON INITIAL INTERACTION
+  // ---------------------------
+  useEffect(() => {
+    if (initialInteracted && connected) {
+      console.log('⚡ ZKViewer: Interaction detected from parent, unblocking audio/video');
+      handleUserInteraction();
+    }
+  }, [initialInteracted, connected]);
+
+  // ---------------------------
   // CLEANUP ON UNMOUNT
   // ---------------------------
   useEffect(() => {
@@ -165,7 +181,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
         id="agora-video-container"
       />
 
-      {needsInteraction && connected && (
+      {needsInteraction && connected && !initialInteracted && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/70">
           <button
             onClick={handleUserInteraction}

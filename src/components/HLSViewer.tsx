@@ -4,6 +4,7 @@ interface HLSViewerProps {
   hlsUrl: string;
   className?: string;
   fitMode?: 'contain' | 'cover';
+  initialInteracted?: boolean;
 }
 
 /**
@@ -11,7 +12,7 @@ interface HLSViewerProps {
  * Usa video HTML5 nativo que suporta HLS
  * Respeita políticas de autoplay - vídeo inicia mutado, áudio só após interação
  */
-export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain' }: HLSViewerProps) {
+export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initialInteracted = false }: HLSViewerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [needsInteraction, setNeedsInteraction] = useState(true);
@@ -62,7 +63,7 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain' }: HLSVi
     const handleCanPlay = async () => {
       console.log('✅ HLS: Vídeo pronto para reproduzir');
       setHasVideo(true);
-      
+
       // Tentar play mutado (sempre permitido)
       try {
         await video.play();
@@ -95,6 +96,14 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain' }: HLSVi
     };
   }, [hlsUrl]);
 
+  // Unmute if initial interaction detected
+  useEffect(() => {
+    if (initialInteracted && hasVideo && !userInteracted) {
+      console.log('⚡ HLSViewer: Interaction from parent, unmuting');
+      handleUserInteraction();
+    }
+  }, [initialInteracted, hasVideo, userInteracted, handleUserInteraction]);
+
   return (
     <div ref={containerRef} className={`relative w-full h-full ${className}`} style={{ background: '#000' }}>
       <video
@@ -113,12 +122,12 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain' }: HLSVi
       />
 
       {/* Overlay de interação - estilo profissional */}
-      {needsInteraction && hasVideo && (
-        <div 
+      {needsInteraction && hasVideo && !initialInteracted && (
+        <div
           className="absolute inset-0 flex items-center justify-center bg-black/85 backdrop-blur-sm z-10"
           onClick={handleUserInteraction}
         >
-          <button 
+          <button
             onClick={handleUserInteraction}
             className="flex flex-col items-center justify-center gap-3 px-12 py-8 bg-white/15 border-2 border-white/40 rounded-2xl text-white font-semibold text-lg cursor-pointer transition-all hover:bg-white/25 hover:border-white/60 hover:scale-105 active:scale-100 shadow-2xl min-w-[200px]"
             aria-label="Tocar para assistir"
