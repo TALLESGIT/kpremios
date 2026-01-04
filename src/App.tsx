@@ -20,8 +20,8 @@ import AdminLiveControlPage from './pages/AdminLiveControlPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminLiveStreamPage from './pages/AdminLiveStreamPage';
 import PublicLiveStreamPage from './pages/PublicLiveStreamPage';
-import DiagnosticoAgoraPage from './pages/DiagnosticoAgoraPage';
-import ReporterPage from './pages/ReporterPage';
+// import DiagnosticoAgoraPage from './pages/DiagnosticoAgoraPage';
+// import ReporterPage from './pages/ReporterPage';
 
 // Novas páginas de autenticação e sorteio ao vivo
 import LoginPage from './pages/LoginPage';
@@ -276,10 +276,10 @@ function AppContent() {
 
           {/* Rotas públicas de live streaming */}
           <Route path="/live/:channelName" element={<PublicLiveStreamPage />} />
-          <Route path="/reporter" element={<ReporterPage />} />
+          {/* <Route path="/reporter" element={<ReporterPage />} /> */}
 
           {/* Rota de diagnóstico do Agora.io */}
-          <Route path="/diagnostico-agora" element={<DiagnosticoAgoraPage />} />
+          {/* <Route path="/diagnostico-agora" element={<DiagnosticoAgoraPage />} /> */}
 
           {/* Redirect /admin to /admin/login if not authenticated */}
           <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
