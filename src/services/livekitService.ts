@@ -67,7 +67,10 @@ export async function notifyStreamStarted(
   channelName: string
 ): Promise<boolean> {
   try {
+    console.log(`Usando streamId: ${streamId}`);
+    
     const hlsUrl = getLiveKitHlsUrl(channelName);
+    console.log(`HLS URL FINAL: ${hlsUrl}`);
     
     const { error } = await supabase
       .from('live_streams')
@@ -83,7 +86,7 @@ export async function notifyStreamStarted(
       throw error;
     }
 
-    console.log('✅ Stream iniciada no Supabase:', { streamId, hlsUrl });
+    console.log('Supabase atualizado com sucesso');
     return true;
   } catch (err: any) {
     console.error('❌ Erro ao notificar início da stream:', err);

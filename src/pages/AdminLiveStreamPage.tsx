@@ -209,6 +209,9 @@ const AdminLiveStreamPage: React.FC = () => {
       const httpsUrl = livekitUrl.replace('wss://', 'https://').replace('ws://', 'http://');
       const hlsUrl = `${httpsUrl}/hls/${livekitRoom}/index.m3u8`;
       
+      console.log(`Usando streamId: ${selectedStream.id}`);
+      console.log(`HLS URL FINAL: ${hlsUrl}`);
+      
       const { data, error } = await supabase
         .from('live_streams')
         .update({ 
@@ -221,6 +224,8 @@ const AdminLiveStreamPage: React.FC = () => {
         .single();
       
       if (error) throw error;
+      
+      console.log('Supabase atualizado com sucesso');
       setIsStreaming(true);
       setSelectedStream(data);
       
