@@ -10,6 +10,7 @@ import ChatModerationControls from '../components/live/ChatModerationControls';
 import PollManager from '../components/live/PollManager';
 import { LiveViewer } from '../components/LiveViewer';
 import LiveHlsPlayer from '../components/LiveHlsPlayer';
+import LivePlayerWithHeader from '../components/LivePlayerWithHeader';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
@@ -399,17 +400,21 @@ const AdminLiveStreamPage: React.FC = () => {
                   ) : (
                     <>
                       {/* LiveViewer (HLS) quando ESTÁ transmitindo - mostra o que os usuários veem */}
-                      {/* IMPORTANTE: Se tem hls_url, usar diretamente. Senão, buscar por channel_name */}
+                      {/* IMPORTANTE: Admin vê exatamente o que os usuários veem (título + botão copiar) */}
                       {selectedStream.hls_url ? (
-                        <LiveHlsPlayer
+                        <LivePlayerWithHeader
+                          title={selectedStream.title || 'ZK TV'}
                           hlsUrl={selectedStream.hls_url}
                           isLive={selectedStream.is_active}
+                          streamId={selectedStream.id}
+                          channelName={selectedStream.channel_name}
                         />
                       ) : (
                         <LiveViewer
                           channelName={selectedStream.channel_name}
                           fitMode="contain"
                           showOfflineMessage={false}
+                          showHeader={true}
                         />
                       )}
                       {/* Overlay VIP */}

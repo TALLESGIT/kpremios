@@ -4,6 +4,7 @@ export type LiveStatus = 'LIVE' | 'OFFLINE';
 
 export interface LiveStreamData {
   id: string;
+  title: string;
   channel_name: string;
   is_active: boolean;
   hls_url: string | null;
@@ -20,7 +21,7 @@ export async function getLiveStream(channelName = 'zktv'): Promise<LiveStreamDat
   try {
     const { data, error } = await supabase
       .from('live_streams')
-      .select('id, channel_name, is_active, hls_url, started_at, viewer_count')
+      .select('id, title, channel_name, is_active, hls_url, started_at, viewer_count')
       .eq('channel_name', channelName)
       .single();
 

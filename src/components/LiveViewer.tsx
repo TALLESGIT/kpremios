@@ -1,11 +1,13 @@
 import { useLiveStatus } from '../hooks/useLiveStatus';
 import LiveHlsPlayer from './LiveHlsPlayer';
+import LivePlayerWithHeader from './LivePlayerWithHeader';
 
 interface LiveViewerProps {
   channelName?: string;
   fitMode?: 'contain' | 'cover';
   className?: string;
   showOfflineMessage?: boolean;
+  showHeader?: boolean; // Novo prop para controlar exibição do header
 }
 
 /**
@@ -17,6 +19,7 @@ export function LiveViewer({
   fitMode = 'contain',
   className = '',
   showOfflineMessage = true,
+  showHeader = true, // Por padrão exibe header com título e botão copiar
 }: LiveViewerProps) {
   const { data, status, loading, error } = useLiveStatus(channelName);
 
@@ -64,8 +67,22 @@ export function LiveViewer({
   const hasHlsUrl = data.hls_url && data.hls_url.trim() !== '';
   const isActuallyLive = data.is_active;
 
-  // Renderizar LiveHlsPlayer com HLS
-  // O player trata internamente os estados: offline, waiting_hls, loading, playing, error
+  // Se showHeader = true, usar LivePlayerWithHeader (título + botão copiar)
+  if (showHeader) {
+    return (
+      <div className={className}>
+        <LivePlayerWithHeader
+          title={data.title || 'ZK TV'}
+          hlsUrl={hasHlsUrl ? data.hls_url! : null}
+          isLive={isActuallyLive}
+          streamId={data.id}
+          channelName={data.channel_name}
+        />
+      </div>
+    );
+  }
+
+  // Se showHeader = false, usar apenas o player (compatibilidade com código existente)
   return (
     <div className={className}>
       <LiveHlsPlayer
