@@ -62,10 +62,6 @@ const AdminLiveStreamPage: React.FC = () => {
   useEffect(() => {
     loadStreams();
 
-    // Listener Realtime para atualizar automaticamente quando ZK Studio ativar a live
-    let lastUpdateTime = 0;
-    const DEBOUNCE_MS = 2000; // Evitar atualizações muito frequentes
-
     const channel = supabase
       .channel('admin-live-updates')
       .on(
@@ -76,44 +72,36 @@ const AdminLiveStreamPage: React.FC = () => {
           table: 'live_streams',
         },
         (payload) => {
-          const now = Date.now();
-
-          // Debounce: evitar atualizações muito frequentes
-          if (now - lastUpdateTime < DEBOUNCE_MS) {
-            console.log('⏭️ AdminLiveStreamPage: Ignorando atualização (debounce)');
-            return;
-          }
-
-          lastUpdateTime = now;
           console.log('📡 AdminLiveStreamPage: Mudança detectada na live stream:', payload.eventType);
 
-          // Se a live foi ativada, atualizar estado diretamente sem recarregar tudo
           if (payload.eventType === 'UPDATE' && payload.new) {
             const updatedStream = payload.new as LiveStream;
 
-            // Atualizar apenas se realmente mudou algo relevante
-            if (updatedStream.is_active && (!selectedStream || selectedStream.id !== updatedStream.id || !selectedStream.is_active)) {
-              console.log('✅ AdminLiveStreamPage: Live ativada, atualizando estado');
-              setSelectedStream(updatedStream);
-              setIsStreaming(true);
+            // Se for mudança no status de ativação, atualizamos na hora!
+            const statusChanged = updatedStream.is_active !== (selectedStream?.is_active ?? false);
 
-              // Atualizar na lista de streams também
-              setStreams(prev => {
-                const updated = prev.map(s => s.id === updatedStream.id ? updatedStream : s);
-                return updated;
-              });
-
-              toast.success('Live ativada pelo ZK Studio!', { duration: 3000 });
-            } else if (!updatedStream.is_active && selectedStream?.id === updatedStream.id) {
-              // Live foi desativada
-              setIsStreaming(false);
+            if (statusChanged || updatedStream.title !== selectedStream?.title) {
+              console.log('✅ AdminLiveStreamPage: Status/Título mudou via Realtime, atualizando...');
               setSelectedStream(updatedStream);
+              setIsStreaming(updatedStream.is_active);
+
+              // Atualizar na lista também
+              setStreams(prev => prev.map(s => s.id === updatedStream.id ? updatedStream : s));
+
+              if (updatedStream.is_active && statusChanged) {
+                toast.success('Live ativada pelo ZK Studio!', { duration: 3000 });
+              }
+            } else {
+              // Apenas atualização de outros campos (viewer_count, etc)
+              // Atualizamos sem toast para não poluir
+              setStreams(prev => prev.map(s => s.id === updatedStream.id ? updatedStream : s));
+              if (selectedStream?.id === updatedStream.id) {
+                setSelectedStream(updatedStream);
+              }
             }
           } else {
-            // Para outros eventos, recarregar streams (mas com debounce)
-            setTimeout(() => {
-              loadStreams();
-            }, 500);
+            // Para outros eventos (INSERT/DELETE), recarregar a lista
+            loadStreams();
           }
         }
       )
@@ -122,7 +110,7 @@ const AdminLiveStreamPage: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [selectedStream?.id, selectedStream?.is_active, selectedStream?.title]);
 
   const loadStreams = async () => {
     try {

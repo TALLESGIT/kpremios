@@ -202,14 +202,6 @@ const ZkTVPage: React.FC = () => {
         const settingsSub = supabase
             .channel('zk-tv-updates')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'cruzeiro_settings' }, () => loadSettings())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, () => {
-                loadActiveStream();
-                // Atualizar título quando live stream muda
-                loadActiveStream().then(() => {
-                    // Recarregar dados para pegar novo título
-                    loadData();
-                });
-            })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'cruzeiro_games' }, () => {
                 loadData();
                 // Quando jogo muda, atualizar título da live se estiver ativa
@@ -367,32 +359,25 @@ const ZkTVPage: React.FC = () => {
             }, (payload) => {
                 console.log('📡 ZkTVPage: Mudança detectada na tabela live_streams:', payload);
 
-                // Otimização: Se for o stream atual sendo encerrado, atualizar UI imediatamente
                 const currentStream = activeStreamRef.current;
+                const newVal = payload.new as LiveStream;
 
                 // DETECÇÃO DE START DE LIVE (INSERT ou UPDATE para active=true)
-                const newVal = payload.new as LiveStream;
-                if ((payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') && newVal.is_active) {
-                    // Se não tem stream atual, ou é um stream NOVO, ou o atual foi reativado
-                    // Use optional chaining just in case
-                    if (!currentStream?.is_active || currentStream.id !== newVal.id) {
+                if ((payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') && newVal?.is_active) {
+                    if (!currentStream || !currentStream.is_active || currentStream.id !== newVal.id) {
                         console.log('⚡ Live iniciada/reativada! Conectando imediatamente...', newVal);
                         setActiveStream(newVal);
                     }
                 }
 
-                if (payload.eventType === 'UPDATE' && currentStream?.id === payload.new.id) {
-                    // Reusing newVal declaration is fine if scopes are correct, but I declared it above.
-                    // const newVal = payload.new as LiveStream; -> Remove this redeclaration in target?
-                    // Wait, I am rewriting the block. I can structure it cleanly.
-
-                    if (!newVal.is_active && currentStream && currentStream.is_active) {
+                // DETECÇÃO DE MUDANÇA NO STREAM ATUAL (UPDATE ou DELETE)
+                if (payload.eventType === 'UPDATE' && currentStream && currentStream.id === payload.new.id) {
+                    if (!newVal.is_active && currentStream.is_active) {
                         console.log('🛑 Live encerrada! Desconectando imediatamente...');
                         setActiveStream(prev => prev ? { ...prev, is_active: false } : null);
                         setIsChatOpen(false);
                         toast.error('A transmissão foi encerrada.');
 
-                        // Atualizar sessão (opcional, pois loadActiveStream fará isso eventualmente, mas aqui é instantâneo)
                         if (sessionId && currentStream.id) {
                             supabase.from('viewer_sessions')
                                 .update({ is_active: false, ended_at: new Date().toISOString() })
@@ -403,17 +388,21 @@ const ZkTVPage: React.FC = () => {
                     } else if (newVal.viewer_count !== undefined) {
                         setCurrentViewerCount(newVal.viewer_count);
                     }
+                } else if (payload.eventType === 'DELETE' && currentStream && currentStream.id === payload.old.id) {
+                    setActiveStream(null);
+                    setCurrentViewerCount(0);
+                } else if (payload.eventType === 'INSERT' && !activeStreamRef.current) {
+                    // Se não temos nada e entrou um novo record, vamos recarregar apenas por garantia
+                    loadActiveStream();
                 }
-
-                // Recarregar qual é a stream ativa (pega a mais recente)
-                loadActiveStream();
             })
             .subscribe();
 
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [sessionId]); // Removida dependência de activeStream.id para ser verdadeiramente global
+    }, [sessionId]);
+    // Removida dependência de activeStream.id para ser verdadeiramente global
 
     // Handler para duplo clique - tela cheia
     const handleDoubleClick = () => {
@@ -795,9 +784,9 @@ const ZkTVPage: React.FC = () => {
                                     </>
                                 ) : (
                                     settings?.live_url && settings.live_url.includes('/live/') ? (
-                                        <LiveViewer 
-                                          channelName={activeStream?.channel_name || 'zktv'} 
-                                          showOfflineMessage={false} 
+                                        <LiveViewer
+                                            channelName="ZkPremios"
+                                            showOfflineMessage={false}
                                         />
                                     ) : settings?.live_url ? (
                                         <iframe

@@ -10,9 +10,8 @@ interface UseLiveStatusReturn {
 }
 
 /**
- * Hook para gerenciar o status da live stream com Realtime
+ * Hook para gerenciar o status da live stream com Realtime Otimizado
  * @param channelName Nome do canal (padrão: 'zktv')
- * @returns Estado da live stream com Realtime
  */
 export function useLiveStatus(channelName = 'zktv'): UseLiveStatusReturn {
   const [data, setData] = useState<LiveStreamData | null>(null);
@@ -45,7 +44,7 @@ export function useLiveStatus(channelName = 'zktv'): UseLiveStatusReturn {
 
     loadInitialData();
 
-    // Configurar Realtime para atualizações em tempo real
+    // Configurar Realtime Otimizado
     if (mounted) {
       channel = supabase
         .channel(`live_status_${channelName}`)
@@ -57,24 +56,27 @@ export function useLiveStatus(channelName = 'zktv'): UseLiveStatusReturn {
             table: 'live_streams',
             filter: `channel_name=eq.${channelName}`,
           },
-          async (payload) => {
-            console.log('📡 Realtime: Mudança detectada na live stream:', payload.eventType);
-            
-            // Recarregar dados atualizados
-            try {
-              const streamData = await getLiveStream(channelName);
-              if (mounted) {
-                setData(streamData);
+          (payload) => {
+            console.log('📡 Realtime Payload:', payload);
+
+            if (mounted) {
+              if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+                const newData = payload.new as LiveStreamData;
+                console.log('✅ Realtime: Atualizando dados via payload direto (SEM RE-FETCH)');
+                setData(newData);
                 setError(null);
+              } else if (payload.eventType === 'DELETE') {
+                setData(null);
+              } else {
+                // Fallback para outros tipos de mudança
+                getLiveStream(channelName).then(streamData => {
+                  if (mounted) setData(streamData);
+                });
               }
-            } catch (err: any) {
-              console.error('❌ Erro ao atualizar live via Realtime:', err);
             }
           }
         )
-        .subscribe((status) => {
-          console.log(`📡 Realtime status para ${channelName}:`, status);
-        });
+        .subscribe();
     }
 
     return () => {
@@ -89,4 +91,3 @@ export function useLiveStatus(channelName = 'zktv'): UseLiveStatusReturn {
 
   return { data, status, loading, error };
 }
-
