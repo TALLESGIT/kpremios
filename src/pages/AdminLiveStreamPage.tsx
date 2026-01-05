@@ -9,7 +9,6 @@ import ModeratorManager from '../components/live/ModeratorManager';
 import ChatModerationControls from '../components/live/ChatModerationControls';
 import PollManager from '../components/live/PollManager';
 import { LiveViewer } from '../components/LiveViewer';
-import LiveHlsPlayer from '../components/LiveHlsPlayer';
 import LivePlayerWithHeader from '../components/LivePlayerWithHeader';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import Header from '../components/shared/Header';
@@ -62,11 +61,11 @@ const AdminLiveStreamPage: React.FC = () => {
 
   useEffect(() => {
     loadStreams();
-    
+
     // Listener Realtime para atualizar automaticamente quando ZK Studio ativar a live
     let lastUpdateTime = 0;
     const DEBOUNCE_MS = 2000; // Evitar atualizações muito frequentes
-    
+
     const channel = supabase
       .channel('admin-live-updates')
       .on(
@@ -78,32 +77,32 @@ const AdminLiveStreamPage: React.FC = () => {
         },
         (payload) => {
           const now = Date.now();
-          
+
           // Debounce: evitar atualizações muito frequentes
           if (now - lastUpdateTime < DEBOUNCE_MS) {
             console.log('⏭️ AdminLiveStreamPage: Ignorando atualização (debounce)');
             return;
           }
-          
+
           lastUpdateTime = now;
           console.log('📡 AdminLiveStreamPage: Mudança detectada na live stream:', payload.eventType);
-          
+
           // Se a live foi ativada, atualizar estado diretamente sem recarregar tudo
           if (payload.eventType === 'UPDATE' && payload.new) {
             const updatedStream = payload.new as LiveStream;
-            
+
             // Atualizar apenas se realmente mudou algo relevante
             if (updatedStream.is_active && (!selectedStream || selectedStream.id !== updatedStream.id || !selectedStream.is_active)) {
               console.log('✅ AdminLiveStreamPage: Live ativada, atualizando estado');
               setSelectedStream(updatedStream);
               setIsStreaming(true);
-              
+
               // Atualizar na lista de streams também
               setStreams(prev => {
                 const updated = prev.map(s => s.id === updatedStream.id ? updatedStream : s);
                 return updated;
               });
-              
+
               toast.success('Live ativada pelo ZK Studio!', { duration: 3000 });
             } else if (!updatedStream.is_active && selectedStream?.id === updatedStream.id) {
               // Live foi desativada
@@ -119,7 +118,7 @@ const AdminLiveStreamPage: React.FC = () => {
         }
       )
       .subscribe();
-    
+
     return () => {
       supabase.removeChannel(channel);
     };
@@ -169,12 +168,12 @@ const AdminLiveStreamPage: React.FC = () => {
       // Gerar link da live
       const baseUrl = window.location.origin;
       const liveLink = `${baseUrl}/live/${finalSlug}`;
-      
+
       toast.success('Live criada com sucesso!', {
         duration: 5000,
         icon: '✅',
       });
-      
+
       // Copiar link automaticamente para área de transferência
       try {
         await navigator.clipboard.writeText(liveLink);
@@ -184,7 +183,7 @@ const AdminLiveStreamPage: React.FC = () => {
       } catch (err) {
         console.warn('Não foi possível copiar link automaticamente');
       }
-      
+
       setIsCreating(false);
       setNewStreamTitle('');
       await loadStreams();
@@ -200,39 +199,29 @@ const AdminLiveStreamPage: React.FC = () => {
     try {
       // Atualizar título baseado no jogo do Cruzeiro antes de iniciar
       await updateLiveTitle(selectedStream.id, selectedStream.channel_name);
-      
-      // Gerar URL HLS do LiveKit
-      // IMPORTANTE: ZK Studio sempre transmite para 'ZkPremios' (canal fixo)
-      // O channel_name da live é usado apenas para o link, não para o LiveKit room
-      const livekitRoom = 'ZkPremios';
-      const livekitUrl = import.meta.env.VITE_LIVEKIT_URL || 'wss://zkoficial-6xokn1hv.livekit.cloud';
-      const httpsUrl = livekitUrl.replace('wss://', 'https://').replace('ws://', 'http://');
-      const hlsUrl = `${httpsUrl}/hls/${livekitRoom}/index.m3u8`;
-      
+
       console.log(`Usando streamId: ${selectedStream.id}`);
-      console.log(`HLS URL FINAL: ${hlsUrl}`);
-      
+
       const { data, error } = await supabase
         .from('live_streams')
-        .update({ 
+        .update({
           is_active: true,
-          hls_url: hlsUrl,
           started_at: new Date().toISOString()
         })
         .eq('id', selectedStream.id)
         .select()
         .single();
-      
+
       if (error) throw error;
-      
+
       console.log('Supabase atualizado com sucesso');
       setIsStreaming(true);
       setSelectedStream(data);
-      
+
       // Gerar e copiar link da live automaticamente
       const baseUrl = window.location.origin;
       const liveLink = `${baseUrl}/live/${selectedStream.channel_name}`;
-      
+
       try {
         await navigator.clipboard.writeText(liveLink);
         toast.success(`Você está AO VIVO! Link copiado: ${liveLink}`, {
@@ -259,8 +248,8 @@ const AdminLiveStreamPage: React.FC = () => {
       // Atualizar stream
       const { error: updateError } = await supabase
         .from('live_streams')
-        .update({ 
-          is_active: false, 
+        .update({
+          is_active: false,
           viewer_count: 0,
           hls_url: null // Limpar URL HLS quando encerrar
         })
@@ -385,23 +374,14 @@ const AdminLiveStreamPage: React.FC = () => {
                     <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">Canal Principal: ZkPremios</span>
                   </div>
 
-                  {/* Preview do ZK Studio (LiveKit HLS) quando NÃO está transmitindo */}
                   {!isStreaming ? (
-                    <>
-                      {/* Sempre mostrar preview do LiveKit "ZkPremios" mesmo que is_active = false */}
-                      <LiveHlsPlayer
-                        hlsUrl={(() => {
-                          // Gerar URL HLS do LiveKit para preview
-                          const livekitUrl = import.meta.env.VITE_LIVEKIT_URL || 'wss://zkoficial-6xokn1hv.livekit.cloud';
-                          const httpsUrl = livekitUrl.replace('wss://', 'https://').replace('ws://', 'http://');
-                          return `${httpsUrl}/hls/ZkPremios/index.m3u8`;
-                        })()}
-                        isLive={true}
-                      />
-                      <div className="absolute bottom-4 left-4 z-10 bg-black/70 px-3 py-1.5 rounded text-xs text-white">
-                        📺 Preview do ZK Studio (LiveKit)
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+                      <div className="text-center space-y-4">
+                        <div className="text-5xl animate-pulse">📡</div>
+                        <p className="text-white font-black uppercase italic tracking-widest">Aguardando Início</p>
+                        <p className="text-slate-400 text-xs font-bold uppercase">Abra o ZK Studio para transmitir</p>
                       </div>
-                    </>
+                    </div>
                   ) : (
                     <>
                       {/* LiveViewer (HLS) quando ESTÁ transmitindo - mostra o que os usuários veem */}
@@ -419,7 +399,6 @@ const AdminLiveStreamPage: React.FC = () => {
                           channelName={selectedStream.channel_name}
                           fitMode="contain"
                           showOfflineMessage={false}
-                          showHeader={true}
                         />
                       )}
                       {/* Overlay VIP */}

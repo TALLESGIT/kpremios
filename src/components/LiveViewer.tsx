@@ -1,27 +1,30 @@
 import { useLiveStatus } from '../hooks/useLiveStatus';
-import LiveHlsPlayer from './LiveHlsPlayer';
-import LivePlayerWithHeader from './LivePlayerWithHeader';
+import { HLSViewer } from './HLSViewer';
+import ZKViewerOptimized from './ZKViewerOptimized';
 
 interface LiveViewerProps {
   channelName?: string;
   fitMode?: 'contain' | 'cover';
   className?: string;
   showOfflineMessage?: boolean;
-  showHeader?: boolean; // Novo prop para controlar exibição do header
 }
 
 /**
- * Componente que exibe a live stream usando apenas HLS (sem WebRTC)
- * HLS é usado para todos os dispositivos (mobile e desktop)
+ * Componente inteligente que decide qual player usar:
+ * - Mobile + HLS URL disponível → HLSViewer (RTC no mobile costuma ser instável/pesado)
+ * - Desktop ou sem HLS → ZKViewerOptimized (RTC Nativo Agora, baixíssima latência)
  */
 export function LiveViewer({
   channelName = 'zktv',
   fitMode = 'contain',
   className = '',
   showOfflineMessage = true,
-  showHeader = true, // Por padrão exibe header com título e botão copiar
 }: LiveViewerProps) {
   const { data, status, loading, error } = useLiveStatus(channelName);
+
+  const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
 
   // Loading state
   if (loading) {
@@ -67,28 +70,49 @@ export function LiveViewer({
   const hasHlsUrl = data.hls_url && data.hls_url.trim() !== '';
   const isActuallyLive = data.is_active;
 
-  // Se showHeader = true, usar LivePlayerWithHeader (título + botão copiar)
-  if (showHeader) {
-    return (
-      <div className={className}>
-        <LivePlayerWithHeader
-          title={data.title || 'ZK TV'}
-          hlsUrl={hasHlsUrl ? data.hls_url! : null}
-          isLive={isActuallyLive}
-          streamId={data.id}
-          channelName={data.channel_name}
-        />
-      </div>
-    );
-  }
+  // Canal Fixo do Agora (vindo do ZK Studio)
+  const agoraChannel = 'ZkPremios';
 
-  // Se showHeader = false, usar apenas o player (compatibilidade com código existente)
-  return (
-    <div className={className}>
-      <LiveHlsPlayer
-        hlsUrl={hasHlsUrl ? data.hls_url! : null}
-        isLive={isActuallyLive}
+  const renderContent = () => {
+    // Se a live estiver offline e showOfflineMessage=true
+    if (!isActuallyLive && showOfflineMessage) {
+      return (
+        <div className="flex items-center justify-center h-full bg-black">
+          <div className="text-center space-y-4 px-8">
+            <div className="text-6xl">📡</div>
+            <h2 className="text-2xl font-black text-white uppercase italic">Live Offline</h2>
+            <p className="text-slate-400 text-sm font-bold">A transmissão foi finalizada</p>
+            <div className="w-16 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent mx-auto"></div>
+          </div>
+        </div>
+      );
+    }
+
+    // REGRA HÍBRIDA:
+    // Mobile + HLS disponível -> HLSViewer
+    if (isMobile && hasHlsUrl) {
+      console.log('📱 LiveViewer: Usando HLS para mobile');
+      return <HLSViewer hlsUrl={data.hls_url!} fitMode={fitMode} />;
+    }
+
+    // Tudo o resto (ou se HLS falhar) -> Agora RTC Nativo
+    console.log('🖥️ LiveViewer: Usando Agora RTC Nativo', {
+      channel: agoraChannel,
+      isMobile,
+      hasHlsUrl
+    });
+
+    return (
+      <ZKViewerOptimized 
+        channel={agoraChannel} 
+        fitMode={fitMode}
       />
+    );
+  };
+
+  return (
+    <div className={`relative w-full h-full bg-black overflow-hidden group ${className}`}>
+      {renderContent()}
     </div>
   );
 }
