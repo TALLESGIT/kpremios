@@ -8,6 +8,7 @@ interface ZKViewerOptimizedProps {
   channel: string;
   token?: string | null;
   initialInteracted?: boolean;
+  fitMode?: 'contain' | 'cover';
 }
 
 /**
@@ -18,6 +19,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
   channel,
   token = null,
   initialInteracted = false,
+  fitMode = 'contain',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<IAgoraRTCClient | null>(null);
@@ -45,6 +47,12 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
         if (containerRef.current) {
           containerRef.current.innerHTML = "";
           user.videoTrack?.play(containerRef.current);
+
+          // Forçar object-fit no vídeo gerado pelo Agora
+          const videoEl = containerRef.current.querySelector('video');
+          if (videoEl) {
+            videoEl.style.objectFit = fitMode;
+          }
         }
         setNeedsInteraction(true);
       }
@@ -83,7 +91,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
       client.off("user-unpublished", handleUserUnpublished);
       client.leave().catch(() => { });
     };
-  }, [channel, token]);
+  }, [channel, token, fitMode]);
 
   const handleInteraction = () => {
     AgoraRTC.resumeAudioContext();
@@ -91,6 +99,11 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
       if (activeUserRef.current.videoTrack && containerRef.current) {
         containerRef.current.innerHTML = "";
         activeUserRef.current.videoTrack.play(containerRef.current);
+
+        const videoEl = containerRef.current.querySelector('video');
+        if (videoEl) {
+          videoEl.style.objectFit = fitMode;
+        }
       }
       activeUserRef.current.audioTrack?.play();
     }
@@ -111,7 +124,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
       ></div>
 
       {needsInteraction && connected && !initialInteracted && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyCenter: 'center', backgroundColor: 'rgba(0,0,0,0.75)' }}>
+        <div style={{ position: 'absolute', inset: 0, zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.75)' }}>
           <button
             onClick={handleInteraction}
             style={{ padding: '16px 32px', backgroundColor: '#16a34a', color: 'white', borderRadius: '8px', fontSize: '20px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}
