@@ -130,6 +130,7 @@ const ForgotEmailPage: React.FC = () => {
 
       if (!userFound) {
         // Por segurança, não revelamos se o WhatsApp existe ou não
+        // Mas orientamos o usuário sobre contas antigas
         setSuccess(true);
         setLoading(false);
         return;
@@ -203,10 +204,27 @@ const ForgotEmailPage: React.FC = () => {
                   ) : (
                     <div className="bg-blue-500/10 border border-blue-500/30 text-blue-300 px-4 py-3 rounded-xl flex items-start gap-3">
                       <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                      <div className="flex-1">
+                      <div className="flex-1 space-y-2">
                         <p className="text-sm font-medium">Conta não encontrada</p>
-                        <p className="text-xs mt-1 text-blue-200/80">
-                          Não encontramos uma conta cadastrada com este WhatsApp. Verifique o número e tente novamente.
+                        <p className="text-xs text-blue-200/80">
+                          Não encontramos uma conta cadastrada com este WhatsApp.
+                        </p>
+                        <div className="mt-3 pt-3 border-t border-blue-500/20">
+                          <p className="text-xs font-semibold text-blue-200 mb-2">
+                            Sua conta foi criada antes do WhatsApp ser obrigatório?
+                          </p>
+                          <p className="text-xs text-blue-200/80 mb-3">
+                            Se você lembra seu email, pode recuperar a senha diretamente pelo email:
+                          </p>
+                          <button
+                            onClick={() => navigate('/forgot-password')}
+                            className="w-full py-2 px-4 rounded-lg border border-blue-500/30 text-blue-200 hover:bg-blue-500/10 transition-colors text-xs font-medium"
+                          >
+                            Recuperar senha pelo email
+                          </button>
+                        </div>
+                        <p className="text-xs text-blue-200/60 mt-3">
+                          Ou verifique se digitou o WhatsApp corretamente e tente novamente.
                         </p>
                       </div>
                     </div>
