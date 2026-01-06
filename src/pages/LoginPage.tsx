@@ -158,7 +158,20 @@ const LoginPage: React.FC = () => {
                     <label htmlFor="password" className="block text-xs font-bold text-blue-200 uppercase tracking-widest">
                       Senha
                     </label>
-                    <a href="#" className="text-xs text-accent hover:text-white transition-colors">Esqueceu a senha?</a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Limpar hash da URL antes de navegar (resolve problema em produção)
+                        if (window.location.hash) {
+                          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+                        }
+                        navigate('/forgot-password', { replace: true });
+                      }}
+                      className="text-xs text-accent hover:text-white transition-colors cursor-pointer relative z-10 bg-transparent border-0 p-0 font-inherit"
+                      style={{ pointerEvents: 'auto' }}
+                    >
+                      Esqueceu a senha?
+                    </button>
                   </div>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
