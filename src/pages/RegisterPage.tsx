@@ -135,6 +135,20 @@ const RegisterPage: React.FC = () => {
       return;
     }
 
+    if (!formData.phone.trim()) {
+      setError('WhatsApp é obrigatório para recuperação de conta');
+      setLoading(false);
+      return;
+    }
+
+    // Validar formato do WhatsApp
+    const cleanPhone = formData.phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10 || cleanPhone.length > 15) {
+      setError('WhatsApp inválido. Digite um número válido (ex: 11987654321)');
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email.trim(),
@@ -281,7 +295,7 @@ const RegisterPage: React.FC = () => {
                 {!isLoginMode && (
                   <div>
                     <label htmlFor="phone" className="block text-xs font-bold text-blue-200 uppercase tracking-widest mb-2">
-                      WhatsApp <span className="opacity-50 text-[10px] normal-case ml-1">(opcional)</span>
+                      WhatsApp <span className="text-red-400 text-[10px] normal-case ml-1">(obrigatório)</span>
                     </label>
                     <div className="relative group">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -293,10 +307,14 @@ const RegisterPage: React.FC = () => {
                         type="tel"
                         value={formData.phone}
                         onChange={handleChange}
+                        required
                         className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
-                        placeholder="(31) 99999-9999"
+                        placeholder="11987654321"
                       />
                     </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Necessário para recuperação de conta. Digite apenas números.
+                    </p>
                   </div>
                 )}
 
