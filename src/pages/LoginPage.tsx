@@ -220,7 +220,7 @@ const LoginPage: React.FC = () => {
                 </button>
               </form>
 
-              <div className="mt-8 text-center border-t border-white/5 pt-6">
+              <div className="mt-8 text-center border-t border-white/5 pt-6 space-y-2">
                 <p className="text-slate-400 text-sm">
                   Não tem uma conta?{' '}
                   <Link
@@ -228,6 +228,15 @@ const LoginPage: React.FC = () => {
                     className="text-accent hover:text-white font-bold transition-colors ml-1"
                   >
                     Cadastre-se grátis
+                  </Link>
+                </p>
+                <p className="text-slate-400 text-sm">
+                  Não lembra seu email?{' '}
+                  <Link
+                    to="/forgot-email"
+                    className="text-accent hover:text-white font-bold transition-colors ml-1"
+                  >
+                    Recuperar email
                   </Link>
                 </p>
               </div>
