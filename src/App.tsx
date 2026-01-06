@@ -29,6 +29,9 @@ import RegisterPage from './pages/RegisterPage';
 import UserDashboardPage from './pages/UserDashboardPage';
 import LiveRafflePage from './pages/LiveRafflePage';
 import FreeRafflesPage from './pages/FreeRafflesPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import ForgotEmailPage from './pages/ForgotEmailPage';
 
 // ZK TV
 import ZkTVPage from './pages/ZkTVPage';
@@ -50,8 +53,15 @@ import UserProtectedRoute from './components/ProtectedRoute';
 function AppContent() {
   const { user, loading } = useAuth();
 
-  // Mostrar loading enquanto verifica a sessão
-  if (loading) {
+  // Rotas públicas que podem ser acessadas durante o loading
+  const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password', '/forgot-email'];
+  
+  // Verificar rota atual usando window.location (já que ainda não estamos dentro do Router)
+  const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+  const isPublicRoute = publicRoutes.includes(currentPath);
+
+  // Mostrar loading enquanto verifica a sessão, exceto para rotas públicas
+  if (loading && !isPublicRoute) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-blue-500 to-blue-700 relative overflow-hidden">
         {/* Animated background elements */}
@@ -166,6 +176,9 @@ function AppContent() {
           {/* Novas rotas de autenticação */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/forgot-email" element={<ForgotEmailPage />} />
           <Route path="/dashboard" element={
             <UserProtectedRoute>
               <UserDashboardPage />
