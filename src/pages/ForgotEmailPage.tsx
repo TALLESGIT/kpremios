@@ -24,6 +24,39 @@ const ForgotEmailPage: React.FC = () => {
     setWhatsapp(formatted);
   };
 
+  // Normalizar WhatsApp para busca (remove caracteres não numéricos)
+  const normalizeWhatsApp = (phone: string): string => {
+    return phone.replace(/\D/g, '');
+  };
+
+  // Gerar variações do WhatsApp para busca
+  const getWhatsAppVariations = (phone: string): string[] => {
+    const normalized = normalizeWhatsApp(phone);
+    const variations: string[] = [normalized];
+    
+    // Se começa com 55 (código do Brasil), tentar sem o 55
+    if (normalized.startsWith('55') && normalized.length > 12) {
+      variations.push(normalized.substring(2));
+    }
+    
+    // Se não começa com 55 e tem 11 dígitos, tentar com 55
+    if (!normalized.startsWith('55') && normalized.length === 11) {
+      variations.push('55' + normalized);
+    }
+    
+    // Se tem 10 dígitos (sem DDD), tentar adicionar DDDs comuns
+    if (normalized.length === 10) {
+      const commonDDDs = ['11', '21', '31', '41', '47', '48', '51', '61', '71', '81', '85'];
+      commonDDDs.forEach(ddd => {
+        variations.push(ddd + normalized);
+        variations.push('55' + ddd + normalized);
+      });
+    }
+    
+    // Remover duplicatas
+    return [...new Set(variations)];
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -38,37 +71,82 @@ const ForgotEmailPage: React.FC = () => {
     }
 
     try {
-      // Buscar usuário pelo WhatsApp
-      const { data, error: queryError } = await supabase
-        .from('users')
-        .select('email, name')
-        .eq('whatsapp', whatsapp)
-        .maybeSingle();
-
-      if (queryError) {
-        console.error('Erro ao buscar usuário:', queryError);
+      // Gerar variações do WhatsApp
+      const variations = getWhatsAppVariations(whatsapp);
+      
+      // Tentar buscar com cada variação
+      let userFound = null;
+      let lastError = null;
+      
+      for (const variation of variations) {
+        const { data, error: queryError } = await supabase
+          .from('users')
+          .select('email, name')
+          .eq('whatsapp', variation)
+          .maybeSingle();
+        
+        if (queryError) {
+          lastError = queryError;
+          continue;
+        }
+        
+        if (data) {
+          userFound = data;
+          break;
+        }
+      }
+      
+      // Se não encontrou, tentar busca com LIKE (mais flexível)
+      if (!userFound) {
+        const normalized = normalizeWhatsApp(whatsapp);
+        // Buscar WhatsApps que contenham os últimos 9 dígitos (número sem DDD)
+        if (normalized.length >= 9) {
+          const lastDigits = normalized.slice(-9);
+          const { data: likeData, error: likeError } = await supabase
+            .from('users')
+            .select('email, name, whatsapp')
+            .ilike('whatsapp', `%${lastDigits}%`)
+            .limit(5);
+          
+          if (!likeError && likeData && likeData.length > 0) {
+            // Verificar qual corresponde melhor
+            for (const user of likeData) {
+              const userNormalized = normalizeWhatsApp(user.whatsapp);
+              if (userNormalized.endsWith(normalized) || normalized.endsWith(userNormalized)) {
+                userFound = { email: user.email, name: user.name };
+                break;
+              }
+            }
+          }
+        }
+      }
+      
+      if (lastError && !userFound) {
+        console.error('Erro ao buscar usuário:', lastError);
         setError('Erro ao buscar conta. Tente novamente.');
+        setLoading(false);
         return;
       }
 
-      if (!data) {
+      if (!userFound) {
         // Por segurança, não revelamos se o WhatsApp existe ou não
         setSuccess(true);
+        setLoading(false);
         return;
       }
 
       // Enviar email com o email cadastrado
-      const { error: emailError } = await supabase.auth.resetPasswordForEmail(data.email, {
+      const { error: emailError } = await supabase.auth.resetPasswordForEmail(userFound.email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
       if (emailError) {
         console.error('Erro ao enviar email:', emailError);
         // Mesmo com erro no envio, mostramos o email encontrado
-        setEmailFound(data.email);
+        setEmailFound(userFound.email);
         setSuccess(true);
       } else {
-        setEmailFound(data.email);
+        setEmailFound(userFound.email);
         setSuccess(true);
       }
     } catch (error: any) {
