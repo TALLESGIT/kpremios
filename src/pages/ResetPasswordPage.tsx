@@ -21,6 +21,9 @@ const ResetPasswordPage: React.FC = () => {
     // Verificar se há um token de recuperação na URL
     const checkRecoveryToken = async () => {
       try {
+        // Detectar se é mobile
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        
         // Verificar hash na URL (desktop) e query params (mobile)
         const hash = window.location.hash.substring(1);
         const searchParams = new URLSearchParams(window.location.search);
@@ -40,7 +43,8 @@ const ResetPasswordPage: React.FC = () => {
           hash, 
           hasHashToken: !!accessTokenFromHash, 
           hasQueryToken: !!accessTokenFromQuery,
-          type 
+          type,
+          isMobile
         });
 
         // Se há token de recuperação, aguardar processamento
@@ -50,9 +54,30 @@ const ResetPasswordPage: React.FC = () => {
           let checkInterval: NodeJS.Timeout | null = null;
           let timeoutId: NodeJS.Timeout | null = null;
 
-          // Tentar processar o token manualmente primeiro (para mobile)
+          // No mobile, tentar processar o token imediatamente
+          if (isMobile && accessToken) {
+            try {
+              // Tentar usar setSession diretamente com o token
+              const { data: { session }, error: setSessionError } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: hashParams.get('refresh_token') || searchParams.get('refresh_token') || ''
+              });
+              
+              if (session && !setSessionError) {
+                console.log('Sessão criada manualmente no mobile');
+                resolved = true;
+                window.history.replaceState(null, '', window.location.pathname);
+                setIsValidToken(true);
+                setCheckingToken(false);
+                return;
+              }
+            } catch (e) {
+              console.log('Erro ao definir sessão manualmente:', e);
+            }
+          }
+
+          // Verificar se já existe sessão
           try {
-            // Se o Supabase não processou automaticamente, tentar manualmente
             const { data: { session: manualSession }, error: manualError } = await supabase.auth.getSession();
             if (manualSession && !manualError) {
               console.log('Sessão já existe após carregar');
@@ -92,7 +117,8 @@ const ResetPasswordPage: React.FC = () => {
           );
           subscription = authSubscription;
 
-          // Verificar sessão periodicamente (fallback)
+          // Verificar sessão periodicamente (fallback) - mais frequente no mobile
+          const checkIntervalMs = isMobile ? 100 : 200;
           checkInterval = setInterval(async () => {
             if (!resolved) {
               try {
@@ -116,9 +142,10 @@ const ResetPasswordPage: React.FC = () => {
                 console.error('Erro ao verificar sessão no intervalo:', e);
               }
             }
-          }, 200);
+          }, checkIntervalMs);
 
-          // Timeout: se após 10 segundos não houve evento, verificar sessão uma última vez
+          // Timeout mais curto no mobile (3s) vs desktop (5s)
+          const timeoutMs = isMobile ? 3000 : 5000;
           timeoutId = setTimeout(async () => {
             if (!resolved) {
               resolved = true;
@@ -149,7 +176,7 @@ const ResetPasswordPage: React.FC = () => {
                 subscription.unsubscribe();
               }
             }
-          }, 10000);
+          }, timeoutMs);
 
           return () => {
             if (checkInterval) clearInterval(checkInterval);
