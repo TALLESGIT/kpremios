@@ -350,7 +350,7 @@ Parabéns! 🎊`;
               name: user.name,
               whatsapp: user.whatsapp,
               raffleName: data.raffleTitle || data.title || 'Novo Sorteio',
-              appUrl: import.meta.env.VITE_APP_URL || 'http://localhost:5173'
+              appUrl: import.meta.env.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173')
             });
             break;
           case 'numbers_assigned':

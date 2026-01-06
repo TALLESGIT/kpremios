@@ -40,7 +40,7 @@ class WhatsAppServiceEnhanced {
   }
 
   private getMessageTemplate(type: WhatsAppMessage['type'], data: any): string {
-    const baseUrl = import.meta.env.VITE_APP_URL || 'http://localhost:5173';
+    const baseUrl = import.meta.env.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173');
 
     if (!data) {
       return `Olá! Mensagem da ZK Oficial. Houve um erro ao gerar o conteúdo da mensagem.`;

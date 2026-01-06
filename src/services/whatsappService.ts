@@ -30,7 +30,7 @@ class WhatsAppService {
   }
 
   private getMessageTemplate(type: string, data: any): string {
-    const baseUrl = import.meta.env.VITE_APP_URL || 'http://localhost:5173';
+    const baseUrl = import.meta.env.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173');
 
     switch (type) {
       case 'registration':
