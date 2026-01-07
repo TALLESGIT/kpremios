@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { Link, useNavigate } from 'react-router-dom';
-import { X, Gift, Calendar, Bell, Trophy, Zap, Gamepad2, Ticket } from 'lucide-react';
+import { X, Gift, Calendar, Bell, Trophy, Zap, Gamepad2, Ticket, Phone, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 
@@ -25,7 +25,7 @@ interface RecentActivity {
 
 const UserDashboardPage: React.FC = () => {
   const { user } = useAuth();
-  const { currentUser: currentAppUser } = useData();
+  const { currentUser: currentAppUser, loadCurrentUser } = useData();
   const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats>({
     totalRaffles: 0,
@@ -35,6 +35,9 @@ const UserDashboardPage: React.FC = () => {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNoRafflesModal, setShowNoRafflesModal] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [whatsapp, setWhatsapp] = useState('');
+  const [updatingWhatsApp, setUpdatingWhatsApp] = useState(false);
 
   useEffect(() => {
     loadUserStats();
@@ -164,6 +167,54 @@ const UserDashboardPage: React.FC = () => {
     }
   };
 
+  const formatWhatsApp = (value: string): string => {
+    return value.replace(/\D/g, '');
+  };
+
+  const handleWhatsAppUpdate = async () => {
+    if (!whatsapp.trim() || whatsapp.length < 10) {
+      return;
+    }
+
+    if (!user) return;
+
+    setUpdatingWhatsApp(true);
+    try {
+      const cleanWhatsapp = formatWhatsApp(whatsapp);
+      
+      // Atualizar na tabela users
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ whatsapp: cleanWhatsapp })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Erro ao atualizar WhatsApp:', updateError);
+        // Tentar na tabela profiles se não encontrar em users
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ whatsapp: cleanWhatsapp })
+          .eq('id', user.id);
+
+        if (profileError) {
+          throw profileError;
+        }
+      }
+
+      // Recarregar dados do usuário
+      if (loadCurrentUser) {
+        await loadCurrentUser();
+      }
+      
+      setShowWhatsAppModal(false);
+      setWhatsapp('');
+    } catch (error: any) {
+      console.error('Erro ao atualizar WhatsApp:', error);
+    } finally {
+      setUpdatingWhatsApp(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -192,6 +243,30 @@ const UserDashboardPage: React.FC = () => {
       </div>
 
       <div className="flex-grow max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full relative z-10 -mt-8">
+        {/* Aviso se não tiver WhatsApp */}
+        {currentAppUser && (!currentAppUser.whatsapp || currentAppUser.whatsapp.trim() === '') && (
+          <div className="mb-6 glass-panel p-6 rounded-3xl border border-yellow-500/30 bg-yellow-500/10">
+            <div className="flex items-start gap-4">
+              <AlertCircle className="h-6 w-6 text-yellow-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-white font-bold mb-1">WhatsApp não cadastrado</h3>
+                <p className="text-yellow-200/80 text-sm mb-3">
+                  Para poder recuperar sua conta caso esqueça o email, adicione seu WhatsApp.
+                </p>
+                <button
+                  onClick={() => {
+                    setWhatsapp(currentAppUser.whatsapp || '');
+                    setShowWhatsAppModal(true);
+                  }}
+                  className="btn btn-primary text-sm py-2 px-4"
+                >
+                  Adicionar WhatsApp
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           {/* Total Participations */}
