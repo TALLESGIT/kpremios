@@ -631,20 +631,32 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
               confirmationCode: confirmationCode
             });
             
-            // TEMPORARIAMENTE DESATIVADO: Tentar conceder VIP grátis se elegível (100 primeiros até 01/02/2026)
-            // Desativado para testar pagamentos VIP
-            /*
+            // Tentar conceder VIP grátis se elegível (103 primeiros até 01/02/2026)
             try {
               const { data: vipGranted, error: vipError } = await supabase.rpc('grant_free_vip_if_eligible', {
                 p_user_id: userId
               });
               if (vipGranted && !vipError) {
                 console.log('✅ VIP grátis concedido no cadastro!');
+                
+                // Buscar data de expiração do VIP
+                const { data: userData } = await supabase
+                  .from('users')
+                  .select('vip_expires_at')
+                  .eq('id', userId)
+                  .single();
+                
+                // Emitir evento para mostrar modal de VIP
+                window.dispatchEvent(new CustomEvent('vipGranted', {
+                  detail: {
+                    userId,
+                    expiresAt: userData?.vip_expires_at
+                  }
+                }));
               }
             } catch (vipError) {
               console.error('Erro ao verificar VIP grátis:', vipError);
             }
-            */
           }
         } catch (error) {
           console.error('Erro ao criar perfil do usuário:', error);

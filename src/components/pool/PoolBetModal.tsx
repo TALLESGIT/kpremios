@@ -67,6 +67,19 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
       return;
     }
 
+    // Verificar se o bolão ainda está ativo
+    const { data: poolData, error: poolError } = await supabase
+      .from('match_pools')
+      .select('is_active')
+      .eq('id', poolId)
+      .single();
+
+    if (poolError || !poolData?.is_active) {
+      toast.error('Este bolão está bloqueado. As apostas foram encerradas.');
+      onClose();
+      return;
+    }
+
     const home = parseInt(homeScore);
     const away = parseInt(awayScore);
 

@@ -7,6 +7,7 @@ interface LiveViewerProps {
   fitMode?: 'contain' | 'cover';
   className?: string;
   showOfflineMessage?: boolean;
+  isAdmin?: boolean; // ✅ NOVO: Muta áudio quando admin está visualizando
 }
 
 /**
@@ -19,6 +20,7 @@ export function LiveViewer({
   fitMode = 'contain',
   className = '',
   showOfflineMessage = true,
+  isAdmin = false, // ✅ NOVO: Default false (usuários ouvem áudio normalmente)
 }: LiveViewerProps) {
   const { data, status, loading, error } = useLiveStatus(channelName);
 
@@ -99,13 +101,15 @@ export function LiveViewer({
     console.log('🖥️ LiveViewer: Usando Agora RTC Nativo', {
       channel: agoraChannel,
       isMobile,
-      hasHlsUrl
+      hasHlsUrl,
+      isAdmin // ✅ LOG: Para debug
     });
 
     return (
       <ZKViewerOptimized 
         channel={agoraChannel} 
         fitMode={fitMode}
+        muteAudio={isAdmin} // ✅ NOVO: Passa flag para mutar áudio
       />
     );
   };

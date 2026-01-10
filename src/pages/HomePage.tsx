@@ -5,10 +5,11 @@ import Footer from '../components/shared/Footer';
 import NumberSelection from '../components/user/NumberSelection';
 import RegistrationForm from '../components/user/RegistrationForm';
 import SuccessModal from '../components/shared/SuccessModal';
+import VipGrantedModal from '../components/vip/VipGrantedModal';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
-import { ChevronDown, Play, Trophy, Ticket, MonitorPlay, Calendar, MapPin, Clock, Target, MessageCircle } from 'lucide-react';
+import { ChevronDown, Play, Trophy, Ticket, MonitorPlay, Calendar, MapPin, Clock, Target, MessageCircle, DollarSign, Users } from 'lucide-react';
 import { CruzeiroGame } from '../types';
 import AdvertisementCarousel from '../components/shared/AdvertisementCarousel';
 import PoolBetModal from '../components/pool/PoolBetModal';
@@ -28,9 +29,13 @@ function HomePage() {
   const [hasActiveLive, setHasActiveLive] = useState(false);
   const [activePool, setActivePool] = useState<any>(null);
   const [showPoolModal, setShowPoolModal] = useState(false);
+  const [showVipModal, setShowVipModal] = useState(false);
+  const [vipExpiresAt, setVipExpiresAt] = useState<string | undefined>();
 
   // Verificar se o usuário está logado
   const isLoggedIn = user && currentUser;
+  // Verificar se é admin
+  const isAdmin = currentUser?.is_admin || false;
 
   // Verificar se há sorteios ativos e carregar dados
   useEffect(() => {
@@ -55,7 +60,7 @@ function HomePage() {
       })
       .subscribe();
 
-    // Subscribe para mudanças em match_pools (bolões)
+    // Subscribe para mudanças em match_pools (bolões) - Atualização em tempo real
     const poolChannel = supabase
       .channel('home-pool-updates')
       .on('postgres_changes', {
@@ -64,14 +69,35 @@ function HomePage() {
         table: 'match_pools'
       }, (payload) => {
         console.log('📡 Mudança detectada em match_pools:', payload.eventType, payload.new);
-        // Verificar bolão novamente quando houver mudança
-        checkActivePool();
+        
+        // Se for UPDATE e o bolão está ativo, atualizar diretamente o estado
+        if (payload.eventType === 'UPDATE' && payload.new && (payload.new as any).is_active) {
+          setActivePool((payload.new as any));
+        } else {
+          // Para INSERT ou DELETE, verificar novamente
+          checkActivePool();
+        }
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(liveChannel);
       supabase.removeChannel(poolChannel);
+    };
+  }, []);
+
+  // Listener para evento de VIP concedido
+  useEffect(() => {
+    const handleVipGranted = (event: CustomEvent) => {
+      const { expiresAt } = event.detail;
+      setVipExpiresAt(expiresAt);
+      setShowVipModal(true);
+    };
+
+    window.addEventListener('vipGranted', handleVipGranted as EventListener);
+
+    return () => {
+      window.removeEventListener('vipGranted', handleVipGranted as EventListener);
     };
   }, []);
 
@@ -421,7 +447,7 @@ function HomePage() {
           </section>
 
           {/* Cards Grid */}
-          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <section className={`grid grid-cols-1 md:grid-cols-2 ${activePool && activePool.is_active ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-8`}>
             {/* Card 1: SORTEIOS */}
             <div className="glass-panel p-8 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-blue-600"></div>
@@ -479,6 +505,134 @@ function HomePage() {
                 PARTICIPAR
               </button>
             </div>
+
+            {/* Card 5: BOLÃO ATIVO - Mostra apenas quando há bolão ativo */}
+            {activePool && activePool.is_active && (
+              <div className="glass-panel p-6 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2 border-2 border-emerald-500/30 shadow-2xl shadow-emerald-900/30">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600 animate-pulse"></div>
+                
+                {/* Badge "Ao Vivo" */}
+                <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 bg-red-500/20 border border-red-500/40 rounded-full animate-pulse">
+                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
+                  <span className="text-[9px] font-black text-red-400 uppercase tracking-wider">AO VIVO</span>
+                </div>
+
+                <div className="w-16 h-16 mx-auto bg-gradient-to-br from-emerald-500/30 to-emerald-600/30 rounded-full flex items-center justify-center mb-4 text-emerald-300 group-hover:scale-110 transition-transform group-hover:from-emerald-500/40 group-hover:to-emerald-600/40 relative mt-2">
+                  <Target className="w-8 h-8" />
+                </div>
+                
+                <h3 className="text-xl font-black text-white mb-1 uppercase tracking-tight">Bolão Ativo</h3>
+                
+                {/* Informação da Partida */}
+                {(activePool.home_team || activePool.away_team) && (
+                  <div className="mb-4 text-xs text-emerald-300/80 font-semibold line-clamp-1">
+                    {activePool.home_team || ''} {activePool.home_team && activePool.away_team ? 'vs' : ''} {activePool.away_team || ''}
+                  </div>
+                )}
+                
+                {/* Informações do Bolão */}
+                <div className="space-y-3 mb-4">
+                  {/* Valor do Prêmio (70%) - DESTAQUE PRINCIPAL */}
+                  <div className="bg-gradient-to-br from-emerald-500/15 via-emerald-600/10 to-emerald-700/15 border-2 border-emerald-500/40 rounded-xl p-4 relative overflow-hidden">
+                    <div className="relative">
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <DollarSign className="w-4 h-4 text-emerald-400 animate-pulse" />
+                        <p className="text-emerald-400 text-[10px] font-black uppercase tracking-wider">Prêmio Disponível</p>
+                      </div>
+                      <p className="text-3xl sm:text-4xl font-black text-emerald-300 mb-1 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]">
+                        R$ {((activePool.total_pool_amount || 0) * 0.70).toFixed(2).replace('.', ',')}
+                      </p>
+                      {/* Mostrar apenas para admins */}
+                      {isAdmin && (
+                        <p className="text-[9px] text-emerald-400/60 font-medium">
+                          {((activePool.total_pool_amount || 0) * 0.30).toFixed(2).replace('.', ',')} (30%) para a plataforma
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Número de Participantes e Total Arrecadado */}
+                  <div className={`grid gap-2 text-xs ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                    <div className="bg-slate-900/50 rounded-lg p-2.5 border border-emerald-500/10">
+                      <div className="flex items-center justify-center gap-1 mb-1">
+                        <Users className="w-3.5 h-3.5 text-emerald-400" />
+                      </div>
+                      <p className="text-lg font-black text-white">{activePool.total_participants || 0}</p>
+                      <p className="text-[9px] text-slate-400 font-medium">Participantes</p>
+                    </div>
+                    {/* Mostrar total arrecadado apenas para admins */}
+                    {isAdmin && (
+                      <div className="bg-slate-900/50 rounded-lg p-2.5 border border-emerald-500/10">
+                        <div className="flex items-center justify-center gap-1 mb-1">
+                          <DollarSign className="w-3.5 h-3.5 text-slate-400" />
+                        </div>
+                        <p className="text-lg font-black text-slate-300">
+                          R$ {(activePool.total_pool_amount || 0).toFixed(2).replace('.', ',')}
+                        </p>
+                        <p className="text-[9px] text-slate-400 font-medium">Total Arrecadado</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Mostrar Resultado e Ganhadores se houver */}
+                  {(activePool.result_home_score !== null && activePool.result_away_score !== null) && (
+                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 mt-3">
+                      <div className="text-center mb-2">
+                        <p className="text-[10px] text-blue-300 font-bold uppercase mb-1">Resultado Final</p>
+                        <div className="flex items-center justify-center gap-3">
+                          <div className="text-center">
+                            <p className="text-[9px] text-blue-400 mb-0.5">{activePool.home_team}</p>
+                            <p className="text-2xl font-black text-blue-300">{activePool.result_home_score}</p>
+                          </div>
+                          <span className="text-blue-400 font-black text-xl">x</span>
+                          <div className="text-center">
+                            <p className="text-[9px] text-blue-400 mb-0.5">{activePool.away_team}</p>
+                            <p className="text-2xl font-black text-blue-300">{activePool.result_away_score}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Mostrar Ganhadores */}
+                      {activePool.winners_count > 0 ? (
+                        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-2 mt-2">
+                          <div className="flex items-center justify-center gap-1.5 mb-1">
+                            <Trophy className="w-4 h-4 text-yellow-400" />
+                            <p className="text-[10px] text-yellow-300 font-black uppercase">Ganhadores!</p>
+                          </div>
+                          <p className="text-xs text-yellow-200 text-center font-bold">
+                            {activePool.winners_count} ganhador{activePool.winners_count !== 1 ? 'es' : ''}
+                          </p>
+                          {activePool.prize_per_winner > 0 && (
+                            <p className="text-[10px] text-yellow-300/80 text-center mt-0.5">
+                              R$ {activePool.prize_per_winner.toFixed(2).replace('.', ',')} cada
+                            </p>
+                          )}
+                          <Link 
+                            to="/winners"
+                            className="block text-center mt-2 text-[9px] text-yellow-400 hover:text-yellow-300 font-bold underline"
+                          >
+                            Ver Ganhadores →
+                          </Link>
+                        </div>
+                      ) : (
+                        <div className="bg-slate-800/50 rounded-lg p-2 mt-2">
+                          <p className="text-[9px] text-slate-400 text-center">
+                            Nenhum ganhador com placar exato
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => setShowPoolModal(true)}
+                  className="btn bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 hover:from-emerald-500 hover:via-emerald-400 hover:to-emerald-500 text-white w-full border-0 shadow-xl shadow-emerald-600/30 rounded-xl font-black uppercase tracking-widest text-xs py-3 transform hover:scale-105 transition-all duration-200"
+                >
+                  Participar Agora
+                </button>
+              </div>
+            )}
           </section>
 
           {/* Banner Ad Space */}
@@ -553,6 +707,19 @@ function HomePage() {
           awayTeam={activePool.away_team}
         />
       )}
+
+      {/* Modal de VIP Concedido */}
+      <VipGrantedModal
+        isOpen={showVipModal}
+        onClose={() => {
+          setShowVipModal(false);
+          // Recarregar dados do usuário após fechar o modal
+          if (isLoggedIn) {
+            window.location.reload(); // Recarregar para atualizar o status VIP
+          }
+        }}
+        expiresAt={vipExpiresAt}
+      />
 
       <Footer />
     </div>

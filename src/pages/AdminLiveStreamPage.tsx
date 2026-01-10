@@ -387,6 +387,7 @@ const AdminLiveStreamPage: React.FC = () => {
                           channelName={selectedStream.channel_name}
                           fitMode="contain"
                           showOfflineMessage={false}
+                          isAdmin={true}
                         />
                       )}
                       {/* Overlay VIP */}

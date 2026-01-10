@@ -5,6 +5,7 @@ import { useData } from '../context/DataContext';
 import { Mail, Lock, ArrowRight, AlertCircle, Shield, Trophy, Loader2, Eye, EyeOff } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import VipGrantedModal from '../components/vip/VipGrantedModal';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -12,6 +13,8 @@ const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showVipModal, setShowVipModal] = useState(false);
+  const [vipExpiresAt, setVipExpiresAt] = useState<string | undefined>();
   const navigate = useNavigate();
   const location = useLocation();
   const returnTo = (location.state as any)?.returnTo;
@@ -56,21 +59,32 @@ const LoginPage: React.FC = () => {
       }
 
       if (data.user) {
-        // TEMPORARIAMENTE DESATIVADO: Tentar conceder VIP grátis se elegível (100 primeiros até 01/02/2026)
-        // Desativado para testar pagamentos VIP
-        /*
+        // Tentar conceder VIP grátis se elegível (103 primeiros até 01/02/2026)
         try {
           const { data: vipGranted, error: vipError } = await supabase.rpc('grant_free_vip_if_eligible', {
             p_user_id: data.user.id
           });
           if (vipGranted && !vipError) {
             console.log('✅ VIP grátis concedido no login!');
+            
+            // Buscar data de expiração do VIP
+            const { data: userData } = await supabase
+              .from('users')
+              .select('vip_expires_at')
+              .eq('id', data.user.id)
+              .single();
+            
+            if (userData?.vip_expires_at) {
+              setVipExpiresAt(userData.vip_expires_at);
+            }
+            
+            // Mostrar modal de VIP concedido
+            setShowVipModal(true);
           }
         } catch (vipError) {
           console.error('Erro ao verificar VIP grátis:', vipError);
           // Não falha o login se houver erro
         }
-        */
 
         // Recarregar dados do usuário
         try {
@@ -259,6 +273,17 @@ const LoginPage: React.FC = () => {
       </main>
 
       <Footer />
+
+      {/* Modal de VIP Concedido */}
+      <VipGrantedModal
+        isOpen={showVipModal}
+        onClose={() => {
+          setShowVipModal(false);
+          // Após fechar o modal, recarregar dados do usuário para garantir que o VIP está atualizado
+          reloadUserData();
+        }}
+        expiresAt={vipExpiresAt}
+      />
     </div>
   );
 };

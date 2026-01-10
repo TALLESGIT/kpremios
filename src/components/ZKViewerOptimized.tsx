@@ -9,6 +9,7 @@ interface ZKViewerOptimizedProps {
   token?: string | null;
   initialInteracted?: boolean;
   fitMode?: 'contain' | 'cover';
+  muteAudio?: boolean; // ✅ NOVO: Muta áudio quando true (para admin)
 }
 
 /**
@@ -20,6 +21,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
   token = null,
   initialInteracted = false,
   fitMode = 'contain',
+  muteAudio = false, // ✅ NOVO: Default false (usuários ouvem normalmente)
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<IAgoraRTCClient | null>(null);
@@ -58,7 +60,13 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
       }
 
       if (mediaType === "audio") {
-        user.audioTrack?.play();
+        // ✅ CORREÇÃO ECO: NÃO reproduz áudio se muteAudio=true (admin)
+        if (muteAudio) {
+          console.log('🔇 ZKViewerOptimized: Áudio MUTADO (modo admin)');
+        } else {
+          user.audioTrack?.play();
+          console.log('🔊 ZKViewerOptimized: Áudio reproduzindo (modo usuário)');
+        }
       }
     };
 
@@ -91,7 +99,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
       client.off("user-unpublished", handleUserUnpublished);
       client.leave().catch(() => { });
     };
-  }, [channel, token, fitMode]);
+  }, [channel, token, fitMode, muteAudio]); // ✅ Adicionado muteAudio às dependências
 
   const handleInteraction = () => {
     AgoraRTC.resumeAudioContext();
@@ -105,7 +113,10 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
           videoEl.style.objectFit = fitMode;
         }
       }
-      activeUserRef.current.audioTrack?.play();
+      // ✅ CORREÇÃO ECO: NÃO reproduz áudio se muteAudio=true (admin)
+      if (!muteAudio) {
+        activeUserRef.current.audioTrack?.play();
+      }
     }
     setNeedsInteraction(false);
   };
@@ -123,7 +134,8 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
         style={{ width: '100%', height: '100%', background: 'black' }}
       ></div>
 
-      {needsInteraction && connected && !initialInteracted && (
+      {/* ✅ CORREÇÃO: Não mostra botão de interação se muteAudio=true */}
+      {needsInteraction && connected && !initialInteracted && !muteAudio && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.75)' }}>
           <button
             onClick={handleInteraction}
