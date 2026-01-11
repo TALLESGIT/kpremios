@@ -195,7 +195,8 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
               if (user.videoTrack) {
                 videoTrackRef.current = user.videoTrack;
 
-                try { await client.setRemoteVideoStreamType?.(user.uid, 0); } catch { }
+                // ✅ CORREÇÃO: Usar qualidade ALTA (1) ao invés de baixa (0) para melhor nitidez
+                try { await client.setRemoteVideoStreamType?.(user.uid, 1); } catch { }
                 try { client.setStreamFallbackOption?.(user.uid, 0); } catch { }
 
                 await user.videoTrack.play(fgRef.current!);

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Eye, Share2, X, Trophy, Calendar, ChevronRight, MessageCircle, Crown } from 'lucide-react';
+import { ArrowLeft, Eye, Share2, X, Trophy, Calendar, ChevronRight, MessageCircle, Crown, Tv, Minimize2, Maximize2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { LiveViewer } from '../components/LiveViewer';
@@ -440,6 +440,35 @@ const PublicLiveStreamPage: React.FC = () => {
     };
   }, [isMobile, isFullscreen]);
 
+  // ✅ Handler para fullscreen
+  const handleFullscreen = () => {
+    if (!videoContainerRef.current) return;
+    if (isFullscreen) {
+      document.exitFullscreen();
+    } else {
+      videoContainerRef.current.requestFullscreen();
+    }
+  };
+
+  // ✅ Handler para Picture-in-Picture
+  const togglePiP = async () => {
+    const video = videoContainerRef.current?.querySelector('video');
+    if (video && document.pictureInPictureEnabled) {
+      try {
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture();
+        } else {
+          await video.requestPictureInPicture();
+        }
+      } catch (err) {
+        console.error('Erro ao alternar PiP:', err);
+        toast.error('Recurso não suportado neste navegador');
+      }
+    } else {
+      toast('Para transmitir, use o menu do seu navegador (Cast/Transmitir).', { icon: '📺' });
+    }
+  };
+
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -573,14 +602,44 @@ const PublicLiveStreamPage: React.FC = () => {
                   </div>
                 )}
 
+                {/* Botão Fullscreen Desktop */}
+                {stream.is_active && !isMobile && (
+                  <div className="absolute bottom-4 right-4 flex gap-2 z-10">
+                    {/* Botão Picture-in-Picture / Cast Hint */}
+                    {document.pictureInPictureEnabled && (
+                      <button
+                        onClick={togglePiP}
+                        className="p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all group"
+                        title="Mini Player / Transmitir"
+                      >
+                        <Tv className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+                      </button>
+                    )}
+
+                    <button
+                      onClick={handleFullscreen}
+                      className="p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all group"
+                      title={isFullscreen ? "Sair da tela cheia" : "Tela cheia"}
+                    >
+                      {isFullscreen ? (
+                        <Minimize2 className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+                      ) : (
+                        <Maximize2 className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+                      )}
+                    </button>
+                  </div>
+                )}
+
                 <MobileLiveControls
                   isActive={stream.is_active}
                   isFullscreen={isFullscreen}
-                  onFullscreen={() => isFullscreen ? document.exitFullscreen() : videoContainerRef.current?.requestFullscreen()}
+                  onFullscreen={handleFullscreen}
                   onRotate={() => setIsLandscape(!isLandscape)}
                   onToggleFit={() => setVideoFitMode(p => p === 'contain' ? 'cover' : 'contain')}
                   fitMode={videoFitMode}
                   isDocked={isDockedChat}
+                  onPictureInPicture={togglePiP}
+                  isPictureInPicture={!!document.pictureInPictureElement}
                 />
               </div>
               {isDockedChat && (
