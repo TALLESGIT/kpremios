@@ -195,9 +195,15 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
               if (user.videoTrack) {
                 videoTrackRef.current = user.videoTrack;
 
-                // ✅ CORREÇÃO: Usar qualidade ALTA (1) ao invés de baixa (0) para melhor nitidez
-                try { await client.setRemoteVideoStreamType?.(user.uid, 1); } catch { }
-                try { client.setStreamFallbackOption?.(user.uid, 0); } catch { }
+                // ✅ CORREÇÃO: Usar qualidade ALTA (1) e desabilitar fallback para manter qualidade
+                try { 
+                  await client.setRemoteVideoStreamType?.(user.uid, 1);
+                  // Fallback option: 1 = Disable (não fazer fallback automático, manter qualidade alta)
+                  client.setStreamFallbackOption?.(user.uid, 1);
+                  console.log('✅ ZKViewer: Qualidade de vídeo configurada para ALTA');
+                } catch (err) {
+                  console.warn('⚠️ ZKViewer: Erro ao configurar qualidade:', err);
+                }
 
                 await user.videoTrack.play(fgRef.current!);
                 console.log('✅ Vídeo reproduzindo!');

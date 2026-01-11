@@ -52,14 +52,91 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
 
       if (mediaType === "video") {
         activeUserRef.current = user;
+        
+        // ✅ CORREÇÃO: Configurar qualidade de vídeo ALTA e fallback para evitar tela preta
+        try {
+          // Usar qualidade ALTA (1) para melhor nitidez
+          await client.setRemoteVideoStreamType?.(user.uid, 1);
+          // Configurar fallback option: 1 = Disable (não fazer fallback, manter qualidade)
+          // Isso evita que o vídeo caia para qualidade baixa automaticamente
+          client.setStreamFallbackOption?.(user.uid, 1);
+          console.log('✅ ZKViewerOptimized: Qualidade de vídeo configurada para ALTA');
+        } catch (err) {
+          console.warn('⚠️ ZKViewerOptimized: Erro ao configurar qualidade:', err);
+        }
+        
         if (containerRef.current) {
-          containerRef.current.innerHTML = "";
-          user.videoTrack?.play(containerRef.current);
-
-          // Forçar object-fit no vídeo gerado pelo Agora
-          const videoEl = containerRef.current.querySelector('video');
-          if (videoEl) {
-            videoEl.style.objectFit = fitMode;
+          // ✅ CORREÇÃO: Não limpar imediatamente, manter último frame até novo vídeo carregar
+          // Isso evita tela preta durante reconexões
+          try {
+            // Limpar apenas depois que o novo vídeo começar a tocar
+            await user.videoTrack?.play(containerRef.current);
+            
+            // Só limpar HTML depois que o novo vídeo estiver reproduzindo
+            // Isso mantém o último frame visível durante a transição
+            if (containerRef.current.children.length > 1) {
+              // Remover vídeos antigos, mantendo o atual
+              const videos = containerRef.current.querySelectorAll('video');
+              const currentVideo = containerRef.current.querySelector('video:last-child');
+              videos.forEach((video, index) => {
+                if (video !== currentVideo) {
+                  try {
+                    video.pause();
+                    video.srcObject = null;
+                    video.remove();
+                  } catch (e) {
+                    // Ignorar erros ao remover vídeos antigos
+                  }
+                }
+              });
+            }
+            
+            // Forçar object-fit no vídeo gerado pelo Agora
+            const videoEl = containerRef.current.querySelector('video');
+            if (videoEl) {
+              videoEl.style.objectFit = fitMode;
+              
+              // ✅ CORREÇÃO: Adicionar listener para erros de decodificação
+              const handleVideoError = (e: Event) => {
+                console.error('❌ Erro no elemento de vídeo:', e);
+                // Tentar reconectar se houver erro de decodificação
+                // Mas NÃO limpar o container imediatamente para evitar tela preta
+                if (activeUserRef.current && containerRef.current) {
+                  setTimeout(() => {
+                    try {
+                      // Tentar reproduzir novamente sem limpar (isso vai substituir automaticamente)
+                      activeUserRef.current?.videoTrack?.play(containerRef.current!);
+                      
+                      // Tentar aumentar qualidade novamente
+                      client.setRemoteVideoStreamType?.(activeUserRef.current.uid, 1).catch(() => {});
+                      console.log('🔄 Tentativa de recuperação de vídeo após erro');
+                    } catch (replayErr) {
+                      console.error('Erro ao recuperar vídeo:', replayErr);
+                      // Só limpar como último recurso
+                      try {
+                        containerRef.current!.innerHTML = "";
+                        activeUserRef.current?.videoTrack?.play(containerRef.current!);
+                      } catch (finalErr) {
+                        console.error('Erro final ao recuperar vídeo:', finalErr);
+                      }
+                    }
+                  }, 1000);
+                }
+              };
+              
+              videoEl.addEventListener('error', handleVideoError);
+              
+              // Limpar listener quando vídeo for removido
+              const observer = new MutationObserver(() => {
+                if (!containerRef.current?.contains(videoEl)) {
+                  videoEl.removeEventListener('error', handleVideoError);
+                  observer.disconnect();
+                }
+              });
+              observer.observe(containerRef.current, { childList: true, subtree: true });
+            }
+          } catch (playErr) {
+            console.error('❌ Erro ao reproduzir vídeo:', playErr);
           }
         }
         setNeedsInteraction(true);
@@ -103,13 +180,44 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
     };
 
     const handleUserUnpublished = (_user: IAgoraRTCRemoteUser, mediaType: "video" | "audio") => {
-      if (mediaType === "video" && containerRef.current) {
-        containerRef.current.innerHTML = "";
+      if (mediaType === "video") {
+        // ✅ CORREÇÃO: Não limpar container imediatamente para evitar tela preta
+        // Manter o último frame visível até o próximo vídeo chegar
+        if (activeUserRef.current === _user) {
+          activeUserRef.current = null;
+        }
+        // Não limpar o HTML para evitar tela preta durante reconexões
+        // O novo vídeo vai substituir automaticamente
+      }
+    };
+
+    // ✅ CORREÇÃO: Listener para erros de decodificação
+    const handleException = (evt: any) => {
+      const { code, msg, uid } = evt;
+      console.warn('⚠️ Exceção Agora detectada:', { code, msg, uid });
+      
+      // Se for erro de decodificação de vídeo, tentar reconectar
+      if (code === 1005 || msg === 'RECV_VIDEO_DECODE_FAILED') {
+        console.log('🔄 Tentando reconectar vídeo devido a erro de decodificação...');
+        if (activeUserRef.current && containerRef.current) {
+          setTimeout(() => {
+            try {
+              containerRef.current!.innerHTML = "";
+              activeUserRef.current?.videoTrack?.play(containerRef.current!);
+              
+              // Tentar aumentar qualidade novamente
+              client.setRemoteVideoStreamType?.(activeUserRef.current.uid, 1).catch(() => {});
+            } catch (reconnectErr) {
+              console.error('Erro ao reconectar vídeo:', reconnectErr);
+            }
+          }, 500);
+        }
       }
     };
 
     client.on("user-published", handleUserPublished);
     client.on("user-unpublished", handleUserUnpublished);
+    client.on("exception", handleException);
 
     const init = async () => {
       const appId = import.meta.env.VITE_AGORA_APP_ID;
@@ -129,6 +237,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
     return () => {
       client.off("user-published", handleUserPublished);
       client.off("user-unpublished", handleUserUnpublished);
+      client.off("exception", handleException);
       client.leave().catch(() => { });
     };
   }, [channel, token, fitMode]); // ✅ Removido muteAudio para evitar reconexões desnecessárias
