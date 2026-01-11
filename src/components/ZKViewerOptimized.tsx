@@ -26,9 +26,15 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const activeUserRef = useRef<IAgoraRTCRemoteUser | null>(null);
+  const muteAudioRef = useRef(muteAudio); // ✅ Ref para muteAudio (evita reconexões)
 
   const [connected, setConnected] = useState(false);
   const [needsInteraction, setNeedsInteraction] = useState(true);
+
+  // ✅ Atualizar ref quando muteAudio mudar (sem causar reconexão)
+  useEffect(() => {
+    muteAudioRef.current = muteAudio;
+  }, [muteAudio]);
 
   useEffect(() => {
     // 1) Criar client Agora
@@ -59,12 +65,38 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
         setNeedsInteraction(true);
       }
 
-      if (mediaType === "audio") {
+      if (mediaType === "audio" && user.audioTrack) {
         // ✅ CORREÇÃO ECO: NÃO reproduz áudio se muteAudio=true (admin)
-        if (muteAudio) {
+        if (muteAudioRef.current) {
           console.log('🔇 ZKViewerOptimized: Áudio MUTADO (modo admin)');
+          user.audioTrack.setVolume(0);
         } else {
-          user.audioTrack?.play();
+          // ✅ CONFIGURAÇÕES ULTRA-BAIXA LATÊNCIA PARA ÁUDIO EM TEMPO REAL
+          try {
+            user.audioTrack.setVolume(100);
+            
+            // Configurações agressivas para eliminar delay de áudio
+            const audioTrack = user.audioTrack as any;
+            if (typeof audioTrack.setAudioBufferDelay === 'function') {
+              audioTrack.setAudioBufferDelay(0); // Buffer ZERO
+            }
+            if (typeof audioTrack.setLatencyMode === 'function') {
+              audioTrack.setLatencyMode('ultra_low'); // Modo ultra-baixa latência
+            }
+            if (typeof audioTrack.setJitterBufferDelay === 'function') {
+              audioTrack.setJitterBufferDelay(0, 0); // Jitter buffer ZERO
+            }
+            if (typeof audioTrack.setAudioProcessingDelay === 'function') {
+              audioTrack.setAudioProcessingDelay(0); // Processamento ZERO
+            }
+            
+            console.log('✅ ZKViewerOptimized: Configurações ultra-baixa latência aplicadas');
+          } catch (configErr) {
+            console.warn('ZKViewerOptimized: Algumas configurações de áudio não disponíveis:', configErr);
+          }
+          
+          // Reproduzir imediatamente
+          user.audioTrack.play();
           console.log('🔊 ZKViewerOptimized: Áudio reproduzindo (modo usuário)');
         }
       }
@@ -99,7 +131,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
       client.off("user-unpublished", handleUserUnpublished);
       client.leave().catch(() => { });
     };
-  }, [channel, token, fitMode, muteAudio]); // ✅ Adicionado muteAudio às dependências
+  }, [channel, token, fitMode]); // ✅ Removido muteAudio para evitar reconexões desnecessárias
 
   const handleInteraction = () => {
     AgoraRTC.resumeAudioContext();
@@ -114,8 +146,33 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
         }
       }
       // ✅ CORREÇÃO ECO: NÃO reproduz áudio se muteAudio=true (admin)
-      if (!muteAudio) {
-        activeUserRef.current.audioTrack?.play();
+      if (activeUserRef.current.audioTrack) {
+        if (muteAudioRef.current) {
+          activeUserRef.current.audioTrack.setVolume(0);
+        } else {
+          // ✅ CONFIGURAÇÕES ULTRA-BAIXA LATÊNCIA PARA ÁUDIO EM TEMPO REAL
+          try {
+            activeUserRef.current.audioTrack.setVolume(100);
+            
+            const audioTrack = activeUserRef.current.audioTrack as any;
+            if (typeof audioTrack.setAudioBufferDelay === 'function') {
+              audioTrack.setAudioBufferDelay(0);
+            }
+            if (typeof audioTrack.setLatencyMode === 'function') {
+              audioTrack.setLatencyMode('ultra_low');
+            }
+            if (typeof audioTrack.setJitterBufferDelay === 'function') {
+              audioTrack.setJitterBufferDelay(0, 0);
+            }
+            if (typeof audioTrack.setAudioProcessingDelay === 'function') {
+              audioTrack.setAudioProcessingDelay(0);
+            }
+          } catch (configErr) {
+            console.warn('ZKViewerOptimized: Erro ao configurar áudio:', configErr);
+          }
+          
+          activeUserRef.current.audioTrack.play();
+        }
       }
     }
     setNeedsInteraction(false);
@@ -135,7 +192,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
       ></div>
 
       {/* ✅ CORREÇÃO: Não mostra botão de interação se muteAudio=true */}
-      {needsInteraction && connected && !initialInteracted && !muteAudio && (
+      {needsInteraction && connected && !initialInteracted && !muteAudioRef.current && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.75)' }}>
           <button
             onClick={handleInteraction}
