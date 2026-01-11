@@ -75,7 +75,7 @@ function HomePage() {
           setActivePool((payload.new as any));
         } else {
           // Para INSERT ou DELETE, verificar novamente
-          checkActivePool();
+        checkActivePool();
         }
       })
       .subscribe();

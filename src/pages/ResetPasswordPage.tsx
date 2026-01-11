@@ -32,7 +32,7 @@ const ResetPasswordPage: React.FC = () => {
         const hashParams = new URLSearchParams(hash);
         const accessTokenFromHash = hashParams.get('access_token');
         const typeFromHash = hashParams.get('type');
-        
+
         const accessTokenFromQuery = searchParams.get('access_token');
         const typeFromQuery = searchParams.get('type');
         
@@ -82,7 +82,7 @@ const ResetPasswordPage: React.FC = () => {
             if (manualSession && !manualError) {
               console.log('Sessão já existe após carregar');
               resolved = true;
-              window.history.replaceState(null, '', window.location.pathname);
+          window.history.replaceState(null, '', window.location.pathname);
               setIsValidToken(true);
               setCheckingToken(false);
               return;
@@ -90,7 +90,7 @@ const ResetPasswordPage: React.FC = () => {
           } catch (e) {
             console.log('Erro ao verificar sessão manual:', e);
           }
-
+          
           // Escutar o evento PASSWORD_RECOVERY ou SIGNED_IN
           const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
             async (event, session) => {
@@ -105,8 +105,8 @@ const ResetPasswordPage: React.FC = () => {
                   // Limpar hash/query da URL após confirmar sessão
                   window.history.replaceState(null, '', window.location.pathname);
                   
-                  setIsValidToken(true);
-                  setCheckingToken(false);
+                setIsValidToken(true);
+                setCheckingToken(false);
                   
                   if (authSubscription) {
                     authSubscription.unsubscribe();
@@ -124,18 +124,18 @@ const ResetPasswordPage: React.FC = () => {
               try {
                 const { data: { session }, error: sessionError } = await supabase.auth.getSession();
                 if (session && !sessionError) {
-                  resolved = true;
+              resolved = true;
                   if (checkInterval) clearInterval(checkInterval);
                   if (timeoutId) clearTimeout(timeoutId);
                   
                   // Limpar hash/query da URL após confirmar sessão
                   window.history.replaceState(null, '', window.location.pathname);
                   
-                  setIsValidToken(true);
-                  setCheckingToken(false);
+              setIsValidToken(true);
+              setCheckingToken(false);
                   
                   if (subscription) {
-                    subscription.unsubscribe();
+              subscription.unsubscribe();
                   }
                 }
               } catch (e) {
@@ -157,9 +157,9 @@ const ResetPasswordPage: React.FC = () => {
               try {
                 const { data: { session }, error: sessionError } = await supabase.auth.getSession();
                 if (session && !sessionError) {
-                  setIsValidToken(true);
-                  setCheckingToken(false);
-                } else {
+                setIsValidToken(true);
+                setCheckingToken(false);
+              } else {
                   console.error('Sessão não encontrada após timeout:', sessionError);
                   setIsValidToken(false);
                   setCheckingToken(false);
@@ -173,7 +173,7 @@ const ResetPasswordPage: React.FC = () => {
               }
               
               if (subscription) {
-                subscription.unsubscribe();
+              subscription.unsubscribe();
               }
             }
           }, timeoutMs);
@@ -189,12 +189,12 @@ const ResetPasswordPage: React.FC = () => {
           
           try {
             const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-            
+          
             if (session && !sessionError) {
-              // Já autenticado, permitir redefinir senha
-              setIsValidToken(true);
-              setCheckingToken(false);
-            } else {
+            // Já autenticado, permitir redefinir senha
+            setIsValidToken(true);
+            setCheckingToken(false);
+          } else {
               // Sem token e sem sessão = link inválido
               console.log('Sem token e sem sessão');
               setIsValidToken(false);
