@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import React from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -9,6 +10,9 @@ import ModeratorManager from '../components/live/ModeratorManager';
 import ChatModerationControls from '../components/live/ChatModerationControls';
 import PollManager from '../components/live/PollManager';
 import { LiveViewer } from '../components/LiveViewer';
+
+// ✅ Memoizar LiveViewer para evitar recriações desnecessárias
+const MemoizedLiveViewer = React.memo(LiveViewer);
 import LivePlayerWithHeader from '../components/LivePlayerWithHeader';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import Header from '../components/shared/Header';
@@ -93,10 +97,24 @@ const AdminLiveStreamPage: React.FC = () => {
               }
             } else {
               // Apenas atualização de outros campos (viewer_count, etc)
-              // Atualizamos sem toast para não poluir
+              // Atualizamos sem toast e SEM atualizar selectedStream para evitar re-renderizações
               setStreams(prev => prev.map(s => s.id === updatedStream.id ? updatedStream : s));
+              // ✅ OTIMIZAÇÃO: Não atualizar selectedStream para campos que não afetam o player
+              // Isso evita re-renderizações desnecessárias do LiveViewer
+              // Apenas atualizar se for mudança crítica (hls_url, etc)
               if (selectedStream?.id === updatedStream.id) {
-                setSelectedStream(updatedStream);
+                const criticalFieldsChanged = 
+                  selectedStream.hls_url !== updatedStream.hls_url ||
+                  selectedStream.channel_name !== updatedStream.channel_name ||
+                  selectedStream.title !== updatedStream.title;
+                
+                // ✅ OTIMIZAÇÃO CRÍTICA: Apenas atualizar selectedStream se campos críticos mudaram
+                // Isso evita re-renderizações do LiveViewer para mudanças de viewer_count, etc
+                if (criticalFieldsChanged) {
+                  setSelectedStream(updatedStream);
+                }
+                // Se não houver mudança crítica, NÃO atualizar selectedStream
+                // Isso mantém o player estável e evita reconexões desnecessárias
               }
             }
           } else {
@@ -383,7 +401,7 @@ const AdminLiveStreamPage: React.FC = () => {
                           channelName={selectedStream.channel_name}
                         />
                       ) : (
-                        <LiveViewer
+                        <MemoizedLiveViewer
                           channelName={selectedStream.channel_name}
                           fitMode="contain"
                           showOfflineMessage={false}
