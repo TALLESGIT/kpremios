@@ -111,7 +111,7 @@ const AdminLiveStreamPage: React.FC = () => {
                 // ✅ OTIMIZAÇÃO CRÍTICA: Apenas atualizar selectedStream se campos críticos mudaram
                 // Isso evita re-renderizações do LiveViewer para mudanças de viewer_count, etc
                 if (criticalFieldsChanged) {
-                  setSelectedStream(updatedStream);
+                setSelectedStream(updatedStream);
                 }
                 // Se não houver mudança crítica, NÃO atualizar selectedStream
                 // Isso mantém o player estável e evita reconexões desnecessárias

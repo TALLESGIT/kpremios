@@ -90,11 +90,11 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
                 }
               });
             }
-            
-            // Forçar object-fit no vídeo gerado pelo Agora
-            const videoEl = containerRef.current.querySelector('video');
-            if (videoEl) {
-              videoEl.style.objectFit = fitMode;
+
+          // Forçar object-fit no vídeo gerado pelo Agora
+          const videoEl = containerRef.current.querySelector('video');
+          if (videoEl) {
+            videoEl.style.objectFit = fitMode;
               
               // ✅ CORREÇÃO: Adicionar listener para erros de decodificação
               const handleVideoError = (e: Event) => {
