@@ -222,7 +222,7 @@ export default function ReporterPage() {
 
           {/* Status Overlay */}
           <div className="absolute top-4 left-4 flex gap-2">
-            <div className={`px - 2 py - 1 rounded - md text - [10px] font - bold uppercase tracking - wider backdrop - blur - md border 
+            <div className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider backdrop-blur-md border 
               ${isConnected
                 ? 'bg-green-500/20 border-green-500/30 text-green-400 animate-pulse'
                 : 'bg-neutral-800/80 border-white/10 text-neutral-400'
@@ -242,14 +242,14 @@ export default function ReporterPage() {
             <div className="flex items-center justify-center gap-4">
               <button
                 onClick={toggleMic}
-                className={`p - 4 rounded - full backdrop - blur - md transition - all ${isMicOn ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-red-500 hover:bg-red-600 text-white'} `}
+                className={`p-4 rounded-full backdrop-blur-md transition-all ${isMicOn ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-red-500 hover:bg-red-600 text-white'} `}
               >
                 {isMicOn ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
               </button>
 
               <button
                 onClick={handleConnect}
-                className={`px - 8 py - 4 rounded - 2xl font - black text - sm tracking - widest shadow - lg transition - all transform hover: scale - 105 uppercase
+                className={`px-8 py-4 rounded-2xl font-black text-sm tracking-widest shadow-lg transition-all transform hover:scale-105 uppercase
                   ${isConnected
                     ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-900/20'
                     : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20'
@@ -260,7 +260,7 @@ export default function ReporterPage() {
 
               <button
                 onClick={toggleCam}
-                className={`p - 4 rounded - full backdrop - blur - md transition - all ${isCamOn ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-red-500 hover:bg-red-600 text-white'} `}
+                className={`p-4 rounded-full backdrop-blur-md transition-all ${isCamOn ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-red-500 hover:bg-red-600 text-white'} `}
               >
                 {isCamOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
               </button>

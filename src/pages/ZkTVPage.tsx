@@ -613,7 +613,7 @@ const ZkTVPage: React.FC = () => {
         try {
             const [settingsRes, gamesRes, standingsRes] = await Promise.all([
                 supabase.from('cruzeiro_settings').select('*').single(),
-                supabase.from('cruzeiro_games').select('*').order('date', { ascending: true }),
+                supabase.from('cruzeiro_games').select('*').neq('status', 'finished').order('date', { ascending: true }),
                 supabase.from('cruzeiro_standings').select('*').order('position', { ascending: true })
             ]);
 
@@ -796,12 +796,53 @@ const ZkTVPage: React.FC = () => {
                                             allowFullScreen
                                         ></iframe>
                                     ) : (
-                                        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm p-12 text-center">
-                                            <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center mb-6 border border-slate-700">
-                                                <Play className="w-8 h-8 text-slate-600" />
-                                            </div>
-                                            <h3 className="text-xl font-bold mb-2 text-slate-400">Aguardando Transmissão</h3>
-                                            <p className="text-slate-500 text-sm">A live será exibida aqui em breve...</p>
+                                        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm p-6 sm:p-12 text-center">
+                                            {nextGame ? (
+                                                <div className="w-full max-w-sm mx-auto animate-in fade-in zoom-in duration-700">
+                                                    <div className="flex items-center justify-between mb-6">
+                                                        <span className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest">Próximo Jogo</span>
+                                                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{nextGame.competition}</span>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between gap-6 mb-8">
+                                                        <div className="flex flex-col items-center flex-1">
+                                                            <div className="h-16 w-16 bg-blue-600 rounded-2xl flex items-center justify-center text-lg font-black text-white mb-3 shadow-xl shadow-blue-600/20">CRU</div>
+                                                            <span className="text-xs font-bold text-white uppercase tracking-wider">Cruzeiro</span>
+                                                        </div>
+
+                                                        <div className="flex flex-col items-center">
+                                                            <div className="text-2xl font-black italic text-white/10 uppercase mb-1">VS</div>
+                                                            <div className="h-1 w-8 bg-blue-500/20 rounded-full" />
+                                                        </div>
+
+                                                        <div className="flex flex-col items-center flex-1">
+                                                            <div className="h-16 w-16 bg-slate-800 border border-white/5 rounded-2xl flex items-center justify-center text-lg font-black text-slate-400 mb-3">
+                                                                {nextGame.opponent.substring(0, 3).toUpperCase()}
+                                                            </div>
+                                                            <span className="text-xs font-bold text-white uppercase tracking-wider truncate max-w-[100px]">{nextGame.opponent}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="pt-6 border-t border-white/5 flex items-center justify-center gap-8">
+                                                        <div className="flex items-center gap-3 text-sm font-black text-blue-300">
+                                                            <Calendar className="w-4 h-4" />
+                                                            {new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                                        </div>
+                                                        <div className="flex items-center gap-3 text-sm font-black text-blue-300">
+                                                            <Clock className="w-4 h-4" />
+                                                            {new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center mb-6 border border-slate-700">
+                                                        <Play className="w-8 h-8 text-slate-600" />
+                                                    </div>
+                                                    <h3 className="text-xl font-bold mb-2 text-slate-400">Aguardando calendário...</h3>
+                                                    <p className="text-slate-500 text-sm">A live será exibida aqui em breve...</p>
+                                                </>
+                                            )}
                                         </div>
                                     )
                                 )}

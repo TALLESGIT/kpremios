@@ -14,7 +14,9 @@ import {
     Trash2,
     Edit2,
     Info,
-    ChevronLeft
+    ChevronLeft,
+    Upload,
+    Loader2
 } from 'lucide-react';
 import Header from '../../components/shared/Header';
 import Footer from '../../components/shared/Footer';
@@ -63,6 +65,7 @@ const AdminZkTVPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'settings' | 'games' | 'standings'>('settings');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [bannerUploading, setBannerUploading] = useState(false);
 
     // Settings State
     const [settings, setSettings] = useState<CruzeiroSettings | null>(null);
@@ -79,6 +82,7 @@ const AdminZkTVPage: React.FC = () => {
         venue: '',
         competition: '',
         is_home: true,
+        banner_url: '',
         status: 'upcoming'
     });
 
@@ -205,6 +209,42 @@ const AdminZkTVPage: React.FC = () => {
         }
     };
 
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validar tamanho (máx 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('A imagem deve ter no máximo 5MB');
+            return;
+        }
+
+        try {
+            setBannerUploading(true);
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+            const filePath = `game_banners/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('banners')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('banners')
+                .getPublicUrl(filePath);
+
+            setGameForm({ ...gameForm, banner_url: publicUrl });
+            toast.success('Imagem enviada com sucesso!');
+        } catch (error: any) {
+            console.error('Erro no upload:', error);
+            toast.error('Erro ao enviar imagem: ' + error.message);
+        } finally {
+            setBannerUploading(false);
+        }
+    };
+
     const handleSaveGame = async () => {
         try {
             setSaving(true);
@@ -245,24 +285,24 @@ const AdminZkTVPage: React.FC = () => {
     const handleSaveStanding = async () => {
         try {
             setSaving(true);
-            
+
             // Validações
             if (!standingForm.team || standingForm.team.trim() === '') {
                 toast.error('Nome do time é obrigatório');
                 return;
             }
-            
+
             if (!standingForm.position || standingForm.position < 1) {
                 toast.error('Posição deve ser maior que zero');
                 return;
             }
-            
+
             const payload = {
                 ...standingForm,
                 competition: standingForm.competition || selectedCompetition,
                 team: standingForm.team.trim()
             };
-            
+
             const { error, data } = editingStanding
                 ? await supabase.from('cruzeiro_standings').update(payload).eq('id', editingStanding.id)
                 : await supabase.from('cruzeiro_standings').insert([payload]).select();
@@ -272,7 +312,7 @@ const AdminZkTVPage: React.FC = () => {
                 toast.error(`Erro ao salvar: ${error.message || 'Erro desconhecido'}`);
                 return;
             }
-            
+
             toast.success('Classificação atualizada!');
             setIsAddingStanding(false);
             setEditingStanding(null);
@@ -468,9 +508,9 @@ const AdminZkTVPage: React.FC = () => {
                                             setGameForm({
                                                 opponent: '',
                                                 date: new Date().toISOString(),
-                                                venue: 'Mineirão',
                                                 competition: 'Brasileirão Série A',
                                                 is_home: true,
+                                                banner_url: '',
                                                 status: 'upcoming'
                                             });
                                             setIsAddingGame(true);
@@ -532,6 +572,63 @@ const AdminZkTVPage: React.FC = () => {
                                                     onChange={(e) => setGameForm({ ...gameForm, venue: e.target.value })}
                                                     className="w-full bg-slate-950 border border-slate-700 p-4 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                                                 />
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className="block text-sm text-slate-400 mb-2">Banner do Jogo (Opcional)</label>
+                                                <div className="space-y-4">
+                                                    <div className="flex flex-col sm:flex-row gap-4">
+                                                        <input
+                                                            type="url"
+                                                            value={gameForm.banner_url || ''}
+                                                            onChange={(e) => setGameForm({ ...gameForm, banner_url: e.target.value })}
+                                                            className="flex-grow bg-slate-950 border border-slate-700 p-4 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                                                            placeholder="URL da imagem ou faça upload abaixo"
+                                                        />
+                                                        <div className="relative">
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                onChange={handleFileUpload}
+                                                                className="hidden"
+                                                                id="game-banner-upload"
+                                                                disabled={bannerUploading}
+                                                            />
+                                                            <label
+                                                                htmlFor="game-banner-upload"
+                                                                className={`flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold cursor-pointer transition-all border border-blue-500/30 hover:bg-blue-500/10 ${bannerUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                            >
+                                                                {bannerUploading ? (
+                                                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                                                ) : (
+                                                                    <Upload className="w-5 h-5" />
+                                                                )}
+                                                                {bannerUploading ? 'Enviando...' : 'Fazer Upload'}
+                                                            </label>
+                                                        </div>
+                                                    </div>
+
+                                                    {gameForm.banner_url && (
+                                                        <div className="relative group rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 aspect-video max-h-[200px]">
+                                                            <img
+                                                                src={gameForm.banner_url}
+                                                                alt="Preview"
+                                                                className="w-full h-full object-cover"
+                                                                onError={(e) => {
+                                                                    (e.target as HTMLImageElement).style.display = 'none';
+                                                                }}
+                                                            />
+                                                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setGameForm({ ...gameForm, banner_url: '' })}
+                                                                    className="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600 transition-colors"
+                                                                >
+                                                                    <Trash2 className="w-5 h-5" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="flex justify-end gap-4">
@@ -644,7 +741,7 @@ const AdminZkTVPage: React.FC = () => {
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div className="flex justify-end mb-4">
                                     <button
                                         onClick={() => {

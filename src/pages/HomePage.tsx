@@ -69,20 +69,34 @@ function HomePage() {
         table: 'match_pools'
       }, (payload) => {
         console.log('📡 Mudança detectada em match_pools:', payload.eventType, payload.new);
-        
+
         // Se for UPDATE e o bolão está ativo, atualizar diretamente o estado
         if (payload.eventType === 'UPDATE' && payload.new && (payload.new as any).is_active) {
           setActivePool((payload.new as any));
         } else {
           // Para INSERT ou DELETE, verificar novamente
-        checkActivePool();
+          checkActivePool();
         }
+      })
+      .subscribe();
+
+    // Subscribe para mudanças em cruzeiro_games - Atualização em tempo real do banner
+    const gamesChannel = supabase
+      .channel('home-games-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'cruzeiro_games'
+      }, () => {
+        console.log('📡 Mudança detectada em cruzeiro_games, recarregando...');
+        loadNextGame();
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(liveChannel);
       supabase.removeChannel(poolChannel);
+      supabase.removeChannel(gamesChannel);
     };
   }, []);
 
@@ -203,7 +217,7 @@ function HomePage() {
       const { data, error } = await supabase
         .from('cruzeiro_games')
         .select('*')
-        .gte('date', new Date().toISOString())
+        .neq('status', 'finished')
         .order('date', { ascending: true })
         .limit(1)
         .maybeSingle();
@@ -250,7 +264,7 @@ function HomePage() {
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 pointer-events-none mix-blend-overlay"></div>
 
         {/* Hero Section - O MAIOR DE MINAS */}
-        <div className="relative w-full overflow-hidden">
+        <div className="relative w-full">
           {/* Hero Background with Gradient/Image */}
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-primary-dark to-black opacity-90"></div>
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-500/20 via-transparent to-transparent"></div>
@@ -270,21 +284,36 @@ function HomePage() {
             </h1>
 
             <p className="text-blue-100 text-lg sm:text-2xl max-w-2xl font-light mb-10 leading-relaxed">
-              Participe dos sorteios exclusivos e concorra a prêmios dignos da nação azul.
+              Acompanhe todas as emoções do Cruzeiro em um só lugar. Lives, bolões e prêmios exclusivos para a maior torcida de Minas.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              {activePool && activePool.is_active && (
+                <button
+                  onClick={() => setShowPoolModal(true)}
+                  className="btn btn-primary px-10 py-4 text-lg shadow-emerald-500/50 hover:shadow-emerald-400/60 bg-gradient-to-r from-emerald-600 to-emerald-500 border-0"
+                >
+                  PARTICIPAR DO BOLÃO
+                </button>
+              )}
               <Link
-                to={hasActiveRaffle ? (isLoggedIn ? "/free-raffles" : "/login") : "/winners"}
-                className="btn btn-primary px-10 py-4 text-lg shadow-blue-500/50 hover:shadow-blue-400/60"
+                to="/zk-tv"
+                className={`btn px-10 py-4 text-lg border-white/40 hover:bg-white/10 relative overflow-hidden group/live ${hasActiveLive ? 'bg-blue-600/20 border-blue-500/50' : 'btn-outline'}`}
               >
-                PARTICIPAR AGORA
-              </Link>
-              <Link
-                to="/live-games"
-                className="btn btn-outline px-10 py-4 text-lg border-white/40 hover:bg-white/10"
-              >
-                ASSISTIR LIVES
+                <div className="flex items-center gap-3">
+                  {hasActiveLive && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                      </span>
+                      <span className="text-[10px] font-black text-red-400 uppercase tracking-tighter animate-pulse">
+                        AO VIVO
+                      </span>
+                    </div>
+                  )}
+                  <span>ASSISTIR LIVES</span>
+                </div>
               </Link>
             </div>
 
@@ -300,42 +329,23 @@ function HomePage() {
               </a>
             </div>
 
-            {/* Floating Prizes (Visual Only) */}
-            <div className="absolute -bottom-16 opacity-10 pointer-events-none w-full flex justify-between px-4">
-              <span className="text-9xl transform -rotate-12 blur-sm">🦊</span>
-              <span className="text-9xl transform rotate-12 blur-sm">🏆</span>
-            </div>
+            {/* Admin Managed Game Banner */}
+            {!loadingGame && nextGame?.banner_url && (
+              <div className="mt-12 w-full max-w-4xl mx-auto px-4 z-20 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                <div className="relative group overflow-hidden rounded-[2rem] sm:rounded-[3rem] border border-white/10 shadow-2xl shadow-blue-500/10">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10 opacity-60 group-hover:opacity-40 transition-opacity duration-700"></div>
+                  <img
+                    src={nextGame.banner_url}
+                    alt="Próximo Jogo"
+                    className="w-full h-auto min-h-[150px] object-cover transition-transform duration-1000 group-hover:scale-110"
+                  />
 
-            {/* NEXT GAME FLOATING WIDGET - 2026 EDITION */}
-            {!loadingGame && nextGame && (
-              <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-full max-w-sm px-4 sm:px-0 z-30">
-                <div className="glass-panel-dark border border-white/10 p-5 rounded-[2rem] shadow-2xl backdrop-blur-2xl animate-in slide-in-from-bottom-4 duration-700">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[8px] font-black uppercase tracking-widest">Próximo Jogo</span>
-                    <span className="text-[8px] font-black text-white/40 uppercase tracking-widest">{nextGame.competition}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex flex-col items-center flex-1">
-                      <div className="h-10 w-10 bg-blue-600 rounded-xl flex items-center justify-center text-[10px] font-black text-white mb-2 shadow-lg shadow-blue-600/20">CRU</div>
-                      <span className="text-[10px] font-bold text-white uppercase">Cruzeiro</span>
-                    </div>
-                    <div className="text-xl font-black italic text-white/10 uppercase">VS</div>
-                    <div className="flex flex-col items-center flex-1">
-                      <div className="h-10 w-10 bg-slate-800 border border-white/5 rounded-xl flex items-center justify-center text-[10px] font-black text-slate-400 mb-2">
-                        {nextGame.opponent.substring(0, 3).toUpperCase()}
-                      </div>
-                      <span className="text-[10px] font-bold text-white uppercase truncate max-w-[80px]">{nextGame.opponent}</span>
-                    </div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-center gap-6">
-                    <div className="flex items-center gap-2 text-[10px] font-black text-blue-300">
-                      <Calendar className="w-3 h-3" />
-                      {new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] font-black text-blue-300">
-                      <Clock className="w-3 h-3" />
-                      {new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
-                    </div>
+                  {/* Banner Content (Optional info overlay) */}
+                  <div className="absolute bottom-6 left-6 right-6 z-20 flex flex-col items-start text-left">
+                    <span className="px-3 py-1 rounded-full bg-blue-600/80 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-white mb-2">Próxima Partida</span>
+                    <h4 className="text-xl sm:text-3xl font-black text-white italic uppercase tracking-tight">
+                      Cruzeiro <span className="text-blue-400">vs</span> {nextGame.opponent}
+                    </h4>
                   </div>
                 </div>
               </div>
@@ -510,7 +520,7 @@ function HomePage() {
             {activePool && activePool.is_active && (
               <div className="glass-panel p-6 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2 border-2 border-emerald-500/30 shadow-2xl shadow-emerald-900/30">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600 animate-pulse"></div>
-                
+
                 {/* Badge "Ao Vivo" */}
                 <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 bg-red-500/20 border border-red-500/40 rounded-full animate-pulse">
                   <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
@@ -520,16 +530,16 @@ function HomePage() {
                 <div className="w-16 h-16 mx-auto bg-gradient-to-br from-emerald-500/30 to-emerald-600/30 rounded-full flex items-center justify-center mb-4 text-emerald-300 group-hover:scale-110 transition-transform group-hover:from-emerald-500/40 group-hover:to-emerald-600/40 relative mt-2">
                   <Target className="w-8 h-8" />
                 </div>
-                
+
                 <h3 className="text-xl font-black text-white mb-1 uppercase tracking-tight">Bolão Ativo</h3>
-                
+
                 {/* Informação da Partida */}
                 {(activePool.home_team || activePool.away_team) && (
                   <div className="mb-4 text-xs text-emerald-300/80 font-semibold line-clamp-1">
                     {activePool.home_team || ''} {activePool.home_team && activePool.away_team ? 'vs' : ''} {activePool.away_team || ''}
                   </div>
                 )}
-                
+
                 {/* Informações do Bolão */}
                 <div className="space-y-3 mb-4">
                   {/* Valor do Prêmio (70%) - DESTAQUE PRINCIPAL */}
@@ -550,7 +560,7 @@ function HomePage() {
                       )}
                     </div>
                   </div>
-                  
+
                   {/* Número de Participantes e Total Arrecadado */}
                   <div className={`grid gap-2 text-xs ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'}`}>
                     <div className="bg-slate-900/50 rounded-lg p-2.5 border border-emerald-500/10">
@@ -607,7 +617,7 @@ function HomePage() {
                               R$ {activePool.prize_per_winner.toFixed(2).replace('.', ',')} cada
                             </p>
                           )}
-                          <Link 
+                          <Link
                             to="/winners"
                             className="block text-center mt-2 text-[9px] text-yellow-400 hover:text-yellow-300 font-bold underline"
                           >
@@ -638,48 +648,7 @@ function HomePage() {
           {/* Banner Ad Space */}
           <AdvertisementCarousel position="homepage" autoPlay={true} autoPlayInterval={5000} />
 
-          {/* Number Selection Area (Legacy/Functional) */}
-          {(isLoggedIn || (!isLoggedIn && hasActiveRaffle)) && (
-            <div className="relative">
-              <div className="absolute inset-0 bg-blue-500/10 blur-3xl rounded-full"></div>
-              <div className="glass-panel-dark p-1 rounded-3xl relative z-10">
-                <div className="rounded-[20px] p-6 sm:p-10 bg-black/40 backdrop-blur-sm">
-                  <div className="text-center mb-10">
-                    <span className="px-4 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-bold uppercase tracking-wider mb-4 inline-block">Sorteio Gratuito</span>
-                    <h3 className="text-3xl sm:text-4xl font-bold text-white mb-4 font-display">
-                      🎯 Escolha seu Número
-                    </h3>
-                    <p className="text-blue-200 max-w-xl mx-auto">
-                      Selecione seu número da sorte abaixo para participar do sorteio ativo. É rápido e fácil.
-                    </p>
-                  </div>
 
-                  {isLoggedIn ? (
-                    <NumberSelection
-                      onSelectNumber={handleNumberSelection}
-                      selectedNumber={selectedNumber}
-                    />
-                  ) : (
-                    <div className="space-y-8">
-                      <NumberSelection
-                        onSelectNumber={handleNumberSelection}
-                        selectedNumber={selectedNumber}
-                      />
-                      <div className="border-t border-white/10 pt-8 mt-8">
-                        <div className="text-center mb-6">
-                          <p className="text-white font-bold">Cadastre-se para confirmar seu número</p>
-                        </div>
-                        <RegistrationForm
-                          selectedNumber={selectedNumber}
-                          onSuccess={handleRegistrationSuccess}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
 
         </div>
       </main>

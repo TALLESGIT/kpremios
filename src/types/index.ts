@@ -86,7 +86,9 @@ export interface CruzeiroGame {
   status: 'upcoming' | 'finished' | 'live';
   competition: string;
   is_home: boolean;
+  banner_url?: string;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface CruzeiroStanding {
