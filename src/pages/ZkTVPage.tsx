@@ -748,12 +748,12 @@ const ZkTVPage: React.FC = () => {
             <Header />
 
             {/* Hero Section / Live Stream */}
-            <section className="relative pt-24 pb-12 overflow-hidden">
+            <section className="relative pt-20 sm:pt-24 pb-12 sm:pb-16 lg:pb-20 overflow-visible">
                 {/* Background Glow */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-full bg-blue-600/10 blur-[120px] rounded-full pointer-events-none -z-10" />
 
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex flex-col lg:flex-row items-center gap-12">
+                    <div className="flex flex-col lg:flex-row items-center gap-6 sm:gap-8 lg:gap-12">
                         <div className="flex-1 text-center lg:text-left">
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
@@ -903,51 +903,51 @@ const ZkTVPage: React.FC = () => {
                                             allowFullScreen
                                         ></iframe>
                                     ) : (
-                                        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm p-6 sm:p-12 text-center">
+                                        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 sm:p-6 lg:p-12 text-center overflow-y-auto">
                                             {nextGame ? (
-                                                <div className="w-full max-w-sm mx-auto animate-in fade-in zoom-in duration-700">
-                                                    <div className="flex items-center justify-between mb-6">
-                                                        <span className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest">Próximo Jogo</span>
-                                                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{nextGame.competition}</span>
+                                                <div className="w-full max-w-sm mx-auto animate-in fade-in zoom-in duration-700 py-2">
+                                                    <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
+                                                        <span className="px-2 sm:px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Próximo Jogo</span>
+                                                        <span className="text-[9px] sm:text-[10px] font-black text-white/40 uppercase tracking-widest truncate">{nextGame.competition}</span>
                                                     </div>
 
-                                                    <div className="flex items-center justify-between gap-6 mb-8">
-                                                        <div className="flex flex-col items-center flex-1">
-                                                            <div className="h-16 w-16 bg-blue-600 rounded-2xl flex items-center justify-center text-lg font-black text-white mb-3 shadow-xl shadow-blue-600/20">CRU</div>
-                                                            <span className="text-xs font-bold text-white uppercase tracking-wider">Cruzeiro</span>
+                                                    <div className="flex items-center justify-between gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
+                                                        <div className="flex flex-col items-center flex-1 min-w-0">
+                                                            <div className="h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 bg-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center text-sm sm:text-base lg:text-lg font-black text-white mb-2 sm:mb-3 shadow-xl shadow-blue-600/20">CRU</div>
+                                                            <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full">Cruzeiro</span>
                                                         </div>
 
-                                                        <div className="flex flex-col items-center">
-                                                            <div className="text-2xl font-black italic text-white/10 uppercase mb-1">VS</div>
-                                                            <div className="h-1 w-8 bg-blue-500/20 rounded-full" />
+                                                        <div className="flex flex-col items-center flex-shrink-0">
+                                                            <div className="text-lg sm:text-xl lg:text-2xl font-black italic text-white/10 uppercase mb-1">VS</div>
+                                                            <div className="h-1 w-6 sm:w-8 bg-blue-500/20 rounded-full" />
                                                         </div>
 
-                                                        <div className="flex flex-col items-center flex-1">
-                                                            <div className="h-16 w-16 bg-slate-800 border border-white/5 rounded-2xl flex items-center justify-center text-lg font-black text-slate-400 mb-3">
+                                                        <div className="flex flex-col items-center flex-1 min-w-0">
+                                                            <div className="h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 bg-slate-800 border border-white/5 rounded-xl sm:rounded-2xl flex items-center justify-center text-sm sm:text-base lg:text-lg font-black text-slate-400 mb-2 sm:mb-3">
                                                                 {nextGame.opponent.substring(0, 3).toUpperCase()}
                                                             </div>
-                                                            <span className="text-xs font-bold text-white uppercase tracking-wider truncate max-w-[100px]">{nextGame.opponent}</span>
+                                                            <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full px-1">{nextGame.opponent}</span>
                                                         </div>
                                                     </div>
 
-                                                    <div className="pt-6 border-t border-white/5 flex items-center justify-center gap-8">
-                                                        <div className="flex items-center gap-3 text-sm font-black text-blue-300">
-                                                            <Calendar className="w-4 h-4" />
-                                                            {new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                                    <div className="pt-3 sm:pt-4 lg:pt-6 border-t border-white/5 flex items-center justify-center gap-4 sm:gap-6 lg:gap-8 pb-2">
+                                                        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-black text-blue-300">
+                                                            <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                                            <span>{new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
                                                         </div>
-                                                        <div className="flex items-center gap-3 text-sm font-black text-blue-300">
-                                                            <Clock className="w-4 h-4" />
-                                                            {new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
+                                                        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-black text-blue-300">
+                                                            <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                                            <span>{new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h</span>
                                                         </div>
                                                     </div>
                                                 </div>
                                             ) : (
                                                 <>
-                                                    <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center mb-6 border border-slate-700">
-                                                        <Play className="w-8 h-8 text-slate-600" />
+                                                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-800 rounded-xl sm:rounded-2xl flex items-center justify-center mb-4 sm:mb-6 border border-slate-700">
+                                                        <Play className="w-6 h-6 sm:w-8 sm:h-8 text-slate-600" />
                                                     </div>
-                                                    <h3 className="text-xl font-bold mb-2 text-slate-400">Aguardando calendário...</h3>
-                                                    <p className="text-slate-500 text-sm">A live será exibida aqui em breve...</p>
+                                                    <h3 className="text-lg sm:text-xl font-bold mb-2 text-slate-400">Aguardando calendário...</h3>
+                                                    <p className="text-slate-500 text-xs sm:text-sm px-4">A live será exibida aqui em breve...</p>
                                                 </>
                                             )}
                                         </div>
@@ -1116,24 +1116,24 @@ const ZkTVPage: React.FC = () => {
             )}
 
             {/* Content Section */}
-            <section className="py-6 sm:py-8 lg:py-12 relative">
+            <section className="py-6 sm:py-8 lg:py-12 relative pb-12 sm:pb-16 lg:pb-24">
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
                     {/* Main Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
 
                         {/* Sidebar: Next Match & Stats */}
-                        <div className="lg:col-span-1 space-y-8">
+                        <div className="lg:col-span-1 space-y-4 sm:space-y-6 lg:space-y-8">
                             {/* Next Match Card */}
-                            <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-4 sm:p-6 lg:p-8 rounded-[2rem] relative overflow-visible group">
+                            <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-4 sm:p-6 lg:p-8 rounded-[2rem] relative overflow-visible group pb-6 sm:pb-8">
                                 <div className="absolute top-0 right-0 p-4 sm:p-6 lg:p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
                                     <Shield className="w-24 sm:w-32 h-24 sm:h-32 text-blue-500" />
                                 </div>
 
-                                <h3 className="text-xs sm:text-sm font-bold text-blue-500 uppercase tracking-widest mb-4 sm:mb-6 lg:mb-8">Próximo Jogo</h3>
+                                <h3 className="text-xs sm:text-sm font-bold text-blue-500 uppercase tracking-widest mb-3 sm:mb-4 lg:mb-6">Próximo Jogo</h3>
 
                                 {nextGame ? (
                                     <>
-                                        <div className="flex items-center justify-between mb-4 sm:mb-6 lg:mb-8 gap-2 sm:gap-4">
+                                        <div className="flex items-center justify-between mb-3 sm:mb-4 lg:mb-6 gap-2 sm:gap-4">
                                             <div className="text-center flex-1 min-w-0">
                                                 <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-2 sm:mb-3 shadow-lg shadow-blue-600/20 font-black text-white text-xs sm:text-sm lg:text-base">CRU</div>
                                                 <span className="text-xs sm:text-sm font-bold block truncate">Cruzeiro</span>
@@ -1147,7 +1147,7 @@ const ZkTVPage: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <div className="space-y-3 sm:space-y-4 pt-4 sm:pt-6 border-t border-slate-800/50">
+                                        <div className="space-y-2 sm:space-y-3 pt-3 sm:pt-4 lg:pt-6 border-t border-slate-800/50 pb-2">
                                             <div className="flex items-center gap-2 sm:gap-3 text-slate-300">
                                                 <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
                                                 <span className="text-xs sm:text-sm break-words">{new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
