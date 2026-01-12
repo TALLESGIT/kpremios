@@ -76,6 +76,7 @@ const ZkTVPage: React.FC = () => {
     const [showVipModal, setShowVipModal] = useState(false);
     const [showPoolModal, setShowPoolModal] = useState(false);
     const [activePool, setActivePool] = useState<any>(null);
+    const [lastPoolResult, setLastPoolResult] = useState<any>(null); // Último resultado do bolão
 
     const [sessionId] = useState(() => {
         const key = `zk_tv_session`;
@@ -161,6 +162,7 @@ const ZkTVPage: React.FC = () => {
         loadActiveStream();
         checkVipStatus();
         checkActivePool(); // Verificar bolão ao carregar
+        loadLastPoolResult(); // Buscar último resultado do bolão
 
         // Detectar mobile
         const checkMobile = () => {
@@ -285,6 +287,28 @@ const ZkTVPage: React.FC = () => {
         }
     };
 
+    // Buscar último resultado do bolão (com resultado preenchido)
+    const loadLastPoolResult = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('match_pools')
+                .select('*')
+                .not('result_home_score', 'is', null)
+                .not('result_away_score', 'is', null)
+                .order('updated_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (!error && data) {
+                setLastPoolResult(data);
+            } else {
+                setLastPoolResult(null);
+            }
+        } catch (err) {
+            console.error('Erro ao buscar último resultado do bolão:', err);
+        }
+    };
+
     // Subscribe to pool updates
     useEffect(() => {
         const poolChannel = supabase
@@ -295,6 +319,7 @@ const ZkTVPage: React.FC = () => {
                 table: 'match_pools'
             }, () => {
                 checkActivePool();
+                loadLastPoolResult(); // Atualizar último resultado quando houver mudanças
             })
             .subscribe();
 
@@ -613,24 +638,106 @@ const ZkTVPage: React.FC = () => {
         try {
             const [settingsRes, gamesRes, standingsRes] = await Promise.all([
                 supabase.from('cruzeiro_settings').select('*').single(),
-                supabase.from('cruzeiro_games').select('*').neq('status', 'finished').order('date', { ascending: true }),
+                supabase.from('cruzeiro_games').select('*').order('date', { ascending: true }),
                 supabase.from('cruzeiro_standings').select('*').order('position', { ascending: true })
             ]);
 
+            if (settingsRes.error) {
+                console.error('❌ Erro ao carregar settings:', settingsRes.error);
+            }
             if (settingsRes.data) setSettings(settingsRes.data);
-            if (gamesRes.data) setGames(gamesRes.data);
+            
+            if (gamesRes.error) {
+                console.error('❌ Erro ao carregar jogos:', gamesRes.error);
+            }
+            if (gamesRes.data) {
+                console.log('🎮 Jogos carregados do banco:', gamesRes.data.length, gamesRes.data);
+                setGames(gamesRes.data);
+            } else {
+                console.warn('⚠️ Nenhum jogo retornado do banco de dados');
+            }
+            
+            if (standingsRes.error) {
+                console.error('❌ Erro ao carregar standings:', standingsRes.error);
+            }
             if (standingsRes.data) setStandings(standingsRes.data);
 
             // Recalcular stats após carregar todos os dados
             setTimeout(() => loadQuickStats(), 200);
         } catch (error) {
-            console.error('Error loading Cruzeiro data:', error);
+            console.error('❌ Error loading Cruzeiro data:', error);
         }
     };
 
-    const nextGame = games.find(g => new Date(g.date) > new Date() || g.status === 'live');
-    const recentGames = games.filter(g => new Date(g.date) <= new Date() && g.status === 'finished').reverse().slice(0, 3);
-    const upcomingGames = games.filter(g => new Date(g.date) > new Date()).slice(0, 5);
+    const nextGame = games.find(g => {
+        if (!g || !g.date) return false;
+        const gameDate = new Date(g.date);
+        const now = new Date();
+        return (gameDate > now || g.status === 'live');
+    });
+    
+    const recentGames = games.filter(g => {
+        if (!g || !g.date) return false;
+        const gameDate = new Date(g.date);
+        const now = new Date();
+        return gameDate <= now && g.status === 'finished';
+    }).reverse().slice(0, 3);
+    
+    const upcomingGames = games.filter(g => {
+        if (!g || !g.date) {
+            return false;
+        }
+        
+        try {
+            const gameDate = new Date(g.date);
+            const now = new Date();
+            const isFuture = gameDate.getTime() > now.getTime();
+            const isNotFinished = g.status !== 'finished';
+            
+            // Mostrar todos os jogos não finalizados (independente da data)
+            // Isso permite que jogos com data passada mas status "upcoming" apareçam
+            const shouldShow = isNotFinished;
+            
+            // Log apenas se houver jogos mas nenhum passar no filtro
+            if (games.length > 0) {
+                console.log('🔍 Jogo:', g.opponent, '| Data:', g.date, '| É futuro?', isFuture, '| Status:', g.status, '| Mostrar?', shouldShow);
+            }
+            
+            return shouldShow;
+        } catch (error) {
+            console.error('❌ Erro ao processar data do jogo:', g, error);
+            return false;
+        }
+    })
+    .sort((a, b) => {
+        // Ordenar: jogos futuros primeiro, depois por data
+        const aDate = new Date(a.date);
+        const bDate = new Date(b.date);
+        const now = new Date();
+        const aIsFuture = aDate > now;
+        const bIsFuture = bDate > now;
+        
+        if (aIsFuture && !bIsFuture) return -1;
+        if (!aIsFuture && bIsFuture) return 1;
+        return aDate.getTime() - bDate.getTime();
+    })
+    .slice(0, 5);
+
+    // Debug: Log dos jogos futuros
+    useEffect(() => {
+        console.log('📅 Próximos jogos filtrados:', upcomingGames.length, upcomingGames);
+        console.log('📅 Todos os jogos:', games.length, games);
+        if (games.length > 0 && upcomingGames.length === 0) {
+            console.warn('⚠️ Há jogos cadastrados mas nenhum foi filtrado como futuro!');
+            games.forEach(g => {
+                if (g && g.date) {
+                    const gameDate = new Date(g.date);
+                    const now = new Date();
+                    console.log('📊 Jogo:', g.opponent, 'Data:', g.date, 'É futuro?', gameDate > now, 'Status:', g.status);
+                }
+            });
+        }
+    }, [upcomingGames, games]);
 
     // Na página ZK TV, sempre mostrar a live se houver stream zktv
     // Mesmo que is_active = false, tenta mostrar (pode estar transmitindo mas status não sincronizado)
@@ -1146,22 +1253,55 @@ const ZkTVPage: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-4 opacity-50">
+                                            <div className="space-y-4">
                                                 <h4 className="text-lg font-bold">Últimos Resultados</h4>
                                                 <div className="grid gap-4">
-                                                    {recentGames.map(game => (
-                                                        <div key={game.id} className="flex items-center justify-between p-6 bg-slate-950 border border-slate-900 rounded-2xl">
-                                                            <div className="flex items-center gap-4">
-                                                                <Zap className="w-4 h-4 text-yellow-500" />
-                                                                <span className="text-sm font-bold">{game.opponent}</span>
+                                                    {/* Mostrar resultado do bolão se houver */}
+                                                    {lastPoolResult ? (
+                                                        <div className="flex items-center justify-between p-6 bg-gradient-to-r from-emerald-900/30 to-blue-900/30 border border-emerald-500/30 rounded-2xl relative overflow-hidden">
+                                                            <div className="absolute top-2 right-2">
+                                                                <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase rounded-full border border-emerald-500/30">
+                                                                    Bolão
+                                                                </span>
                                                             </div>
-                                                            <div className="flex items-center gap-4 font-black">
-                                                                <div className="px-3 py-1 bg-slate-900 rounded-lg">{game.score_home}</div>
-                                                                <span className="text-slate-700">-</span>
-                                                                <div className="px-3 py-1 bg-slate-900 rounded-lg">{game.score_away}</div>
+                                                            <div className="flex items-center gap-4 flex-1">
+                                                                <Target className="w-5 h-5 text-emerald-400" />
+                                                                <div className="flex-1">
+                                                                    <div className="text-xs font-bold text-emerald-400 mb-1 uppercase">{lastPoolResult.match_title}</div>
+                                                                    <div className="text-sm font-bold text-white">
+                                                                        {lastPoolResult.home_team} <span className="text-slate-500 mx-2">vs</span> {lastPoolResult.away_team}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-3 font-black">
+                                                                <div className="px-4 py-2 bg-emerald-600/20 border border-emerald-500/30 rounded-lg text-emerald-300 text-lg">
+                                                                    {lastPoolResult.result_home_score}
+                                                                </div>
+                                                                <span className="text-emerald-400 text-xl">x</span>
+                                                                <div className="px-4 py-2 bg-emerald-600/20 border border-emerald-500/30 rounded-lg text-emerald-300 text-lg">
+                                                                    {lastPoolResult.result_away_score}
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    ))}
+                                                    ) : (
+                                                        // Se não houver resultado do bolão, mostrar jogos finalizados do Cruzeiro
+                                                        recentGames.map(game => (
+                                                            <div key={game.id} className="flex items-center justify-between p-6 bg-slate-950 border border-slate-900 rounded-2xl">
+                                                                <div className="flex items-center gap-4">
+                                                                    <Zap className="w-4 h-4 text-yellow-500" />
+                                                                    <span className="text-sm font-bold">{game.opponent}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-4 font-black">
+                                                                    <div className="px-3 py-1 bg-slate-900 rounded-lg">{game.score_home}</div>
+                                                                    <span className="text-slate-700">-</span>
+                                                                    <div className="px-3 py-1 bg-slate-900 rounded-lg">{game.score_away}</div>
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                    {!lastPoolResult && recentGames.length === 0 && (
+                                                        <p className="text-slate-500 text-center py-12">Nenhum resultado disponível.</p>
+                                                    )}
                                                 </div>
                                             </div>
                                         </motion.div>

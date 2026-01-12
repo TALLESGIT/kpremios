@@ -60,6 +60,41 @@ const TEAMS_BY_COMPETITION: Record<string, string[]> = {
 
 const ALL_OPPONENTS = [...new Set([...TEAMS_BRASIL_SERIE_A, ...TEAMS_MINEIRO, ...TEAMS_LIBERTADORES])].sort();
 
+// Função helper para converter datetime-local para ISO preservando o horário local
+const datetimeLocalToISO = (datetimeLocal: string): string => {
+    if (!datetimeLocal) return '';
+    // datetime-local vem no formato "YYYY-MM-DDTHH:mm"
+    // Precisamos criar uma data preservando o horário local (sem aplicar timezone)
+    const [datePart, timePart] = datetimeLocal.split('T');
+    if (!datePart || !timePart) return datetimeLocal;
+    
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hours, minutes] = timePart.split(':').map(Number);
+    
+    // Criar data usando os componentes locais (sem timezone)
+    // Isso garante que o horário selecionado seja preservado
+    const localDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    return localDate.toISOString();
+};
+
+// Função helper para converter ISO para datetime-local (formato esperado pelo input)
+const isoToDatetimeLocal = (isoString: string | undefined): string => {
+    if (!isoString) return '';
+    try {
+        const date = new Date(isoString);
+        // Obter componentes da data no timezone local
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    } catch (e) {
+        return '';
+    }
+};
+
 const AdminZkTVPage: React.FC = () => {
     const { currentUser } = useData();
     const [activeTab, setActiveTab] = useState<'settings' | 'games' | 'standings'>('settings');
@@ -559,8 +594,8 @@ const AdminZkTVPage: React.FC = () => {
                                                 <label className="block text-sm text-slate-400 mb-2">Data e Hora</label>
                                                 <input
                                                     type="datetime-local"
-                                                    value={gameForm.date?.substring(0, 16)}
-                                                    onChange={(e) => setGameForm({ ...gameForm, date: new Date(e.target.value).toISOString() })}
+                                                    value={isoToDatetimeLocal(gameForm.date)}
+                                                    onChange={(e) => setGameForm({ ...gameForm, date: datetimeLocalToISO(e.target.value) })}
                                                     className="w-full bg-slate-950 border border-slate-700 p-4 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                                                 />
                                             </div>
