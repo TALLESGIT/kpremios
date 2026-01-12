@@ -1116,99 +1116,99 @@ const ZkTVPage: React.FC = () => {
             )}
 
             {/* Content Section */}
-            <section className="py-12 relative">
+            <section className="py-6 sm:py-8 lg:py-12 relative">
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
                     {/* Main Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
 
                         {/* Sidebar: Next Match & Stats */}
                         <div className="lg:col-span-1 space-y-8">
                             {/* Next Match Card */}
-                            <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-8 rounded-[2rem] relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-                                    <Shield className="w-32 h-32 text-blue-500" />
+                            <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-4 sm:p-6 lg:p-8 rounded-[2rem] relative overflow-visible group">
+                                <div className="absolute top-0 right-0 p-4 sm:p-6 lg:p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
+                                    <Shield className="w-24 sm:w-32 h-24 sm:h-32 text-blue-500" />
                                 </div>
 
-                                <h3 className="text-sm font-bold text-blue-500 uppercase tracking-widest mb-8">Próximo Jogo</h3>
+                                <h3 className="text-xs sm:text-sm font-bold text-blue-500 uppercase tracking-widest mb-4 sm:mb-6 lg:mb-8">Próximo Jogo</h3>
 
                                 {nextGame ? (
                                     <>
-                                        <div className="flex items-center justify-between mb-8">
-                                            <div className="text-center flex-1">
-                                                <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-blue-600/20 font-black text-white">CRU</div>
-                                                <span className="text-sm font-bold block">Cruzeiro</span>
+                                        <div className="flex items-center justify-between mb-4 sm:mb-6 lg:mb-8 gap-2 sm:gap-4">
+                                            <div className="text-center flex-1 min-w-0">
+                                                <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-2 sm:mb-3 shadow-lg shadow-blue-600/20 font-black text-white text-xs sm:text-sm lg:text-base">CRU</div>
+                                                <span className="text-xs sm:text-sm font-bold block truncate">Cruzeiro</span>
                                             </div>
-                                            <div className="px-4 text-2xl font-black italic text-slate-700">VS</div>
-                                            <div className="text-center flex-1">
-                                                <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-slate-700 font-black text-slate-400">
+                                            <div className="px-1 sm:px-2 lg:px-4 text-lg sm:text-xl lg:text-2xl font-black italic text-slate-700 flex-shrink-0">VS</div>
+                                            <div className="text-center flex-1 min-w-0">
+                                                <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-slate-800 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-2 sm:mb-3 border border-slate-700 font-black text-slate-400 text-xs sm:text-sm lg:text-base">
                                                     {nextGame.opponent.substring(0, 3).toUpperCase()}
                                                 </div>
-                                                <span className="text-sm font-bold block">{nextGame.opponent}</span>
+                                                <span className="text-xs sm:text-sm font-bold block truncate px-1">{nextGame.opponent}</span>
                                             </div>
                                         </div>
 
-                                        <div className="space-y-4 pt-6 border-t border-slate-800/50">
-                                            <div className="flex items-center gap-3 text-slate-300">
-                                                <Calendar className="w-4 h-4 text-blue-500" />
-                                                <span className="text-sm">{new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+                                        <div className="space-y-3 sm:space-y-4 pt-4 sm:pt-6 border-t border-slate-800/50">
+                                            <div className="flex items-center gap-2 sm:gap-3 text-slate-300">
+                                                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
+                                                <span className="text-xs sm:text-sm break-words">{new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
                                             </div>
-                                            <div className="flex items-center gap-3 text-slate-300">
-                                                <Clock className="w-4 h-4 text-blue-500" />
-                                                <span className="text-sm">{new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h</span>
+                                            <div className="flex items-center gap-2 sm:gap-3 text-slate-300">
+                                                <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
+                                                <span className="text-xs sm:text-sm">{new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h</span>
                                             </div>
-                                            <div className="flex items-center gap-3 text-slate-300">
-                                                <MapPin className="w-4 h-4 text-blue-500" />
-                                                <span className="text-sm">{nextGame.venue}</span>
+                                            <div className="flex items-center gap-2 sm:gap-3 text-slate-300">
+                                                <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
+                                                <span className="text-xs sm:text-sm break-words">{nextGame.venue}</span>
                                             </div>
                                         </div>
                                     </>
                                 ) : (
-                                    <p className="text-slate-500 text-center py-8">Aguardando calendário...</p>
+                                    <p className="text-slate-500 text-center py-6 sm:py-8 text-xs sm:text-sm">Aguardando calendário...</p>
                                 )}
                             </div>
 
                             {/* Quick Stats */}
-                            <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-8 rounded-[2rem] shadow-xl shadow-blue-600/10">
-                                <div className="flex items-center justify-between mb-8">
-                                    <h3 className="text-sm font-bold text-white uppercase tracking-widest">Estatísticas Rápidas</h3>
-                                    <Activity className="w-5 h-5 text-blue-200" />
+                            <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-4 sm:p-6 lg:p-8 rounded-[2rem] shadow-xl shadow-blue-600/10">
+                                <div className="flex items-center justify-between mb-4 sm:mb-6 lg:mb-8">
+                                    <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-widest">Estatísticas Rápidas</h3>
+                                    <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-blue-200" />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
-                                        <span className="block text-blue-200 text-xs font-bold uppercase mb-1">Vitórias</span>
-                                        <span className="text-2xl font-black text-white">{quickStats.victories}</span>
+                                <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:gap-4">
+                                    <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10">
+                                        <span className="block text-blue-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Vitórias</span>
+                                        <span className="text-xl sm:text-2xl font-black text-white">{quickStats.victories}</span>
                                     </div>
-                                    <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
-                                        <span className="block text-blue-200 text-xs font-bold uppercase mb-1">Gols Pró</span>
-                                        <span className="text-2xl font-black text-white">{quickStats.goalsFor}</span>
+                                    <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10">
+                                        <span className="block text-blue-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Gols Pró</span>
+                                        <span className="text-xl sm:text-2xl font-black text-white">{quickStats.goalsFor}</span>
                                     </div>
-                                    <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
-                                        <span className="block text-blue-200 text-xs font-bold uppercase mb-1">Aproveit.</span>
-                                        <span className="text-2xl font-black text-white">{quickStats.winRate}%</span>
+                                    <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10">
+                                        <span className="block text-blue-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Aproveit.</span>
+                                        <span className="text-xl sm:text-2xl font-black text-white">{quickStats.winRate}%</span>
                                     </div>
-                                    <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
-                                        <span className="block text-blue-200 text-xs font-bold uppercase mb-1">Artilheiro</span>
-                                        <span className="text-sm font-black text-white">{quickStats.topScorer}</span>
+                                    <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10">
+                                        <span className="block text-blue-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Artilheiro</span>
+                                        <span className="text-xs sm:text-sm font-black text-white break-words">{quickStats.topScorer}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Main Content: Tabs & Tables */}
-                        <div className="lg:col-span-2 space-y-8">
+                        <div className="lg:col-span-2 space-y-4 sm:space-y-6 lg:space-y-8">
                             {/* Tab Selector */}
-                            <div className="flex gap-4 p-1 bg-slate-900 border border-slate-800 rounded-2xl w-fit">
+                            <div className="flex gap-2 sm:gap-4 p-1 bg-slate-900 border border-slate-800 rounded-xl sm:rounded-2xl w-full sm:w-fit">
                                 <button
                                     onClick={() => setActiveTab('games')}
-                                    className={`px-8 py-3 rounded-xl font-bold transition-all ${activeTab === 'games' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
+                                    className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === 'games' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
                                         }`}
                                 >
                                     Jogos
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('standings')}
-                                    className={`px-8 py-3 rounded-xl font-bold transition-all ${activeTab === 'standings' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
+                                    className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === 'standings' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
                                         }`}
                                 >
                                     Tabela
@@ -1216,7 +1216,7 @@ const ZkTVPage: React.FC = () => {
                             </div>
 
                             {/* Tab Panels */}
-                            <div className="bg-slate-900/20 rounded-[2rem] border border-slate-800/50 overflow-hidden">
+                            <div className="bg-slate-900/20 rounded-xl sm:rounded-2xl border border-slate-800/50 overflow-hidden">
                                 <AnimatePresence mode="wait">
                                     {activeTab === 'games' && (
                                         <motion.div
@@ -1224,28 +1224,28 @@ const ZkTVPage: React.FC = () => {
                                             initial={{ opacity: 0, x: -20 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             exit={{ opacity: 0, x: 20 }}
-                                            className="p-8 space-y-8"
+                                            className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8"
                                         >
-                                            <div className="space-y-4">
-                                                <h4 className="text-lg font-bold flex items-center gap-2">
-                                                    <Clock className="w-5 h-5 text-blue-500" />
+                                            <div className="space-y-3 sm:space-y-4">
+                                                <h4 className="text-base sm:text-lg font-bold flex items-center gap-2">
+                                                    <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
                                                     Próximos Confrontos
                                                 </h4>
-                                                <div className="grid gap-4">
+                                                <div className="grid gap-3 sm:gap-4">
                                                     {upcomingGames.map(game => (
-                                                        <div key={game.id} className="flex items-center justify-between p-6 bg-slate-900/50 border border-slate-800 rounded-2xl hover:border-blue-500/30 transition-all group">
-                                                            <div className="flex items-center gap-6">
-                                                                <div className="text-xs font-black text-slate-500 rotate-180 [writing-mode:vertical-lr]">
+                                                        <div key={game.id} className="flex items-center justify-between p-3 sm:p-4 lg:p-6 bg-slate-900/50 border border-slate-800 rounded-xl sm:rounded-2xl hover:border-blue-500/30 transition-all group gap-2 sm:gap-4">
+                                                            <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 min-w-0 flex-1">
+                                                                <div className="text-[10px] sm:text-xs font-black text-slate-500 rotate-180 [writing-mode:vertical-lr] hidden sm:block flex-shrink-0">
                                                                     {new Date(game.date).toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase()}
                                                                 </div>
-                                                                <div>
-                                                                    <div className="text-sm font-bold text-blue-500 mb-1">{game.competition}</div>
-                                                                    <div className="text-xl font-black">Cruzeiro <span className="text-slate-600 mx-2">VS</span> {game.opponent}</div>
+                                                                <div className="min-w-0 flex-1">
+                                                                    <div className="text-xs sm:text-sm font-bold text-blue-500 mb-1 truncate">{game.competition}</div>
+                                                                    <div className="text-sm sm:text-base lg:text-xl font-black break-words">Cruzeiro <span className="text-slate-600 mx-1 sm:mx-2">VS</span> {game.opponent}</div>
                                                                 </div>
                                                             </div>
-                                                            <div className="text-right">
-                                                                <div className="text-sm font-bold text-slate-300">{new Date(game.date).toLocaleDateString('pt-BR')}</div>
-                                                                <div className="text-xs text-slate-500">{game.venue}</div>
+                                                            <div className="text-right flex-shrink-0">
+                                                                <div className="text-xs sm:text-sm font-bold text-slate-300">{new Date(game.date).toLocaleDateString('pt-BR')}</div>
+                                                                <div className="text-[10px] sm:text-xs text-slate-500 truncate max-w-[80px] sm:max-w-none">{game.venue}</div>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -1253,32 +1253,32 @@ const ZkTVPage: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-4">
-                                                <h4 className="text-lg font-bold">Últimos Resultados</h4>
-                                                <div className="grid gap-4">
+                                            <div className="space-y-3 sm:space-y-4">
+                                                <h4 className="text-base sm:text-lg font-bold">Últimos Resultados</h4>
+                                                <div className="grid gap-3 sm:gap-4">
                                                     {/* Mostrar resultado do bolão se houver */}
                                                     {lastPoolResult ? (
-                                                        <div className="flex items-center justify-between p-6 bg-gradient-to-r from-emerald-900/30 to-blue-900/30 border border-emerald-500/30 rounded-2xl relative overflow-hidden">
-                                                            <div className="absolute top-2 right-2">
-                                                                <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase rounded-full border border-emerald-500/30">
+                                                        <div className="flex items-center justify-between p-3 sm:p-4 lg:p-6 bg-gradient-to-r from-emerald-900/30 to-blue-900/30 border border-emerald-500/30 rounded-xl sm:rounded-2xl relative overflow-visible gap-2 sm:gap-4">
+                                                            <div className="absolute top-1 right-1 sm:top-2 sm:right-2">
+                                                                <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-emerald-500/20 text-emerald-400 text-[8px] sm:text-[10px] font-black uppercase rounded-full border border-emerald-500/30">
                                                                     Bolão
                                                                 </span>
                                                             </div>
-                                                            <div className="flex items-center gap-4 flex-1">
-                                                                <Target className="w-5 h-5 text-emerald-400" />
-                                                                <div className="flex-1">
-                                                                    <div className="text-xs font-bold text-emerald-400 mb-1 uppercase">{lastPoolResult.match_title}</div>
-                                                                    <div className="text-sm font-bold text-white">
-                                                                        {lastPoolResult.home_team} <span className="text-slate-500 mx-2">vs</span> {lastPoolResult.away_team}
+                                                            <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 flex-1 min-w-0 pr-8 sm:pr-0">
+                                                                <Target className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 flex-shrink-0" />
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="text-[10px] sm:text-xs font-bold text-emerald-400 mb-1 uppercase truncate">{lastPoolResult.match_title}</div>
+                                                                    <div className="text-xs sm:text-sm font-bold text-white break-words">
+                                                                        {lastPoolResult.home_team} <span className="text-slate-500 mx-1 sm:mx-2">vs</span> {lastPoolResult.away_team}
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                            <div className="flex items-center gap-3 font-black">
-                                                                <div className="px-4 py-2 bg-emerald-600/20 border border-emerald-500/30 rounded-lg text-emerald-300 text-lg">
+                                                            <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 font-black flex-shrink-0">
+                                                                <div className="px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 lg:py-2 bg-emerald-600/20 border border-emerald-500/30 rounded-md sm:rounded-lg text-emerald-300 text-sm sm:text-base lg:text-lg">
                                                                     {lastPoolResult.result_home_score}
                                                                 </div>
-                                                                <span className="text-emerald-400 text-xl">x</span>
-                                                                <div className="px-4 py-2 bg-emerald-600/20 border border-emerald-500/30 rounded-lg text-emerald-300 text-lg">
+                                                                <span className="text-emerald-400 text-base sm:text-lg lg:text-xl">x</span>
+                                                                <div className="px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 lg:py-2 bg-emerald-600/20 border border-emerald-500/30 rounded-md sm:rounded-lg text-emerald-300 text-sm sm:text-base lg:text-lg">
                                                                     {lastPoolResult.result_away_score}
                                                                 </div>
                                                             </div>
@@ -1286,21 +1286,21 @@ const ZkTVPage: React.FC = () => {
                                                     ) : (
                                                         // Se não houver resultado do bolão, mostrar jogos finalizados do Cruzeiro
                                                         recentGames.map(game => (
-                                                            <div key={game.id} className="flex items-center justify-between p-6 bg-slate-950 border border-slate-900 rounded-2xl">
-                                                                <div className="flex items-center gap-4">
-                                                                    <Zap className="w-4 h-4 text-yellow-500" />
-                                                                    <span className="text-sm font-bold">{game.opponent}</span>
+                                                            <div key={game.id} className="flex items-center justify-between p-3 sm:p-4 lg:p-6 bg-slate-950 border border-slate-900 rounded-xl sm:rounded-2xl gap-2 sm:gap-4">
+                                                                <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 min-w-0 flex-1">
+                                                                    <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500 flex-shrink-0" />
+                                                                    <span className="text-xs sm:text-sm font-bold truncate">{game.opponent}</span>
                                                                 </div>
-                                                                <div className="flex items-center gap-4 font-black">
-                                                                    <div className="px-3 py-1 bg-slate-900 rounded-lg">{game.score_home}</div>
-                                                                    <span className="text-slate-700">-</span>
-                                                                    <div className="px-3 py-1 bg-slate-900 rounded-lg">{game.score_away}</div>
+                                                                <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 font-black flex-shrink-0">
+                                                                    <div className="px-2 sm:px-3 py-0.5 sm:py-1 bg-slate-900 rounded-md sm:rounded-lg text-xs sm:text-sm">{game.score_home}</div>
+                                                                    <span className="text-slate-700 text-sm sm:text-base">-</span>
+                                                                    <div className="px-2 sm:px-3 py-0.5 sm:py-1 bg-slate-900 rounded-md sm:rounded-lg text-xs sm:text-sm">{game.score_away}</div>
                                                                 </div>
                                                             </div>
                                                         ))
                                                     )}
                                                     {!lastPoolResult && recentGames.length === 0 && (
-                                                        <p className="text-slate-500 text-center py-12">Nenhum resultado disponível.</p>
+                                                        <p className="text-slate-500 text-center py-8 sm:py-12 text-xs sm:text-sm">Nenhum resultado disponível.</p>
                                                     )}
                                                 </div>
                                             </div>
