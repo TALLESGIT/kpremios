@@ -27,6 +27,7 @@ import LiveChat from '../components/live/LiveChat';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import VipSubscriptionModal from '../components/vip/VipSubscriptionModal';
 import PoolBetModal from '../components/pool/PoolBetModal';
+import { CastButton } from '../components/CastButton';
 import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding } from '../types';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -67,6 +68,8 @@ const ZkTVPage: React.FC = () => {
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [isDockedChat, setIsDockedChat] = useState(false);
     const [currentViewerCount, setCurrentViewerCount] = useState(0);
+    const [showControls, setShowControls] = useState(false);
+    const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const trackViewerExecutedRef = useRef(false);
     const videoContainerRef = useRef<HTMLDivElement>(null);
     const activeStreamRef = useRef<LiveStream | null>(null);
@@ -486,7 +489,7 @@ const ZkTVPage: React.FC = () => {
             // Primeiro, tentar buscar stream ativa
             let { data, error } = await supabase
                 .from('live_streams')
-                .select('id, title, channel_name, is_active, viewer_count')
+                .select('id, title, channel_name, is_active, viewer_count, hls_url')
                 .eq('is_active', true)
                 .order('created_at', { ascending: false })
                 .limit(1)
@@ -497,7 +500,7 @@ const ZkTVPage: React.FC = () => {
                 console.log('⚠️ Nenhuma stream ativa encontrada, buscando stream zktv...');
                 const { data: zktvData, error: zktvError } = await supabase
                     .from('live_streams')
-                    .select('id, title, channel_name, is_active, viewer_count')
+                    .select('id, title, channel_name, is_active, viewer_count, hls_url')
                     .eq('channel_name', 'zktv')
                     .maybeSingle();
 
@@ -743,6 +746,27 @@ const ZkTVPage: React.FC = () => {
     // Mesmo que is_active = false, tenta mostrar (pode estar transmitindo mas status não sincronizado)
     const isLiveActive = activeStream ? (activeStream.is_active || activeStream.channel_name === 'zktv') : !!settings?.is_live;
 
+    // Função para mostrar controles temporariamente
+    const showControlsTemporarily = () => {
+        setShowControls(true);
+        if (controlsTimeoutRef.current) {
+            clearTimeout(controlsTimeoutRef.current);
+        }
+        // Esconder controles após 3 segundos de inatividade
+        controlsTimeoutRef.current = setTimeout(() => {
+            setShowControls(false);
+        }, 3000);
+    };
+
+    // Cleanup do timeout ao desmontar
+    useEffect(() => {
+        return () => {
+            if (controlsTimeoutRef.current) {
+                clearTimeout(controlsTimeoutRef.current);
+            }
+        };
+    }, []);
+
     return (
         <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-blue-500/30">
             <Header />
@@ -834,7 +858,12 @@ const ZkTVPage: React.FC = () => {
                         <div
                             ref={videoContainerRef}
                             onDoubleClick={handleDoubleClick}
-                            className={`w-full lg:w-[600px] aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative cursor-pointer ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : ''
+                            onMouseEnter={() => !isMobile && showControlsTemporarily()}
+                            onMouseMove={() => !isMobile && showControlsTemporarily()}
+                            onMouseLeave={() => !isMobile && setShowControls(false)}
+                            onClick={() => showControlsTemporarily()}
+                            onTouchStart={() => isMobile && showControlsTemporarily()}
+                            className={`w-full lg:w-[600px] aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative cursor-pointer group ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : ''
                                 } ${isDockedChat ? 'mobile-video-container docked-chat-active' : ''}`}
                             title={isMobile ? "Toque duas vezes para tela cheia" : "Duplo clique para tela cheia"}
                         >
@@ -985,7 +1014,9 @@ const ZkTVPage: React.FC = () => {
                                         {!isMobile && (
                                             <button
                                                 onClick={() => setIsChatOpen(!isChatOpen)}
-                                                className="absolute bottom-4 left-4 p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all z-10 group"
+                                                className={`absolute bottom-4 left-4 p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all z-10 group ${
+                                                    showControls ? 'opacity-100' : 'opacity-0'
+                                                }`}
                                                 title="Abrir chat"
                                             >
                                                 <MessageSquare className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
@@ -994,7 +1025,16 @@ const ZkTVPage: React.FC = () => {
 
                                         {/* Botão Fullscreen Desktop */}
                                         {!isMobile && (
-                                            <div className="absolute bottom-4 right-4 flex gap-2 z-10">
+                                            <div className={`absolute bottom-4 right-4 flex gap-2 z-10 transition-opacity duration-300 ${
+                                                showControls ? 'opacity-100' : 'opacity-0'
+                                            }`}>
+                                                {/* Botão Cast (Chromecast/AirPlay) - Aparece automaticamente quando disponível */}
+                                                <CastButton 
+                                                    hlsUrl={activeStream?.hls_url}
+                                                    videoUrl={settings?.live_url}
+                                                    channelName={activeStream?.channel_name || 'zktv'}
+                                                />
+                                                
                                                 {/* Botão Picture-in-Picture / Cast Hint */}
                                                 <button
                                                     onClick={togglePiP}
@@ -1020,24 +1060,36 @@ const ZkTVPage: React.FC = () => {
 
                                         {/* Controles Mobile */}
                                         {isMobile && (
-                                            <MobileLiveControls
-                                                isActive={isLiveActive}
-                                                isFullscreen={isFullscreen}
-                                                onFullscreen={handleFullscreen}
-                                                onRotate={() => setIsLandscape(!isLandscape)}
-                                                onToggleFit={() => setVideoFitMode(p => p === 'contain' ? 'cover' : 'contain')}
-                                                fitMode={videoFitMode}
-                                                isDocked={isDockedChat}
-                                                onPictureInPicture={togglePiP}
-                                                isPictureInPicture={!!document.pictureInPictureElement}
-                                                onChatToggle={() => {
-                                                    if (isFullscreen && isLandscape) {
-                                                        setIsDockedChat(!isDockedChat);
-                                                    } else {
-                                                        setIsChatOpen(!isChatOpen);
-                                                    }
-                                                }}
-                                            />
+                                            <>
+                                                <MobileLiveControls
+                                                    isActive={isLiveActive}
+                                                    isFullscreen={isFullscreen}
+                                                    onFullscreen={handleFullscreen}
+                                                    onRotate={() => setIsLandscape(!isLandscape)}
+                                                    onToggleFit={() => setVideoFitMode(p => p === 'contain' ? 'cover' : 'contain')}
+                                                    fitMode={videoFitMode}
+                                                    isDocked={isDockedChat}
+                                                    onPictureInPicture={togglePiP}
+                                                    isPictureInPicture={!!document.pictureInPictureElement}
+                                                    onChatToggle={() => {
+                                                        if (isFullscreen && isLandscape) {
+                                                            setIsDockedChat(!isDockedChat);
+                                                        } else {
+                                                            setIsChatOpen(!isChatOpen);
+                                                        }
+                                                    }}
+                                                />
+                                                {/* Botão Cast para Mobile - Aparece automaticamente quando há TV disponível */}
+                                                <div className={`absolute top-4 right-4 z-10 transition-opacity duration-300 ${
+                                                    showControls ? 'opacity-100' : 'opacity-0'
+                                                }`}>
+                                                    <CastButton 
+                                                        hlsUrl={activeStream?.hls_url}
+                                                        videoUrl={settings?.live_url}
+                                                        channelName={activeStream?.channel_name || 'zktv'}
+                                                    />
+                                                </div>
+                                            </>
                                         )}
                                     </>
                                 )}

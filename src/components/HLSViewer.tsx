@@ -111,6 +111,8 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         autoPlay
         muted
         playsInline
+        webkit-playsinline
+        x-webkit-airplay="allow"
         controls
         preload="auto"
         style={{

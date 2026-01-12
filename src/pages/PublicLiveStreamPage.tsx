@@ -12,6 +12,7 @@ import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import VipSubscriptionModal from '../components/vip/VipSubscriptionModal';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import { CastButton } from '../components/CastButton';
 import { CruzeiroGame, CruzeiroStanding } from '../types';
 
 interface LiveStream {
@@ -22,6 +23,7 @@ interface LiveStream {
   is_active: boolean;
   viewer_count: number;
   created_at: string;
+  hls_url?: string;
 }
 
 const PublicLiveStreamPage: React.FC = () => {
@@ -48,7 +50,9 @@ const PublicLiveStreamPage: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
   const [videoFitMode, setVideoFitMode] = useState<'contain' | 'cover'>('contain');
+  const [showControls, setShowControls] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [upcomingGames, setUpcomingGames] = useState<CruzeiroGame[]>([]);
   const [standings, setStandings] = useState<CruzeiroStanding[]>([]);
   const [isVip, setIsVip] = useState(false);
@@ -61,13 +65,37 @@ const PublicLiveStreamPage: React.FC = () => {
     }
   }, [user, currentUser]);
 
-  // Handler para duplo clique - tela cheia
+  // Handler para duplo clique - tela cheia (com suporte melhorado para mobile)
   const handleDoubleClick = () => {
     if (!videoContainerRef.current) return;
-    if (isFullscreen) {
-      document.exitFullscreen();
-    } else {
-      videoContainerRef.current.requestFullscreen();
+    
+    try {
+      if (isFullscreen) {
+        // Sair do fullscreen
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          (document as any).webkitExitFullscreen();
+        } else if ((document as any).mozCancelFullScreen) {
+          (document as any).mozCancelFullScreen();
+        } else if ((document as any).msExitFullscreen) {
+          (document as any).msExitFullscreen();
+        }
+      } else {
+        // Entrar no fullscreen
+        const el = videoContainerRef.current;
+        if (el.requestFullscreen) {
+          el.requestFullscreen();
+        } else if ((el as any).webkitRequestFullscreen) {
+          (el as any).webkitRequestFullscreen();
+        } else if ((el as any).mozRequestFullScreen) {
+          (el as any).mozRequestFullScreen();
+        } else if ((el as any).msRequestFullscreen) {
+          (el as any).msRequestFullscreen();
+        }
+      }
+    } catch (error: any) {
+      console.error('Erro ao alternar fullscreen (duplo clique):', error);
     }
   };
 
@@ -440,14 +468,53 @@ const PublicLiveStreamPage: React.FC = () => {
     };
   }, [isMobile, isFullscreen]);
 
-  // ✅ Handler para fullscreen
+  // ✅ Handler para fullscreen (com suporte melhorado para mobile)
   const handleFullscreen = () => {
     if (!videoContainerRef.current) return;
-    if (isFullscreen) {
-      document.exitFullscreen();
-    } else {
-      videoContainerRef.current.requestFullscreen();
+    
+    try {
+      if (isFullscreen) {
+        // Sair do fullscreen
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          (document as any).webkitExitFullscreen();
+        } else if ((document as any).mozCancelFullScreen) {
+          (document as any).mozCancelFullScreen();
+        } else if ((document as any).msExitFullscreen) {
+          (document as any).msExitFullscreen();
+        }
+      } else {
+        // Entrar no fullscreen
+        const el = videoContainerRef.current;
+        if (el.requestFullscreen) {
+          el.requestFullscreen();
+        } else if ((el as any).webkitRequestFullscreen) {
+          (el as any).webkitRequestFullscreen();
+        } else if ((el as any).mozRequestFullScreen) {
+          (el as any).mozRequestFullScreen();
+        } else if ((el as any).msRequestFullscreen) {
+          (el as any).msRequestFullscreen();
+        } else {
+          toast.error('Fullscreen não suportado neste navegador');
+        }
+      }
+    } catch (error: any) {
+      console.error('Erro ao alternar fullscreen:', error);
+      toast.error('Erro ao alternar tela cheia');
     }
+  };
+
+  // Função para mostrar controles temporariamente
+  const showControlsTemporarily = () => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+    }
+    // Esconder controles após 3 segundos de inatividade
+    controlsTimeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
   };
 
   // ✅ Handler para Picture-in-Picture
@@ -573,7 +640,12 @@ const PublicLiveStreamPage: React.FC = () => {
             <div
               ref={videoContainerRef}
               onDoubleClick={handleDoubleClick}
-              className={`relative bg-black shadow-2xl overflow-hidden isolate cursor-pointer
+              onMouseEnter={() => !isMobile && showControlsTemporarily()}
+              onMouseMove={() => !isMobile && showControlsTemporarily()}
+              onMouseLeave={() => !isMobile && setShowControls(false)}
+              onClick={() => showControlsTemporarily()}
+              onTouchStart={() => isMobile && showControlsTemporarily()}
+              className={`relative bg-black shadow-2xl overflow-hidden isolate cursor-pointer group
                 ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : 'sm:rounded-3xl border-y sm:border border-white/10 aspect-video min-h-[220px] sm:min-h-[300px]'}
                 ${isDockedChat ? 'flex' : ''}`}
               title="Duplo clique para tela cheia"
@@ -604,7 +676,15 @@ const PublicLiveStreamPage: React.FC = () => {
 
                 {/* Botão Fullscreen Desktop */}
                 {stream.is_active && !isMobile && (
-                  <div className="absolute bottom-4 right-4 flex gap-2 z-10">
+                  <div className={`absolute bottom-4 right-4 flex gap-2 z-10 transition-opacity duration-300 ${
+                    showControls ? 'opacity-100' : 'opacity-0'
+                  }`}>
+                    {/* Botão Cast (Chromecast/AirPlay) - Aparece automaticamente quando disponível */}
+                    <CastButton 
+                      hlsUrl={stream.hls_url}
+                      channelName={channelName || 'zktv'}
+                    />
+                    
                     {/* Botão Picture-in-Picture / Cast Hint */}
                     {document.pictureInPictureEnabled && (
                       <button
@@ -640,7 +720,20 @@ const PublicLiveStreamPage: React.FC = () => {
                   isDocked={isDockedChat}
                   onPictureInPicture={togglePiP}
                   isPictureInPicture={!!document.pictureInPictureElement}
+                  containerRef={videoContainerRef}
                 />
+                
+                {/* Botão Cast para Mobile - Aparece automaticamente quando há TV disponível */}
+                {stream.is_active && isMobile && (
+                  <div className={`absolute top-4 right-4 z-10 transition-opacity duration-300 ${
+                    showControls ? 'opacity-100' : 'opacity-0'
+                  }`}>
+                    <CastButton 
+                      hlsUrl={stream.hls_url}
+                      channelName={channelName || 'zktv'}
+                    />
+                  </div>
+                )}
               </div>
               {isDockedChat && (
                 <div className={`h-full bg-black/40 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl animate-in slide-in-from-right duration-300 ${isMobile ? 'w-[400px] min-w-[350px] max-w-[45vw]' : 'w-[300px]'
