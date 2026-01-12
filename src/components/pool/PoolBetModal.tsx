@@ -42,22 +42,39 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
   const checkExistingBet = async () => {
     if (!user) return;
     try {
-      const { data, error } = await supabase
+      // Verificar se há apostas pendentes antigas (mais de 5 minutos) e cancelá-las
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      
+      // Cancelar apostas pendentes antigas deste usuário neste bolão
+      await supabase
+        .from('pool_bets')
+        .update({ payment_status: 'cancelled' })
+        .eq('pool_id', poolId)
+        .eq('user_id', user.id)
+        .eq('payment_status', 'pending')
+        .lt('created_at', fiveMinutesAgo);
+
+      // Buscar todas as apostas aprovadas (pagas) para mostrar
+      const { data: approvedBets, error } = await supabase
         .from('pool_bets')
         .select('*')
         .eq('pool_id', poolId)
         .eq('user_id', user.id)
-        .single();
+        .eq('payment_status', 'approved')
+        .order('created_at', { ascending: false });
 
-      if (data && !error) {
+      // Se houver pelo menos uma aposta aprovada, mostrar a mais recente
+      if (approvedBets && approvedBets.length > 0 && !error) {
+        const mostRecentBet = approvedBets[0];
         setHasBet(true);
-        setHomeScore(data.predicted_home_score.toString());
-        setAwayScore(data.predicted_away_score.toString());
+        setHomeScore(mostRecentBet.predicted_home_score.toString());
+        setAwayScore(mostRecentBet.predicted_away_score.toString());
       } else {
         setHasBet(false);
       }
     } catch (err) {
       console.error('Erro ao verificar aposta:', err);
+      setHasBet(false);
     }
   };
 
@@ -91,6 +108,44 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
     try {
       setLoading(true);
 
+      // Verificar e gerenciar apostas existentes
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      
+      // Buscar todas as apostas existentes deste usuário neste bolão
+      const { data: existingBets } = await supabase
+        .from('pool_bets')
+        .select('*')
+        .eq('pool_id', poolId)
+        .eq('user_id', user.id);
+
+      if (existingBets && existingBets.length > 0) {
+        // Verificar se há aposta pendente recente (menos de 5 minutos) - não permite nova aposta pendente
+        const recentPendingBet = existingBets.find(
+          bet => bet.payment_status === 'pending' && new Date(bet.created_at) > new Date(fiveMinutesAgo)
+        );
+        if (recentPendingBet) {
+          toast.error('Você já tem uma aposta pendente. Complete o pagamento primeiro!');
+          setLoading(false);
+          return;
+        }
+
+        // Deletar apostas pendentes antigas (mais de 5 minutos), canceladas ou falhadas
+        // Isso permite que o usuário faça novas apostas
+        const betsToDelete = existingBets.filter(
+          bet => 
+            bet.payment_status === 'cancelled' ||
+            bet.payment_status === 'failed' ||
+            (bet.payment_status === 'pending' && new Date(bet.created_at) <= new Date(fiveMinutesAgo))
+        );
+
+        if (betsToDelete.length > 0) {
+          await supabase
+            .from('pool_bets')
+            .delete()
+            .in('id', betsToDelete.map(bet => bet.id));
+        }
+      }
+
       // Criar aposta no banco (status pending)
       const { data: betData, error: betError } = await supabase
         .from('pool_bets')
@@ -106,7 +161,8 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 
       if (betError) {
         if (betError.code === '23505') {
-          toast.error('Você já participou deste bolão!');
+          toast.error('Erro ao criar aposta. Tente novamente em alguns segundos.');
+          setLoading(false);
           return;
         }
         throw betError;
@@ -294,9 +350,9 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 
   if (hasBet) {
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border-2 border-blue-500/30 shadow-2xl max-w-sm w-full overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-blue-500/30 shadow-2xl max-w-[90vw] sm:max-w-sm w-full overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Target className="w-6 h-6 text-yellow-300" />
               <h2 className="text-xl font-black text-white uppercase">Você já participou!</h2>
@@ -308,16 +364,16 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
               <X className="w-5 h-5 text-white" />
             </button>
           </div>
-          <div className="p-6 text-center space-y-4">
-            <CheckCircle className="w-16 h-16 text-green-400 mx-auto" />
-            <p className="text-white font-bold">Sua aposta:</p>
-            <div className="text-4xl font-black text-blue-400">
+          <div className="p-4 sm:p-6 text-center space-y-3 sm:space-y-4">
+            <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16 text-green-400 mx-auto" />
+            <p className="text-white font-bold text-sm sm:text-base">Sua aposta:</p>
+            <div className="text-3xl sm:text-4xl font-black text-blue-400">
               {homeScore} x {awayScore}
             </div>
-            <p className="text-sm text-slate-400">Aguarde o resultado do jogo!</p>
+            <p className="text-xs sm:text-sm text-slate-400">Aguarde o resultado do jogo!</p>
             <button
               onClick={onClose}
-              className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all"
+              className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg sm:rounded-xl transition-all text-sm sm:text-base"
             >
               Fechar
             </button>
@@ -329,9 +385,9 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 
   if (paymentCompleted) {
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border-2 border-green-500/30 shadow-2xl max-w-sm w-full overflow-hidden">
-          <div className="bg-gradient-to-r from-green-600 to-green-700 px-6 py-4 flex items-center justify-between">
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-green-500/30 shadow-2xl max-w-[90vw] sm:max-w-sm w-full overflow-hidden">
+          <div className="bg-gradient-to-r from-green-600 to-green-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <CheckCircle className="w-6 h-6 text-white" />
               <h2 className="text-xl font-black text-white uppercase">Aposta Confirmada!</h2>
@@ -343,13 +399,13 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
               <X className="w-5 h-5 text-white" />
             </button>
           </div>
-          <div className="p-6 text-center space-y-4">
-            <CheckCircle className="w-16 h-16 text-green-400 mx-auto animate-pulse" />
-            <h3 className="text-2xl font-black text-white">Obrigado por participar!</h3>
-            <p className="text-slate-300">Sua aposta foi registrada com sucesso.</p>
-            <div className="bg-slate-700/50 rounded-xl p-4 border border-green-500/20">
-              <p className="text-sm text-slate-400 mb-2">Sua aposta:</p>
-              <div className="text-3xl font-black text-green-400">
+          <div className="p-4 sm:p-6 text-center space-y-3 sm:space-y-4">
+            <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16 text-green-400 mx-auto animate-pulse" />
+            <h3 className="text-xl sm:text-2xl font-black text-white">Obrigado por participar!</h3>
+            <p className="text-sm sm:text-base text-slate-300">Sua aposta foi registrada com sucesso.</p>
+            <div className="bg-slate-700/50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-green-500/20">
+              <p className="text-xs sm:text-sm text-slate-400 mb-2">Sua aposta:</p>
+              <div className="text-2xl sm:text-3xl font-black text-green-400">
                 {homeScore} x {awayScore}
               </div>
             </div>
@@ -358,7 +414,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
             </p>
             <button
               onClick={onClose}
-              className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all"
+              className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg sm:rounded-xl transition-all text-sm sm:text-base"
             >
               Fechar
             </button>
@@ -370,9 +426,9 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 
   if (showPixPayment) {
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border-2 border-blue-500/30 shadow-2xl max-w-sm w-full overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-blue-500/30 shadow-2xl max-w-[90vw] sm:max-w-sm w-full overflow-hidden max-h-[95vh] overflow-y-auto">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <QrCode className="w-6 h-6 text-yellow-300" />
               <h2 className="text-xl font-black text-white uppercase">Pagamento PIX</h2>
@@ -388,21 +444,21 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
               <X className="w-5 h-5 text-white" />
             </button>
           </div>
-          <div className="p-5 space-y-3">
-            <div className="text-center space-y-3">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <QrCode className="w-5 h-5 text-blue-400" />
-                <h3 className="text-base font-black text-blue-300 uppercase">
+          <div className="p-4 sm:p-5 space-y-2 sm:space-y-3">
+            <div className="text-center space-y-2 sm:space-y-3">
+              <div className="flex items-center justify-center gap-2 mb-1 sm:mb-2">
+                <QrCode className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+                <h3 className="text-sm sm:text-base font-black text-blue-300 uppercase">
                   Valor: R$ 2,00
                 </h3>
               </div>
 
               {pixQrCode && (
-                <div className="bg-white p-3 rounded-xl mx-auto w-fit">
+                <div className="bg-white p-2 sm:p-3 rounded-lg sm:rounded-xl mx-auto w-fit">
                   <img 
                     src={`data:image/png;base64,${pixQrCode}`} 
                     alt="QR Code PIX" 
-                    className="w-48 h-48"
+                    className="w-40 h-40 sm:w-48 sm:h-48"
                   />
                 </div>
               )}
@@ -444,7 +500,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
                   setPixQrCode(null);
                   setPixCode(null);
                 }}
-                className="w-full px-6 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-all text-sm"
+                className="w-full px-4 sm:px-6 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 font-bold rounded-lg sm:rounded-xl transition-all text-sm"
               >
                 Voltar
               </button>
@@ -456,22 +512,22 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border-2 border-blue-500/30 shadow-2xl max-w-sm w-full overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Target className="w-6 h-6 text-yellow-300" />
-            <h2 className="text-xl font-black text-white uppercase">Participar do Bolão</h2>
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4">
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-blue-500/30 shadow-2xl max-w-[90vw] sm:max-w-sm w-full overflow-hidden max-h-[95vh] overflow-y-auto">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Target className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-300" />
+            <h2 className="text-base sm:text-xl font-black text-white uppercase">Participar do Bolão</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-all"
+            className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-all"
           >
-            <X className="w-5 h-5 text-white" />
+            <X className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
           <div className="text-center">
             <p className="text-sm text-slate-400 mb-2">{matchTitle}</p>
             <div className="flex items-center justify-center gap-4 text-lg font-black text-white">
@@ -481,8 +537,8 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
             </div>
           </div>
 
-                <div className="bg-slate-700/50 rounded-xl p-4 border border-blue-500/20">
-                  <p className="text-xs text-slate-400 text-center mb-3">
+                <div className="bg-slate-700/50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-blue-500/20">
+                  <p className="text-xs text-slate-400 text-center mb-2 sm:mb-3">
                     💰 Valor da aposta: <span className="text-green-400 font-black">R$ 2,00</span>
                   </p>
                   <p className="text-xs text-slate-400 text-center">
@@ -490,9 +546,9 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
                   </p>
                 </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <div>
-              <label className="block text-xs font-black text-blue-300 uppercase mb-2">
+              <label className="block text-xs font-black text-blue-300 uppercase mb-1.5 sm:mb-2">
                 Placar - {homeTeam}
               </label>
               <input
@@ -500,15 +556,15 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
                 min="0"
                 value={homeScore}
                 onChange={(e) => setHomeScore(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-800 border border-blue-500/30 rounded-xl text-white text-center text-2xl font-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-800 border border-blue-500/30 rounded-lg sm:rounded-xl text-white text-center text-xl sm:text-2xl font-black focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />
             </div>
 
-            <div className="text-center text-blue-400 font-black text-xl">x</div>
+            <div className="text-center text-blue-400 font-black text-lg sm:text-xl">x</div>
 
             <div>
-              <label className="block text-xs font-black text-blue-300 uppercase mb-2">
+              <label className="block text-xs font-black text-blue-300 uppercase mb-1.5 sm:mb-2">
                 Placar - {awayTeam}
               </label>
               <input
@@ -516,7 +572,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
                 min="0"
                 value={awayScore}
                 onChange={(e) => setAwayScore(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-800 border border-blue-500/30 rounded-xl text-white text-center text-2xl font-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-800 border border-blue-500/30 rounded-lg sm:rounded-xl text-white text-center text-xl sm:text-2xl font-black focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />
             </div>
@@ -525,7 +581,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
           <button
             onClick={handleBet}
             disabled={loading || !homeScore || !awayScore}
-            className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-black rounded-xl uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20"
+            className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-black rounded-lg sm:rounded-xl uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20 text-sm sm:text-base"
           >
             {loading ? (
               <>
@@ -542,7 +598,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 
           <button
             onClick={onClose}
-            className="w-full px-6 py-3 bg-slate-700/50 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-all"
+            className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-slate-700/50 hover:bg-slate-700 text-slate-300 font-bold rounded-lg sm:rounded-xl transition-all text-sm sm:text-base"
           >
             Cancelar
           </button>

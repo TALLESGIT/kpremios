@@ -37,6 +37,17 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
     try {
       setLoading(true);
 
+      // Verificar timeout de 5 minutos usando localStorage
+      const vipPaymentKey = `vip_payment_${user.id}`;
+      const lastPaymentTime = localStorage.getItem(vipPaymentKey);
+      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+
+      if (lastPaymentTime && parseInt(lastPaymentTime) > fiveMinutesAgo) {
+        toast.error('Você já iniciou um pagamento recentemente. Aguarde 5 minutos ou complete o pagamento anterior.');
+        setLoading(false);
+        return;
+      }
+
       // Chamar Edge Function usando o cliente Supabase (gerencia autenticação e CORS automaticamente)
       const { data, error } = await supabase.functions.invoke('create-vip-payment', {
         body: {
@@ -55,17 +66,30 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
         throw new Error('Resposta vazia da Edge Function');
       }
 
+      // Salvar timestamp do pagamento no localStorage
+      localStorage.setItem(vipPaymentKey, Date.now().toString());
+
       // Verificar se recebeu dados do PIX
       if (data.qr_code && data.qr_code_text) {
         setPixQrCode(data.qr_code);
         setPixCode(data.qr_code_text);
         setShowPixPayment(true);
         toast.success('QR Code PIX gerado com sucesso!');
+        
+        // Limpar localStorage após 5 minutos (timeout automático)
+        setTimeout(() => {
+          localStorage.removeItem(vipPaymentKey);
+        }, 5 * 60 * 1000);
       } else if (data.payment_link) {
         // Fallback: se não tiver PIX, usar link de pagamento
         window.open(data.payment_link, '_blank');
         setPaymentLink(data.payment_link);
         toast.success('Redirecionando para o pagamento...');
+        
+        // Limpar localStorage após 5 minutos (timeout automático)
+        setTimeout(() => {
+          localStorage.removeItem(vipPaymentKey);
+        }, 5 * 60 * 1000);
       } else {
         throw new Error(data.error || 'Dados de pagamento não recebidos');
       }
@@ -73,6 +97,11 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
       console.error('Erro ao criar pagamento:', error);
       const errorMessage = error.message || 'Erro ao criar pagamento. Tente novamente.';
       toast.error(`Erro ao criar pagamento: ${errorMessage}`);
+      
+      // Limpar localStorage em caso de erro
+      if (user) {
+        localStorage.removeItem(`vip_payment_${user.id}`);
+      }
     } finally {
       setLoading(false);
     }

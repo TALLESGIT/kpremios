@@ -4,12 +4,9 @@ import { supabase } from '../../lib/supabase';
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-hot-toast';
 import {
-    Settings,
     Tv,
-    Video,
     Calendar,
     Trophy,
-    Save,
     Plus,
     Trash2,
     Edit2,
@@ -20,7 +17,7 @@ import {
 } from 'lucide-react';
 import Header from '../../components/shared/Header';
 import Footer from '../../components/shared/Footer';
-import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding } from '../../types';
+import { CruzeiroGame, CruzeiroStanding } from '../../types';
 import { useMemo } from 'react';
 
 const COMPETITIONS = [
@@ -97,15 +94,9 @@ const isoToDatetimeLocal = (isoString: string | undefined): string => {
 
 const AdminZkTVPage: React.FC = () => {
     const { currentUser } = useData();
-    const [activeTab, setActiveTab] = useState<'settings' | 'games' | 'standings'>('settings');
+    const [activeTab, setActiveTab] = useState<'games' | 'standings'>('games');
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
     const [bannerUploading, setBannerUploading] = useState(false);
-
-    // Settings State
-    const [settings, setSettings] = useState<CruzeiroSettings | null>(null);
-    const [liveUrl, setLiveUrl] = useState('');
-    const [isLive, setIsLive] = useState(false);
 
     // Games State
     const [games, setGames] = useState<CruzeiroGame[]>([]);
@@ -181,18 +172,6 @@ const AdminZkTVPage: React.FC = () => {
         try {
             setLoading(true);
 
-            // Load Settings
-            const { data: settingsData } = await supabase
-                .from('cruzeiro_settings')
-                .select('*')
-                .single();
-
-            if (settingsData) {
-                setSettings(settingsData);
-                setLiveUrl(settingsData.live_url || '');
-                setIsLive(settingsData.is_live || false);
-            }
-
             // Load Games
             const { data: gamesData } = await supabase
                 .from('cruzeiro_games')
@@ -221,28 +200,6 @@ const AdminZkTVPage: React.FC = () => {
         }
     };
 
-    const saveSettings = async () => {
-        try {
-            setSaving(true);
-            const { error } = await supabase
-                .from('cruzeiro_settings')
-                .upsert({
-                    id: settings?.id || undefined,
-                    live_url: liveUrl,
-                    is_live: isLive,
-                    updated_at: new Date().toISOString()
-                });
-
-            if (error) throw error;
-            toast.success('Configurações salvas com sucesso!');
-            loadData();
-        } catch (error) {
-            console.error('Error saving settings:', error);
-            toast.error('Erro ao salvar configurações');
-        } finally {
-            setSaving(false);
-        }
-    };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -425,16 +382,6 @@ const AdminZkTVPage: React.FC = () => {
                 {/* Tabs */}
                 <div className="flex gap-2 p-1 bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl mb-8 w-fit">
                     <button
-                        onClick={() => setActiveTab('settings')}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${activeTab === 'settings'
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                            }`}
-                    >
-                        <Settings className="w-4 h-4" />
-                        Configurações
-                    </button>
-                    <button
                         onClick={() => setActiveTab('games')}
                         className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${activeTab === 'games'
                             ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
@@ -465,68 +412,6 @@ const AdminZkTVPage: React.FC = () => {
                     </div>
                 ) : (
                     <AnimatePresence mode="wait">
-                        {activeTab === 'settings' && (
-                            <motion.div
-                                key="settings"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                                className="grid grid-cols-1 lg:grid-cols-2 gap-8"
-                            >
-                                <div className="bg-slate-900/40 backdrop-blur-sm border border-slate-800 p-8 rounded-3xl">
-                                    <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                                        <Video className="w-5 h-5 text-blue-500" />
-                                        Transmissão ao Vivo
-                                    </h3>
-
-                                    <div className="space-y-6">
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-400 mb-2">URL da Live (YouTube Embed/Iframe Link)</label>
-                                            <input
-                                                type="text"
-                                                value={liveUrl}
-                                                onChange={(e) => setLiveUrl(e.target.value)}
-                                                placeholder="https://www.youtube.com/embed/..."
-                                                className="w-full bg-slate-950/50 border border-slate-800 p-4 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-                                            />
-                                        </div>
-
-                                        <div className="flex items-center justify-between p-4 bg-slate-950/50 border border-slate-800 rounded-xl">
-                                            <div>
-                                                <span className="block font-bold">Status da Live</span>
-                                                <span className="text-sm text-slate-400">Ativar indicador "AO VIVO" no site</span>
-                                            </div>
-                                            <button
-                                                onClick={() => setIsLive(!isLive)}
-                                                className={`w-14 h-8 rounded-full transition-colors relative ${isLive ? 'bg-blue-600' : 'bg-slate-700'}`}
-                                            >
-                                                <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-all ${isLive ? 'translate-x-6' : ''}`}></div>
-                                            </button>
-                                        </div>
-
-                                        <button
-                                            onClick={saveSettings}
-                                            disabled={saving}
-                                            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-600/20"
-                                        >
-                                            {saving ? 'Salvando...' : <><Save className="w-5 h-5" /> Salvar Configurações</>}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="bg-slate-900/40 backdrop-blur-sm border border-slate-800 p-8 rounded-3xl flex flex-col items-center justify-center text-center">
-                                    <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mb-6">
-                                        <Info className="w-10 h-10 text-blue-500" />
-                                    </div>
-                                    <h3 className="text-xl font-bold mb-2">Dica de Link</h3>
-                                    <p className="text-slate-400">
-                                        Use links do tipo <strong>embed</strong> para que o player funcione corretamente no site.
-                                        Exemplo: <code>https://www.youtube.com/embed/VIDEO_ID</code>
-                                    </p>
-                                </div>
-                            </motion.div>
-                        )}
-
                         {activeTab === 'games' && (
                             <motion.div
                                 key="games"

@@ -58,32 +58,30 @@
     animation: pulse-subtle 3s ease-in-out infinite;
   }
 
-  /* Esconder barras de rolagem apenas no mobile */
-  @media (max-width: 768px) {
-    * {
-      scrollbar-width: none;
-      /* Firefox */
-      -ms-overflow-style: none;
-      /* IE and Edge */
-    }
+  /* Esconder barras de rolagem globalmente */
+  * {
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+  }
 
-    *::-webkit-scrollbar {
-      display: none;
-      /* Chrome, Safari, Opera */
-    }
+  *::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari, Opera */
+  }
 
-    /* Garantir que elementos com overflow não mostrem scrollbar no mobile */
-    html,
-    body {
-      overflow-x: hidden;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-    }
+  /* Garantir que elementos com overflow não mostrem scrollbar */
+  html,
+  body {
+    overflow-x: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
 
-    html::-webkit-scrollbar,
-    body::-webkit-scrollbar {
-      display: none;
-    }
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none;
   }
 
   /* Estilos de scroll personalizados para desktop */

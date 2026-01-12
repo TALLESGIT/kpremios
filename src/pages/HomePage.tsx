@@ -70,13 +70,9 @@ function HomePage() {
       }, (payload) => {
         console.log('📡 Mudança detectada em match_pools:', payload.eventType, payload.new);
 
-        // Se for UPDATE e o bolão está ativo, atualizar diretamente o estado
-        if (payload.eventType === 'UPDATE' && payload.new && (payload.new as any).is_active) {
-          setActivePool((payload.new as any));
-        } else {
-          // Para INSERT ou DELETE, verificar novamente
-          checkActivePool();
-        }
+        // Sempre verificar novamente para garantir que o estado está correto
+        // Isso garante que INSERT, UPDATE e DELETE sejam tratados corretamente
+        checkActivePool();
       })
       .subscribe();
 
@@ -130,7 +126,8 @@ function HomePage() {
         checkActivePool(data.id);
       } else {
         setHasActiveLive(false);
-        setActivePool(null);
+        // Não resetar activePool aqui - deixar checkActivePool gerenciar
+        checkActivePool();
       }
     } catch (err) {
       console.error('Erro ao verificar live:', err);
@@ -291,9 +288,10 @@ function HomePage() {
               {activePool && activePool.is_active && (
                 <button
                   onClick={() => setShowPoolModal(true)}
-                  className="btn btn-primary px-10 py-4 text-lg shadow-emerald-500/50 hover:shadow-emerald-400/60 bg-gradient-to-r from-emerald-600 to-emerald-500 border-0"
+                  className="btn btn-primary px-10 py-4 text-lg shadow-emerald-500/50 hover:shadow-emerald-400/60 bg-gradient-to-r from-emerald-600 to-emerald-500 border-0 relative"
                 >
-                  PARTICIPAR DO BOLÃO
+                  <span className="relative z-10">PARTICIPAR DO BOLÃO</span>
+                  <span className="absolute inset-0 rounded-lg bg-emerald-400 opacity-20 animate-ping"></span>
                 </button>
               )}
               <Link
@@ -457,66 +455,8 @@ function HomePage() {
           </section>
 
           {/* Cards Grid */}
-          <section className={`grid grid-cols-1 md:grid-cols-2 ${activePool && activePool.is_active ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-8`}>
-            {/* Card 1: SORTEIOS */}
-            <div className="glass-panel p-8 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-blue-600"></div>
-              <div className="w-20 h-20 mx-auto bg-blue-500/20 rounded-full flex items-center justify-center mb-6 text-blue-300 group-hover:scale-110 transition-transform group-hover:bg-blue-500/30">
-                <Ticket className="w-10 h-10" />
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-3">Sorteios Ativos</h3>
-              <p className="text-blue-200 mb-8 text-sm leading-relaxed">Confira os prêmios disponíveis agora mesmo.</p>
-              <Link to={hasActiveRaffle ? "/free-raffles" : "#"} className="btn btn-outline w-full border-blue-400/30 hover:bg-blue-500/20 text-blue-300 hover:text-white rounded-xl">
-                PARTICIPAR
-              </Link>
-            </div>
-
-            {/* Card 2: GANHADORES */}
-            <div className="glass-panel p-8 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent to-yellow-600"></div>
-              <div className="w-20 h-20 mx-auto bg-yellow-500/20 rounded-full flex items-center justify-center mb-6 text-accent group-hover:scale-110 transition-transform group-hover:bg-yellow-500/30">
-                <Trophy className="w-10 h-10" />
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-3">Hall da Fama</h3>
-              <p className="text-blue-200 mb-8 text-sm leading-relaxed">Veja quem já faturou prêmios incríveis.</p>
-              <Link to="/winners" className="btn btn-outline w-full border-yellow-400/30 hover:bg-yellow-500/20 text-accent hover:text-white rounded-xl">
-                VER GANHADORES
-              </Link>
-            </div>
-
-            {/* Card 3: RANKING */}
-            <div className="glass-panel p-8 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-green-600"></div>
-              <div className="w-20 h-20 mx-auto bg-green-500/20 rounded-full flex items-center justify-center mb-6 text-green-300 group-hover:scale-110 transition-transform group-hover:bg-green-500/30">
-                <MonitorPlay className="w-10 h-10" />
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-3">Tabela</h3>
-              <p className="text-blue-200 mb-8 text-sm leading-relaxed">Acompanhe o Cabuloso no campeonato.</p>
-              <button
-                onClick={() => navigate('/competicoes')}
-                className="btn btn-outline w-full border-green-400/30 hover:bg-green-500/20 text-green-300 hover:text-white rounded-xl"
-              >
-                VER TABELA
-              </button>
-            </div>
-
-            {/* Card 4: LIVES PREMIADAS */}
-            <div className="glass-panel p-8 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-400 to-purple-600"></div>
-              <div className="w-20 h-20 mx-auto bg-purple-500/20 rounded-full flex items-center justify-center mb-6 text-purple-300 group-hover:scale-110 transition-transform group-hover:bg-purple-500/30">
-                <Play className="w-10 h-10" />
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-3">Lives Resta Um</h3>
-              <p className="text-blue-200 mb-8 text-sm leading-relaxed">Participe dos jogos ao vivo. A emoção do Cruzeiro agora nas suas mãos.</p>
-              <button
-                onClick={() => navigate('/live-games')}
-                className="btn btn-outline w-full border-purple-400/30 hover:bg-purple-500/20 text-purple-300 hover:text-white rounded-xl"
-              >
-                PARTICIPAR
-              </button>
-            </div>
-
-            {/* Card 5: BOLÃO ATIVO - Mostra apenas quando há bolão ativo */}
+          <section className={`grid grid-cols-1 md:grid-cols-2 ${activePool && activePool.is_active ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-8`}>
+            {/* Card 1: BOLÃO ATIVO - Mostra apenas quando há bolão ativo - PRIMEIRA POSIÇÃO */}
             {activePool && activePool.is_active && (
               <div className="glass-panel p-6 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2 border-2 border-emerald-500/30 shadow-2xl shadow-emerald-900/30">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600 animate-pulse"></div>
@@ -614,7 +554,7 @@ function HomePage() {
                           </p>
                           {activePool.prize_per_winner > 0 && (
                             <p className="text-[10px] text-yellow-300/80 text-center mt-0.5">
-                              R$ {activePool.prize_per_winner.toFixed(2).replace('.', ',')} cada
+                              R$ {activePool.prize_per_winner.toFixed(2).replace('.', ',')} por ganhador
                             </p>
                           )}
                           <Link
@@ -636,13 +576,62 @@ function HomePage() {
                 </div>
 
                 <button
-                  onClick={() => setShowPoolModal(true)}
-                  className="btn bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 hover:from-emerald-500 hover:via-emerald-400 hover:to-emerald-500 text-white w-full border-0 shadow-xl shadow-emerald-600/30 rounded-xl font-black uppercase tracking-widest text-xs py-3 transform hover:scale-105 transition-all duration-200"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowPoolModal(true);
+                  }}
+                  className="btn bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 hover:from-emerald-500 hover:via-emerald-400 hover:to-emerald-500 text-white w-full border-0 shadow-xl shadow-emerald-600/30 rounded-xl font-black uppercase tracking-widest text-xs py-3 transform hover:scale-105 transition-all duration-200 relative"
                 >
-                  Participar Agora
+                  <span className="relative z-10">Participar Agora</span>
+                  <span className="absolute inset-0 rounded-xl bg-emerald-400 opacity-20 animate-ping"></span>
                 </button>
               </div>
             )}
+
+            {/* Card 2: GANHADORES */}
+            <div className="glass-panel p-8 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent to-yellow-600"></div>
+              <div className="w-20 h-20 mx-auto bg-yellow-500/20 rounded-full flex items-center justify-center mb-6 text-accent group-hover:scale-110 transition-transform group-hover:bg-yellow-500/30">
+                <Trophy className="w-10 h-10" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-3">Hall da Fama</h3>
+              <p className="text-blue-200 mb-8 text-sm leading-relaxed">Veja quem já faturou prêmios incríveis.</p>
+              <Link to="/winners" className="btn btn-outline w-full border-yellow-400/30 hover:bg-yellow-500/20 text-accent hover:text-white rounded-xl">
+                VER GANHADORES
+              </Link>
+            </div>
+
+            {/* Card 3: RANKING */}
+            <div className="glass-panel p-8 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-green-600"></div>
+              <div className="w-20 h-20 mx-auto bg-green-500/20 rounded-full flex items-center justify-center mb-6 text-green-300 group-hover:scale-110 transition-transform group-hover:bg-green-500/30">
+                <MonitorPlay className="w-10 h-10" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-3">Tabela</h3>
+              <p className="text-blue-200 mb-8 text-sm leading-relaxed">Acompanhe o Cabuloso no campeonato.</p>
+              <button
+                onClick={() => navigate('/competicoes')}
+                className="btn btn-outline w-full border-green-400/30 hover:bg-green-500/20 text-green-300 hover:text-white rounded-xl"
+              >
+                VER TABELA
+              </button>
+            </div>
+
+            {/* Card 4: LIVES PREMIADAS */}
+            <div className="glass-panel p-8 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-400 to-purple-600"></div>
+              <div className="w-20 h-20 mx-auto bg-purple-500/20 rounded-full flex items-center justify-center mb-6 text-purple-300 group-hover:scale-110 transition-transform group-hover:bg-purple-500/30">
+                <Play className="w-10 h-10" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-3">Lives Resta Um</h3>
+              <p className="text-blue-200 mb-8 text-sm leading-relaxed">Participe dos jogos ao vivo. A emoção do Cruzeiro agora nas suas mãos.</p>
+              <button
+                onClick={() => navigate('/live-games')}
+                className="btn btn-outline w-full border-purple-400/30 hover:bg-purple-500/20 text-purple-300 hover:text-white rounded-xl"
+              >
+                PARTICIPAR
+              </button>
+            </div>
           </section>
 
           {/* Banner Ad Space */}

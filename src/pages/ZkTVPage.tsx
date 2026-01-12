@@ -320,7 +320,9 @@ const ZkTVPage: React.FC = () => {
                 event: '*',
                 schema: 'public',
                 table: 'match_pools'
-            }, () => {
+            }, (payload) => {
+                console.log('📡 ZkTVPage: Mudança detectada em match_pools:', payload.eventType);
+                // Sempre verificar novamente para garantir que o estado está correto
                 checkActivePool();
                 loadLastPoolResult(); // Atualizar último resultado quando houver mudanças
             })
@@ -1116,9 +1118,10 @@ const ZkTVPage: React.FC = () => {
                                                 </div>
                                                 <button
                                                     onClick={() => setShowPoolModal(true)}
-                                                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors shadow-lg shadow-emerald-600/20"
+                                                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors shadow-lg shadow-emerald-600/20 relative"
                                                 >
-                                                    PARTICIPAR AGORA
+                                                    <span className="relative z-10">PARTICIPAR AGORA</span>
+                                                    <span className="absolute inset-0 rounded-lg bg-emerald-400 opacity-20 animate-ping"></span>
                                                 </button>
                                             </div>
                                         )}
@@ -1175,8 +1178,8 @@ const ZkTVPage: React.FC = () => {
 
                         {/* Sidebar: Next Match & Stats */}
                         <div className="lg:col-span-1 space-y-4 sm:space-y-6 lg:space-y-8">
-                            {/* Next Match Card */}
-                            <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-4 sm:p-6 lg:p-8 rounded-[2rem] relative overflow-visible group pb-6 sm:pb-8">
+                            {/* Next Match Card - Escondido no mobile */}
+                            <div className="hidden md:block bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-4 sm:p-6 lg:p-8 rounded-[2rem] relative overflow-visible group pb-6 sm:pb-8">
                                 <div className="absolute top-0 right-0 p-4 sm:p-6 lg:p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
                                     <Shield className="w-24 sm:w-32 h-24 sm:h-32 text-blue-500" />
                                 </div>
