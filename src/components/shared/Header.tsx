@@ -10,6 +10,7 @@ function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [hasActiveLive, setHasActiveLive] = useState(false);
+  const [hasUserBets, setHasUserBets] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -89,6 +90,49 @@ function Header() {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Verificar se usuário tem apostas aprovadas
+  useEffect(() => {
+    if (user && !currentAppUser?.is_admin) {
+      checkUserBets();
+      
+      // Subscription para atualizações em tempo real
+      const subscription = supabase
+        .channel('user-bets-changes')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'pool_bets',
+          filter: `user_id=eq.${user.id}`
+        }, () => {
+          checkUserBets();
+        })
+        .subscribe();
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    } else {
+      setHasUserBets(false);
+    }
+  }, [user, currentAppUser]);
+
+  const checkUserBets = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('pool_bets')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('payment_status', 'approved')
+        .limit(1)
+        .maybeSingle();
+
+      setHasUserBets(!error && data !== null);
+    } catch (err) {
+      setHasUserBets(false);
+    }
+  };
 
   const checkActiveLive = async () => {
     try {
@@ -216,17 +260,31 @@ function Header() {
                 </>
               )}
 
-              {/* User button */}
+              {/* User buttons */}
               {currentAppUser && !currentAppUser.is_admin && (
-                <Link
-                  to="/my-numbers"
-                  className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 border border-white/20 ${location.pathname === '/my-numbers'
-                    ? 'bg-white/10 text-white shadow-lg'
-                    : 'text-white hover:bg-white/10 hover:border-white/40'
-                    }`}
-                >
-                  Meus Números
-                </Link>
+                <>
+                  {/* Botão Minhas Apostas - apenas para usuários que participaram */}
+                  {hasUserBets && (
+                    <Link
+                      to="/my-numbers"
+                      className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 border border-blue-500/50 ${location.pathname === '/my-numbers'
+                        ? 'bg-blue-500/20 text-white shadow-lg border-blue-500'
+                        : 'text-white hover:bg-blue-500/10 hover:border-blue-500/70'
+                        }`}
+                    >
+                      Minhas Apostas
+                    </Link>
+                  )}
+                  <Link
+                    to="/my-numbers"
+                    className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 border border-white/20 ${location.pathname === '/my-numbers'
+                      ? 'bg-white/10 text-white shadow-lg'
+                      : 'text-white hover:bg-white/10 hover:border-white/40'
+                      }`}
+                  >
+                    Meus Números
+                  </Link>
+                </>
               )}
 
               {/* Login/Register buttons */}

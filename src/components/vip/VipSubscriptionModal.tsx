@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { X, Crown, Check, Loader2, Copy, QrCode } from 'lucide-react';
+import { X, Crown, Check, Loader2, Copy, QrCode, Clock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import CustomToast from '../shared/CustomToast';
 
 interface VipSubscriptionModalProps {
   isOpen: boolean;
@@ -25,6 +26,56 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
   const [pixQrCode, setPixQrCode] = useState<string | null>(null);
   const [pixCode, setPixCode] = useState<string | null>(null);
   const [showPixPayment, setShowPixPayment] = useState(false);
+  const [paymentStartTime, setPaymentStartTime] = useState<number | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number>(300); // 5 minutos em segundos
+
+  // Formatar tempo restante (MM:SS)
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Contador regressivo de 5 minutos
+  useEffect(() => {
+    if (!showPixPayment || !paymentStartTime) return;
+
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - paymentStartTime) / 1000);
+      const remaining = Math.max(0, 300 - elapsed);
+      setTimeRemaining(remaining);
+
+      if (remaining === 0) {
+        // Timeout atingido - limpar localStorage
+        if (user) {
+          const vipPaymentKey = `vip_payment_${user.id}`;
+          localStorage.removeItem(vipPaymentKey);
+          
+          // Fechar modal de pagamento
+          setShowPixPayment(false);
+          setPixQrCode(null);
+          setPixCode(null);
+          setPaymentStartTime(null);
+          
+          toast.custom((t) => (
+            <CustomToast 
+              type="error"
+              title="TEMPO DE PAGAMENTO EXPIRADO"
+              message="Você pode fazer uma nova assinatura."
+            />
+          ), { duration: 5000 });
+        } else {
+          // Se não houver usuário, apenas limpar o estado
+          setShowPixPayment(false);
+          setPixQrCode(null);
+          setPixCode(null);
+          setPaymentStartTime(null);
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [showPixPayment, paymentStartTime, user]);
 
   if (!isOpen) return null;
 
@@ -43,7 +94,13 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
       const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
 
       if (lastPaymentTime && parseInt(lastPaymentTime) > fiveMinutesAgo) {
-        toast.error('Você já iniciou um pagamento recentemente. Aguarde 5 minutos ou complete o pagamento anterior.');
+        toast.custom((t) => (
+          <CustomToast 
+            type="error"
+            title="VOCÊ JÁ INICIOU UM PAGAMENTO"
+            message="Aguarde 5 minutos ou complete o pagamento anterior."
+          />
+        ), { duration: 5000 });
         setLoading(false);
         return;
       }
@@ -71,10 +128,19 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
 
       // Verificar se recebeu dados do PIX
       if (data.qr_code && data.qr_code_text) {
+        const startTime = Date.now();
         setPixQrCode(data.qr_code);
         setPixCode(data.qr_code_text);
+        setPaymentStartTime(startTime);
+        setTimeRemaining(300);
         setShowPixPayment(true);
-        toast.success('QR Code PIX gerado com sucesso!');
+        toast.custom((t) => (
+          <CustomToast 
+            type="success"
+            title="QR CODE PIX GERADO!"
+            message="Complete o pagamento para ativar seu VIP."
+          />
+        ), { duration: 4000 });
         
         // Limpar localStorage após 5 minutos (timeout automático)
         setTimeout(() => {
@@ -131,8 +197,8 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border-2 border-purple-500/30 shadow-2xl max-w-sm w-full overflow-hidden">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4">
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-purple-500/30 shadow-2xl max-w-[90vw] sm:max-w-sm w-full overflow-hidden max-h-[95vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -215,6 +281,17 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
             <>
               {/* PIX Payment Display */}
               <div className="text-center space-y-3">
+                {/* Contador de tempo - dentro do modal */}
+                {paymentStartTime && timeRemaining > 0 && (
+                  <div className="bg-amber-500/10 border-2 border-amber-500/30 rounded-lg p-3 flex items-center justify-center gap-2">
+                    <Clock className="w-5 h-5 text-amber-400 animate-pulse" />
+                    <span className="text-xl font-black text-amber-400 font-mono">
+                      {formatTime(timeRemaining)}
+                    </span>
+                    <span className="text-xs sm:text-sm text-amber-300">para completar o pagamento</span>
+                  </div>
+                )}
+                
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <QrCode className="w-5 h-5 text-purple-400" />
                   <h3 className="text-base font-black text-purple-300 uppercase">
@@ -266,19 +343,7 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
                   </p>
                 </div>
 
-                {/* Actions */}
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => {
-                      setShowPixPayment(false);
-                      setPixQrCode(null);
-                      setPixCode(null);
-                    }}
-                    className="w-full px-6 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-all text-sm"
-                  >
-                    Voltar
-                  </button>
-                </div>
+                {/* Botão "Voltar" removido - apenas o X está disponível durante o pagamento pendente */}
               </div>
             </>
           )}

@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { Target, Play, Square, Trophy, Users, DollarSign, CheckCircle, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { whatsappService } from '../../services/whatsappService';
 
 interface PoolManagerProps {
   streamId: string;
@@ -152,7 +153,77 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
         console.error('Erro ao calcular ganhadores:', winnersError);
         toast.error('Resultado salvo, mas erro ao calcular ganhadores');
       } else {
-        toast.success(`Resultado salvo! ${winnersData?.winners_count || 0} ganhador(es) encontrado(s).`);
+        const winnersCount = winnersData?.winners_count || 0;
+        toast.success(`Resultado salvo! ${winnersCount} ganhador(es) encontrado(s).`);
+        
+        // Enviar notificações automáticas para ganhadores
+        if (winnersCount > 0) {
+          try {
+            // Buscar dados dos ganhadores
+            const { data: winners, error: winnersFetchError } = await supabase
+              .from('pool_bets')
+              .select(`
+                users!inner (
+                  name,
+                  whatsapp
+                ),
+                predicted_home_score,
+                predicted_away_score,
+                prize_amount
+              `)
+              .eq('pool_id', pool.id)
+              .eq('is_winner', true)
+              .eq('payment_status', 'approved');
+
+            if (!winnersFetchError && winners && winners.length > 0) {
+              let successCount = 0;
+              let errorCount = 0;
+
+              // Enviar notificações para cada ganhador
+              for (const winner of winners) {
+                try {
+                  if (winner.users?.whatsapp && winner.users?.name) {
+                    const result = await whatsappService.sendMessage({
+                      to: winner.users.whatsapp,
+                      message: '',
+                      type: 'pool_winner',
+                      name: winner.users.name,
+                      matchTitle: pool.match_title,
+                      predictedScore: `${winner.predicted_home_score} x ${winner.predicted_away_score}`,
+                      realScore: `${pool.result_home_score} x ${pool.result_away_score}`,
+                      prize: winner.prize_amount?.toString() || '0',
+                      totalAmount: pool.total_pool_amount?.toString() || '0',
+                      winnersCount: winnersCount.toString()
+                    } as any);
+
+                    if (result.success) {
+                      successCount++;
+                    } else {
+                      errorCount++;
+                      console.error(`Erro ao enviar notificação para ${winner.users.name}:`, result.error);
+                    }
+
+                    // Pequena pausa entre mensagens para evitar rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                  }
+                } catch (err) {
+                  errorCount++;
+                  console.error('Erro ao enviar notificação:', err);
+                }
+              }
+
+              if (successCount > 0) {
+                toast.success(`${successCount} notificação(ões) enviada(s) para ganhadores!`);
+              }
+              if (errorCount > 0) {
+                toast.error(`${errorCount} notificação(ões) falharam. Verifique os números de WhatsApp.`);
+              }
+            }
+          } catch (notifError) {
+            console.error('Erro ao enviar notificações para ganhadores:', notifError);
+            // Não bloquear o fluxo se falhar o envio de notificações
+          }
+        }
       }
 
       await loadPool();

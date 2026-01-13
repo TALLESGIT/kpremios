@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { X, Target, Copy, QrCode, Loader2, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, Target, Copy, QrCode, Loader2, CheckCircle, Clock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import CustomToast from '../shared/CustomToast';
 
 interface PoolBetModalProps {
   isOpen: boolean;
@@ -24,6 +26,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 }) => {
   const { user } = useAuth();
   const { currentUser } = useData();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [homeScore, setHomeScore] = useState<string>('');
   const [awayScore, setAwayScore] = useState<string>('');
@@ -32,12 +35,103 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
   const [showPixPayment, setShowPixPayment] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [hasBet, setHasBet] = useState(false);
+  const [paymentStartTime, setPaymentStartTime] = useState<number | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number>(300); // 5 minutos em segundos
 
   useEffect(() => {
     if (isOpen && user) {
       checkExistingBet();
+      restorePaymentFromStorage();
     }
   }, [isOpen, user, poolId]);
+
+  // Restaurar dados de pagamento do localStorage se houver
+  const restorePaymentFromStorage = () => {
+    if (!user) return;
+    
+    const storageKey = `pool_payment_${poolId}_${user.id}`;
+    const storedData = localStorage.getItem(storageKey);
+    
+    if (storedData) {
+      try {
+        const { qrCode, pixCode, startTime } = JSON.parse(storedData);
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const remaining = Math.max(0, 300 - elapsed);
+        
+        if (remaining > 0 && qrCode && pixCode) {
+          // Ainda está dentro dos 5 minutos
+          setPixQrCode(qrCode);
+          setPixCode(pixCode);
+          setPaymentStartTime(startTime);
+          setTimeRemaining(remaining);
+          setShowPixPayment(true);
+        } else {
+          // Timeout expirado, limpar localStorage
+          localStorage.removeItem(storageKey);
+        }
+      } catch (err) {
+        console.error('Erro ao restaurar pagamento do localStorage:', err);
+        localStorage.removeItem(storageKey);
+      }
+    }
+  };
+
+  // Contador regressivo de 5 minutos
+  useEffect(() => {
+    if (!showPixPayment || !paymentStartTime) return;
+
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - paymentStartTime) / 1000);
+      const remaining = Math.max(0, 300 - elapsed);
+      setTimeRemaining(remaining);
+
+      if (remaining === 0) {
+        // Timeout atingido - cancelar aposta pendente
+        if (user) {
+          // Cancelar aposta pendente no banco de dados
+          supabase
+            .from('pool_bets')
+            .update({ payment_status: 'cancelled' })
+            .eq('pool_id', poolId)
+            .eq('user_id', user.id)
+            .eq('payment_status', 'pending')
+            .then(() => {
+              // Limpar localStorage
+              const storageKey = `pool_payment_${poolId}_${user.id}`;
+              localStorage.removeItem(storageKey);
+              
+              // Fechar modal de pagamento
+              setShowPixPayment(false);
+              setPixQrCode(null);
+              setPixCode(null);
+              setPaymentStartTime(null);
+              
+              toast.error('Tempo de pagamento expirado. A aposta foi cancelada. Você pode fazer uma nova aposta.');
+            })
+            .catch((err) => {
+              console.error('Erro ao cancelar aposta:', err);
+              // Mesmo com erro, limpar o estado local
+              setShowPixPayment(false);
+              setPixQrCode(null);
+              setPixCode(null);
+              setPaymentStartTime(null);
+              const storageKey = `pool_payment_${poolId}_${user.id}`;
+              localStorage.removeItem(storageKey);
+              toast.error('Tempo de pagamento expirado. Você pode fazer uma nova aposta.');
+            });
+        } else {
+          // Se não houver usuário, apenas limpar o estado
+          setShowPixPayment(false);
+          setPixQrCode(null);
+          setPixCode(null);
+          setPaymentStartTime(null);
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [showPixPayment, paymentStartTime]);
+
 
   const checkExistingBet = async () => {
     if (!user) return;
@@ -69,6 +163,10 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
         setHasBet(true);
         setHomeScore(mostRecentBet.predicted_home_score.toString());
         setAwayScore(mostRecentBet.predicted_away_score.toString());
+        
+        // Limpar localStorage se a aposta foi aprovada
+        const storageKey = `pool_payment_${poolId}_${user.id}`;
+        localStorage.removeItem(storageKey);
       } else {
         setHasBet(false);
       }
@@ -80,7 +178,24 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 
   const handleBet = async () => {
     if (!user) {
-      toast.error('Você precisa estar logado para participar do bolão');
+      toast.custom((t) => (
+        <CustomToast 
+          type="warning"
+          title="LOGIN NECESSÁRIO"
+          message="Faça login ou cadastre-se para participar do bolão."
+        />
+      ), { duration: 4000 });
+      
+      // Pequeno delay para mostrar a mensagem antes de redirecionar
+      setTimeout(() => {
+        navigate('/login', { 
+          state: { 
+            returnTo: window.location.pathname,
+            message: 'Faça login para participar do bolão'
+          } 
+        });
+        onClose(); // Fechar modal antes de redirecionar
+      }, 1500);
       return;
     }
 
@@ -303,10 +418,30 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 
       // Verificar se recebeu dados do PIX
       if (paymentData.qr_code && paymentData.qr_code_text) {
+        const startTime = Date.now();
         setPixQrCode(paymentData.qr_code);
         setPixCode(paymentData.qr_code_text);
+        setPaymentStartTime(startTime);
+        setTimeRemaining(300);
         setShowPixPayment(true);
-        toast.success('QR Code PIX gerado! Complete o pagamento para confirmar sua aposta.');
+        
+        // Salvar no localStorage para recuperar depois
+        if (user) {
+          const storageKey = `pool_payment_${poolId}_${user.id}`;
+          localStorage.setItem(storageKey, JSON.stringify({
+            qrCode: paymentData.qr_code,
+            pixCode: paymentData.qr_code_text,
+            startTime: startTime
+          }));
+        }
+        
+        toast.custom((t) => (
+          <CustomToast 
+            type="success"
+            title="QR CODE PIX GERADO!"
+            message="Complete o pagamento para confirmar sua aposta."
+          />
+        ), { duration: 4000 });
       } else {
         throw new Error('Dados de pagamento não recebidos');
       }
@@ -344,6 +479,13 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
         toast.error('Erro ao copiar código');
       }
     }
+  };
+
+  // Formatar tempo restante (MM:SS)
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (!isOpen) return null;
@@ -435,9 +577,11 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
             </div>
             <button
               onClick={() => {
+                // Ao clicar no X, fecha o modal e redireciona para home
                 setShowPixPayment(false);
-                setPixQrCode(null);
-                setPixCode(null);
+                onClose();
+                // Redirecionar para home
+                window.location.href = '/';
               }}
               className="p-2 hover:bg-white/10 rounded-lg transition-all"
             >
@@ -445,6 +589,17 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
             </button>
           </div>
           <div className="p-4 sm:p-5 space-y-2 sm:space-y-3">
+            {/* Contador de tempo - dentro do modal */}
+            {paymentStartTime && (
+              <div className="bg-amber-500/10 border-2 border-amber-500/30 rounded-lg p-3 flex items-center justify-center gap-2">
+                <Clock className="w-5 h-5 text-amber-400 animate-pulse" />
+                <span className="text-xl font-black text-amber-400 font-mono">
+                  {formatTime(timeRemaining)}
+                </span>
+                <span className="text-xs sm:text-sm text-amber-300">para completar o pagamento</span>
+              </div>
+            )}
+            
             <div className="text-center space-y-2 sm:space-y-3">
               <div className="flex items-center justify-center gap-2 mb-1 sm:mb-2">
                 <QrCode className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
@@ -494,16 +649,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
                 </p>
               </div>
 
-              <button
-                onClick={() => {
-                  setShowPixPayment(false);
-                  setPixQrCode(null);
-                  setPixCode(null);
-                }}
-                className="w-full px-4 sm:px-6 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 font-bold rounded-lg sm:rounded-xl transition-all text-sm"
-              >
-                Voltar
-              </button>
+              {/* Botão "Voltar" removido - apenas o X está disponível durante o pagamento pendente */}
             </div>
           </div>
         </div>

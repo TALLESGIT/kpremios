@@ -9,7 +9,7 @@ const twilioApiUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/M
 export interface WhatsAppMessage {
   to: string;
   message: string;
-  type: 'registration' | 'numbers_assigned' | 'extra_numbers_approved' | 'new_raffle' | 'winner_announcement';
+  type: 'registration' | 'numbers_assigned' | 'extra_numbers_approved' | 'new_raffle' | 'winner_announcement' | 'pool_winner';
 }
 
 class WhatsAppService {
@@ -103,6 +103,26 @@ ${data.isWinner ?
 🔗 Veja o resultado completo: ${baseUrl}/winners
 
 Obrigado por participar! 🍀`;
+
+      case 'pool_winner':
+        return `🏆 *PARABÉNS ${data.name}!*
+
+🎉 *VOCÊ GANHOU O BOLÃO!* 🎉
+
+⚽ *${data.matchTitle}*
+
+📊 Sua aposta: *${data.predictedScore}*
+⚽ Resultado: *${data.realScore}*
+
+💰 Prêmio: *R$ ${parseFloat(data.prize || '0').toFixed(2)}*
+
+🎯 Você dividiu o prêmio total de R$ ${parseFloat(data.totalAmount || '0').toFixed(2)} com ${data.winnersCount} ganhador(es)!
+
+📱 Entre em contato conosco para receber seu prêmio!
+
+🔗 Veja os ganhadores: ${baseUrl}/winners
+
+Parabéns! 🎊`;
 
       default:
         return `Olá ${data.name}! Mensagem da ZK Oficial.`;
