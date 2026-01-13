@@ -11,8 +11,8 @@ import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { ChevronDown, Play, Trophy, Ticket, MonitorPlay, Calendar, MapPin, Clock, Target, MessageCircle, DollarSign, Users } from 'lucide-react';
 import { CruzeiroGame } from '../types';
-import AdvertisementCarousel from '../components/shared/AdvertisementCarousel';
 import PoolBetModal from '../components/pool/PoolBetModal';
+import AdvertisementCarousel from '../components/shared/AdvertisementCarousel';
 
 function HomePage() {
   const navigate = useNavigate();
@@ -22,8 +22,8 @@ function HomePage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [successNumber, setSuccessNumber] = useState<number | null>(null);
   const [hasActiveRaffle, setHasActiveRaffle] = useState(false);
-  const [activeRafflesCount, setActiveRafflesCount] = useState(0);
-  const [winnersCount, setWinnersCount] = useState(0);
+  const [activePoolsCount, setActivePoolsCount] = useState(0);
+  const [poolWinnersCount, setPoolWinnersCount] = useState(0);
   const [nextGame, setNextGame] = useState<CruzeiroGame | null>(null);
   const [loadingGame, setLoadingGame] = useState(true);
   const [hasActiveLive, setHasActiveLive] = useState(false);
@@ -39,8 +39,8 @@ function HomePage() {
 
   // Verificar se há sorteios ativos e carregar dados
   useEffect(() => {
-    checkActiveRaffles();
-    loadWinnersCount();
+    checkActivePools();
+    loadPoolWinnersCount();
     loadNextGame();
     checkActiveLive();
     // Verificar bolão independente da live (pode haver bolão sem live ativa)
@@ -73,6 +73,19 @@ function HomePage() {
         // Sempre verificar novamente para garantir que o estado está correto
         // Isso garante que INSERT, UPDATE e DELETE sejam tratados corretamente
         checkActivePool();
+        checkActivePools();
+      })
+      .subscribe();
+
+    // Subscribe para mudanças em pool_bets (ganhadores) - Atualização em tempo real
+    const poolBetsChannel = supabase
+      .channel('home-pool-bets-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'pool_bets'
+      }, () => {
+        loadPoolWinnersCount();
       })
       .subscribe();
 
@@ -92,6 +105,7 @@ function HomePage() {
     return () => {
       supabase.removeChannel(liveChannel);
       supabase.removeChannel(poolChannel);
+      supabase.removeChannel(poolBetsChannel);
       supabase.removeChannel(gamesChannel);
     };
   }, []);
@@ -174,39 +188,45 @@ function HomePage() {
     }
   };
 
-  const checkActiveRaffles = async () => {
+  // Verificar bolões ativos
+  const checkActivePools = async () => {
     try {
       const { data, error } = await supabase
-        .from('raffles')
-        .select('id')
+        .from('match_pools')
+        .select('id', { count: 'exact' })
         .eq('is_active', true);
 
-      if (!error && data) {
-        setHasActiveRaffle(data.length > 0);
-        setActiveRafflesCount(data.length);
+      if (!error && data !== null) {
+        setActivePoolsCount(data.length || 0);
       } else {
-        setHasActiveRaffle(false);
-        setActiveRafflesCount(0);
+        setActivePoolsCount(0);
       }
     } catch (error) {
-      setHasActiveRaffle(false);
-      setActiveRafflesCount(0);
+      console.error('Erro ao verificar bolões ativos:', error);
+      setActivePoolsCount(0);
     }
   };
 
-  const loadWinnersCount = async () => {
+  // Contar ganhadores de bolões
+  const loadPoolWinnersCount = async () => {
     try {
       const { data, error } = await supabase
-        .from('draw_results')
-        .select('id', { count: 'exact' });
+        .from('pool_bets')
+        .select('id', { count: 'exact' })
+        .eq('is_winner', true)
+        .eq('payment_status', 'approved');
 
       if (!error && data !== null) {
-        setWinnersCount(data.length || 0);
+        setPoolWinnersCount(data.length || 0);
+      } else {
+        setPoolWinnersCount(0);
       }
     } catch (error) {
-      setWinnersCount(0);
+      console.error('Erro ao contar ganhadores de bolões:', error);
+      setPoolWinnersCount(0);
     }
   };
+
 
   const loadNextGame = async () => {
     try {
@@ -355,11 +375,11 @@ function HomePage() {
         <div className="glass-panel border-y border-white/10 relative z-10 backdrop-blur-xl bg-white/5">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-2 lg:grid-cols-4 gap-8 text-center text-white">
             <div className="transform hover:scale-105 transition-transform">
-              <p className="text-4xl font-black text-accent">{activeRafflesCount}</p>
-              <p className="text-xs sm:text-sm uppercase tracking-widest opacity-70">Sorteios Ativos</p>
+              <p className="text-4xl font-black text-accent">{activePoolsCount}</p>
+              <p className="text-xs sm:text-sm uppercase tracking-widest opacity-70">Bolões Ativos</p>
             </div>
             <div className="transform hover:scale-105 transition-transform">
-              <p className="text-4xl font-black text-white">{winnersCount}</p>
+              <p className="text-4xl font-black text-white">{poolWinnersCount}</p>
               <p className="text-xs sm:text-sm uppercase tracking-widest opacity-70">Ganhadores</p>
             </div>
             <div className="transform hover:scale-105 transition-transform">
@@ -634,10 +654,10 @@ function HomePage() {
             </div>
           </section>
 
-          {/* Banner Ad Space */}
-          <AdvertisementCarousel position="homepage" autoPlay={true} autoPlayInterval={5000} />
-
-
+          {/* Banners de Patrocinadores */}
+          <section className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
+            <AdvertisementCarousel position="homepage" autoPlay={true} autoPlayInterval={5000} />
+          </section>
 
         </div>
       </main>

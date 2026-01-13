@@ -8,14 +8,12 @@ import { supabase } from '../../lib/supabase';
 
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
   const [hasActiveLive, setHasActiveLive] = useState(false);
   const [hasUserBets, setHasUserBets] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { currentUser: currentAppUser, clearUserData } = useData();
-  const { getPendingRequestsCount } = useData();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => setIsMenuOpen(false);
@@ -42,33 +40,6 @@ function Header() {
     }
   };
 
-  // Carregar contagem de solicitações pendentes para admins
-  useEffect(() => {
-    if (currentAppUser?.is_admin) {
-      loadPendingCount();
-    }
-  }, [currentAppUser]);
-
-  // Real-time subscription for pending requests count
-  useEffect(() => {
-    if (!currentAppUser?.is_admin) return;
-
-    const subscription = supabase
-      .channel('pending-requests-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'extra_number_requests'
-      }, () => {
-
-        loadPendingCount();
-      })
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [currentAppUser?.is_admin]);
 
   // Verificar se há live ativa
   useEffect(() => {
@@ -154,14 +125,6 @@ function Header() {
     }
   };
 
-  const loadPendingCount = async () => {
-    try {
-      const count = await getPendingRequestsCount();
-      setPendingCount(count);
-    } catch (error) {
-
-    }
-  };
 
   return (
     <>
@@ -230,27 +193,15 @@ function Header() {
               {/* Admin buttons - Simplified mapping */}
               {currentAppUser && currentAppUser.is_admin && (
                 <>
-                  {[
-                    { path: '/admin/approvals', label: 'Aprovações', count: pendingCount, color: 'text-green-400' },
-                    { path: '/admin/raffles', label: 'Sorteios', color: 'text-purple-400' },
-                    { path: '/admin/live-games', label: 'Lives', color: 'text-red-400' },
-                  ].map((item) => (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      className={`px-3 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 relative ${location.pathname.startsWith(item.path)
-                        ? 'bg-white/10 text-white shadow-sm border border-white/20'
-                        : 'text-white/80 hover:text-white hover:bg-white/5'
-                        }`}
-                    >
-                      {item.label}
-                      {item.count ? (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] flex items-center justify-center animate-pulse">
-                          {item.count}
-                        </span>
-                      ) : null}
-                    </Link>
-                  ))}
+                  <Link
+                    to="/admin/live-games"
+                    className={`px-3 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 relative ${location.pathname.startsWith('/admin/live-games')
+                      ? 'bg-white/10 text-white shadow-sm border border-white/20'
+                      : 'text-white/80 hover:text-white hover:bg-white/5'
+                      }`}
+                  >
+                    Live Resta Um
+                  </Link>
                   <Link
                     to="/admin/live-stream"
                     className="ml-2 px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 bg-white text-primary hover:bg-gray-100 shadow-lg"
@@ -263,8 +214,8 @@ function Header() {
               {/* User buttons */}
               {currentAppUser && !currentAppUser.is_admin && (
                 <>
-                  {/* Botão Minhas Apostas - apenas para usuários que participaram */}
-                  {hasUserBets && (
+                  {/* Botão Minhas Apostas - apenas para usuários que NÃO estão participando do bolão */}
+                  {!hasUserBets && (
                     <Link
                       to="/my-numbers"
                       className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 border border-blue-500/50 ${location.pathname === '/my-numbers'
@@ -275,15 +226,6 @@ function Header() {
                       Minhas Apostas
                     </Link>
                   )}
-                  <Link
-                    to="/my-numbers"
-                    className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 border border-white/20 ${location.pathname === '/my-numbers'
-                      ? 'bg-white/10 text-white shadow-lg'
-                      : 'text-white hover:bg-white/10 hover:border-white/40'
-                      }`}
-                  >
-                    Meus Números
-                  </Link>
                 </>
               )}
 
@@ -431,11 +373,8 @@ function Header() {
                 {currentAppUser && currentAppUser.is_admin && (
                   <div className="py-2 space-y-2 border-t border-white/10 mt-2 pt-4">
                     <p className="px-4 text-xs font-bold uppercase text-white/50 tracking-wider mb-2">Administração</p>
-                    <Link to="/admin/approvals" onClick={closeMenu} className="flex items-center px-4 py-2 text-white/80 hover:text-white hover:bg-white/5 rounded-lg">
-                      <span className="mr-3">⚡</span> Aprovações {pendingCount > 0 && <span className="ml-auto bg-red-500 text-white text-xs px-2 rounded-full">{pendingCount}</span>}
-                    </Link>
-                    <Link to="/admin/raffles" onClick={closeMenu} className="flex items-center px-4 py-2 text-white/80 hover:text-white hover:bg-white/5 rounded-lg">
-                      <span className="mr-3">🎯</span> Sorteios
+                    <Link to="/admin/live-games" onClick={closeMenu} className="flex items-center px-4 py-2 text-white/80 hover:text-white hover:bg-white/5 rounded-lg">
+                      <span className="mr-3">🎮</span> Live Resta Um
                     </Link>
                     <Link to="/admin/live-stream" onClick={closeMenu} className="flex items-center px-4 py-2 text-white/80 hover:text-white hover:bg-white/5 rounded-lg">
                       <span className="mr-3">📡</span> Transmitir

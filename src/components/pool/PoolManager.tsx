@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import { Target, Play, Square, Trophy, Users, DollarSign, CheckCircle, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { whatsappService } from '../../services/whatsappService';
+import CustomToast from '../shared/CustomToast';
 
 interface PoolManagerProps {
   streamId: string;
@@ -151,10 +152,34 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
 
       if (winnersError) {
         console.error('Erro ao calcular ganhadores:', winnersError);
-        toast.error('Resultado salvo, mas erro ao calcular ganhadores');
+        toast.custom((t) => (
+          <CustomToast
+            type="error"
+            title="ERRO AO CALCULAR GANHADORES"
+            message="Resultado salvo, mas houve erro ao calcular ganhadores"
+          />
+        ), { duration: 3000 });
       } else {
         const winnersCount = winnersData?.winners_count || 0;
-        toast.success(`Resultado salvo! ${winnersCount} ganhador(es) encontrado(s).`);
+        
+        // Mensagem informando se houve ganhador(es)
+        if (winnersCount > 0) {
+          toast.custom((t) => (
+            <CustomToast
+              type="success"
+              title="RESULTADO DEFINIDO COM SUCESSO!"
+              message={`${winnersCount} ganhador(es) encontrado(s)! As notificações serão enviadas automaticamente.`}
+            />
+          ), { duration: 4000 });
+        } else {
+          toast.custom((t) => (
+            <CustomToast
+              type="warning"
+              title="RESULTADO DEFINIDO"
+              message="Nenhum ganhador encontrado para este resultado."
+            />
+          ), { duration: 3000 });
+        }
         
         // Enviar notificações automáticas para ganhadores
         if (winnersCount > 0) {
@@ -183,6 +208,10 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
               for (const winner of winners) {
                 try {
                   if (winner.users?.whatsapp && winner.users?.name) {
+                    // Teste: verificar se é o número de teste (33) 999030124
+                    const testWhatsApp = '33999030124';
+                    const winnerWhatsApp = winner.users.whatsapp.replace(/\D/g, '');
+                    
                     const result = await whatsappService.sendMessage({
                       to: winner.users.whatsapp,
                       message: '',
@@ -198,6 +227,16 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
 
                     if (result.success) {
                       successCount++;
+                      // Se for o número de teste, mostrar mensagem especial
+                      if (winnerWhatsApp === testWhatsApp) {
+                        toast.custom((t) => (
+                          <CustomToast
+                            type="success"
+                            title="MENSAGEM DE TESTE ENVIADA!"
+                            message={`Mensagem enviada com sucesso para ${winner.users.name} (${winner.users.whatsapp})`}
+                          />
+                        ), { duration: 4000 });
+                      }
                     } else {
                       errorCount++;
                       console.error(`Erro ao enviar notificação para ${winner.users.name}:`, result.error);
@@ -213,10 +252,22 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
               }
 
               if (successCount > 0) {
-                toast.success(`${successCount} notificação(ões) enviada(s) para ganhadores!`);
+                toast.custom((t) => (
+                  <CustomToast
+                    type="success"
+                    title="NOTIFICAÇÕES ENVIADAS"
+                    message={`${successCount} mensagem(ns) enviada(s) para ganhadores!`}
+                  />
+                ), { duration: 3000 });
               }
               if (errorCount > 0) {
-                toast.error(`${errorCount} notificação(ões) falharam. Verifique os números de WhatsApp.`);
+                toast.custom((t) => (
+                  <CustomToast
+                    type="error"
+                    title="ERRO AO ENVIAR NOTIFICAÇÕES"
+                    message={`${errorCount} mensagem(ns) falharam. Verifique os números de WhatsApp.`}
+                  />
+                ), { duration: 3000 });
               }
             }
           } catch (notifError) {

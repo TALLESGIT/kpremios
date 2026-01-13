@@ -15,16 +15,19 @@ interface AdvertisementCarouselProps {
   position?: string;
   autoPlay?: boolean;
   autoPlayInterval?: number;
+  compact?: boolean; // Modo compacto para usar no espaço das estatísticas
 }
 
 export default function AdvertisementCarousel({
   position = 'homepage',
   autoPlay = true,
-  autoPlayInterval = 5000
+  autoPlayInterval = 5000,
+  compact = false
 }: AdvertisementCarouselProps) {
   const [advertisements, setAdvertisements] = useState<Advertisement[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [direction, setDirection] = useState<'left' | 'right'>('right'); // Direção da animação
 
   useEffect(() => {
     loadAdvertisements();
@@ -33,6 +36,7 @@ export default function AdvertisementCarousel({
   useEffect(() => {
     if (advertisements.length > 1 && autoPlay) {
       const interval = setInterval(() => {
+        setDirection('right');
         setCurrentIndex((prev) => (prev + 1) % advertisements.length);
       }, autoPlayInterval);
       return () => clearInterval(interval);
@@ -118,14 +122,17 @@ export default function AdvertisementCarousel({
   };
 
   const goToPrevious = () => {
+    setDirection('left');
     setCurrentIndex((prev) => (prev - 1 + advertisements.length) % advertisements.length);
   };
 
   const goToNext = () => {
+    setDirection('right');
     setCurrentIndex((prev) => (prev + 1) % advertisements.length);
   };
 
   const goToSlide = (index: number) => {
+    setDirection(index > currentIndex ? 'right' : 'left');
     setCurrentIndex(index);
   };
 
@@ -160,6 +167,85 @@ export default function AdvertisementCarousel({
   }
 
   const currentAd = advertisements[currentIndex];
+
+  // Se for modo compacto, renderizar versão simplificada (mesma altura das estatísticas)
+  if (compact) {
+    return (
+      <div className="relative w-full h-full group overflow-hidden">
+        <div 
+          className="flex transition-transform duration-500 ease-in-out h-full"
+          style={{
+            transform: `translateX(-${currentIndex * 100}%)`,
+            width: `${advertisements.length * 100}%`
+          }}
+        >
+          {advertisements.map((ad, index) => (
+            <div
+              key={ad.id}
+              className="flex-shrink-0 h-full w-full"
+            >
+              {ad.image_url && (
+                <div className="relative w-full h-full rounded overflow-hidden border border-white/10 bg-slate-950/50">
+                  <img
+                    src={ad.image_url}
+                    alt={ad.title}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        
+        {/* Navigation Controls - Compacto */}
+        {advertisements.length > 1 && (
+          <>
+            {/* Previous Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goToPrevious();
+              }}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/10 text-white flex items-center justify-center rounded-lg transition-all opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95 z-20"
+              aria-label="Anterior"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            {/* Next Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goToNext();
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/10 text-white flex items-center justify-center rounded-lg transition-all opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95 z-20"
+              aria-label="Próximo"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+
+            {/* Dots Indicator */}
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+              {advertisements.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    goToSlide(index);
+                  }}
+                  className={`h-1.5 rounded-full transition-all ${index === currentIndex
+                    ? 'bg-white w-6'
+                    : 'bg-white/40 hover:bg-white/60 w-1.5'
+                    }`}
+                  aria-label={`Ir para slide ${index + 1}`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-[2.5rem] p-[1px] bg-gradient-to-r from-blue-600/30 via-blue-400/50 to-blue-600/30 shadow-2xl overflow-hidden group">

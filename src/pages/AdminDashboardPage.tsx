@@ -4,7 +4,9 @@ import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import { Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, Settings, CheckCircle, MessageSquare, Trash2, Video, Tv, Image as ImageIcon } from 'lucide-react';
+import { Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, Settings, CheckCircle, MessageSquare, Trash2, Video, Tv, Image as ImageIcon, X, Phone } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import CustomToast from '../components/shared/CustomToast';
 
 import { WhatsAppTestPanel } from '../components/admin/WhatsAppTestPanel';
 import QuickTest from '../components/admin/QuickTest';
@@ -45,6 +47,12 @@ export default function AdminDashboardPage() {
   const [showDrawResult, setShowDrawResult] = useState(false);
   const [winnerData, setWinnerData] = useState<any>(null);
   const [countdown, setCountdown] = useState(0);
+  const [activePoolParticipants, setActivePoolParticipants] = useState(0);
+  const [vipPromo103Count, setVipPromo103Count] = useState(0);
+  const [showParticipantsModal, setShowParticipantsModal] = useState(false);
+  const [poolParticipants, setPoolParticipants] = useState<any[]>([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
+  const [activePoolId, setActivePoolId] = useState<string | null>(null);
 
   // Load pending requests count
   useEffect(() => {
@@ -97,17 +105,40 @@ export default function AdminDashboardPage() {
       try {
         console.log('AdminDashboardPage - Carregando todos os dados do dashboard...');
 
-        // Carregar total de números do sorteio ativo
-        const { data: activeRaffle } = await supabase
-          .from('raffles')
-          .select('total_numbers')
+        // Carregar participantes do bolão ativo
+        const { data: activePool } = await supabase
+          .from('match_pools')
+          .select('id, total_participants')
           .eq('is_active', true)
-          .eq('status', 'active')
+          .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
-        if (activeRaffle) {
-          setTotalRaffleNumbers(activeRaffle.total_numbers);
+        if (activePool) {
+          setActivePoolParticipants(activePool.total_participants || 0);
+          setActivePoolId(activePool.id);
+        } else {
+          setActivePoolParticipants(0);
+          setActivePoolId(null);
+        }
+
+        // Carregar contagem da promoção VIP 103 (quantos slots ainda disponíveis)
+        // A promoção é para 103 primeiros usuários até 01/02/2026
+        // Mostrar: 103 - (quantos já receberam VIP grátis até 01/02/2026)
+        const { count: vipGrantedCount, error: vipError } = await supabase
+          .from('users')
+          .select('*', { count: 'exact', head: true })
+          .eq('is_vip', true)
+          .not('vip_expires_at', 'is', null)
+          .lte('vip_expires_at', '2026-02-01T23:59:59.999Z');
+
+        if (!vipError && vipGrantedCount !== null) {
+          // Calcular quantos slots ainda estão disponíveis (103 - quantos já receberam)
+          const availableSlots = Math.max(0, 103 - vipGrantedCount);
+          setVipPromo103Count(availableSlots);
+        } else {
+          // Se houver erro, assumir que todos os 103 slots estão disponíveis
+          setVipPromo103Count(103);
         }
 
         const [availableCount, takenCount, pendingCount] = await Promise.all([
@@ -121,10 +152,11 @@ export default function AdminDashboardPage() {
         setPendingCount(pendingCount);
 
         console.log('AdminDashboardPage - Dados carregados:', {
+          activePoolParticipants: activePool?.total_participants || 0,
+          vipPromo103Count: vipCount || 0,
           availableCount,
           takenCount,
-          pendingCount,
-          totalRaffleNumbers: activeRaffle?.total_numbers || 5000
+          pendingCount
         });
       } catch (error) {
         console.error('AdminDashboardPage - Erro ao carregar dados:', error);
@@ -139,6 +171,41 @@ export default function AdminDashboardPage() {
     const updateCounters = async () => {
       try {
         console.log('AdminDashboardPage - Atualizando contadores em tempo real...');
+        
+        // Carregar participantes do bolão ativo
+        const { data: activePool } = await supabase
+          .from('match_pools')
+          .select('id, total_participants')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (activePool) {
+          setActivePoolParticipants(activePool.total_participants || 0);
+          setActivePoolId(activePool.id);
+        } else {
+          setActivePoolParticipants(0);
+          setActivePoolId(null);
+        }
+
+        // Carregar contagem da promoção VIP 103 (quantos slots ainda disponíveis)
+        const { count: vipGrantedCount, error: vipError } = await supabase
+          .from('users')
+          .select('*', { count: 'exact', head: true })
+          .eq('is_vip', true)
+          .not('vip_expires_at', 'is', null)
+          .lte('vip_expires_at', '2026-02-01T23:59:59.999Z');
+
+        if (!vipError && vipGrantedCount !== null) {
+          // Calcular quantos slots ainda estão disponíveis (103 - quantos já receberam)
+          const availableSlots = Math.max(0, 103 - vipGrantedCount);
+          setVipPromo103Count(availableSlots);
+        } else {
+          // Se houver erro, assumir que todos os 103 slots estão disponíveis
+          setVipPromo103Count(103);
+        }
+
         const [availableCount, takenCount, pendingCount] = await Promise.all([
           getAvailableNumbersCount(),
           getTakenNumbersCount(),
@@ -150,6 +217,8 @@ export default function AdminDashboardPage() {
         setPendingCount(pendingCount);
 
         console.log('AdminDashboardPage - Contadores atualizados:', {
+          activePoolParticipants: activePool?.total_participants || 0,
+          vipPromo103Count: vipCount || 0,
           availableCount,
           takenCount,
           pendingCount
@@ -744,7 +813,7 @@ export default function AdminDashboardPage() {
               <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-white mb-2 sm:mb-4 tracking-tight" style={{
                 textShadow: '2px 2px 0px rgba(251, 191, 36, 0.8)'
               }}>PAINEL ADMINISTRATIVO</h1>
-              <p className="text-blue-100 text-sm sm:text-base lg:text-lg xl:text-xl font-medium">Gerencie o sistema de sorteios ZK Oficial</p>
+              <p className="text-blue-100 text-sm sm:text-base lg:text-lg xl:text-xl font-medium">Gerencie o sistema de bolões ZK Oficial</p>
             </div>
           </div>
         </div>
@@ -754,12 +823,57 @@ export default function AdminDashboardPage() {
           {/* Enhanced Stats Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
             {[
-              { label: 'Participantes', value: takenNumbersCount, icon: Users, color: 'from-blue-600 to-blue-400', shadow: 'shadow-blue-500/20' },
-              { label: 'Disponíveis', value: availableNumbersCount, icon: Hash, color: 'from-emerald-600 to-emerald-400', shadow: 'shadow-emerald-500/20' },
+              { 
+                label: 'Participantes', 
+                value: activePoolParticipants, 
+                icon: Users, 
+                color: 'from-blue-600 to-blue-400', 
+                shadow: 'shadow-blue-500/20',
+                clickable: true,
+                onClick: async () => {
+                  if (!activePoolId) {
+                    toast.error('Nenhum bolão ativo encontrado');
+                    return;
+                  }
+                  setLoadingParticipants(true);
+                  setShowParticipantsModal(true);
+                  try {
+                    const { data, error } = await supabase
+                      .from('pool_bets')
+                      .select(`
+                        id,
+                        users!inner (
+                          name,
+                          whatsapp
+                        ),
+                        predicted_home_score,
+                        predicted_away_score,
+                        payment_status,
+                        created_at
+                      `)
+                      .eq('pool_id', activePoolId)
+                      .eq('payment_status', 'approved')
+                      .order('created_at', { ascending: false });
+
+                    if (error) throw error;
+                    setPoolParticipants(data || []);
+                  } catch (err) {
+                    console.error('Erro ao carregar participantes:', err);
+                    toast.error('Erro ao carregar participantes');
+                  } finally {
+                    setLoadingParticipants(false);
+                  }
+                }
+              },
+              { label: 'Disponíveis', value: vipPromo103Count, icon: Hash, color: 'from-emerald-600 to-emerald-400', shadow: 'shadow-emerald-500/20' },
               { label: 'Selecionados', value: takenNumbersCount, icon: Trophy, color: 'from-amber-600 to-amber-400', shadow: 'shadow-amber-500/20', progress: (takenNumbersCount / totalRaffleNumbers) * 100 },
               { label: 'Conversão', value: `${takenNumbersCount > 0 ? ((takenNumbersCount / totalRaffleNumbers) * 100).toFixed(1) : '0'}%`, icon: BarChart, color: 'from-purple-600 to-purple-400', shadow: 'shadow-purple-500/20' },
             ].map((stat, idx) => (
-              <div key={idx} className="glass-panel group relative overflow-hidden rounded-[2rem] border border-white/5 bg-slate-800/40 p-1 hover:border-white/10 transition-all duration-500">
+              <div 
+                key={idx} 
+                onClick={stat.clickable && stat.onClick ? stat.onClick : undefined}
+                className={`glass-panel group relative overflow-hidden rounded-[2rem] border border-white/5 bg-slate-800/40 p-1 hover:border-white/10 transition-all duration-500 ${stat.clickable ? 'cursor-pointer hover:scale-[1.02]' : ''}`}
+              >
                 <div className="bg-slate-900/40 rounded-[1.8rem] p-6 h-full backdrop-blur-3xl">
                   <div className="flex items-start justify-between mb-4">
                     <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${stat.color} p-0.5 ${stat.shadow} shadow-lg group-hover:scale-110 transition-transform`}>
@@ -850,41 +964,9 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Realizar Sorteio (Highlight) */}
-                <div className="lg:col-span-1 glass-panel rounded-[2.5rem] group relative overflow-hidden border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-all duration-500">
-                  <div className="p-8">
-                    <div className="flex items-center justify-between mb-8">
-                      <div className="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center border border-amber-500/20 group-hover:scale-110 transition-transform">
-                        <Trophy className="h-8 w-8 text-amber-500" />
-                      </div>
-                      <div className="text-right">
-                        <p className="text-amber-500/60 text-[10px] font-black uppercase tracking-widest mb-1">Status</p>
-                        <p className="text-white font-black italic">{takenNumbersCount > 0 ? 'PRONTO' : 'AGUARDANDO'}</p>
-                      </div>
-                    </div>
-
-                    <h3 className="text-2xl font-black text-white mb-4 italic uppercase">Realizar Sorteio</h3>
-                    <p className="text-blue-200/60 text-sm font-medium mb-8 leading-relaxed">
-                      Execute o algoritmo de sorteio automático entre todos os {takenNumbersCount} participantes ativos.
-                    </p>
-
-                    <button
-                      onClick={() => setShowDrawConfirm(true)}
-                      disabled={takenNumbersCount === 0}
-                      className={`w-full py-5 rounded-2xl font-black transition-all flex items-center justify-center gap-3 uppercase italic text-sm tracking-wider ${takenNumbersCount > 0
-                        ? 'bg-amber-500 text-white shadow-[0_10px_30px_rgba(245,158,11,0.3)] hover:scale-[1.02] active:scale-[0.98]'
-                        : 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-50'
-                        }`}
-                    >
-                      <Trophy className="h-5 w-5 fill-current" />
-                      Sortear Agora
-                    </button>
-                  </div>
-                </div>
-
+              <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
                 {/* Controle Resta Um */}
-                <div className="lg:col-span-1 glass-panel rounded-[2.5rem] group relative overflow-hidden border border-white/5 bg-slate-800/40 backdrop-blur-xl hover:border-blue-500/30 transition-all duration-500">
+                <div className="glass-panel rounded-[2.5rem] group relative overflow-hidden border border-white/5 bg-slate-800/40 backdrop-blur-xl hover:border-blue-500/30 transition-all duration-500">
                   <div className="p-8">
                     <div className="flex items-center justify-between mb-8">
                       <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center border border-blue-500/20 group-hover:scale-110 transition-transform">
@@ -937,36 +1019,6 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                {/* Gerenciar Raffles */}
-                <div className="lg:col-span-1 glass-panel rounded-[2.5rem] group relative overflow-hidden border border-white/5 bg-slate-800/40 backdrop-blur-xl hover:border-purple-500/30 transition-all duration-500">
-                  <div className="p-8">
-                    <div className="flex items-center justify-between mb-8">
-                      <div className="w-16 h-16 bg-purple-500/10 rounded-2xl flex items-center justify-center border border-purple-500/20 group-hover:scale-110 transition-transform">
-                        <Settings className="h-8 w-8 text-purple-400" />
-                      </div>
-                    </div>
-
-                    <h3 className="text-2xl font-black text-white mb-4 italic uppercase">Sorteios</h3>
-                    <p className="text-blue-200/60 text-sm font-medium mb-8 leading-relaxed">
-                      Crie novos sorteios ou edite as configurações dos existentes.
-                    </p>
-
-                    <div className="grid grid-cols-1 gap-3">
-                      <Link
-                        to="/admin/raffles"
-                        className="w-full py-4 bg-purple-600/10 hover:bg-purple-600 text-purple-400 hover:text-white border border-purple-500/20 rounded-2xl font-black text-xs uppercase italic text-center transition-all"
-                      >
-                        Gerenciar Todos
-                      </Link>
-                      <Link
-                        to="/admin/raffles/create"
-                        className="w-full py-2 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white border border-emerald-500/20 rounded-xl font-black text-[10px] uppercase italic text-center transition-all"
-                      >
-                        + Criar Novo
-                      </Link>
-                    </div>
-                  </div>
-                </div>
               </div>
             </section>
 
@@ -1052,30 +1104,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="glass-panel rounded-[3rem] p-1 bg-gradient-to-br from-emerald-500/20 to-transparent border border-white/5">
-                  <div className="bg-slate-900/90 backdrop-blur-3xl rounded-[2.8rem] p-8">
-                    <div className="flex items-center gap-6 mb-8">
-                      <div className="w-16 h-16 bg-emerald-500/10 rounded-[1.5rem] flex items-center justify-center border border-emerald-500/20">
-                        <CheckCircle className="h-8 w-8 text-emerald-500" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-black text-white italic uppercase">Aprovações</h3>
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl font-black text-emerald-400">{pendingCount}</span>
-                          <span className="text-[10px] font-black text-blue-300/40 uppercase tracking-widest">Pendentes</span>
-                        </div>
-                      </div>
-                    </div>
-                    <Link
-                      to="/admin/approvals"
-                      className="w-full py-5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white border border-emerald-500/20 rounded-3xl font-black uppercase italic text-sm transition-all text-center block"
-                    >
-                      Processar Solicitações
-                    </Link>
-                  </div>
-                </div>
-
+              <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
                 <div className="glass-panel rounded-[3rem] p-1 bg-gradient-to-br from-blue-500/20 to-transparent border border-white/5">
                   <div className="bg-slate-900/90 backdrop-blur-3xl rounded-[2.8rem] p-8">
                     <div className="flex items-center gap-6 mb-8">
@@ -1661,6 +1690,89 @@ Obrigado por participar! 🙏`;
             </div>
           )
         }
+
+        {/* Modal de Participantes */}
+        {showParticipantsModal && (
+          <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">
+            <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity" onClick={() => setShowParticipantsModal(false)}>
+                <div className="absolute inset-0 bg-black/60"></div>
+              </div>
+              <div className="inline-block align-bottom bg-slate-900 rounded-3xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full border border-white/10">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center">
+                      <Users className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-white uppercase">Participantes do Bolão</h3>
+                      <p className="text-sm text-blue-200/60">{poolParticipants.length} participante(s)</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowParticipantsModal(false)}
+                    className="text-white/60 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {loadingParticipants ? (
+                  <div className="text-center py-12">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+                    <p className="text-white/60 mt-4">Carregando participantes...</p>
+                  </div>
+                ) : poolParticipants.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Users className="w-16 h-16 text-white/20 mx-auto mb-4" />
+                    <p className="text-white/60">Nenhum participante encontrado</p>
+                  </div>
+                ) : (
+                  <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-2">
+                    {poolParticipants.map((bet: any, index: number) => (
+                      <div
+                        key={bet.id}
+                        className="bg-slate-800/50 border border-white/5 rounded-xl p-4 hover:bg-slate-800/70 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 font-black text-sm">
+                                {index + 1}
+                              </div>
+                              <div>
+                                <p className="text-white font-bold">{bet.users?.name || 'Nome não disponível'}</p>
+                                <div className="flex items-center gap-4 mt-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-blue-300/60">Palpite:</span>
+                                    <span className="text-sm font-black text-white">
+                                      {bet.predicted_home_score} x {bet.predicted_away_score}
+                                    </span>
+                                  </div>
+                                  {bet.users?.whatsapp && (
+                                    <a
+                                      href={`https://wa.me/${bet.users.whatsapp.replace(/\D/g, '')}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+                                    >
+                                      <Phone className="w-3 h-3" />
+                                      {bet.users.whatsapp}
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </main >
       <Footer />
     </div >
