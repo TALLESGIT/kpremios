@@ -577,11 +577,11 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
             </div>
             <button
               onClick={() => {
-                // Ao clicar no X, fecha o modal e redireciona para home
+                // Ao clicar no X, fecha o modal e redireciona para home (sem recarregar)
                 setShowPixPayment(false);
                 onClose();
-                // Redirecionar para home
-                window.location.href = '/';
+                // Redirecionar para home usando React Router (sem recarregar página)
+                navigate('/');
               }}
               className="p-2 hover:bg-white/10 rounded-lg transition-all"
             >
