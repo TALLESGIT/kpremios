@@ -18,7 +18,6 @@ import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import PoolManager from '../components/pool/PoolManager';
-import { updateLiveTitle } from '../services/liveTitleService';
 
 interface LiveStream {
   is_active: boolean;
@@ -203,9 +202,7 @@ const AdminLiveStreamPage: React.FC = () => {
   const startStream = async () => {
     if (!selectedStream) return;
     try {
-      // Atualizar título baseado no jogo do Cruzeiro antes de iniciar
-      await updateLiveTitle(selectedStream.id, selectedStream.channel_name);
-
+      // Título é mantido como o admin definiu (não sobrescrever)
       console.log(`Usando streamId: ${selectedStream.id}`);
 
       const { data, error } = await supabase
