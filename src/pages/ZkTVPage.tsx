@@ -884,42 +884,6 @@ const ZkTVPage: React.FC = () => {
                                         {activeStream.is_active && activeStream.id && (
                                             <VipMessageOverlay streamId={activeStream.id} isActive={activeStream.is_active} />
                                         )}
-
-                                        {/* Overlay de Bolão Ativo */}
-                                        <AnimatePresence>
-                                            {activePool && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, y: -20, scale: 0.9 }}
-                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                    exit={{ opacity: 0, y: -20, scale: 0.9 }}
-                                                    className="absolute top-20 right-4 z-30 max-w-[200px]"
-                                                >
-                                                    <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 p-3 rounded-xl shadow-xl shadow-emerald-900/50 border border-white/20 backdrop-blur-md">
-                                                        <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/10">
-                                                            <Target className="w-4 h-4 text-white animate-pulse" />
-                                                            <span className="text-xs font-black text-white uppercase tracking-wider">Bolão Ativo</span>
-                                                        </div>
-                                                        <div className="text-center mb-2">
-                                                            <div className="text-[10px] text-white/80 uppercase font-bold mb-1">{activePool.match_title}</div>
-                                                            <div className="flex items-center justify-center gap-2 font-black text-white text-sm">
-                                                                <span>{activePool.home_team.substring(0, 3).toUpperCase()}</span>
-                                                                <span className="text-emerald-300 italic">vs</span>
-                                                                <span>{activePool.away_team.substring(0, 3).toUpperCase()}</span>
-                                                            </div>
-                                                        </div>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setShowPoolModal(true);
-                                                            }}
-                                                            className="w-full py-1.5 bg-white text-emerald-700 rounded-lg text-xs font-black uppercase hover:bg-emerald-50 transition-colors shadow-lg"
-                                                        >
-                                                            Participar
-                                                        </button>
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
                                     </>
                                 ) : (
                                     settings?.live_url && settings.live_url.includes('/live/') ? (
