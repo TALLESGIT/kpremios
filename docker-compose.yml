@@ -13,6 +13,8 @@ services:
       - redis
     env_file:
       - .env
+    environment:
+      - NODE_OPTIONS=--dns-result-order=ipv4first
     networks:
       - evolution-net
 
@@ -41,6 +43,7 @@ services:
 volumes:
   evolution_data:
   redis_data:
+
 
 networks:
   evolution-net:

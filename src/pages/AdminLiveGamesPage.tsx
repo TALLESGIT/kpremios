@@ -105,19 +105,86 @@ const AdminLiveGamesPage: React.FC = () => {
   };
 
   const deleteGame = async (gameId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este jogo?')) return;
-
     try {
+      // Buscar informações do jogo antes de deletar
+      const { data: gameData, error: fetchError } = await supabase
+        .from('live_games')
+        .select(`
+          *,
+          live_participants(count)
+        `)
+        .eq('id', gameId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!gameData) {
+        toast.error('Jogo não encontrado');
+        return;
+      }
+
+      const participantsCount = gameData.live_participants?.[0]?.count || 0;
+      const isActive = gameData.status === 'active';
+      const gameTitle = gameData.title;
+
+      // PROTEÇÃO: Não permitir exclusão se o jogo estiver ativo
+      if (isActive) {
+        toast.error(`⚠️ Não é possível excluir "${gameTitle}" enquanto está ATIVO! Finalize o jogo primeiro.`, {
+          duration: 6000,
+          icon: '🚫'
+        });
+        return;
+      }
+
+      // PROTEÇÃO: Confirmação obrigatória com informações detalhadas
+      let confirmMessage = `⚠️ EXCLUIR JOGO: "${gameTitle}"\n\n`;
+      
+      if (participantsCount > 0) {
+        confirmMessage += `🚨 ATENÇÃO: Este jogo tem ${participantsCount} participante(s)!\n\n`;
+        confirmMessage += `Ao excluir, TODOS os participantes serão PERMANENTEMENTE removidos.\n\n`;
+        confirmMessage += `Esta ação NÃO PODE ser desfeita!\n\n`;
+      } else {
+        confirmMessage += `Este jogo não tem participantes.\n\n`;
+      }
+      
+      confirmMessage += `Deseja realmente excluir este jogo?`;
+
+      const confirmed = window.confirm(confirmMessage);
+      if (!confirmed) {
+        toast.info('Exclusão cancelada');
+        return;
+      }
+
+      // Segunda confirmação para jogos com participantes
+      if (participantsCount > 0) {
+        const secondConfirm = window.confirm(
+          `🚨 ÚLTIMA CHANCE!\n\nVocê está prestes a excluir "${gameTitle}" e remover ${participantsCount} participante(s) permanentemente.\n\nTem CERTEZA ABSOLUTA?`
+        );
+        if (!secondConfirm) {
+          toast.info('Exclusão cancelada');
+          return;
+        }
+      }
+
+      // Deletar o jogo (CASCADE vai deletar os participantes automaticamente)
       const { error } = await supabase
         .from('live_games')
         .delete()
         .eq('id', gameId);
 
       if (error) throw error;
-      toast.success('Jogo excluído com sucesso!');
+      
+      if (participantsCount > 0) {
+        toast.success(`Jogo "${gameTitle}" excluído. ${participantsCount} participante(s) foram removidos.`, {
+          duration: 6000,
+          icon: '⚠️'
+        });
+      } else {
+        toast.success(`Jogo "${gameTitle}" excluído com sucesso!`);
+      }
+      
       loadGames();
     } catch (error) {
-
+      console.error('Erro ao excluir jogo:', error);
       toast.error('Erro ao excluir jogo');
     }
   };

@@ -28,8 +28,34 @@ export const WhatsAppTestPanel: React.FC<WhatsAppTestPanelProps> = ({ onClose })
   const [result, setResult] = useState<any>(null);
   const [messageSids] = useState<string[]>([]);
   const [instanceStatus, setInstanceStatus] = useState<{ connected: boolean; status?: string } | null>(null);
+  const [qrCode, setQrCode] = useState<string | null>(null);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [connecting, setConnecting] = useState(false);
+
+  // Poll for connection status when QR code is displayed
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    if (qrCode && !instanceStatus?.connected) {
+      intervalId = setInterval(async () => {
+        try {
+          const status = await evolutionApiService.checkInstanceStatus();
+          setInstanceStatus(status);
+
+          if (status.connected) {
+            setQrCode(null); // Clear QR code when connected
+            // alert('WhatsApp conectado com sucesso!'); // Optional: user feedback
+          }
+        } catch (error) {
+          console.error("Error polling status:", error);
+        }
+      }, 3000); // Check every 3 seconds
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [qrCode, instanceStatus?.connected]);
 
   const handleTestRegistration = async () => {
     const success = await sendRegistrationConfirmation({
@@ -114,11 +140,14 @@ export const WhatsAppTestPanel: React.FC<WhatsAppTestPanelProps> = ({ onClose })
 
   const checkInstanceStatus = async () => {
     if (!USE_EVOLUTION_API) return;
-    
+
     setCheckingStatus(true);
     try {
       const status = await evolutionApiService.checkInstanceStatus();
       setInstanceStatus(status);
+      if (status.connected) {
+        setQrCode(null);
+      }
     } catch (err: any) {
       setInstanceStatus({ connected: false, status: 'erro' });
     } finally {
@@ -128,16 +157,25 @@ export const WhatsAppTestPanel: React.FC<WhatsAppTestPanelProps> = ({ onClose })
 
   const handleConnectInstance = async () => {
     if (!USE_EVOLUTION_API) return;
-    
+
     setConnecting(true);
+    setQrCode(null); // Clear previous QR code
     try {
       const result = await evolutionApiService.connectInstance();
       if (result.success) {
-        // Aguardar um pouco e verificar novamente
-        setTimeout(() => {
-          checkInstanceStatus();
-        }, 2000);
+        if (result.qrcode) {
+          setQrCode(result.qrcode);
+        } else {
+          // If no QR code but success, check status (might be already connected)
+          setTimeout(() => {
+            checkInstanceStatus();
+          }, 2000);
+        }
       } else {
+        if (result.qrcode) {
+          setQrCode(result.qrcode); // Sometimes it returns false success but provides QR code
+        }
+
         setResult({
           type: 'connection',
           success: false,
@@ -224,20 +262,45 @@ export const WhatsAppTestPanel: React.FC<WhatsAppTestPanelProps> = ({ onClose })
             {USE_EVOLUTION_API && instanceStatus && !instanceStatus.connected && (
               <div className="mt-3 pt-3 border-t border-blue-300">
                 <p className="text-xs text-orange-700 mb-2">
-                  ⚠️ A instância não está conectada. Você precisa:
+                  ⚠️ A instância não está conectada.
                 </p>
-                <ol className="text-xs text-orange-700 list-decimal list-inside space-y-1 mb-2">
-                  <li>Acessar o servidor da Evolution API</li>
-                  <li>Escanear o QR Code para conectar o WhatsApp</li>
-                  <li>Aguardar o status mudar para "open"</li>
-                </ol>
-                <button
-                  onClick={handleConnectInstance}
-                  disabled={connecting}
-                  className="w-full text-xs px-3 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
-                >
-                  {connecting ? '⏳ Conectando...' : '🔗 Tentar Conectar Instância'}
-                </button>
+
+                {!qrCode ? (
+                  <>
+                    <p className="text-xs text-orange-700 mb-2">
+                      Clique abaixo para gerar o QR Code:
+                    </p>
+                    <button
+                      onClick={handleConnectInstance}
+                      disabled={connecting}
+                      className="w-full text-xs px-3 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {connecting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                          Gerando QR Code...
+                        </>
+                      ) : (
+                        '🔗 Conectar Instância'
+                      )}
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center p-4 bg-white rounded-lg border border-gray-200">
+                    <p className="text-sm font-bold text-gray-800 mb-2">Escaneie o QR Code:</p>
+                    <div className="bg-white p-2 rounded shadow-sm mb-3">
+                      <img
+                        src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`}
+                        alt="WhatsApp QR Code"
+                        className="w-64 h-64 object-contain"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-blue-600 animate-pulse">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                      Aguardando leitura...
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

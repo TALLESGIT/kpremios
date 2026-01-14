@@ -278,10 +278,119 @@ const AdminLiveStreamPage: React.FC = () => {
   };
 
   const deleteStream = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta live?')) return;
-    await supabase.from('live_streams').delete().eq('id', id);
-    if (selectedStream?.id === id) setSelectedStream(null);
-    await loadStreams();
+    try {
+      // Verificar se há bolões ativos associados a esta live
+      const { data: activePools, error: poolsError } = await supabase
+        .from('match_pools')
+        .select('id, match_title, is_active, total_participants')
+        .eq('live_stream_id', id)
+        .eq('is_active', true);
+
+      if (poolsError) {
+        console.error('Erro ao verificar bolões:', poolsError);
+        toast.error('Erro ao verificar bolões ativos');
+        return;
+      }
+
+      // PROTEÇÃO: Não permitir exclusão se houver bolão ativo
+      if (activePools && activePools.length > 0) {
+        const poolsList = activePools.map(p => `"${p.match_title}" (${p.total_participants || 0} participantes)`).join('\n');
+        
+        toast.error(
+          `🚫 NÃO É POSSÍVEL EXCLUIR ESTA LIVE!\n\nHá ${activePools.length} bolão(ões) ATIVO(S) associado(s):\n\n${poolsList}\n\nFinalize ou desative os bolões antes de excluir a live.`,
+          {
+            duration: 8000,
+            icon: '🚫',
+            style: {
+              maxWidth: '500px',
+              whiteSpace: 'pre-line'
+            }
+          }
+        );
+        return;
+      }
+
+      // Buscar informações da live antes de deletar
+      const { data: streamData, error: fetchError } = await supabase
+        .from('live_streams')
+        .select('title, is_active')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) throw fetchError;
+      
+      const streamTitle = streamData?.title || 'Live';
+      const isActive = streamData?.is_active || false;
+
+      // PROTEÇÃO: Não permitir exclusão se a live estiver ativa
+      if (isActive) {
+        toast.error(`⚠️ Não é possível excluir "${streamTitle}" enquanto está ATIVA! Encerre a live primeiro.`, {
+          duration: 6000,
+          icon: '🚫'
+        });
+        return;
+      }
+
+      // Verificar se há bolões (mesmo inativos) para avisar
+      const { data: allPools, error: allPoolsError } = await supabase
+        .from('match_pools')
+        .select('id, match_title, total_participants')
+        .eq('live_stream_id', id);
+
+      let confirmMessage = `⚠️ EXCLUIR LIVE: "${streamTitle}"\n\n`;
+      
+      if (allPools && allPools.length > 0) {
+        const totalParticipants = allPools.reduce((sum, p) => sum + (p.total_participants || 0), 0);
+        confirmMessage += `🚨 ATENÇÃO: Esta live tem ${allPools.length} bolão(ões) com ${totalParticipants} participante(s)!\n\n`;
+        confirmMessage += `Ao excluir, TODOS os bolões e participantes serão PERMANENTEMENTE removidos.\n\n`;
+        confirmMessage += `Esta ação NÃO PODE ser desfeita!\n\n`;
+      }
+      
+      confirmMessage += `Deseja realmente excluir esta live?`;
+
+      const confirmed = window.confirm(confirmMessage);
+      if (!confirmed) {
+        toast.info('Exclusão cancelada');
+        return;
+      }
+
+      // Segunda confirmação se houver bolões
+      if (allPools && allPools.length > 0) {
+        const totalParticipants = allPools.reduce((sum, p) => sum + (p.total_participants || 0), 0);
+        const secondConfirm = window.confirm(
+          `🚨 ÚLTIMA CHANCE!\n\nVocê está prestes a excluir "${streamTitle}" e remover ${allPools.length} bolão(ões) com ${totalParticipants} participante(s) permanentemente.\n\nTem CERTEZA ABSOLUTA?`
+        );
+        if (!secondConfirm) {
+          toast.info('Exclusão cancelada');
+          return;
+        }
+      }
+
+      // Deletar a live (CASCADE vai deletar os bolões automaticamente)
+      const { error } = await supabase
+        .from('live_streams')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      if (selectedStream?.id === id) setSelectedStream(null);
+      
+      if (allPools && allPools.length > 0) {
+        const totalParticipants = allPools.reduce((sum, p) => sum + (p.total_participants || 0), 0);
+        toast.success(`Live "${streamTitle}" excluída. ${allPools.length} bolão(ões) e ${totalParticipants} participante(s) foram removidos.`, {
+          duration: 6000,
+          icon: '⚠️'
+        });
+      } else {
+        toast.success(`Live "${streamTitle}" excluída com sucesso!`);
+      }
+      
+      await loadStreams();
+    } catch (error) {
+      console.error('Erro ao excluir live:', error);
+      toast.error('Erro ao excluir live');
+    }
   };
 
   if (loading) {
