@@ -48,33 +48,81 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId }) => {
   useEffect(() => {
     loadActivePoll();
     
-    // Escutar mudanças em tempo real
-    const channel = supabase
+    // Escutar mudanças em tempo real para enquetes
+    const pollChannel = supabase
       .channel(`poll_display_${streamId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'stream_polls',
         filter: `stream_id=eq.${streamId}`
-      }, () => {
+      }, (payload) => {
+        console.log('🔄 PollDisplay: Mudança detectada na enquete:', payload.eventType);
+        // Recarregar enquete imediatamente quando houver mudança
         loadActivePoll();
       })
+      .subscribe();
+
+    // Escutar mudanças em votos - usar subscription dinâmica
+    let votesChannel: any = null;
+    
+    const setupVotesSubscription = (pollId: string) => {
+      // Remover subscription anterior se existir
+      if (votesChannel) {
+        supabase.removeChannel(votesChannel);
+      }
+      
+      // Criar nova subscription para votos desta enquete
+      votesChannel = supabase
+        .channel(`poll_votes_${pollId}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'poll_votes',
+          filter: `poll_id=eq.${pollId}`
+        }, () => {
+          console.log('🔄 PollDisplay: Novo voto detectado');
+          if (activePoll) {
+            loadPollResults(activePoll.id);
+          }
+        })
+        .subscribe();
+    };
+
+    // Configurar subscription de votos quando activePoll mudar
+    if (activePoll?.id) {
+      setupVotesSubscription(activePoll.id);
+    }
+
+    return () => {
+      supabase.removeChannel(pollChannel);
+      if (votesChannel) {
+        supabase.removeChannel(votesChannel);
+      }
+    };
+  }, [streamId]);
+  
+  // Subscription separada para votos que atualiza quando activePoll muda
+  useEffect(() => {
+    if (!activePoll?.id) return;
+    
+    const votesChannel = supabase
+      .channel(`poll_votes_${activePoll.id}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'poll_votes',
-        filter: `poll_id=eq.${activePoll?.id || ''}`
+        filter: `poll_id=eq.${activePoll.id}`
       }, () => {
-        if (activePoll) {
-          loadPollResults(activePoll.id);
-        }
+        console.log('🔄 PollDisplay: Novo voto detectado para enquete:', activePoll.id);
+        loadPollResults(activePoll.id);
       })
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(votesChannel);
     };
-  }, [streamId, activePoll?.id]);
+  }, [activePoll?.id]);
 
   const loadActivePoll = async () => {
     try {

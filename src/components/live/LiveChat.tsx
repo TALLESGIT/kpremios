@@ -94,6 +94,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
   const [audioCountRemaining, setAudioCountRemaining] = useState<number>(3);
   const [vipOverlayCountRemaining, setVipOverlayCountRemaining] = useState<number>(10);
   const [likedMessages, setLikedMessages] = useState<Set<string>>(new Set());
+  const [hasActivePoll, setHasActivePoll] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -128,6 +129,49 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
       console.error('Erro ao carregar limites VIP:', err);
     }
   };
+
+  // Verificar se há enquete ativa
+  useEffect(() => {
+    const checkActivePoll = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('stream_polls')
+          .select('id')
+          .eq('stream_id', streamId)
+          .eq('is_active', true)
+          .eq('is_pinned', true)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Erro ao verificar enquete ativa:', error);
+          return;
+        }
+
+        setHasActivePoll(!!data);
+      } catch (error) {
+        console.error('Erro ao verificar enquete ativa:', error);
+      }
+    };
+
+    checkActivePoll();
+
+    // Escutar mudanças em tempo real para enquetes
+    const pollChannel = supabase
+      .channel(`live_chat_poll_check_${streamId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'stream_polls',
+        filter: `stream_id=eq.${streamId}`
+      }, () => {
+        checkActivePoll();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(pollChannel);
+    };
+  }, [streamId]);
 
   useEffect(() => {
     loadMessages();
@@ -1006,8 +1050,8 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
         <PollDisplay streamId={streamId} />
       </div>
 
-      {/* Área de Mensagem Fixada (Fixa no topo) */}
-      {pinnedMessage && (
+      {/* Área de Mensagem Fixada (Fixa no topo) - Ocultar para usuários quando há enquete ativa, mas admin sempre vê */}
+      {pinnedMessage && (!hasActivePoll || isAdmin) && (
         <div className="px-4 py-2 border-b border-white/5 bg-slate-800/60 backdrop-blur-md sticky top-0 z-20">
           <div className="p-3 bg-gradient-to-r from-blue-600/30 to-blue-500/20 border border-blue-500/30 rounded-xl shadow-lg">
             <div className="flex items-center justify-between mb-1.5">
