@@ -209,6 +209,25 @@ const PublicLiveStreamPage: React.FC = () => {
           .select();
         data = result.data;
         error = result.error;
+
+        // Se criou nova sessão e usuário está logado, tentar conceder VIP da promoção dos 100 primeiros
+        if (!error && user?.id && data && data.length > 0) {
+          try {
+            const { data: vipGranted, error: vipError } = await supabase.rpc('grant_free_vip_if_eligible', {
+              p_user_id: user.id
+            });
+            if (vipGranted && !vipError) {
+              console.log('✅ VIP grátis concedido ao acessar live!');
+              toast.success('🎉 Parabéns! Você recebeu VIP gratuito!', {
+                duration: 5000,
+                icon: '💎'
+              });
+            }
+          } catch (vipError) {
+            console.error('Erro ao verificar VIP grátis:', vipError);
+            // Não bloquear se houver erro
+          }
+        }
       }
 
       if (error) {
