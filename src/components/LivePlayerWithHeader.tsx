@@ -57,14 +57,7 @@ export default function LivePlayerWithHeader({
           <h2 className="text-lg md:text-xl font-black text-white uppercase italic truncate">
             {title || 'ZK TV'}
           </h2>
-          {isLive && (
-            <div className="flex items-center gap-2 mt-1">
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-red-600 text-white text-xs font-bold rounded uppercase tracking-wider">
-                <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
-                AO VIVO
-              </span>
-            </div>
-          )}
+          {/* Badge AO VIVO - REMOVIDO: Não exibir para usuários */}
         </div>
         <button
           onClick={handleCopyLink}

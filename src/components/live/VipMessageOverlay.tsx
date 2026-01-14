@@ -98,6 +98,11 @@ const MIN_INTERVAL_BETWEEN_MESSAGES = 5000; // 5 segundos mínimo entre mensagen
 const MIN_INTERVAL_AFTER_TTS = 3000; // 3 segundos após TTS terminar
 const MIN_INTERVAL_AFTER_TEXT = 2000; // 2 segundos após mensagem de texto
 
+// MELHORIAS: Rate Limiting e Controle de Frequência
+const MAX_VIP_MESSAGES_PER_MINUTE = 3; // Máximo 3 mensagens VIP por minuto (global)
+const MIN_INTERVAL_PER_USER = 60000; // 1 minuto entre mensagens do mesmo usuário VIP
+const RATE_LIMIT_WINDOW = 60000; // Janela de 1 minuto para rate limiting
+
 const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActive }) => {
   console.log('🎬 VipMessageOverlay: Componente renderizado', { streamId, isActive });
   
@@ -114,6 +119,10 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const videoVolumeBeforeTTSRef = useRef<number | null>(null);
   const lastMessageProcessedAtRef = useRef<number>(0); // Timestamp da última mensagem processada
+  
+  // MELHORIAS: Controle de rate limiting e limite por usuário
+  const messagesInLastMinuteRef = useRef<Array<{ timestamp: number }>>([]); // Mensagens nos últimos 60 segundos
+  const lastMessagePerUserRef = useRef<{ [userId: string]: number }>({}); // Última mensagem de cada usuário
 
   // Sincronizar ref com state
   useEffect(() => {
@@ -389,7 +398,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
     processMessageQueue();
   };
 
-  // Função para adicionar mensagem à fila
+  // Função para adicionar mensagem à fila (mantida para compatibilidade, mas lógica principal está no listener)
   const addMessageToQueue = (message: VipMessage) => {
     // Verificar se a mensagem já está na fila
     if (messageQueueRef.current.some(m => m.id === message.id)) {
@@ -397,16 +406,25 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
       return;
     }
 
-    // Adicionar à fila
-    messageQueueRef.current.push(message);
+    // Mensagens TTS têm prioridade (início da fila), texto normal vai para o final
+    const isTtsMessage = message.message_type === 'tts' || message.message_type === 'audio';
+    if (isTtsMessage) {
+      messageQueueRef.current.unshift(message); // Prioridade: início da fila
+    } else {
+      messageQueueRef.current.push(message); // Normal: final da fila
+    }
+
     console.log(`➕ VipMessageOverlay: Mensagem adicionada à fila. Total na fila: ${messageQueueRef.current.length}`, {
       message_id: message.id,
       user_name: message.user_name,
-      message_type: message.message_type
+      message_type: message.message_type,
+      priority: isTtsMessage ? 'high' : 'normal'
     });
 
     // Iniciar processamento se não estiver processando
-    processMessageQueue();
+    if (!isProcessingQueueRef.current) {
+      processMessageQueue();
+    }
   };
 
   // Função para truncar mensagem se muito longa
@@ -575,6 +593,35 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
             return;
           }
 
+          // MELHORIA 1: Verificar limite por usuário (cada VIP só pode enviar 1 mensagem por minuto)
+          const now = Date.now();
+          const lastMessageFromUser = lastMessagePerUserRef.current[newMsg.user_id];
+          
+          if (lastMessageFromUser && (now - lastMessageFromUser) < MIN_INTERVAL_PER_USER) {
+            const waitTime = Math.ceil((MIN_INTERVAL_PER_USER - (now - lastMessageFromUser)) / 1000);
+            console.log(`⏳ VipMessageOverlay: Usuário ${newMsg.user_name} precisa aguardar ${waitTime}s antes de enviar outra mensagem VIP`);
+            return; // Ignorar mensagem - usuário enviou muito recentemente
+          }
+
+          // MELHORIA 2: Verificar rate limiting global (máximo X mensagens por minuto)
+          // Limpar mensagens antigas (fora da janela de 1 minuto)
+          const oneMinuteAgo = now - RATE_LIMIT_WINDOW;
+          messagesInLastMinuteRef.current = messagesInLastMinuteRef.current.filter(
+            msg => msg.timestamp > oneMinuteAgo
+          );
+
+          // Verificar se excedeu o limite
+          if (messagesInLastMinuteRef.current.length >= MAX_VIP_MESSAGES_PER_MINUTE) {
+            const oldestMessage = messagesInLastMinuteRef.current[0];
+            const waitTime = Math.ceil((oldestMessage.timestamp + RATE_LIMIT_WINDOW - now) / 1000);
+            console.log(`⏳ VipMessageOverlay: Rate limit atingido (${MAX_VIP_MESSAGES_PER_MINUTE} mensagens/minuto). Aguarde ${waitTime}s`);
+            return; // Ignorar mensagem - limite global atingido
+          }
+
+          // MELHORIA 3: Mensagens TTS têm prioridade (adicionar no início da fila)
+          // Mensagens normais vão para o final da fila
+          const isTtsMessage = newMsg.message_type === 'tts' || newMsg.message_type === 'audio';
+          
           const truncatedMsg = truncateMessage(newMsg.message);
           // Buscar cor VIP do cache ou usar padrão
           const vipColor = userRolesRef.current[newMsg.user_id]?.vipColor || 'purple';
@@ -596,11 +643,27 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
             id: messageData.id,
             user_name: messageData.user_name,
             message_type: messageData.message_type,
-            message_preview: messageData.message.substring(0, 30) + '...'
+            message_preview: messageData.message.substring(0, 30) + '...',
+            isTts: isTtsMessage,
+            priority: isTtsMessage ? 'high' : 'normal'
           });
 
-          // Adicionar à fila ao invés de exibir diretamente
-          addMessageToQueue(messageData);
+          // Adicionar à fila (TTS no início, texto no final)
+          if (isTtsMessage) {
+            messageQueueRef.current.unshift(messageData); // Prioridade: início da fila
+          } else {
+            messageQueueRef.current.push(messageData); // Normal: final da fila
+          }
+
+          // Atualizar controles de rate limiting
+          messagesInLastMinuteRef.current.push({ timestamp: now });
+          lastMessagePerUserRef.current[newMsg.user_id] = now;
+
+          // Processar fila se não estiver processando
+          if (!isProcessingQueueRef.current) {
+            processMessageQueue();
+          }
+          
           setOverlayMessagesCount(messagesShown + 1);
         } else {
           console.log('❌ VipMessageOverlay: Usuário NÃO é VIP, ignorando mensagem para overlay');

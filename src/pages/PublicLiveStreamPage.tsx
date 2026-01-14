@@ -587,10 +587,8 @@ const PublicLiveStreamPage: React.FC = () => {
           <div className="flex items-center gap-4">
             <div className="px-6 py-3 bg-slate-800/40 rounded-2xl border border-white/5 flex items-center gap-4">
               <div className="flex items-center gap-2">
+                {/* Indicador visual apenas - texto "Ao Vivo" removido para usuários */}
                 <div className={`w-2 h-2 rounded-full animate-pulse ${stream.is_active ? 'bg-rose-500' : 'bg-slate-500'}`} />
-                <span className={`${stream.is_active ? 'text-rose-400' : 'text-slate-500'} text-xs font-black uppercase`}>
-                  {stream.is_active ? 'Ao Vivo' : 'Offline'}
-                </span>
               </div>
               <div className="w-[1px] h-4 bg-white/10" />
               <div className="flex items-center gap-2">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { X, Crown, Check, Loader2, Copy, QrCode, Clock } from 'lucide-react';
@@ -19,6 +20,7 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
   onClose, 
   monthlyPrice = DEFAULT_VIP_PRICE 
 }) => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { currentUser } = useData();
   const [loading, setLoading] = useState(false);
@@ -81,7 +83,24 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
 
   const handleSubscribe = async () => {
     if (!user) {
-      toast.error('Você precisa estar logado para assinar VIP');
+      toast.custom((t) => (
+        <CustomToast 
+          type="warning"
+          title="LOGIN NECESSÁRIO"
+          message="Faça login ou cadastre-se para assinar VIP."
+        />
+      ), { duration: 4000 });
+      
+      // Pequeno delay para mostrar a mensagem antes de redirecionar
+      setTimeout(() => {
+        navigate('/login', { 
+          state: { 
+            returnTo: window.location.pathname,
+            message: 'Faça login para assinar VIP'
+          } 
+        });
+        onClose(); // Fechar modal antes de redirecionar
+      }, 1500);
       return;
     }
 

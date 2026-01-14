@@ -348,25 +348,7 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Badge AO VIVO - Sempre no canto superior esquerdo (desktop e mobile) */}
-      {isActive && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.8 }}
-          transition={{
-            type: "spring",
-            stiffness: 200,
-            damping: 20
-          }}
-          className="absolute top-3 left-3 md:top-4 md:left-4 z-50 pointer-events-auto"
-        >
-          <div className="bg-red-600/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 shadow-lg border border-red-500/30">
-            <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
-            <span className="text-[10px] md:text-xs">AO VIVO</span>
-          </div>
-        </motion.div>
-      )}
+      {/* Badge AO VIVO - REMOVIDO: Não exibir para usuários */}
     </div>
   );
 };

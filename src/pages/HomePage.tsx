@@ -481,11 +481,7 @@ function HomePage() {
               <div className="glass-panel p-6 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2 border-2 border-emerald-500/30 shadow-2xl shadow-emerald-900/30">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600 animate-pulse"></div>
 
-                {/* Badge "Ao Vivo" */}
-                <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 bg-red-500/20 border border-red-500/40 rounded-full animate-pulse">
-                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-                  <span className="text-[9px] font-black text-red-400 uppercase tracking-wider">AO VIVO</span>
-                </div>
+                {/* Badge "Ao Vivo" - REMOVIDO: Não exibir para usuários */}
 
                 <div className="w-16 h-16 mx-auto bg-gradient-to-br from-emerald-500/30 to-emerald-600/30 rounded-full flex items-center justify-center mb-4 text-emerald-300 group-hover:scale-110 transition-transform group-hover:from-emerald-500/40 group-hover:to-emerald-600/40 relative mt-2">
                   <Target className="w-8 h-8" />
