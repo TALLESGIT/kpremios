@@ -1,47 +1,28 @@
 import React, { useState } from 'react';
-import { vonageWhatsAppService } from '../../services/vonageService';
-import { whatsappPersonalService } from '../../services/whatsappPersonalService';
+import { whatsappService } from '../../services/whatsappService';
 
 export default function WhatsAppImageTestPanel() {
   const [testNumber, setTestNumber] = useState('+5533999030124');
   const [imageUrl, setImageUrl] = useState('https://bukigyhhgrtgryklabjg.supabase.co/storage/v1/object/public/payment-proofs/payment_proof_315be42d-badc-4c3d-9fd1-1c862b3cc579_1758591470240.jpg');
-  const [caption, setCaption] = useState('Teste de envio de imagem via WhatsApp');
+  const [caption, setCaption] = useState('Teste de envio de imagem via Evolution API');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string>('');
 
-  const testVonageImage = async () => {
+  const testEvolutionImage = async () => {
     setLoading(true);
     setResult('');
-    
-    try {
-      const response = await vonageWhatsAppService.sendImage({
-        to: testNumber,
-        imageUrl: imageUrl,
-        caption: caption
-      });
-      
-      setResult(`✅ Vonage: ${JSON.stringify(response, null, 2)}`);
-    } catch (error) {
-      setResult(`❌ Vonage Error: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const testPersonalImage = async () => {
-    setLoading(true);
-    setResult('');
-    
     try {
-      const response = await whatsappPersonalService.sendImage({
+      const response = await whatsappService.sendMedia({
         to: testNumber,
-        imageUrl: imageUrl,
+        media: imageUrl,
+        mediatype: 'image',
         caption: caption
       });
-      
-      setResult(`✅ Personal: ${JSON.stringify(response, null, 2)}`);
+
+      setResult(`✅ Evolution API: ${JSON.stringify(response, null, 2)}`);
     } catch (error) {
-      setResult(`❌ Personal Error: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+      setResult(`❌ Evolution Error: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     } finally {
       setLoading(false);
     }
@@ -50,19 +31,25 @@ export default function WhatsAppImageTestPanel() {
   const testPaymentProof = async () => {
     setLoading(true);
     setResult('');
-    
+
     try {
-      const response = await vonageWhatsAppService.sendPaymentProofToAdmin({
-        userName: 'João Silva',
-        userWhatsapp: '+5533999030124',
-        userEmail: 'joao@teste.com',
-        amount: 10.00,
-        quantity: 100,
-        proofUrl: imageUrl,
-        requestId: 'TEST_123'
+      const response = await whatsappService.sendMedia({
+        to: testNumber,
+        media: imageUrl,
+        mediatype: 'image',
+        caption: `🔔 *TESTE DE COMPROVANTE*
+
+👤 *Usuário:* João Silva
+📱 *WhatsApp:* ${testNumber}
+📧 *Email:* joao@teste.com
+
+💰 *Valor:* R$ 10,00
+🔢 *Quantidade:* 100 números
+
+🆔 *ID:* TEST_123`
       });
-      
-      setResult(`✅ Payment Proof: ${JSON.stringify(response, null, 2)}`);
+
+      setResult(`✅ Payment Proof (Evolution): ${JSON.stringify(response, null, 2)}`);
     } catch (error) {
       setResult(`❌ Payment Proof Error: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     } finally {
@@ -73,7 +60,7 @@ export default function WhatsAppImageTestPanel() {
   return (
     <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-600/30">
       <h3 className="text-xl font-bold text-white mb-4">Teste de Envio de Imagens WhatsApp</h3>
-      
+
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -116,19 +103,11 @@ export default function WhatsAppImageTestPanel() {
 
         <div className="flex gap-3">
           <button
-            onClick={testVonageImage}
+            onClick={testEvolutionImage}
             disabled={loading}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded-lg font-medium"
           >
-            {loading ? 'Enviando...' : 'Testar Vonage'}
-          </button>
-
-          <button
-            onClick={testPersonalImage}
-            disabled={loading}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-800 text-white rounded-lg font-medium"
-          >
-            {loading ? 'Enviando...' : 'Testar Personal'}
+            {loading ? 'Enviando...' : 'Testar Evolution'}
           </button>
 
           <button

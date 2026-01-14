@@ -1,23 +1,59 @@
-// Configuração do Twilio
+/**
+ * Serviço de WhatsApp Híbrido
+ * Usa Evolution API como principal (gratuito)
+ * Twilio como fallback opcional (quando configurado)
+ * 
+ * @author ZK Premios
+ * @version 2.0.0
+ */
+
+import { evolutionApiService } from './evolutionApiService';
+
+// Configuração do Twilio (opcional - apenas como fallback)
 const accountSid = import.meta.env.VITE_TWILIO_ACCOUNT_SID;
 const authToken = import.meta.env.VITE_TWILIO_AUTH_TOKEN;
-const whatsappFrom = import.meta.env.VITE_TWILIO_WHATSAPP_FROM; // Número do WhatsApp Business
+const whatsappFrom = import.meta.env.VITE_TWILIO_WHATSAPP_FROM;
 
 // URL da API do Twilio
-const twilioApiUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+const twilioApiUrl = accountSid ? `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json` : null;
+
+// Configuração do serviço principal
+export const USE_EVOLUTION_API = String(import.meta.env.VITE_EVOLUTION_API_ENABLED).toLowerCase() === 'true';
+export const USE_TWILIO_FALLBACK = String(import.meta.env.VITE_TWILIO_FALLBACK_ENABLED).toLowerCase() === 'true';
+
+// Exportar status para debug (mascarado se necessário)
+export const TWILIO_ACCOUNT_SID_CONFIGURED = !!accountSid;
+export const EVOLUTION_API_KEY_CONFIGURED = !!import.meta.env.VITE_EVOLUTION_API_KEY;
+export const EVOLUTION_API_URL_CONFIGURED = !!import.meta.env.VITE_EVOLUTION_API_URL;
 
 export interface WhatsAppMessage {
   to: string;
   message: string;
   type: 'registration' | 'numbers_assigned' | 'extra_numbers_approved' | 'new_raffle' | 'winner_announcement' | 'pool_winner';
+  // Campos adicionais para templates
+  name?: string;
+  email?: string;
+  confirmationCode?: string;
+  numbers?: number[];
+  amount?: number;
+  raffleTitle?: string;
+  prize?: string;
+  startDate?: string;
+  endDate?: string;
+  winningNumber?: number;
+  isWinner?: boolean;
+  matchTitle?: string;
+  predictedScore?: string;
+  realScore?: string;
+  totalAmount?: string;
+  winnersCount?: string;
+  [key: string]: any;
 }
 
 class WhatsAppService {
-  private formatPhoneNumber(phone: string): string {
-    // Remove todos os caracteres não numéricos
+  private formatPhoneNumberForTwilio(phone: string): string {
     const cleanPhone = phone.replace(/\D/g, '');
 
-    // Adiciona o código do país se não tiver
     if (cleanPhone.startsWith('55') && cleanPhone.length === 13) {
       return `whatsapp:+${cleanPhone}`;
     } else if (cleanPhone.length === 11) {
@@ -129,22 +165,23 @@ Parabéns! 🎊`;
     }
   }
 
-  async sendMessage(messageData: WhatsAppMessage): Promise<{ success: boolean; error?: string; messageSid?: string }> {
+  /**
+   * Envia mensagem via Twilio (fallback)
+   */
+  private async sendViaTwilio(messageData: WhatsAppMessage): Promise<{ success: boolean; error?: string; messageSid?: string }> {
     try {
-      if (!accountSid || !authToken || !whatsappFrom) {
-        return { success: false, error: 'WhatsApp service not configured' };
+      if (!accountSid || !authToken || !whatsappFrom || !twilioApiUrl) {
+        return { success: false, error: 'Twilio não configurado' };
       }
 
-      const formattedPhone = this.formatPhoneNumber(messageData.to);
+      const formattedPhone = this.formatPhoneNumberForTwilio(messageData.to);
       const messageBody = this.getMessageTemplate(messageData.type, messageData);
 
-      // Criar dados para enviar via fetch
       const formData = new URLSearchParams();
       formData.append('From', whatsappFrom);
       formData.append('To', formattedPhone);
       formData.append('Body', messageBody);
 
-      // Fazer requisição para API do Twilio
       const response = await fetch(twilioApiUrl, {
         method: 'POST',
         headers: {
@@ -164,16 +201,68 @@ Parabéns! 🎊`;
       } else {
         return {
           success: false,
-          error: result.message || 'Failed to send message'
+          error: result.message || 'Falha ao enviar mensagem via Twilio'
         };
       }
-
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || 'Failed to send message'
+        error: error.message || 'Erro ao enviar via Twilio'
       };
     }
+  }
+
+  /**
+   * Envia mensagem - Tenta Evolution API primeiro, fallback para Twilio se configurado
+   */
+  async sendMessage(messageData: WhatsAppMessage): Promise<{ success: boolean; error?: string; messageSid?: string }> {
+    // Se Evolution API estiver habilitada, usar como principal
+    if (USE_EVOLUTION_API) {
+      try {
+        const result = await evolutionApiService.sendMessage(messageData);
+
+        if (result.success) {
+          return {
+            success: true,
+            messageSid: result.messageId
+          };
+        }
+
+        // Se Evolution API falhar e Twilio estiver configurado como fallback
+        if (!result.success && USE_TWILIO_FALLBACK && accountSid && authToken) {
+          console.warn('Evolution API falhou, tentando Twilio como fallback:', result.error);
+          return await this.sendViaTwilio(messageData);
+        }
+
+        return {
+          success: false,
+          error: result.error || 'Falha ao enviar mensagem via Evolution API'
+        };
+      } catch (error: any) {
+        console.error('Erro ao enviar via Evolution API:', error);
+
+        // Fallback para Twilio se configurado
+        if (USE_TWILIO_FALLBACK && accountSid && authToken) {
+          console.warn('Tentando Twilio como fallback após erro na Evolution API');
+          return await this.sendViaTwilio(messageData);
+        }
+
+        return {
+          success: false,
+          error: error.message || 'Erro ao enviar mensagem'
+        };
+      }
+    }
+
+    // Se Evolution API não estiver habilitada, usar Twilio (se configurado)
+    if (accountSid && authToken) {
+      return await this.sendViaTwilio(messageData);
+    }
+
+    return {
+      success: false,
+      error: 'Nenhum serviço de WhatsApp configurado. Configure Evolution API ou Twilio.'
+    };
   }
 
   // Métodos específicos para cada tipo de notificação
@@ -186,7 +275,10 @@ Parabéns! 🎊`;
     return this.sendMessage({
       to: userData.whatsapp,
       message: '',
-      type: 'registration'
+      type: 'registration',
+      name: userData.name,
+      email: userData.email,
+      confirmationCode: userData.confirmationCode
     });
   }
 
@@ -198,7 +290,9 @@ Parabéns! 🎊`;
     return this.sendMessage({
       to: userData.whatsapp,
       message: '',
-      type: 'numbers_assigned'
+      type: 'numbers_assigned',
+      name: userData.name,
+      numbers: userData.numbers
     });
   }
 
@@ -211,7 +305,10 @@ Parabéns! 🎊`;
     return this.sendMessage({
       to: userData.whatsapp,
       message: '',
-      type: 'extra_numbers_approved'
+      type: 'extra_numbers_approved',
+      name: userData.name,
+      numbers: userData.numbers,
+      amount: userData.amount
     });
   }
 
@@ -226,7 +323,12 @@ Parabéns! 🎊`;
     return this.sendMessage({
       to: userData.whatsapp,
       message: '',
-      type: 'new_raffle'
+      type: 'new_raffle',
+      name: userData.name,
+      raffleTitle: userData.raffleTitle,
+      prize: userData.prize,
+      startDate: userData.startDate,
+      endDate: userData.endDate
     });
   }
 
@@ -240,7 +342,81 @@ Parabéns! 🎊`;
     return this.sendMessage({
       to: userData.whatsapp,
       message: '',
-      type: 'winner_announcement'
+      type: 'winner_announcement',
+      name: userData.name,
+      winningNumber: userData.winningNumber,
+      prize: userData.prize,
+      isWinner: userData.isWinner
+    });
+  }
+
+  async sendVipApprovedNotification(userData: {
+    name: string;
+    whatsapp: string;
+  }) {
+    return this.sendMessage({
+      to: userData.whatsapp,
+      message: '',
+      type: 'vip_approved' as any,
+      name: userData.name
+    });
+  }
+
+  async sendPoolBetApprovedNotification(userData: {
+    name: string;
+    whatsapp: string;
+    matchTitle: string;
+    predictedScore: string;
+    amount: number;
+  }) {
+    return this.sendMessage({
+      to: userData.whatsapp,
+      message: '',
+      type: 'pool_bet_approved' as any,
+      name: userData.name,
+      matchTitle: userData.matchTitle,
+      predictedScore: userData.predictedScore,
+      amount: userData.amount
+    });
+  }
+
+  async sendExtraNumbersRejected(userData: {
+    name: string;
+    whatsapp: string;
+    amount: number;
+    reason?: string;
+  }) {
+    return this.sendMessage({
+      to: userData.whatsapp,
+      message: '',
+      type: 'extra_numbers_rejected' as any,
+      name: userData.name,
+      amount: userData.amount,
+      reason: userData.reason
+    });
+  }
+
+  async sendPoolWinnerNotification(userData: {
+    name: string;
+    whatsapp: string;
+    matchTitle: string;
+    predictedScore: string;
+    realScore: string;
+    prize: string;
+    totalAmount: string;
+    winnersCount: string;
+  }) {
+    return this.sendMessage({
+      to: userData.whatsapp,
+      message: '',
+      type: 'pool_winner',
+      name: userData.name,
+      matchTitle: userData.matchTitle,
+      predictedScore: userData.predictedScore,
+      realScore: userData.realScore,
+      prize: userData.prize,
+      totalAmount: userData.totalAmount,
+      winnersCount: userData.winnersCount
     });
   }
 
@@ -253,18 +429,35 @@ Parabéns! 🎊`;
         const result = await this.sendMessage({
           to: userData.whatsapp,
           message: '',
-          type: type as any
+          type: type as any,
+          ...userData
         });
-        results.push({ user: userData.email, success: result.success, error: result.error });
+        results.push({ user: userData.email || userData.name, success: result.success, error: result.error });
 
         // Pequena pausa entre mensagens para evitar rate limiting
         await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (error) {
-        results.push({ user: userData.email, success: false, error: 'Failed to send' });
+        results.push({ user: userData.email || userData.name, success: false, error: 'Failed to send' });
       }
     }
 
     return results;
+  }
+
+  /**
+   * Envia mídia via WhatsApp (Evolution API apenas)
+   */
+  async sendMedia(data: {
+    to: string;
+    media: string;
+    mediatype: 'image' | 'video' | 'audio' | 'document';
+    caption?: string;
+    fileName?: string;
+  }) {
+    if (USE_EVOLUTION_API) {
+      return await evolutionApiService.sendMedia(data);
+    }
+    return { success: false, error: 'Mídia só é suportada via Evolution API' };
   }
 }
 

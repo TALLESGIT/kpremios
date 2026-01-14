@@ -64,10 +64,10 @@ const datetimeLocalToISO = (datetimeLocal: string): string => {
     // Precisamos criar uma data preservando o horário local (sem aplicar timezone)
     const [datePart, timePart] = datetimeLocal.split('T');
     if (!datePart || !timePart) return datetimeLocal;
-    
+
     const [year, month, day] = datePart.split('-').map(Number);
     const [hours, minutes] = timePart.split(':').map(Number);
-    
+
     // Criar data usando os componentes locais (sem timezone)
     // Isso garante que o horário selecionado seja preservado
     const localDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
@@ -85,7 +85,7 @@ const isoToDatetimeLocal = (isoString: string | undefined): string => {
         const day = String(date.getDate()).padStart(2, '0');
         const hours = String(date.getHours()).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
-        
+
         return `${year}-${month}-${day}T${hours}:${minutes}`;
     } catch (e) {
         return '';
@@ -97,6 +97,7 @@ const AdminZkTVPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'games' | 'standings'>('games');
     const [loading, setLoading] = useState(true);
     const [bannerUploading, setBannerUploading] = useState(false);
+    const [saving, setSaving] = useState(false);
 
     // Games State
     const [games, setGames] = useState<CruzeiroGame[]>([]);
@@ -295,9 +296,9 @@ const AdminZkTVPage: React.FC = () => {
                 team: standingForm.team.trim()
             };
 
-            const { error, data } = editingStanding
+            const { error } = editingStanding
                 ? await supabase.from('cruzeiro_standings').update(payload).eq('id', editingStanding.id)
-                : await supabase.from('cruzeiro_standings').insert([payload]).select();
+                : await supabase.from('cruzeiro_standings').insert([payload]);
 
             if (error) {
                 console.error('Erro detalhado ao salvar classificação:', error);

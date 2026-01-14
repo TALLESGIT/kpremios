@@ -374,9 +374,6 @@ const AdminLiveStreamPage: React.FC = () => {
                   title="Duplo clique para tela cheia (Live)"
                 >
                   <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-                    <div className={`px - 2 py - 1 rounded text - [10px] font - black uppercase ${isStreaming ? 'bg-red-600 text-white animate-pulse' : 'bg-slate-600 text-slate-300'} `}>
-                      {isStreaming ? '● AO VIVO' : 'OFFLINE'}
-                    </div>
                     <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">Canal Principal: ZkPremios</span>
                   </div>
 

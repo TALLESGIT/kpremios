@@ -38,34 +38,34 @@ function ExtraNumbersModal({ isOpen, onClose }: ExtraNumbersModalProps) {
       }
       setPaymentProof(file);
       setError('');
-      
+
       // Upload do arquivo imediatamente
       try {
         setUploading(true);
         const fileExt = file.name.split('.').pop();
         const fileName = `payment_proof_${user?.id}_${Date.now()}.${fileExt}`;
-        
+
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('payment-proofs')
           .upload(fileName, file, {
             cacheControl: '3600',
             upsert: false
           });
-          
+
         if (uploadError) {
 
           setError('Erro ao fazer upload do comprovante. Tente novamente.');
           return;
         }
-        
+
         // Get public URL
         const { data: { publicUrl } } = supabase.storage
           .from('payment-proofs')
           .getPublicUrl(fileName);
-          
+
         setUploadedProofUrl(publicUrl);
         setShowWhatsAppRedirect(true);
-        
+
       } catch (uploadErr) {
 
         setError('Erro ao fazer upload do comprovante. Tente novamente.');
@@ -147,16 +147,23 @@ Dados:
         if (paymentProofUrl && currentAppUser) {
           try {
 
-            const { whatsappPersonalService } = await import('../../services/whatsappPersonalService');
-            
-            await whatsappPersonalService.sendPaymentProofToAdmin({
-              userName: currentAppUser.name,
-              userWhatsapp: currentAppUser.whatsapp,
-              userEmail: currentAppUser.email,
-              amount: parseFloat(paymentAmount),
-              quantity: calculatedNumbers,
-              proofUrl: paymentProofUrl,
-              requestId: `REQ_${Date.now()}_${Math.random().toString(36).substring(7)}`
+            const { whatsappService } = await import('../../services/whatsappService');
+
+            await whatsappService.sendMedia({
+              to: '5531972393341', // Número do admin
+              media: paymentProofUrl,
+              mediatype: 'image',
+              caption: `🔔 *NOVA SOLICITAÇÃO DE NÚMEROS EXTRAS*
+
+👤 *Usuário:* ${currentAppUser.name}
+📱 *WhatsApp:* ${currentAppUser.whatsapp}
+📧 *Email:* ${currentAppUser.email}
+
+💰 *Valor:* R$ ${parseFloat(paymentAmount).toFixed(2)}
+🔢 *Quantidade:* ${calculatedNumbers} números
+
+🔗 *Link do Comprovante:* ${paymentProofUrl}
+🆔 *ID:* REQ_${Date.now()}`
             });
 
           } catch (whatsappError) {
@@ -164,7 +171,7 @@ Dados:
             // Não falha a operação se o WhatsApp falhar
           }
         }
-        
+
         setSuccess(true);
         setTimeout(() => {
           onClose();
@@ -195,11 +202,11 @@ Dados:
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
-            
+
             <h3 className="text-lg font-semibold text-slate-900 mb-2">
               Comprovante Enviado!
             </h3>
-            
+
             <p className="text-slate-600 mb-4">
               Seu comprovante foi enviado com sucesso. Agora você precisa confirmar o envio via WhatsApp.
             </p>
@@ -256,11 +263,11 @@ Dados:
             <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="h-8 w-8 text-amber-600" />
             </div>
-            
+
             <h3 className="text-lg font-semibold text-slate-900 mb-2">
               Aguardando Aprovação
             </h3>
-            
+
             <div className="space-y-2 text-sm text-slate-600 mb-6">
               <p>Valor: <strong className="text-slate-900">R$ {currentRequest.payment_amount.toFixed(2)}</strong></p>
               <p>Números solicitados: <strong className="text-slate-900">{currentRequest.requested_quantity}</strong></p>
@@ -379,7 +386,7 @@ Dados:
                 <p className="mt-2 text-xs text-slate-500">
                   Você pode enviar depois. Máximo 5MB, apenas imagens.
                 </p>
-                
+
                 {/* WhatsApp Confirmation Status */}
                 {paymentProof && whatsappConfirmed && (
                   <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
@@ -391,7 +398,7 @@ Dados:
                     </div>
                   </div>
                 )}
-                
+
                 {paymentProof && !whatsappConfirmed && (
                   <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <div className="flex items-center gap-2">
@@ -412,7 +419,7 @@ Dados:
                   </div>
                   <h3 className="font-bold text-slate-800 text-lg">Comprovante de Pagamento</h3>
                 </div>
-                
+
                 <div className="space-y-4">
                   <div className="bg-white rounded-lg p-4 border border-green-100">
                     <div className="flex items-center space-x-3 mb-2">
@@ -425,7 +432,7 @@ Dados:
                       Perfeito! Agora só falta enviar o comprovante de pagamento
                     </p>
                   </div>
-                  
+
                   <div className="bg-white rounded-lg p-4 border border-green-100">
                     <div className="flex items-center space-x-3 mb-2">
                       <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
@@ -437,7 +444,7 @@ Dados:
                       Faça upload da foto ou print do comprovante de pagamento
                     </p>
                   </div>
-                  
+
                   <div className="bg-white rounded-lg p-4 border border-green-100">
                     <div className="flex items-center space-x-3 mb-2">
                       <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
@@ -450,7 +457,7 @@ Dados:
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="mt-4 p-3 bg-green-100 border border-green-200 rounded-lg">
                   <p className="text-sm text-green-800 font-medium">
                     💡 <strong>Dica:</strong> Você pode enviar o comprovante agora ou depois - o importante é que seja enviado para liberar seus números!
@@ -462,11 +469,10 @@ Dados:
               <button
                 type="submit"
                 disabled={loading || uploading || calculatedNumbers === 0 || (paymentProof && !whatsappConfirmed)}
-                className={`w-full py-4 px-6 rounded-xl flex items-center justify-center gap-3 font-semibold text-white transition-all duration-200 ${
-                  !loading && !uploading && calculatedNumbers > 0 && (!paymentProof || whatsappConfirmed)
+                className={`w-full py-4 px-6 rounded-xl flex items-center justify-center gap-3 font-semibold text-white transition-all duration-200 ${!loading && !uploading && calculatedNumbers > 0 && (!paymentProof || whatsappConfirmed)
                     ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
                     : 'bg-slate-400 cursor-not-allowed'
-                }`}
+                  }`}
               >
                 {uploading ? (
                   <>

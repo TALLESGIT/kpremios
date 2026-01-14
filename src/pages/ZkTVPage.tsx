@@ -39,6 +39,7 @@ interface LiveStream {
     channel_name: string;
     is_active: boolean;
     viewer_count?: number;
+    hls_url?: string;
 }
 
 interface QuickStats {
@@ -651,7 +652,7 @@ const ZkTVPage: React.FC = () => {
                 console.error('❌ Erro ao carregar settings:', settingsRes.error);
             }
             if (settingsRes.data) setSettings(settingsRes.data);
-            
+
             if (gamesRes.error) {
                 console.error('❌ Erro ao carregar jogos:', gamesRes.error);
             }
@@ -661,7 +662,7 @@ const ZkTVPage: React.FC = () => {
             } else {
                 console.warn('⚠️ Nenhum jogo retornado do banco de dados');
             }
-            
+
             if (standingsRes.error) {
                 console.error('❌ Erro ao carregar standings:', standingsRes.error);
             }
@@ -680,53 +681,53 @@ const ZkTVPage: React.FC = () => {
         const now = new Date();
         return (gameDate > now || g.status === 'live');
     });
-    
+
     const recentGames = games.filter(g => {
         if (!g || !g.date) return false;
         const gameDate = new Date(g.date);
         const now = new Date();
         return gameDate <= now && g.status === 'finished';
     }).reverse().slice(0, 3);
-    
+
     const upcomingGames = games.filter(g => {
         if (!g || !g.date) {
             return false;
         }
-        
+
         try {
             const gameDate = new Date(g.date);
             const now = new Date();
             const isFuture = gameDate.getTime() > now.getTime();
             const isNotFinished = g.status !== 'finished';
-            
+
             // Mostrar todos os jogos não finalizados (independente da data)
             // Isso permite que jogos com data passada mas status "upcoming" apareçam
             const shouldShow = isNotFinished;
-            
+
             // Log apenas se houver jogos mas nenhum passar no filtro
             if (games.length > 0) {
                 console.log('🔍 Jogo:', g.opponent, '| Data:', g.date, '| É futuro?', isFuture, '| Status:', g.status, '| Mostrar?', shouldShow);
             }
-            
+
             return shouldShow;
         } catch (error) {
             console.error('❌ Erro ao processar data do jogo:', g, error);
             return false;
         }
     })
-    .sort((a, b) => {
-        // Ordenar: jogos futuros primeiro, depois por data
-        const aDate = new Date(a.date);
-        const bDate = new Date(b.date);
-        const now = new Date();
-        const aIsFuture = aDate > now;
-        const bIsFuture = bDate > now;
-        
-        if (aIsFuture && !bIsFuture) return -1;
-        if (!aIsFuture && bIsFuture) return 1;
-        return aDate.getTime() - bDate.getTime();
-    })
-    .slice(0, 5);
+        .sort((a, b) => {
+            // Ordenar: jogos futuros primeiro, depois por data
+            const aDate = new Date(a.date);
+            const bDate = new Date(b.date);
+            const now = new Date();
+            const aIsFuture = aDate > now;
+            const bIsFuture = bDate > now;
+
+            if (aIsFuture && !bIsFuture) return -1;
+            if (!aIsFuture && bIsFuture) return 1;
+            return aDate.getTime() - bDate.getTime();
+        })
+        .slice(0, 5);
 
     // Debug: Log dos jogos futuros
     useEffect(() => {
@@ -990,13 +991,6 @@ const ZkTVPage: React.FC = () => {
                                     <div className="absolute top-4 left-4 z-20">
                                         <div className="px-6 py-3 bg-slate-800/80 backdrop-blur-md rounded-2xl border border-white/10 flex items-center gap-4">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                                                <span className="text-rose-400 text-xs font-black uppercase">
-                                                    {activeStream?.is_active ? 'Ao Vivo' : 'Offline'}
-                                                </span>
-                                            </div>
-                                            <div className="w-[1px] h-4 bg-white/10" />
-                                            <div className="flex items-center gap-2">
                                                 <Eye className="w-4 h-4 text-slate-400" />
                                                 <span className="text-white font-black">
                                                     {activeStream?.is_active
@@ -1016,9 +1010,8 @@ const ZkTVPage: React.FC = () => {
                                         {!isMobile && (
                                             <button
                                                 onClick={() => setIsChatOpen(!isChatOpen)}
-                                                className={`absolute bottom-4 left-4 p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all z-10 group ${
-                                                    showControls ? 'opacity-100' : 'opacity-0'
-                                                }`}
+                                                className={`absolute bottom-4 left-4 p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all z-10 group ${showControls ? 'opacity-100' : 'opacity-0'
+                                                    }`}
                                                 title="Abrir chat"
                                             >
                                                 <MessageSquare className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
@@ -1027,16 +1020,15 @@ const ZkTVPage: React.FC = () => {
 
                                         {/* Botão Fullscreen Desktop */}
                                         {!isMobile && (
-                                            <div className={`absolute bottom-4 right-4 flex gap-2 z-10 transition-opacity duration-300 ${
-                                                showControls ? 'opacity-100' : 'opacity-0'
-                                            }`}>
+                                            <div className={`absolute bottom-4 right-4 flex gap-2 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'
+                                                }`}>
                                                 {/* Botão Cast (Chromecast/AirPlay) - Aparece automaticamente quando disponível */}
-                                                <CastButton 
+                                                <CastButton
                                                     hlsUrl={activeStream?.hls_url}
                                                     videoUrl={settings?.live_url}
                                                     channelName={activeStream?.channel_name || 'zktv'}
                                                 />
-                                                
+
                                                 {/* Botão Picture-in-Picture / Cast Hint */}
                                                 <button
                                                     onClick={togglePiP}
@@ -1082,10 +1074,9 @@ const ZkTVPage: React.FC = () => {
                                                     }}
                                                 />
                                                 {/* Botão Cast para Mobile - Aparece automaticamente quando há TV disponível */}
-                                                <div className={`absolute top-4 right-4 z-10 transition-opacity duration-300 ${
-                                                    showControls ? 'opacity-100' : 'opacity-0'
-                                                }`}>
-                                                    <CastButton 
+                                                <div className={`absolute top-4 right-4 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'
+                                                    }`}>
+                                                    <CastButton
                                                         hlsUrl={activeStream?.hls_url}
                                                         videoUrl={settings?.live_url}
                                                         channelName={activeStream?.channel_name || 'zktv'}

@@ -313,15 +313,15 @@ export default function AdminApprovalsPage() {
 
       // Enviar notificação WhatsApp para o usuário
       try {
-        const { whatsappPersonalService } = await import('../services/whatsappPersonalService');
-        await whatsappPersonalService.sendExtraNumbersRejected({
+        const { whatsappService } = await import('../services/whatsappService');
+        await whatsappService.sendExtraNumbersRejected({
           name: request.user_name,
           whatsapp: request.user_whatsapp,
           amount: request.payment_amount,
           reason: rejectionReason || undefined
         });
       } catch (whatsappError) {
-
+        console.error('WhatsApp notification error:', whatsappError);
         // Não falha a operação se o WhatsApp falhar
       }
 

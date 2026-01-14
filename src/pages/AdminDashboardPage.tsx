@@ -6,7 +6,6 @@ import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import { Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, Settings, CheckCircle, MessageSquare, Trash2, Video, Tv, Image as ImageIcon, X, Phone } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import CustomToast from '../components/shared/CustomToast';
 
 import { WhatsAppTestPanel } from '../components/admin/WhatsAppTestPanel';
 import QuickTest from '../components/admin/QuickTest';
@@ -40,8 +39,6 @@ export default function AdminDashboardPage() {
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [showDrawAnimation, setShowDrawAnimation] = useState(false);
   const [realtimeNotification, setRealtimeNotification] = useState<{ message: string, type: 'success' | 'info' | 'warning' } | null>(null);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [availableNumbersCount, setAvailableNumbersCount] = useState(0);
   const [takenNumbersCount, setTakenNumbersCount] = useState(0);
   const [totalRaffleNumbers, setTotalRaffleNumbers] = useState(5000);
   const [showDrawResult, setShowDrawResult] = useState(false);
@@ -53,36 +50,6 @@ export default function AdminDashboardPage() {
   const [poolParticipants, setPoolParticipants] = useState<any[]>([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
   const [activePoolId, setActivePoolId] = useState<string | null>(null);
-
-  // Load pending requests count
-  useEffect(() => {
-    const loadPendingCount = async () => {
-      try {
-        const count = await getPendingRequestsCount();
-        setPendingCount(count);
-      } catch (error) {
-
-        setPendingCount(0);
-      }
-    };
-
-    loadPendingCount();
-  }, [getPendingRequestsCount]);
-
-  // Load available numbers count
-  useEffect(() => {
-    const loadAvailableNumbersCount = async () => {
-      try {
-        const count = await getAvailableNumbersCount();
-        setAvailableNumbersCount(count);
-      } catch (error) {
-        console.error('Erro ao carregar números disponíveis:', error);
-        setAvailableNumbersCount(0);
-      }
-    };
-
-    loadAvailableNumbersCount();
-  }, [getAvailableNumbersCount]);
 
   // Load taken numbers count
   useEffect(() => {
@@ -147,13 +114,11 @@ export default function AdminDashboardPage() {
           getPendingRequestsCount()
         ]);
 
-        setAvailableNumbersCount(availableCount);
         setTakenNumbersCount(takenCount);
-        setPendingCount(pendingCount);
 
         console.log('AdminDashboardPage - Dados carregados:', {
           activePoolParticipants: activePool?.total_participants || 0,
-          vipPromo103Count: vipCount || 0,
+          vipPromo103Count: vipPromo103Count || 0,
           availableCount,
           takenCount,
           pendingCount
@@ -171,7 +136,7 @@ export default function AdminDashboardPage() {
     const updateCounters = async () => {
       try {
         console.log('AdminDashboardPage - Atualizando contadores em tempo real...');
-        
+
         // Carregar participantes do bolão ativo
         const { data: activePool } = await supabase
           .from('match_pools')
@@ -212,13 +177,11 @@ export default function AdminDashboardPage() {
           getPendingRequestsCount()
         ]);
 
-        setAvailableNumbersCount(availableCount);
         setTakenNumbersCount(takenCount);
-        setPendingCount(pendingCount);
 
         console.log('AdminDashboardPage - Contadores atualizados:', {
           activePoolParticipants: activePool?.total_participants || 0,
-          vipPromo103Count: vipCount || 0,
+          vipPromo103Count: vipPromo103Count || 0,
           availableCount,
           takenCount,
           pendingCount
@@ -253,7 +216,6 @@ export default function AdminDashboardPage() {
 
         try {
           const count = await getPendingRequestsCount();
-          setPendingCount(count);
           console.log('AdminDashboardPage - Contador de solicitações atualizado:', count);
 
           // Mostrar notificação de mudança em tempo real
@@ -296,7 +258,6 @@ export default function AdminDashboardPage() {
             getAvailableNumbersCount(),
             getTakenNumbersCount()
           ]);
-          setAvailableNumbersCount(availableCount);
           setTakenNumbersCount(takenCount);
           console.log('AdminDashboardPage - Contadores de números atualizados:', { availableCount, takenCount });
         } catch (error) {
@@ -571,12 +532,13 @@ export default function AdminDashboardPage() {
 
       // Enviar notificação WhatsApp para o ganhador
       try {
-        const { whatsappPersonalService } = await import('../services/whatsappPersonalService');
-        await whatsappPersonalService.sendWinnerNotification({
+        const { whatsappService } = await import('../services/whatsappService');
+        await whatsappService.sendWinnerAnnouncement({
           name: winner.name,
           whatsapp: winner.whatsapp,
           winningNumber: winnerNumber.number,
-          prize: 'Sorteio Principal'
+          prize: 'Sorteio Principal',
+          isWinner: true
         });
       } catch (whatsappError) {
         console.error('WhatsApp notification error:', whatsappError);
@@ -598,7 +560,6 @@ export default function AdminDashboardPage() {
           getAvailableNumbersCount(),
           getTakenNumbersCount()
         ]);
-        setAvailableNumbersCount(availableCount);
         setTakenNumbersCount(takenCount);
 
         console.log('Dados recarregados com sucesso após sorteio');
@@ -659,8 +620,6 @@ export default function AdminDashboardPage() {
 
       // Recarregar dados
       await loadRaffles();
-      const count = await getPendingRequestsCount();
-      setPendingCount(count);
 
       setShowFinishedRafflesCleanup(false);
     } catch (error) {
@@ -823,11 +782,11 @@ export default function AdminDashboardPage() {
           {/* Enhanced Stats Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
             {[
-              { 
-                label: 'Participantes', 
-                value: activePoolParticipants, 
-                icon: Users, 
-                color: 'from-blue-600 to-blue-400', 
+              {
+                label: 'Participantes',
+                value: activePoolParticipants,
+                icon: Users,
+                color: 'from-blue-600 to-blue-400',
                 shadow: 'shadow-blue-500/20',
                 clickable: true,
                 onClick: async () => {
@@ -869,8 +828,8 @@ export default function AdminDashboardPage() {
               { label: 'Selecionados', value: takenNumbersCount, icon: Trophy, color: 'from-amber-600 to-amber-400', shadow: 'shadow-amber-500/20', progress: (takenNumbersCount / totalRaffleNumbers) * 100 },
               { label: 'Conversão', value: `${takenNumbersCount > 0 ? ((takenNumbersCount / totalRaffleNumbers) * 100).toFixed(1) : '0'}%`, icon: BarChart, color: 'from-purple-600 to-purple-400', shadow: 'shadow-purple-500/20' },
             ].map((stat, idx) => (
-              <div 
-                key={idx} 
+              <div
+                key={idx}
                 onClick={stat.clickable && stat.onClick ? stat.onClick : undefined}
                 className={`glass-panel group relative overflow-hidden rounded-[2rem] border border-white/5 bg-slate-800/40 p-1 hover:border-white/10 transition-all duration-500 ${stat.clickable ? 'cursor-pointer hover:scale-[1.02]' : ''}`}
               >
@@ -948,6 +907,38 @@ export default function AdminDashboardPage() {
                       className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
                     >
                       Abrir
+                    </Link>
+                  </div>
+                </div>
+
+                {/* 🧪 WhatsApp Test Tool Card */}
+                <div className="glass-panel p-6 rounded-2xl border border-white/5 bg-slate-800/40 relative overflow-hidden group hover:border-emerald-500/30 transition-all duration-300">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all duration-500 group-hover:bg-emerald-500/20"></div>
+
+                  <div className="flex justify-between items-start mb-4 relative z-10">
+                    <div className="p-3 bg-slate-900 rounded-xl border border-white/10 shadow-lg">
+                      <MessageSquare className="w-6 h-6 text-emerald-400" />
+                    </div>
+                    <div className="px-3 py-1 bg-emerald-500/20 rounded-full border border-emerald-500/20">
+                      <span className="text-[10px] uppercase font-bold text-emerald-300 tracking-wider">Debug</span>
+                    </div>
+                  </div>
+
+                  <h3 className="text-xl font-bold text-white mb-2">Ferramentas de Teste WhatsApp</h3>
+                  <p className="text-slate-400 text-sm mb-6">Teste o envio de notificações de cadastro, ganhador e comprovantes de mídia via Evolution API.</p>
+
+                  <div className="flex gap-2 relative z-10">
+                    <button
+                      onClick={() => setShowWhatsAppTest(true)}
+                      className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20"
+                    >
+                      Testar Mensagens
+                    </button>
+                    <Link
+                      to="/test-admin"
+                      className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 text-center"
+                    >
+                      Testar Mídia
                     </Link>
                   </div>
                 </div>

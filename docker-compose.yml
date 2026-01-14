@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  evolution_api:
+    container_name: evolution_api
+    image: evoapicloud/evolution-api:latest
+    restart: always
+    ports:
+      - "8081:8080"
+    volumes:
+      - evolution_data:/evolution/instances
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    networks:
+      - evolution-net
+
+  redis:
+    container_name: evolution_redis
+    image: redis:latest
+    restart: always
+    command: redis-server --port 6379 --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - evolution-net
+    ports:
+      - "6379:6379"
+
+  evolution_manager:
+    container_name: evolution_manager
+    image: evoapicloud/evolution-manager:latest
+    restart: always
+    ports:
+      - "3001:80"
+    networks:
+      - evolution-net
+    entrypoint: [ "/bin/sh", "-c", "rm -f /etc/nginx/conf.d/*.conf && echo 'server { listen 80; location / { root /usr/share/nginx/html; index index.html; try_files $$uri $$uri/ /index.html; } }' > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'" ]
+
+volumes:
+  evolution_data:
+  redis_data:
+
+networks:
+  evolution-net:
+    driver: bridge
