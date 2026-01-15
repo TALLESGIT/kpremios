@@ -125,7 +125,7 @@ export default function LiveKitViewer({
           setIsConnected(true);
 
           // ✅ CORREÇÃO: Verificar participantes já conectados usando videoTrackPublications
-          const remoteParticipants = Array.from(room.remoteParticipants.values());
+          const remoteParticipants: RemoteParticipant[] = Array.from(room.remoteParticipants.values());
           console.log(`👥 LiveKitViewer: ${remoteParticipants.length} participante(s) já conectado(s)`);
 
           for (const participant of remoteParticipants) {
@@ -137,8 +137,8 @@ export default function LiveKitViewer({
             });
 
             // ✅ CORREÇÃO: Usar videoTrackPublications e audioTrackPublications
-            const videoPubs = Array.from(participant.videoTrackPublications.values());
-            const audioPubs = Array.from(participant.audioTrackPublications.values());
+            const videoPubs: RemoteTrackPublication[] = Array.from(participant.videoTrackPublications.values());
+            const audioPubs: RemoteTrackPublication[] = Array.from(participant.audioTrackPublications.values());
 
             // Verificar tracks de vídeo já publicadas
             for (const pub of videoPubs) {
@@ -183,8 +183,8 @@ export default function LiveKitViewer({
           });
 
           // ✅ CORREÇÃO: Verificar tracks já publicadas usando videoTrackPublications
-          const videoPubs = Array.from(participant.videoTrackPublications.values());
-          const audioPubs = Array.from(participant.audioTrackPublications.values());
+          const videoPubs: RemoteTrackPublication[] = Array.from(participant.videoTrackPublications.values());
+          const audioPubs: RemoteTrackPublication[] = Array.from(participant.audioTrackPublications.values());
 
           for (const pub of videoPubs) {
             if (pub.track && pub.kind === Track.Kind.Video) {
