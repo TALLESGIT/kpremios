@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+// @ts-ignore - livekit-client tem tipos mas TypeScript tem problema com exports
 import { Room, RoomEvent, RemoteParticipant, Track, RemoteTrack, RemoteTrackPublication } from 'livekit-client';
 
 interface LiveKitViewerProps {
