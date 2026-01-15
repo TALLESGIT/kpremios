@@ -205,11 +205,18 @@ const AdminLiveStreamPage: React.FC = () => {
       // Título é mantido como o admin definiu (não sobrescrever)
       console.log(`Usando streamId: ${selectedStream.id}`);
 
+      // Room fixo do LiveKit (ZK Studio sempre transmite para 'zkpremios')
+      const livekitRoom = 'zkpremios';
+      const livekitUrl = 'wss://zkoficial-6xokn1hv.livekit.cloud';
+      const httpsUrl = livekitUrl.replace('wss://', 'https://');
+      const hlsUrl = `${httpsUrl}/hls/${livekitRoom}/index.m3u8`;
+
       const { data, error } = await supabase
         .from('live_streams')
         .update({
           is_active: true,
-          started_at: new Date().toISOString()
+          started_at: new Date().toISOString(),
+          hls_url: hlsUrl // ✅ Configurar HLS URL para quando ZK Studio começar a transmitir
         })
         .eq('id', selectedStream.id)
         .select()
@@ -217,7 +224,7 @@ const AdminLiveStreamPage: React.FC = () => {
 
       if (error) throw error;
 
-      console.log('Supabase atualizado com sucesso');
+      console.log('Supabase atualizado com sucesso', { hlsUrl });
       setIsStreaming(true);
       setSelectedStream(data);
 
