@@ -216,14 +216,26 @@ export default function LiveKitViewer({
         });
 
         // ✅ NOVO: Listener para TrackPublished (quando uma track é publicada)
-        room.on(RoomEvent.TrackPublished, (publication: RemoteTrackPublication, participant: RemoteParticipant) => {
+        // IMPORTANTE: Fazer subscribe manualmente quando track é publicada
+        room.on(RoomEvent.TrackPublished, async (publication: RemoteTrackPublication, participant: RemoteParticipant) => {
           if (!mounted) return;
           console.log('📢 LiveKitViewer: Track publicada', {
             trackName: publication.trackName,
             source: publication.source,
             kind: publication.kind,
-            participantIdentity: participant.identity
+            participantIdentity: participant.identity,
+            isSubscribed: publication.isSubscribed
           });
+
+          // ✅ Fazer subscribe automaticamente nas tracks publicadas
+          if (!publication.isSubscribed) {
+            try {
+              await participant.setSubscribed(publication.trackSid, true);
+              console.log('✅ LiveKitViewer: Subscribe realizado na track publicada:', publication.trackSid);
+            } catch (err: any) {
+              console.error('❌ LiveKitViewer: Erro ao fazer subscribe na track:', err);
+            }
+          }
         });
 
         await room.connect(livekitUrl, token);
