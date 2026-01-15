@@ -111,7 +111,7 @@ export function LiveViewer({
         roomName={livekitRoom}
         fitMode={fitMode}
         muteAudio={isAdmin} // ✅ NOVO: Passa flag para mutar áudio
-        enabled={isActuallyLive}
+        enabled={isActuallyLive || isAdmin} // ✅ Admin sempre pode ver preview (mesmo com is_active=false)
       />
     );
   };

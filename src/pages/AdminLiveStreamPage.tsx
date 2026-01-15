@@ -490,34 +490,26 @@ const AdminLiveStreamPage: React.FC = () => {
                     <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">Canal Principal: ZkPremios</span>
                   </div>
 
-                  {!isStreaming ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+                  {/* ✅ SEMPRE mostrar preview (mesmo quando não está transmitindo) */}
+                  {/* Admin pode ver preview do ZK Studio mesmo com is_active=false */}
+                  <MemoizedLiveViewer
+                    channelName={selectedStream.channel_name}
+                    fitMode="contain"
+                    showOfflineMessage={false}
+                    isAdmin={true}
+                  />
+                  {!isStreaming && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm pointer-events-none">
                       <div className="text-center space-y-4">
                         <div className="text-5xl animate-pulse">📡</div>
-                        <p className="text-white font-black uppercase italic tracking-widest">Aguardando Início</p>
-                        <p className="text-slate-400 text-xs font-bold uppercase">Abra o ZK Studio para transmitir</p>
+                        <p className="text-white font-black uppercase italic tracking-widest">Preview (Privado)</p>
+                        <p className="text-slate-400 text-xs font-bold uppercase">Inicie a transmissão para tornar público</p>
                       </div>
                     </div>
-                  ) : (
+                  )}
+                  {isStreaming && (
                     <>
-                      {/* LiveViewer (HLS) quando ESTÁ transmitindo - mostra o que os usuários veem */}
-                      {/* IMPORTANTE: Admin vê exatamente o que os usuários veem (título + botão copiar) */}
-                      {selectedStream.hls_url ? (
-                        <LivePlayerWithHeader
-                          title={selectedStream.title || 'ZK TV'}
-                          hlsUrl={selectedStream.hls_url}
-                          isLive={selectedStream.is_active}
-                          streamId={selectedStream.id}
-                          channelName={selectedStream.channel_name}
-                        />
-                      ) : (
-                        <MemoizedLiveViewer
-                          channelName={selectedStream.channel_name}
-                          fitMode="contain"
-                          showOfflineMessage={false}
-                          isAdmin={true}
-                        />
-                      )}
+                    <>
                       {/* Overlay VIP */}
                       {selectedStream.is_active && selectedStream.id && (
                         <VipMessageOverlay streamId={selectedStream.id} isActive={selectedStream.is_active} />
