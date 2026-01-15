@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Room, RoomEvent, RemoteParticipant, Track, RemoteTrack, RemoteTrackPublication } from 'livekit-client';
+// @ts-ignore - livekit-client tem tipos mas TypeScript tem problema com exports ESM
+import { Room, RoomEvent, RemoteParticipant, Track, RemoteTrack, RemoteTrackPublication } from 'livekit-client';
 
 interface LiveKitViewerProps {
   roomName: string;
