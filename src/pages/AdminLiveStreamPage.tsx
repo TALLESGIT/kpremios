@@ -509,7 +509,6 @@ const AdminLiveStreamPage: React.FC = () => {
                   )}
                   {isStreaming && (
                     <>
-                    <>
                       {/* Overlay VIP */}
                       {selectedStream.is_active && selectedStream.id && (
                         <VipMessageOverlay streamId={selectedStream.id} isActive={selectedStream.is_active} />
