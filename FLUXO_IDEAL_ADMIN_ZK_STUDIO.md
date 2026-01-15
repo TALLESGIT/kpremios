@@ -1,81 +1,87 @@
-# 🎬 Fluxo Ideal: Admin → ZK Studio → Site
+# 🎬 Fluxo Ideal: ZK Studio → Admin → Site
 
 ## 📋 Como DEVERIA Funcionar
 
-### 1️⃣ **Admin Cria Live no Painel**
+### 🎯 **Conceito Principal: Admin Vê Preview ANTES de Iniciar Transmissão**
 
-**No site (AdminLiveStreamPage):**
-1. Admin cria uma nova live com título (ex: "Cruzeiro x Santos")
-2. Sistema gera `channel_name` automaticamente (ex: "cruzeiro-x-santos")
-3. Live é criada no banco com `is_active = false`
-
-**Status:**
-- ✅ Live criada no banco
-- ✅ `channel_name` gerado
-- ❌ `is_active = false` (ainda não está ao vivo)
+O admin deve poder **editar e visualizar o conteúdo no ZK Studio ANTES de iniciar a transmissão** para os usuários. Isso permite que o admin veja exatamente como ficará antes de "ir ao ar".
 
 ---
 
-### 2️⃣ **Admin Inicia a Transmissão**
+### 1️⃣ **ZK Studio Transmite Preview (Privado)**
 
-**No site (AdminLiveStreamPage - botão "Iniciar Transmissão"):**
-1. Admin clica em "Iniciar Transmissão"
-2. Site atualiza `live_streams`:
-   - `is_active = true`
-   - `started_at = now()`
-   - `hls_url = https://zkoficial-6xokn1hv.livekit.cloud/hls/zkpremios/index.m3u8`
-3. Site mostra preview da live (ainda sem conteúdo do ZK Studio)
-
-**Status:**
-- ✅ Live marcada como ativa no banco
-- ✅ `hls_url` configurado
-- ⚠️ ZK Studio ainda não está transmitindo (aguardando)
-
----
-
-### 3️⃣ **ZK Studio Detecta Live Ativa e Conecta**
-
-**No ZK Studio (quando admin clica "Iniciar Transmissão" no ZK Studio):**
-1. ZK Studio busca live ativa no Supabase:
-   ```typescript
-   const activeStream = await fetch(
-     `${supabaseUrl}/rest/v1/live_streams?is_active=eq.true&limit=1`
-   );
-   ```
-2. ZK Studio obtém token LiveKit para room `zkpremios`:
+**No ZK Studio:**
+1. Admin abre ZK Studio e cria/edita cenas (fontes, edições, etc.)
+2. Admin clica "Iniciar Preview" no ZK Studio (NÃO "Iniciar Transmissão")
+3. ZK Studio conecta ao LiveKit room `zkpremios`:
    ```typescript
    const token = await getLiveKitToken('zkpremios', 'admin');
-   ```
-3. ZK Studio conecta ao LiveKit:
-   ```typescript
    await room.connect(livekitUrl, token);
    ```
-4. ZK Studio publica suas fontes/edições:
+4. ZK Studio publica conteúdo editado:
    - Vídeo composto (cenas editadas)
    - Áudio mixado
    - Tudo que foi editado no ZK Studio
 
 **Status:**
-- ✅ ZK Studio conectado ao LiveKit
 - ✅ ZK Studio transmitindo conteúdo editado
 - ✅ Conteúdo disponível no room `zkpremios`
+- ⚠️ Live ainda NÃO está ativa (`is_active = false`)
+- ⚠️ Usuários ainda NÃO veem (site não mostra para público)
 
 ---
 
-### 4️⃣ **Site Detecta e Mostra Conteúdo**
+### 2️⃣ **Admin Vê Preview no Painel (Como Usuários Verão)**
 
-**No site (LiveViewer):**
+**No site (AdminLiveStreamPage):**
+1. Admin já tem uma live criada (ou cria uma nova)
+2. Admin abre o painel admin da live
+3. Site conecta ao LiveKit room `zkpremios`:
+   - Usa `LiveKitViewer` com role `viewer`
+   - Recebe tracks do ZK Studio
+4. **Admin vê preview em tempo real** do que está sendo editado no ZK Studio
+
+**Status:**
+- ✅ Admin vê conteúdo editado no ZK Studio
+- ✅ Preview funciona mesmo com `is_active = false`
+- ⚠️ Usuários ainda NÃO veem (live não está ativa)
+- ✅ Admin pode aprovar/ajustar antes de "ir ao ar"
+
+---
+
+### 3️⃣ **Admin Inicia Transmissão (Torna Público)**
+
+**No site (AdminLiveStreamPage - botão "Iniciar Transmissão"):**
+1. Admin revisa o preview e está satisfeito
+2. Admin clica em "Iniciar Transmissão"
+3. Site atualiza `live_streams`:
+   - `is_active = true`
+   - `started_at = now()`
+   - `hls_url = https://zkoficial-6xokn1hv.livekit.cloud/hls/zkpremios/index.m3u8`
+4. Site continua mostrando preview (agora também visível para usuários)
+
+**Status:**
+- ✅ Live marcada como ativa (`is_active = true`)
+- ✅ `hls_url` configurado
+- ✅ ZK Studio já estava transmitindo (conteúdo já disponível)
+- ✅ Site mostra para admin E usuários
+
+---
+
+### 4️⃣ **Usuários Veem Transmissão Ao Vivo**
+
+**No site (Páginas públicas - LiveViewer):**
 1. Site detecta `is_active = true` via Realtime
 2. Site conecta ao LiveKit usando `LiveKitViewer`:
    - Room: `zkpremios`
    - Role: `viewer`
 3. Site recebe tracks de vídeo/áudio do ZK Studio
-4. Site renderiza o conteúdo editado pelo admin no ZK Studio
+4. **Usuários veem a transmissão ao vivo**
 
 **Resultado:**
-- ✅ Admin vê preview da transmissão (como os usuários verão)
-- ✅ Usuários veem a transmissão ao vivo
-- ✅ Conteúdo editado no ZK Studio aparece no site
+- ✅ Admin já estava vendo preview
+- ✅ Usuários agora também veem
+- ✅ Conteúdo editado no ZK Studio aparece para todos
 
 ---
 
@@ -83,40 +89,47 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ 1. ADMIN CRIA LIVE (Site)                              │
+│ 1. ADMIN CRIA LIVE (Site) - OPCIONAL                   │
 │    - Título: "Cruzeiro x Santos"                       │
 │    - channel_name: "cruzeiro-x-santos"                 │
 │    - is_active: false                                  │
+│    - (Pode criar depois também)                        │
 └─────────────────────────────────────────────────────────┘
                         ↓
 ┌─────────────────────────────────────────────────────────┐
-│ 2. ADMIN INICIA TRANSMISSÃO (Site)                     │
-│    - Clica "Iniciar Transmissão"                       │
+│ 2. ZK STUDIO TRANSMITE PREVIEW (Privado)               │
+│    - Admin edita cenas no ZK Studio                    │
+│    - Admin clica "Iniciar Preview"                     │
+│    - ZK Studio conecta ao room "zkpremios"             │
+│    - ZK Studio publica conteúdo editado                │
+│    - is_active: false (ainda não público)              │
+└─────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────┐
+│ 3. ADMIN VÊ PREVIEW NO PAINEL (Privado)                │
+│    - Admin abre painel da live                         │
+│    - Site conecta ao room "zkpremios"                  │
+│    - Admin vê conteúdo editado em tempo real           │
+│    - Admin revisa e aprova antes de "ir ao ar"         │
+│    - is_active: false (usuários ainda não veem)        │
+└─────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────┐
+│ 4. ADMIN INICIA TRANSMISSÃO (Torna Público)            │
+│    - Admin clica "Iniciar Transmissão" no site         │
 │    - is_active: true                                   │
 │    - hls_url: https://.../hls/zkpremios/index.m3u8    │
-│    - Site mostra preview (aguardando ZK Studio)        │
+│    - Conteúdo já estava disponível (ZK Studio já       │
+│      transmitindo)                                     │
 └─────────────────────────────────────────────────────────┘
                         ↓
 ┌─────────────────────────────────────────────────────────┐
-│ 3. ZK STUDIO DETECTA LIVE ATIVA                        │
-│    - Busca live ativa no Supabase                      │
-│    - Obtém token para room "zkpremios"                 │
-│    - Conecta ao LiveKit                                │
-└─────────────────────────────────────────────────────────┘
-                        ↓
-┌─────────────────────────────────────────────────────────┐
-│ 4. ZK STUDIO TRANSMITE CONTEÚDO EDITADO                │
-│    - Publica vídeo composto (cenas editadas)          │
-│    - Publica áudio mixado                              │
-│    - Tudo que foi editado no ZK Studio                 │
-└─────────────────────────────────────────────────────────┘
-                        ↓
-┌─────────────────────────────────────────────────────────┐
-│ 5. SITE RECEBE E RENDERIZA                             │
-│    - LiveKitViewer conecta ao room "zkpremios"         │
-│    - Recebe tracks de vídeo/áudio                      │
-│    - Renderiza conteúdo editado                        │
-│    - Admin vê preview (como usuários verão)            │
+│ 5. USUÁRIOS VEEM TRANSMISSÃO AO VIVO (Público)         │
+│    - Site detecta is_active: true                      │
+│    - Site conecta ao room "zkpremios"                  │
+│    - Usuários recebem tracks de vídeo/áudio            │
+│    - Usuários veem conteúdo editado                    │
+│    - Admin continua vendo (mesmo preview)              │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -124,12 +137,49 @@
 
 ## ⚙️ O Que Precisa Acontecer
 
-### **No Site (AdminLiveStreamPage):**
+### **No ZK Studio (PRIMEIRO - Preview Privado):**
+
+Quando admin clica "Iniciar Preview" no ZK Studio:
+```typescript
+async startPreview(): Promise<void> {
+  // 1. Obter token para room fixo "zkpremios"
+  const token = await getLiveKitToken('zkpremios', 'admin');
+  
+  // 2. Conectar ao LiveKit
+  await room.connect(livekitUrl, token);
+  
+  // 3. Publicar conteúdo editado (preview)
+  await room.localParticipant.publishTrack(videoTrack);
+  await room.localParticipant.publishTrack(audioTrack);
+  
+  // 4. NÃO atualizar Supabase ainda (is_active = false)
+  //    Preview só para admin ver
+}
+```
+
+### **No Site (AdminLiveStreamPage - Preview):**
+
+Sempre mostra preview (mesmo com `is_active = false`):
+```typescript
+// AdminLiveStreamPage.tsx
+<LiveViewer
+  channelName={selectedStream.channel_name}
+  fitMode="contain"
+  showOfflineMessage={false}
+  isAdmin={true}
+/>
+
+// LiveViewer sempre conecta ao room "zkpremios"
+// Se ZK Studio estiver transmitindo, admin vê preview
+// Se is_active = false, apenas admin vê (usuários não)
+```
+
+### **No Site (AdminLiveStreamPage - Tornar Público):**
 
 Quando admin clica "Iniciar Transmissão":
 ```typescript
 const startStream = async () => {
-  // 1. Atualizar live como ativa
+  // 1. Atualizar live como ativa (torna público)
   await supabase
     .from('live_streams')
     .update({
@@ -139,45 +189,41 @@ const startStream = async () => {
     })
     .eq('id', selectedStream.id);
   
-  // 2. Site já mostra preview (LiveViewer detecta via Realtime)
-  // 3. Aguarda ZK Studio conectar e transmitir
+  // 2. ZK Studio já estava transmitindo (preview)
+  // 3. Agora usuários também podem ver
+  // 4. Admin continua vendo o mesmo preview
 };
 ```
 
-### **No ZK Studio:**
+### **No Site (Páginas Públicas - LiveViewer):**
 
-Quando admin clica "Iniciar Transmissão" no ZK Studio:
+Apenas quando `is_active = true`:
 ```typescript
-async startStream(): Promise<void> {
-  // 1. Buscar live ativa no Supabase
-  const activeStream = await fetch(
-    `${supabaseUrl}/rest/v1/live_streams?is_active=eq.true&limit=1`
-  );
-  
-  // 2. Obter token para room fixo "zkpremios"
-  const token = await getLiveKitToken('zkpremios', 'admin');
-  
-  // 3. Conectar ao LiveKit
-  await room.connect(livekitUrl, token);
-  
-  // 4. Publicar conteúdo editado
-  await room.localParticipant.publishTrack(videoTrack);
-  await room.localParticipant.publishTrack(audioTrack);
-  
-  // 5. Notificar Supabase (opcional, já está ativa)
-  // O site já detecta via Realtime quando ZK Studio começa a transmitir
+// PublicLiveStreamPage.tsx ou ZkTVPage.tsx
+if (stream.is_active) {
+  // Mostra LiveViewer (conecta ao room "zkpremios")
+  // Usuários veem conteúdo do ZK Studio
 }
 ```
 
-### **No Site (LiveViewer):**
+---
 
-Automaticamente:
-```typescript
-// 1. Detecta is_active = true via Realtime
-// 2. Conecta ao LiveKit room "zkpremios"
-// 3. Recebe tracks do ZK Studio
-// 4. Renderiza conteúdo editado
-```
+## ✅ Vantagens Deste Fluxo
+
+### **1. Preview Antes de "Ir ao Ar"**
+- ✅ Admin vê exatamente como ficará antes de tornar público
+- ✅ Pode ajustar cenas, fontes, edições no ZK Studio
+- ✅ Revisa preview no painel antes de iniciar
+
+### **2. Controle Total**
+- ✅ Admin decide quando tornar público
+- ✅ Preview funciona independente de `is_active`
+- ✅ Usuários só veem quando admin autoriza
+
+### **3. Sem Interrupções**
+- ✅ ZK Studio pode transmitir preview continuamente
+- ✅ Admin inicia transmissão quando estiver pronto
+- ✅ Sem delay - conteúdo já está disponível
 
 ---
 
@@ -185,15 +231,14 @@ Automaticamente:
 
 ### **O que está funcionando:**
 - ✅ Admin pode criar live no painel
-- ✅ Admin pode iniciar transmissão (marca como ativa)
-- ✅ Site detecta mudanças via Realtime
-- ✅ Site conecta ao LiveKit
+- ✅ Site conecta ao LiveKit (preview)
 - ✅ ZK Studio pode transmitir para `zkpremios`
+- ✅ Admin pode iniciar transmissão (marca como ativa)
 
-### **O que precisa ser verificado:**
-- ⚠️ ZK Studio está transmitindo? (verificar logs)
-- ⚠️ Site está recebendo tracks? (verificar logs)
-- ⚠️ Room name está correto? (`zkpremios` minúsculo)
+### **O que precisa ser implementado:**
+- ⚠️ LiveViewer deve funcionar mesmo com `is_active = false` (apenas para admin)
+- ⚠️ Páginas públicas só devem mostrar quando `is_active = true`
+- ⚠️ ZK Studio precisa de modo "Preview" vs "Transmissão"
 
 ---
 
@@ -240,11 +285,32 @@ Automaticamente:
 
 ## 📝 Resumo
 
-**Fluxo Ideal:**
-1. Admin cria live → Banco
-2. Admin inicia → `is_active = true`
-3. ZK Studio detecta → Conecta e transmite
-4. Site detecta → Conecta e recebe
-5. **Conteúdo editado aparece automaticamente!**
+**Fluxo Ideal: ZK Studio → Admin → Site**
 
-**O ZK Studio NÃO precisa saber qual live específica - ele sempre transmite para `zkpremios` e o site sempre conecta ao mesmo room!**
+1. **ZK Studio transmite preview** (privado, `is_active = false`)
+   - Admin edita conteúdo no ZK Studio
+   - ZK Studio conecta ao room `zkpremios` e transmite
+   - Apenas admin pode ver (preview)
+
+2. **Admin vê preview no painel** (privado)
+   - Admin abre painel da live
+   - Site conecta ao room `zkpremios`
+   - Admin vê conteúdo editado em tempo real
+   - Admin revisa e aprova
+
+3. **Admin inicia transmissão** (`is_active = true`)
+   - Admin clica "Iniciar Transmissão"
+   - Live torna-se pública
+   - Conteúdo já estava disponível (ZK Studio transmitindo)
+
+4. **Usuários veem ao vivo** (público)
+   - Site detecta `is_active = true`
+   - Usuários conectam ao room `zkpremios`
+   - Usuários veem conteúdo editado
+
+**Principais Benefícios:**
+- ✅ Admin vê preview ANTES de tornar público
+- ✅ Controle total sobre quando "ir ao ar"
+- ✅ Sem delay - conteúdo já disponível
+- ✅ ZK Studio sempre transmite para `zkpremios` (fixo)
+- ✅ Site sempre conecta ao mesmo room `zkpremios`
