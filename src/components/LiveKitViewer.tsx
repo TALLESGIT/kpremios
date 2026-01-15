@@ -170,19 +170,23 @@ export default function LiveKitViewer({
             }
           });
 
-          // Verificar tracks já existentes
-          participant.trackPublications.forEach((publication: TrackPublication) => {
-            if (publication.track && publication.kind === 'video') {
-              if (!mounted || !videoRef.current) return;
-              publication.track.attach(videoRef.current);
-              setHasVideo(true);
-              if (videoRef.current) {
-                videoRef.current.style.objectFit = fitMode;
+          // Verificar tracks já existentes (com verificação de null/undefined)
+          if (participant.trackPublications && participant.trackPublications.size > 0) {
+            participant.trackPublications.forEach((publication: TrackPublication) => {
+              if (publication.track && publication.kind === 'video') {
+                if (!mounted || !videoRef.current) return;
+                console.log('📹 LiveKitViewer: Vídeo track encontrado ao conectar participante');
+                publication.track.attach(videoRef.current);
+                setHasVideo(true);
+                if (videoRef.current) {
+                  videoRef.current.style.objectFit = fitMode;
+                }
+              } else if (publication.track && publication.kind === 'audio' && !muteAudio) {
+                console.log('🔊 LiveKitViewer: Áudio track encontrado ao conectar participante');
+                publication.track.attach();
               }
-            } else if (publication.track && publication.kind === 'audio' && !muteAudio) {
-              publication.track.attach();
-            }
-          });
+            });
+          }
         });
 
         room.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
