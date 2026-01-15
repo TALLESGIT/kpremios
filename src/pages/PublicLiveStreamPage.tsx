@@ -160,58 +160,38 @@ const PublicLiveStreamPage: React.FC = () => {
         is_active: currentStream.is_active
       });
 
-      // Primeiro, verificar se já existe uma sessão (ativa ou inativa)
-      const { data: existingSession } = await supabase
+      // Usar upsert para evitar race conditions e duplicações
+      // O upsert é atômico e evita o problema de verificar se existe antes de inserir
+      const result = await supabase
         .from('viewer_sessions')
-        .select('id, is_active')
-        .eq('session_id', sessionId)
-        .eq('stream_id', currentStream.id)
-        .maybeSingle();
-
-      let data, error;
-
-      if (existingSession) {
-        // Se existe, fazer update
-        console.log('🔄 trackViewer: Sessão existente encontrada, atualizando...', existingSession);
-        const updateData: any = {
-          is_active: currentStream.is_active,
-          last_heartbeat: now,
-          user_id: user?.id || null,
-          user_agent: navigator.userAgent
-        };
-
-        // Se estava inativa e agora está ativa, reativar (mas manter started_at original)
-        if (!existingSession.is_active && currentStream.is_active) {
-          updateData.ended_at = null; // Limpar ended_at se reativando
-        }
-
-        const result = await supabase
-          .from('viewer_sessions')
-          .update(updateData)
-          .eq('id', existingSession.id)
-          .select();
-        data = result.data;
-        error = result.error;
-      } else {
-        // Se não existe, fazer insert
-        console.log('➕ trackViewer: Criando nova sessão...');
-        const result = await supabase
-          .from('viewer_sessions')
-          .insert({
+        .upsert(
+          {
             stream_id: currentStream.id,
             session_id: sessionId,
             user_id: user?.id || null,
             is_active: currentStream.is_active,
             user_agent: navigator.userAgent,
             last_heartbeat: now,
+            // started_at só será usado na criação, não no update
             started_at: now
-          })
-          .select();
-        data = result.data;
-        error = result.error;
+          },
+          {
+            onConflict: 'session_id,stream_id'
+          }
+        )
+        .select();
 
-        // Se criou nova sessão e usuário está logado, tentar conceder VIP da promoção dos 100 primeiros
-        if (!error && user?.id && data && data.length > 0) {
+      let data = result.data;
+      let error = result.error;
+
+      // Verificar se é uma nova sessão comparando started_at com now (margem de 2 segundos)
+      if (!error && data && data.length > 0) {
+        const session = data[0];
+        const sessionStartedAt = new Date(session.started_at).getTime();
+        const isNewSession = Math.abs(sessionStartedAt - Date.now()) < 2000;
+        
+        // Se criou nova sessão e usuário está logado, tentar conceder VIP
+        if (isNewSession && user?.id) {
           try {
             const { data: vipGranted, error: vipError } = await supabase.rpc('grant_free_vip_if_eligible', {
               p_user_id: user.id
@@ -227,6 +207,14 @@ const PublicLiveStreamPage: React.FC = () => {
             console.error('Erro ao verificar VIP grátis:', vipError);
             // Não bloquear se houver erro
           }
+        }
+
+        // Se estava inativa e agora está ativa, limpar ended_at
+        if (!session.is_active && currentStream.is_active && session.ended_at) {
+          await supabase
+            .from('viewer_sessions')
+            .update({ ended_at: null })
+            .eq('id', session.id);
         }
       }
 
