@@ -72,9 +72,9 @@ export function LiveViewer({
   const hasHlsUrl = data.hls_url && data.hls_url.trim() !== '';
   const isActuallyLive = data.is_active;
 
-  // Room do LiveKit - ZK Studio sempre transmite para 'ZkPremios' (canal fixo)
+  // Room do LiveKit - ZK Studio sempre transmite para 'zkpremios' (minúsculo, case-sensitive)
   // O channel_name é apenas para identificação da stream no banco, não o room do LiveKit
-  const livekitRoom = 'ZkPremios';
+  const livekitRoom = 'zkpremios';
 
   const renderContent = () => {
     // Se a live estiver offline e showOfflineMessage=true

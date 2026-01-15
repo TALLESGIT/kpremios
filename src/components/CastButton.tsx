@@ -183,7 +183,7 @@ export const CastButton: React.FC<CastButtonProps> = ({
       // Se ainda não tiver, tentar construir URL HLS padrão do Agora/LiveKit
       if (!url) {
         // URL padrão do LiveKit HLS
-        const agoraChannel = 'ZkPremios'; // Nome do canal padrão
+        const agoraChannel = 'zkpremios'; // Nome do canal padrão (minúsculo, case-sensitive)
         url = `https://zkoficial-6xokn1hv.livekit.cloud/hls/${agoraChannel}/index.m3u8`;
         console.log('⚠️ Usando URL HLS padrão do LiveKit:', url);
       }
