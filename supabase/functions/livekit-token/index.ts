@@ -7,8 +7,10 @@ const corsHeaders = {
 };
 
 interface TokenRequest {
-  room: string;
-  role: "admin" | "reporter" | "viewer";
+  room?: string;
+  roomName?: string;
+  role?: "admin" | "reporter" | "viewer";
+  participantName?: string;
 }
 
 serve(async (req) => {
@@ -33,9 +35,13 @@ serve(async (req) => {
 
     const body: TokenRequest = await req.json();
 
-    if (!body.room || !body.role) {
+    // Aceitar ambos os formatos: {room, role} ou {roomName, participantName}
+    const room = body.room || body.roomName;
+    const role = body.role || (body.participantName ? "admin" : "viewer");
+
+    if (!room) {
       return new Response(
-        JSON.stringify({ error: "room and role are required" }),
+        JSON.stringify({ error: "room or roomName is required" }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -43,7 +49,7 @@ serve(async (req) => {
       );
     }
 
-    if (!["admin", "reporter", "viewer"].includes(body.role)) {
+    if (!["admin", "reporter", "viewer"].includes(role)) {
       return new Response(
         JSON.stringify({ error: "Invalid role. Must be admin, reporter, or viewer" }),
         {
@@ -53,16 +59,19 @@ serve(async (req) => {
       );
     }
 
+    // Usar participantName se fornecido, senão gerar identity baseado em role
+    const identity = body.participantName || `${role}-${Date.now()}`;
+
     const at = new AccessToken(apiKey, apiSecret, {
-      identity: `${body.role}-${Date.now()}`,
+      identity: identity,
     });
 
     at.addGrant({
-      room: body.room,
+      room: room,
       roomJoin: true,
-      canPublish: body.role === "admin" || body.role === "reporter",
+      canPublish: role === "admin" || role === "reporter",
       canSubscribe: true,
-      canPublishData: body.role === "admin" || body.role === "reporter",
+      canPublishData: role === "admin" || role === "reporter",
     });
 
     const token = await at.toJwt();
