@@ -95,6 +95,47 @@ export default function LiveKitViewer({
           if (!mounted) return;
           console.log('✅ LiveKitViewer: Conectado ao LiveKit');
           setIsConnected(true);
+
+          // Verificar participantes já conectados (ZK Studio pode já estar transmitindo)
+          const remoteParticipants = room.remoteParticipants;
+          console.log(`👥 LiveKitViewer: ${remoteParticipants.size} participante(s) já conectado(s)`);
+
+          remoteParticipants.forEach((participant: RemoteParticipant) => {
+            console.log('👤 LiveKitViewer: Verificando participante já conectado:', participant.identity);
+            
+            // Verificar tracks já publicadas
+            participant.trackPublications.forEach((publication: TrackPublication) => {
+              if (publication.track && publication.kind === 'video') {
+                if (!mounted || !videoRef.current) return;
+                console.log('📹 LiveKitViewer: Vídeo track encontrado em participante existente');
+                publication.track.attach(videoRef.current);
+                setHasVideo(true);
+                if (videoRef.current) {
+                  videoRef.current.style.objectFit = fitMode;
+                }
+              } else if (publication.track && publication.kind === 'audio' && !muteAudio) {
+                console.log('🔊 LiveKitViewer: Áudio track encontrado em participante existente');
+                publication.track.attach();
+              }
+            });
+
+            // Subscribir a tracks futuras
+            participant.on('trackSubscribed', (track, pub: TrackPublication) => {
+              if (!mounted || !videoRef.current) return;
+
+              if (track.kind === 'video') {
+                console.log('📹 LiveKitViewer: Vídeo track recebido de participante existente');
+                track.attach(videoRef.current);
+                setHasVideo(true);
+                if (videoRef.current) {
+                  videoRef.current.style.objectFit = fitMode;
+                }
+              } else if (track.kind === 'audio' && !muteAudio) {
+                console.log('🔊 LiveKitViewer: Áudio track recebido de participante existente');
+                track.attach();
+              }
+            });
+          });
         });
 
         room.on(RoomEvent.Disconnected, () => {
