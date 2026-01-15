@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-// @ts-ignore - livekit-client tem tipos mas TypeScript tem problema com exports
-import { Room, RoomEvent, RemoteParticipant, Track, RemoteTrack, RemoteTrackPublication } from 'livekit-client';
+import type { Room, RoomEvent, RemoteParticipant, Track, RemoteTrack, RemoteTrackPublication } from 'livekit-client';
 
 interface LiveKitViewerProps {
   roomName: string;
@@ -82,6 +81,8 @@ export default function LiveKitViewer({
         room = new Room({
           adaptiveStream: true,
           dynacast: true,
+          // ✅ NOVO: Garantir que auto-subscribe está ativo (padrão é true, mas explicitamos)
+          // O LiveKit faz auto-subscribe por padrão, mas vamos garantir
         });
         roomRef.current = room;
 
@@ -120,13 +121,13 @@ export default function LiveKitViewer({
           }
         });
 
-        room.on(RoomEvent.Connected, () => {
+        room.on(RoomEvent.Connected, async () => {
           if (!mounted) return;
           console.log('✅ LiveKitViewer: Conectado ao LiveKit');
           setIsConnected(true);
 
           // ✅ CORREÇÃO: Verificar participantes já conectados usando videoTrackPublications
-          const remoteParticipants: RemoteParticipant[] = Array.from(room.remoteParticipants.values());
+          const remoteParticipants = Array.from(room.remoteParticipants.values());
           console.log(`👥 LiveKitViewer: ${remoteParticipants.length} participante(s) já conectado(s)`);
 
           for (const participant of remoteParticipants) {
@@ -138,12 +139,24 @@ export default function LiveKitViewer({
             });
 
             // ✅ CORREÇÃO: Usar videoTrackPublications e audioTrackPublications
-            const videoPubs: RemoteTrackPublication[] = Array.from(participant.videoTrackPublications.values());
-            const audioPubs: RemoteTrackPublication[] = Array.from(participant.audioTrackPublications.values());
+            const videoPubs = Array.from(participant.videoTrackPublications.values());
+            const audioPubs = Array.from(participant.audioTrackPublications.values());
 
-            // Verificar tracks de vídeo já publicadas
+            // ✅ NOVO: Faz subscribe manual de todas as tracks não subscritas
+            const needsSubscribe = [...videoPubs, ...audioPubs].some(pub => !pub.isSubscribed);
+            if (needsSubscribe) {
+              console.log(`🔄 LiveKitViewer: Fazendo subscribe manual de todas as tracks de ${participant.identity}`);
+              try {
+                await room.localParticipant.setSubscribed(participant.sid, true);
+                console.log(`✅ LiveKitViewer: Subscribe manual solicitado para ${participant.identity}`);
+              } catch (subErr) {
+                console.error(`⚠️ LiveKitViewer: Erro ao fazer subscribe manual:`, subErr);
+              }
+            }
+
+            // Verificar tracks de vídeo já publicadas e subscritas
             for (const pub of videoPubs) {
-              if (pub.track && pub.kind === Track.Kind.Video) {
+              if (pub.track && pub.track.kind === Track.Kind.Video && pub.isSubscribed) {
                 if (!mounted || !videoRef.current) return;
                 console.log('📹 LiveKitViewer: Vídeo track encontrado em participante existente:', participant.identity);
                 pub.track.attach(videoRef.current);
@@ -151,15 +164,19 @@ export default function LiveKitViewer({
                 if (videoRef.current) {
                   videoRef.current.style.objectFit = fitMode;
                 }
+              } else if (!pub.isSubscribed) {
+                console.log(`⏳ LiveKitViewer: Aguardando subscribe da track de vídeo ${pub.trackName} de ${participant.identity}`);
               }
             }
 
-            // Verificar tracks de áudio já publicadas
+            // Verificar tracks de áudio já publicadas e subscritas
             if (!muteAudio) {
               for (const pub of audioPubs) {
-                if (pub.track && pub.kind === Track.Kind.Audio) {
+                if (pub.track && pub.track.kind === Track.Kind.Audio && pub.isSubscribed) {
                   console.log('🔊 LiveKitViewer: Áudio track encontrado em participante existente:', participant.identity);
                   pub.track.attach();
+                } else if (!pub.isSubscribed) {
+                  console.log(`⏳ LiveKitViewer: Aguardando subscribe da track de áudio ${pub.trackName} de ${participant.identity}`);
                 }
               }
             }
@@ -174,7 +191,7 @@ export default function LiveKitViewer({
         });
 
         // ✅ CORREÇÃO: Usar RoomEvent.ParticipantConnected (não participant.on)
-        room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
+        room.on(RoomEvent.ParticipantConnected, async (participant: RemoteParticipant) => {
           if (!mounted) return;
           console.log('👤 LiveKitViewer: Participante conectado:', {
             identity: participant.identity,
@@ -184,11 +201,24 @@ export default function LiveKitViewer({
           });
 
           // ✅ CORREÇÃO: Verificar tracks já publicadas usando videoTrackPublications
-          const videoPubs: RemoteTrackPublication[] = Array.from(participant.videoTrackPublications.values());
-          const audioPubs: RemoteTrackPublication[] = Array.from(participant.audioTrackPublications.values());
+          const videoPubs = Array.from(participant.videoTrackPublications.values());
+          const audioPubs = Array.from(participant.audioTrackPublications.values());
 
+          // ✅ NOVO: Faz subscribe manual de todas as tracks não subscritas
+          const needsSubscribe = [...videoPubs, ...audioPubs].some(pub => !pub.isSubscribed);
+          if (needsSubscribe) {
+            console.log(`🔄 LiveKitViewer: Fazendo subscribe manual de todas as tracks de ${participant.identity}`);
+            try {
+              await room.localParticipant.setSubscribed(participant.sid, true);
+              console.log(`✅ LiveKitViewer: Subscribe manual solicitado para ${participant.identity}`);
+            } catch (subErr) {
+              console.error(`⚠️ LiveKitViewer: Erro ao fazer subscribe manual:`, subErr);
+            }
+          }
+
+          // Verifica tracks já subscritas e anexa ao vídeo
           for (const pub of videoPubs) {
-            if (pub.track && pub.kind === Track.Kind.Video) {
+            if (pub.track && pub.track.kind === Track.Kind.Video) {
               if (!mounted || !videoRef.current) return;
               console.log('📹 LiveKitViewer: Vídeo track encontrado ao conectar participante:', participant.identity);
               pub.track.attach(videoRef.current);
@@ -196,14 +226,18 @@ export default function LiveKitViewer({
               if (videoRef.current) {
                 videoRef.current.style.objectFit = fitMode;
               }
+            } else if (!pub.isSubscribed) {
+              console.log(`⏳ LiveKitViewer: Aguardando subscribe da track de vídeo ${pub.trackName} de ${participant.identity}`);
             }
           }
 
           if (!muteAudio) {
             for (const pub of audioPubs) {
-              if (pub.track && pub.kind === Track.Kind.Audio) {
+              if (pub.track && pub.track.kind === Track.Kind.Audio) {
                 console.log('🔊 LiveKitViewer: Áudio track encontrado ao conectar participante:', participant.identity);
                 pub.track.attach();
+              } else if (!pub.isSubscribed) {
+                console.log(`⏳ LiveKitViewer: Aguardando subscribe da track de áudio ${pub.trackName} de ${participant.identity}`);
               }
             }
           }
@@ -216,7 +250,6 @@ export default function LiveKitViewer({
         });
 
         // ✅ NOVO: Listener para TrackPublished (quando uma track é publicada)
-        // IMPORTANTE: Fazer subscribe manualmente quando track é publicada
         room.on(RoomEvent.TrackPublished, async (publication: RemoteTrackPublication, participant: RemoteParticipant) => {
           if (!mounted) return;
           console.log('📢 LiveKitViewer: Track publicada', {
@@ -227,13 +260,15 @@ export default function LiveKitViewer({
             isSubscribed: publication.isSubscribed
           });
 
-          // ✅ Fazer subscribe automaticamente nas tracks publicadas
-          if (!publication.isSubscribed) {
+          // ✅ CORREÇÃO: Faz subscribe manual se a track não estiver subscrita
+          if (!publication.isSubscribed && (publication.kind === Track.Kind.Video || publication.kind === Track.Kind.Audio)) {
+            console.log(`🔄 LiveKitViewer: Fazendo subscribe manual da track ${publication.trackName} de ${participant.identity}`);
             try {
-              await participant.setSubscribed(publication.trackSid, true);
-              console.log('✅ LiveKitViewer: Subscribe realizado na track publicada:', publication.trackSid);
-            } catch (err: any) {
-              console.error('❌ LiveKitViewer: Erro ao fazer subscribe na track:', err);
+              // Faz subscribe manual usando setSubscribed
+              await room.localParticipant.setSubscribed(participant.sid, true);
+              console.log(`✅ LiveKitViewer: Subscribe manual solicitado para ${participant.identity}`);
+            } catch (subErr) {
+              console.error(`⚠️ LiveKitViewer: Erro ao fazer subscribe manual:`, subErr);
             }
           }
         });
