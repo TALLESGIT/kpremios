@@ -103,21 +103,23 @@ export default function LiveKitViewer({
           remoteParticipants.forEach((participant: RemoteParticipant) => {
             console.log('👤 LiveKitViewer: Verificando participante já conectado:', participant.identity);
             
-            // Verificar tracks já publicadas
-            participant.trackPublications.forEach((publication: TrackPublication) => {
-              if (publication.track && publication.kind === 'video') {
-                if (!mounted || !videoRef.current) return;
-                console.log('📹 LiveKitViewer: Vídeo track encontrado em participante existente');
-                publication.track.attach(videoRef.current);
-                setHasVideo(true);
-                if (videoRef.current) {
-                  videoRef.current.style.objectFit = fitMode;
+            // Verificar tracks já publicadas (com verificação de null/undefined)
+            if (participant.trackPublications && participant.trackPublications.size > 0) {
+              participant.trackPublications.forEach((publication: TrackPublication) => {
+                if (publication.track && publication.kind === 'video') {
+                  if (!mounted || !videoRef.current) return;
+                  console.log('📹 LiveKitViewer: Vídeo track encontrado em participante existente');
+                  publication.track.attach(videoRef.current);
+                  setHasVideo(true);
+                  if (videoRef.current) {
+                    videoRef.current.style.objectFit = fitMode;
+                  }
+                } else if (publication.track && publication.kind === 'audio' && !muteAudio) {
+                  console.log('🔊 LiveKitViewer: Áudio track encontrado em participante existente');
+                  publication.track.attach();
                 }
-              } else if (publication.track && publication.kind === 'audio' && !muteAudio) {
-                console.log('🔊 LiveKitViewer: Áudio track encontrado em participante existente');
-                publication.track.attach();
-              }
-            });
+              });
+            }
 
             // Subscribir a tracks futuras
             participant.on('trackSubscribed', (track, pub: TrackPublication) => {
