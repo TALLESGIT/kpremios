@@ -108,6 +108,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
+        // Tratar erros de timeout/conexão de forma mais clara
+        if (error.message?.includes('timeout') || error.message?.includes('failed to connect') || error.message?.includes('NetworkError')) {
+          console.warn('Sign in error: Problema de conexão com o servidor', error.message);
+          return { 
+            error: { 
+              ...error, 
+              message: 'Erro de conexão. O servidor pode estar sobrecarregado. Tente novamente em alguns instantes.' 
+            } 
+          };
+        }
         console.warn('Sign in error:', error.message);
         return { error };
       }
@@ -117,7 +127,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       return { error: null };
-    } catch (err) {
+    } catch (err: any) {
+      // Tratar erros de rede/conexão
+      if (err?.message?.includes('timeout') || err?.message?.includes('failed to connect') || err?.message?.includes('NetworkError')) {
+        console.warn('Sign in exception: Problema de conexão', err.message);
+        return { 
+          error: { 
+            message: 'Erro de conexão. O servidor pode estar sobrecarregado. Tente novamente em alguns instantes.' 
+          } 
+        };
+      }
       console.warn('Sign in exception:', err);
       return { error: err };
     }

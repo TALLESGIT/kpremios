@@ -231,13 +231,55 @@ const PublicLiveStreamPage: React.FC = () => {
       }
 
       if (error) {
+        // Tratar erros de constraint de duplicação como não-críticos (sessão já existe)
+        if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
+          console.warn('⚠️ trackViewer: Sessão já existe (duplicada), ignorando...', error.message);
+          // Tentar fazer update da sessão existente
+          try {
+            const { data: existingSession } = await supabase
+              .from('viewer_sessions')
+              .select('id')
+              .eq('session_id', sessionId)
+              .eq('stream_id', currentStream.id)
+              .maybeSingle();
+            
+            if (existingSession) {
+              await supabase
+                .from('viewer_sessions')
+                .update({
+                  is_active: currentStream.is_active,
+                  last_heartbeat: now,
+                  user_id: user?.id || null,
+                  user_agent: navigator.userAgent
+                })
+                .eq('id', existingSession.id);
+            }
+          } catch (updateError) {
+            console.warn('⚠️ Erro ao atualizar sessão existente:', updateError);
+          }
+          return; // Não bloquear o fluxo
+        }
+        
+        // Tratar timeouts e erros de conexão como não-críticos
+        if (error.message?.includes('timeout') || error.message?.includes('failed to connect') || error.code === 'PGRST116') {
+          console.warn('⚠️ trackViewer: Erro de conexão/timeout, tentando novamente na próxima vez:', error.message);
+          return; // Não bloquear o fluxo
+        }
+        
         console.error('❌ Erro ao criar/atualizar viewer_session:', error);
-        throw error; // Re-throw para ser capturado pelo catch
+        // Não lançar erro para não quebrar o fluxo da aplicação
       } else {
         console.log('✅ trackViewer: Sessão criada/atualizada com sucesso', data);
       }
     } catch (e: any) {
-      console.error('❌ Erro geral ao track viewer:', e);
+      // Tratar todos os erros como não-críticos para não quebrar a aplicação
+      if (e?.code === '23505' || e?.message?.includes('duplicate key') || e?.message?.includes('unique constraint')) {
+        console.warn('⚠️ trackViewer: Sessão duplicada, ignorando...', e.message);
+      } else if (e?.message?.includes('timeout') || e?.message?.includes('failed to connect')) {
+        console.warn('⚠️ trackViewer: Erro de conexão, será tentado novamente:', e.message);
+      } else {
+        console.error('❌ Erro geral ao track viewer:', e);
+      }
     }
   }, [sessionId, user?.id]); // Removido stream e updateViewerCount das dependências
 
