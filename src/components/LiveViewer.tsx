@@ -1,6 +1,6 @@
 import { useLiveStatus } from '../hooks/useLiveStatus';
 import { HLSViewer } from './HLSViewer';
-import ZKViewerOptimized from './ZKViewerOptimized';
+import LiveKitViewer from './LiveKitViewer';
 
 interface LiveViewerProps {
   channelName?: string;
@@ -13,7 +13,7 @@ interface LiveViewerProps {
 /**
  * Componente inteligente que decide qual player usar:
  * - Mobile + HLS URL disponível → HLSViewer (RTC no mobile costuma ser instável/pesado)
- * - Desktop ou sem HLS → ZKViewerOptimized (RTC Nativo Agora, baixíssima latência)
+ * - Desktop ou sem HLS → LiveKitViewer (RTC Nativo LiveKit, substitui Agora)
  */
 export function LiveViewer({
   channelName = 'zktv',
@@ -72,8 +72,9 @@ export function LiveViewer({
   const hasHlsUrl = data.hls_url && data.hls_url.trim() !== '';
   const isActuallyLive = data.is_active;
 
-  // Canal Fixo do Agora (vindo do ZK Studio)
-  const agoraChannel = 'ZkPremios';
+  // Room do LiveKit - ZK Studio sempre transmite para 'ZkPremios' (canal fixo)
+  // O channel_name é apenas para identificação da stream no banco, não o room do LiveKit
+  const livekitRoom = 'ZkPremios';
 
   const renderContent = () => {
     // Se a live estiver offline e showOfflineMessage=true
@@ -97,19 +98,20 @@ export function LiveViewer({
       return <HLSViewer hlsUrl={data.hls_url!} fitMode={fitMode} />;
     }
 
-    // Tudo o resto (ou se HLS falhar) -> Agora RTC Nativo
-    console.log('🖥️ LiveViewer: Usando Agora RTC Nativo', {
-      channel: agoraChannel,
+    // Tudo o resto (ou se HLS falhar) -> LiveKit RTC Nativo
+    console.log('🖥️ LiveViewer: Usando LiveKit RTC Nativo', {
+      room: livekitRoom,
       isMobile,
       hasHlsUrl,
       isAdmin // ✅ LOG: Para debug
     });
 
     return (
-      <ZKViewerOptimized 
-        channel={agoraChannel} 
+      <LiveKitViewer 
+        roomName={livekitRoom}
         fitMode={fitMode}
         muteAudio={isAdmin} // ✅ NOVO: Passa flag para mutar áudio
+        enabled={isActuallyLive}
       />
     );
   };
