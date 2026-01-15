@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Room, RoomEvent, RemoteParticipant, TrackPublication } from 'livekit-client';
-import { supabase } from '../lib/supabase';
+import { Room, RoomEvent, RemoteParticipant, Track, RemoteTrack, RemoteTrackPublication } from 'livekit-client';
 
 interface LiveKitViewerProps {
   roomName: string;
@@ -9,10 +8,6 @@ interface LiveKitViewerProps {
   enabled?: boolean;
 }
 
-/**
- * Viewer LiveKit para substituir Agora RTC
- * Conecta ao LiveKit e exibe vídeo/áudio dos participantes remotos
- */
 export default function LiveKitViewer({
   roomName,
   fitMode = 'contain',
@@ -26,10 +21,8 @@ export default function LiveKitViewer({
   const [hasVideo, setHasVideo] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // URL do LiveKit (WSS)
   const livekitUrl = import.meta.env.VITE_LIVEKIT_URL || 'wss://zkoficial-6xokn1hv.livekit.cloud';
 
-  // Função para obter token do LiveKit via Edge Function
   const getLiveKitToken = async (room: string, role: 'viewer' | 'admin' | 'reporter' = 'viewer'): Promise<string> => {
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -83,61 +76,93 @@ export default function LiveKitViewer({
         setError(null);
         console.log('🔌 LiveKitViewer: Conectando ao LiveKit...', { roomName, livekitUrl });
 
-        // Obter token
         const token = await getLiveKitToken(roomName, 'viewer');
 
-        // Criar e conectar à sala
-        room = new Room();
+        room = new Room({
+          adaptiveStream: true,
+          dynacast: true,
+        });
         roomRef.current = room;
 
-        // Configurar event listeners
+        // ✅ CORREÇÃO: Usar RoomEvent.TrackSubscribed (não participant.on)
+        room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
+          if (!mounted || !videoRef.current) return;
+
+          console.log('📹 LiveKitViewer: Track subscrita', {
+            kind: track.kind,
+            participantIdentity: participant.identity,
+            trackName: publication.trackName,
+            source: publication.source
+          });
+
+          if (track.kind === Track.Kind.Video) {
+            console.log('📹 LiveKitViewer: Vídeo track recebido de', participant.identity);
+            track.attach(videoRef.current);
+            setHasVideo(true);
+            if (videoRef.current) {
+              videoRef.current.style.objectFit = fitMode;
+            }
+          } else if (track.kind === Track.Kind.Audio && !muteAudio) {
+            console.log('🔊 LiveKitViewer: Áudio track recebido de', participant.identity);
+            track.attach();
+          }
+        });
+
+        room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
+          if (!mounted) return;
+          if (track.kind === Track.Kind.Video) {
+            console.log('📹 LiveKitViewer: Vídeo track removido');
+            track.detach();
+            setHasVideo(false);
+          } else if (track.kind === Track.Kind.Audio) {
+            track.detach();
+          }
+        });
+
         room.on(RoomEvent.Connected, () => {
           if (!mounted) return;
           console.log('✅ LiveKitViewer: Conectado ao LiveKit');
           setIsConnected(true);
 
-          // Verificar participantes já conectados (ZK Studio pode já estar transmitindo)
-          const remoteParticipants = room.remoteParticipants;
-          console.log(`👥 LiveKitViewer: ${remoteParticipants.size} participante(s) já conectado(s)`);
+          // ✅ CORREÇÃO: Verificar participantes já conectados usando videoTrackPublications
+          const remoteParticipants = Array.from(room.remoteParticipants.values());
+          console.log(`👥 LiveKitViewer: ${remoteParticipants.length} participante(s) já conectado(s)`);
 
-          remoteParticipants.forEach((participant: RemoteParticipant) => {
-            console.log('👤 LiveKitViewer: Verificando participante já conectado:', participant.identity);
-            
-            // Verificar tracks já publicadas (com verificação de null/undefined)
-            if (participant.trackPublications && participant.trackPublications.size > 0) {
-              participant.trackPublications.forEach((publication: TrackPublication) => {
-                if (publication.track && publication.kind === 'video') {
-                  if (!mounted || !videoRef.current) return;
-                  console.log('📹 LiveKitViewer: Vídeo track encontrado em participante existente');
-                  publication.track.attach(videoRef.current);
-                  setHasVideo(true);
-                  if (videoRef.current) {
-                    videoRef.current.style.objectFit = fitMode;
-                  }
-                } else if (publication.track && publication.kind === 'audio' && !muteAudio) {
-                  console.log('🔊 LiveKitViewer: Áudio track encontrado em participante existente');
-                  publication.track.attach();
-                }
-              });
-            }
+          for (const participant of remoteParticipants) {
+            console.log('👤 LiveKitViewer: Verificando participante:', {
+              identity: participant.identity,
+              sid: participant.sid,
+              videoTracks: Array.from(participant.videoTrackPublications.values()).length,
+              audioTracks: Array.from(participant.audioTrackPublications.values()).length
+            });
 
-            // Subscribir a tracks futuras
-            participant.on('trackSubscribed', (track, pub: TrackPublication) => {
-              if (!mounted || !videoRef.current) return;
+            // ✅ CORREÇÃO: Usar videoTrackPublications e audioTrackPublications
+            const videoPubs = Array.from(participant.videoTrackPublications.values());
+            const audioPubs = Array.from(participant.audioTrackPublications.values());
 
-              if (track.kind === 'video') {
-                console.log('📹 LiveKitViewer: Vídeo track recebido de participante existente');
-                track.attach(videoRef.current);
+            // Verificar tracks de vídeo já publicadas
+            for (const pub of videoPubs) {
+              if (pub.track && pub.kind === Track.Kind.Video) {
+                if (!mounted || !videoRef.current) return;
+                console.log('📹 LiveKitViewer: Vídeo track encontrado em participante existente:', participant.identity);
+                pub.track.attach(videoRef.current);
                 setHasVideo(true);
                 if (videoRef.current) {
                   videoRef.current.style.objectFit = fitMode;
                 }
-              } else if (track.kind === 'audio' && !muteAudio) {
-                console.log('🔊 LiveKitViewer: Áudio track recebido de participante existente');
-                track.attach();
               }
-            });
-          });
+            }
+
+            // Verificar tracks de áudio já publicadas
+            if (!muteAudio) {
+              for (const pub of audioPubs) {
+                if (pub.track && pub.kind === Track.Kind.Audio) {
+                  console.log('🔊 LiveKitViewer: Áudio track encontrado em participante existente:', participant.identity);
+                  pub.track.attach();
+                }
+              }
+            }
+          }
         });
 
         room.on(RoomEvent.Disconnected, () => {
@@ -147,45 +172,39 @@ export default function LiveKitViewer({
           setHasVideo(false);
         });
 
+        // ✅ CORREÇÃO: Usar RoomEvent.ParticipantConnected (não participant.on)
         room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
           if (!mounted) return;
-          console.log('👤 LiveKitViewer: Participante conectado:', participant.identity);
+          console.log('👤 LiveKitViewer: Participante conectado:', {
+            identity: participant.identity,
+            sid: participant.sid,
+            videoTracks: Array.from(participant.videoTrackPublications.values()).length,
+            audioTracks: Array.from(participant.audioTrackPublications.values()).length
+          });
 
-          // Quando participante conecta, verificar se tem tracks de vídeo
-          participant.on('trackSubscribed', (track, publication: TrackPublication) => {
-            if (!mounted || !videoRef.current) return;
+          // ✅ CORREÇÃO: Verificar tracks já publicadas usando videoTrackPublications
+          const videoPubs = Array.from(participant.videoTrackPublications.values());
+          const audioPubs = Array.from(participant.audioTrackPublications.values());
 
-            if (track.kind === 'video') {
-              console.log('📹 LiveKitViewer: Vídeo track recebido');
-              track.attach(videoRef.current);
+          for (const pub of videoPubs) {
+            if (pub.track && pub.kind === Track.Kind.Video) {
+              if (!mounted || !videoRef.current) return;
+              console.log('📹 LiveKitViewer: Vídeo track encontrado ao conectar participante:', participant.identity);
+              pub.track.attach(videoRef.current);
               setHasVideo(true);
-
-              // Aplicar fitMode
               if (videoRef.current) {
                 videoRef.current.style.objectFit = fitMode;
               }
-            } else if (track.kind === 'audio' && !muteAudio) {
-              console.log('🔊 LiveKitViewer: Áudio track recebido');
-              track.attach();
             }
-          });
+          }
 
-          // Verificar tracks já existentes (com verificação de null/undefined)
-          if (participant.trackPublications && participant.trackPublications.size > 0) {
-            participant.trackPublications.forEach((publication: TrackPublication) => {
-              if (publication.track && publication.kind === 'video') {
-                if (!mounted || !videoRef.current) return;
-                console.log('📹 LiveKitViewer: Vídeo track encontrado ao conectar participante');
-                publication.track.attach(videoRef.current);
-                setHasVideo(true);
-                if (videoRef.current) {
-                  videoRef.current.style.objectFit = fitMode;
-                }
-              } else if (publication.track && publication.kind === 'audio' && !muteAudio) {
-                console.log('🔊 LiveKitViewer: Áudio track encontrado ao conectar participante');
-                publication.track.attach();
+          if (!muteAudio) {
+            for (const pub of audioPubs) {
+              if (pub.track && pub.kind === Track.Kind.Audio) {
+                console.log('🔊 LiveKitViewer: Áudio track encontrado ao conectar participante:', participant.identity);
+                pub.track.attach();
               }
-            });
+            }
           }
         });
 
@@ -195,36 +214,17 @@ export default function LiveKitViewer({
           setHasVideo(false);
         });
 
-        room.on(RoomEvent.TrackSubscribed, (track, publication: TrackPublication, participant: RemoteParticipant) => {
-          if (!mounted || !videoRef.current) return;
-
-          if (track.kind === 'video') {
-            console.log('📹 LiveKitViewer: Vídeo track recebido');
-            track.attach(videoRef.current);
-            setHasVideo(true);
-
-            // Aplicar fitMode
-            if (videoRef.current) {
-              videoRef.current.style.objectFit = fitMode;
-            }
-          } else if (track.kind === 'audio' && !muteAudio) {
-            console.log('🔊 LiveKitViewer: Áudio track recebido');
-            track.attach();
-          }
-        });
-
-        room.on(RoomEvent.TrackUnsubscribed, (track) => {
+        // ✅ NOVO: Listener para TrackPublished (quando uma track é publicada)
+        room.on(RoomEvent.TrackPublished, (publication: RemoteTrackPublication, participant: RemoteParticipant) => {
           if (!mounted) return;
-          if (track.kind === 'video') {
-            console.log('📹 LiveKitViewer: Vídeo track removido');
-            track.detach();
-            setHasVideo(false);
-          } else if (track.kind === 'audio') {
-            track.detach();
-          }
+          console.log('📢 LiveKitViewer: Track publicada', {
+            trackName: publication.trackName,
+            source: publication.source,
+            kind: publication.kind,
+            participantIdentity: participant.identity
+          });
         });
 
-        // Conectar à sala
         await room.connect(livekitUrl, token);
         console.log('✅ LiveKitViewer: Conectado e aguardando participantes...');
 
@@ -248,14 +248,12 @@ export default function LiveKitViewer({
     };
   }, [roomName, enabled, fitMode, muteAudio, livekitUrl]);
 
-  // Aplicar mute se necessário
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.muted = muteAudio;
     }
   }, [muteAudio]);
 
-  // Se houver erro, mostrar mensagem
   if (error) {
     return (
       <div ref={containerRef} className="flex items-center justify-center h-full bg-black text-white">
@@ -268,7 +266,6 @@ export default function LiveKitViewer({
     );
   }
 
-  // Se não está conectado ou não tem vídeo, mostrar loading
   if (!isConnected || !hasVideo) {
     return (
       <div ref={containerRef} className="flex items-center justify-center h-full bg-black text-white">
