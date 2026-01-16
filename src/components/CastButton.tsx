@@ -16,11 +16,11 @@ interface CastButtonProps {
  * Detecta automaticamente Chromecast, AirPlay e outros dispositivos
  * Similar ao YouTube - aparece automaticamente quando há dispositivos disponíveis
  */
-export const CastButton: React.FC<CastButtonProps> = ({ 
-  videoUrl, 
+export const CastButton: React.FC<CastButtonProps> = ({
+  videoUrl,
   hlsUrl,
   channelName = 'zktv',
-  className = '' 
+  className = ''
 }) => {
   const [isCastAvailable, setIsCastAvailable] = useState(false);
   const [isAirPlayAvailable, setIsAirPlayAvailable] = useState(false);
@@ -28,10 +28,10 @@ export const CastButton: React.FC<CastButtonProps> = ({
   const [castDevices, setCastDevices] = useState<any[]>([]);
   const [streamHlsUrl, setStreamHlsUrl] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  
+
   // Buscar URL HLS do stream usando o mesmo hook do LiveViewer
   const { data: liveData } = useLiveStatus(channelName);
-  
+
   // Buscar HLS URL do banco de dados também
   useEffect(() => {
     const fetchHlsUrl = async () => {
@@ -41,7 +41,7 @@ export const CastButton: React.FC<CastButtonProps> = ({
           .select('hls_url')
           .eq('channel_name', channelName)
           .maybeSingle();
-        
+
         if (data?.hls_url) {
           setStreamHlsUrl(data.hls_url);
         }
@@ -49,7 +49,7 @@ export const CastButton: React.FC<CastButtonProps> = ({
         console.error('Erro ao buscar HLS URL:', error);
       }
     };
-    
+
     fetchHlsUrl();
   }, [channelName]);
 
@@ -165,11 +165,11 @@ export const CastButton: React.FC<CastButtonProps> = ({
       }
 
       // Tentar obter URL de várias fontes (prioridade)
-      let url = hlsUrl || 
-                videoUrl || 
-                streamHlsUrl || 
-                liveData?.hls_url;
-      
+      let url = hlsUrl ||
+        videoUrl ||
+        streamHlsUrl ||
+        liveData?.hls_url;
+
       // Se não tiver URL, tentar buscar do elemento de vídeo
       if (!url) {
         const video = document.querySelector('video');
@@ -180,12 +180,11 @@ export const CastButton: React.FC<CastButtonProps> = ({
         }
       }
 
-      // Se ainda não tiver, tentar construir URL HLS padrão do Agora/LiveKit
+      // Se ainda não tiver, tentar construir URL HLS padrão do Agora
       if (!url) {
-        // URL padrão do LiveKit HLS
-        const agoraChannel = 'zkpremios'; // Nome do canal padrão (minúsculo, case-sensitive)
-        url = `https://zkoficial-6xokn1hv.livekit.cloud/hls/${agoraChannel}/index.m3u8`;
-        console.log('⚠️ Usando URL HLS padrão do LiveKit:', url);
+        const agoraChannel = channelName || 'zkpremios';
+        url = `https://zkoficial-6xokn1hv.livekit.cloud/hls/${agoraChannel}/index.m3u8`; // TODO: Atualizar se o HLS do Agora tiver URL diferente
+        console.log('⚠️ Usando URL HLS padrão:', url);
       }
 
       if (!url) {
@@ -204,21 +203,21 @@ export const CastButton: React.FC<CastButtonProps> = ({
       console.log('✅ URL para cast:', url);
 
       const session = await castContext.requestSession();
-      
+
       const mediaInfo = new (window as any).cast.framework.messages.MediaInfo(
         url,
         'application/vnd.apple.mpegurl' // HLS
       );
-      
+
       mediaInfo.metadata = new (window as any).cast.framework.messages.GenericMediaMetadata();
       mediaInfo.metadata.title = 'ZK TV - Live';
       mediaInfo.metadata.subtitle = 'Transmissão ao vivo';
-      
+
       const request = new (window as any).cast.framework.messages.LoadRequest(mediaInfo);
       request.autoplay = true;
-      
+
       await session.loadMedia(request);
-      
+
       setIsCasting(true);
       toast.success('🎉 Transmitindo para TV!', {
         icon: '📺',
@@ -265,9 +264,8 @@ export const CastButton: React.FC<CastButtonProps> = ({
         <button
           onClick={handleChromecast}
           disabled={isCasting}
-          className={`p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all group ${
-            isCasting ? 'bg-green-600/20 border-green-500/30' : ''
-          }`}
+          className={`p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all group ${isCasting ? 'bg-green-600/20 border-green-500/30' : ''
+            }`}
           title={isCasting ? 'Transmitindo para TV' : 'Transmitir para TV (Chromecast)'}
         >
           {isCasting ? (
@@ -277,7 +275,7 @@ export const CastButton: React.FC<CastButtonProps> = ({
           )}
         </button>
       )}
-      
+
       {isAirPlayAvailable && (
         <button
           onClick={handleAirPlay}

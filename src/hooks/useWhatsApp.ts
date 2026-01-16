@@ -37,6 +37,7 @@ interface WhatsAppHook {
     isWinner: boolean;
   }) => Promise<boolean>;
   sendBulkNotification: (userDataList: any[], type: string, raffleData?: any) => Promise<any[]>;
+  sendWhatsAppMessage: (to: string, message: string) => Promise<boolean>;
 }
 
 export const useWhatsApp = (): WhatsAppHook => {
@@ -46,7 +47,7 @@ export const useWhatsApp = (): WhatsAppHook => {
   const handleWhatsAppCall = async (callback: () => Promise<{ success: boolean; error?: string }>) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const result = await callback();
       if (!result.success) {
@@ -68,7 +69,7 @@ export const useWhatsApp = (): WhatsAppHook => {
     whatsapp: string;
     confirmationCode: string;
   }) => {
-    return handleWhatsAppCall(() => 
+    return handleWhatsAppCall(() =>
       whatsappService.sendRegistrationConfirmation(userData)
     );
   };
@@ -78,7 +79,7 @@ export const useWhatsApp = (): WhatsAppHook => {
     whatsapp: string;
     numbers: number[];
   }) => {
-    return handleWhatsAppCall(() => 
+    return handleWhatsAppCall(() =>
       whatsappService.sendNumbersAssigned(userData)
     );
   };
@@ -89,7 +90,7 @@ export const useWhatsApp = (): WhatsAppHook => {
     numbers: number[];
     amount: number;
   }) => {
-    return handleWhatsAppCall(() => 
+    return handleWhatsAppCall(() =>
       whatsappService.sendExtraNumbersApproved(userData)
     );
   };
@@ -102,7 +103,7 @@ export const useWhatsApp = (): WhatsAppHook => {
     startDate: string;
     endDate: string;
   }) => {
-    return handleWhatsAppCall(() => 
+    return handleWhatsAppCall(() =>
       whatsappService.sendNewRaffleNotification(userData)
     );
   };
@@ -114,7 +115,7 @@ export const useWhatsApp = (): WhatsAppHook => {
     prize: string;
     isWinner: boolean;
   }) => {
-    return handleWhatsAppCall(() => 
+    return handleWhatsAppCall(() =>
       whatsappService.sendWinnerAnnouncement(userData)
     );
   };
@@ -122,7 +123,7 @@ export const useWhatsApp = (): WhatsAppHook => {
   const sendBulkNotification = async (userDataList: any[], type: string, raffleData?: any) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const results = await whatsappService.sendBulkNotification(userDataList, type, raffleData);
       return results;
@@ -142,6 +143,11 @@ export const useWhatsApp = (): WhatsAppHook => {
     sendExtraNumbersApproved,
     sendNewRaffleNotification,
     sendWinnerAnnouncement,
-    sendBulkNotification
+    sendBulkNotification,
+    sendWhatsAppMessage: async (to: string, message: string) => {
+      return handleWhatsAppCall(() =>
+        whatsappService.sendMessage({ to, message, type: 'custom' as any })
+      );
+    }
   };
 };

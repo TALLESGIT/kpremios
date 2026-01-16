@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { toast } from 'react-hot-toast'; 
+import { toast } from 'react-hot-toast';
 
 export interface LiveGame {
   id: string;
@@ -10,6 +10,7 @@ export interface LiveGame {
   max_participants: number;
   winner_number?: number;
   winner_user_id?: string;
+  elimination_interval?: number;
   created_at: string;
   updated_at: string;
 }
@@ -34,7 +35,7 @@ export const useLiveGames = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const { data, error } = await supabase
         .from('live_games')
         .select('*')
@@ -67,7 +68,7 @@ export const useLiveGames = () => {
         .single();
 
       if (error) throw error;
-      
+
       toast.success('Jogo criado com sucesso!');
       await loadGames();
       return data;
@@ -108,10 +109,10 @@ export const useLiveGames = () => {
       // PROTEÇÃO: Confirmação obrigatória se houver participantes
       if (participantsCount > 0 && !skipConfirmation) {
         const confirmMessage = `⚠️ ATENÇÃO: Este jogo tem ${participantsCount} participante(s)!\n\nAo excluir, TODOS os participantes serão PERMANENTEMENTE removidos.\n\nEsta ação NÃO PODE ser desfeita!\n\nDeseja realmente continuar?`;
-        
+
         const confirmed = window.confirm(confirmMessage);
         if (!confirmed) {
-          toast.info('Exclusão cancelada');
+          toast('Exclusão cancelada');
           return;
         }
 
@@ -121,7 +122,7 @@ export const useLiveGames = () => {
             `🚨 ÚLTIMA CHANCE!\n\nVocê está prestes a excluir ${participantsCount} participantes permanentemente.\n\nTem CERTEZA ABSOLUTA?`
           );
           if (!secondConfirm) {
-            toast.info('Exclusão cancelada');
+            toast('Exclusão cancelada');
             return;
           }
         }
@@ -134,7 +135,7 @@ export const useLiveGames = () => {
         .eq('id', gameId);
 
       if (gameError) throw gameError;
-      
+
       if (participantsCount > 0) {
         toast.success(`Jogo excluído. ${participantsCount} participante(s) foram removidos.`, {
           duration: 5000,
@@ -143,7 +144,7 @@ export const useLiveGames = () => {
       } else {
         toast.success('Jogo deletado com sucesso!');
       }
-      
+
       await loadGames();
     } catch (err) {
       console.error('Erro ao deletar jogo:', err);
@@ -160,13 +161,13 @@ export const useLiveGames = () => {
         .eq('id', gameId);
 
       if (error) throw error;
-      
+
       const statusMessages = {
         waiting: 'Jogo definido como aguardando',
         active: 'Jogo iniciado!',
         finished: 'Jogo finalizado!'
       };
-      
+
       toast.success(statusMessages[status]);
       await loadGames();
     } catch (err) {
@@ -220,11 +221,11 @@ export const useGameParticipants = (gameId: string | undefined) => {
 
   const loadParticipants = useCallback(async () => {
     if (!gameId) return;
-    
+
     try {
       setLoading(true);
       setError(null);
-      
+
       const { data, error } = await supabase
         .from('live_participants')
         .select(`
@@ -237,12 +238,12 @@ export const useGameParticipants = (gameId: string | undefined) => {
         .order('lucky_number', { ascending: true });
 
       if (error) throw error;
-      
+
       const formattedParticipants = data.map(p => ({
         ...p,
         user_name: p.users?.name || 'Usuário'
       }));
-      
+
       setParticipants(formattedParticipants);
     } catch (err) {
 
@@ -264,7 +265,7 @@ export const useGameParticipants = (gameId: string | undefined) => {
         .eq('id', participantId);
 
       if (error) throw error;
-      
+
       toast.success('Participante eliminado!');
       await loadParticipants();
     } catch (err) {
@@ -285,7 +286,7 @@ export const useGameParticipants = (gameId: string | undefined) => {
         .eq('id', participantId);
 
       if (error) throw error;
-      
+
       toast.success('Participante reativado!');
       await loadParticipants();
     } catch (err) {
@@ -297,7 +298,7 @@ export const useGameParticipants = (gameId: string | undefined) => {
 
   const finishGameWithWinner = useCallback(async (winnerParticipant: Participant) => {
     if (!gameId) return;
-    
+
     try {
       const { error } = await supabase
         .from('live_games')
@@ -310,7 +311,7 @@ export const useGameParticipants = (gameId: string | undefined) => {
         .eq('id', gameId);
 
       if (error) throw error;
-      
+
       toast.success(`Jogo finalizado! Vencedor: ${winnerParticipant.user_name} (${winnerParticipant.lucky_number})`);
     } catch (err) {
 
@@ -321,7 +322,7 @@ export const useGameParticipants = (gameId: string | undefined) => {
 
   const resetGame = useCallback(async () => {
     if (!gameId) return;
-    
+
     try {
       // Reativar todos os participantes
       const { error: participantsError } = await supabase
@@ -346,7 +347,7 @@ export const useGameParticipants = (gameId: string | undefined) => {
         .eq('id', gameId);
 
       if (gameError) throw gameError;
-      
+
       toast.success('Jogo reiniciado!');
       await loadParticipants();
     } catch (err) {
@@ -363,7 +364,7 @@ export const useGameParticipants = (gameId: string | undefined) => {
   // Configurar subscription em tempo real para participantes
   useEffect(() => {
     if (!gameId) return;
-    
+
     const subscription = supabase
       .channel(`game_participants_${gameId}`)
       .on(

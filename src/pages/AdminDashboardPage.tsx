@@ -12,6 +12,7 @@ import QuickTest from '../components/admin/QuickTest';
 import WhatsAppMonitoringPanelSimple from '../components/admin/WhatsAppMonitoringPanelSimple';
 import LiveRaffleControlPage from './admin/LiveRaffleControlPage';
 import UserManagementPanel from '../components/admin/UserManagementPanel';
+import { LiveViewer } from '../components/LiveViewer';
 
 export default function AdminDashboardPage() {
   const {
@@ -872,42 +873,49 @@ export default function AdminDashboardPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Reporter Link Card */}
-                <div className="glass-panel p-6 rounded-2xl border border-white/5 bg-slate-800/40 relative overflow-hidden group hover:border-blue-500/30 transition-all duration-300">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all duration-500 group-hover:bg-blue-500/20"></div>
-
-                  <div className="flex justify-between items-start mb-4 relative z-10">
-                    <div className="p-3 bg-slate-900 rounded-xl border border-white/10 shadow-lg">
-                      <Video className="w-6 h-6 text-blue-400" />
+                {/* 📺 Live Preview Card */}
+                <div className="glass-panel rounded-2xl border border-white/5 bg-slate-800/40 relative overflow-hidden group hover:border-red-500/30 transition-all duration-300 flex flex-col">
+                  <div className="p-6 pb-2 relative z-10 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-red-500/10 rounded-lg border border-red-500/20">
+                        <Video className="w-5 h-5 text-red-500" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white uppercase italic tracking-tight">Live Agora</h3>
                     </div>
-                    <div className="px-3 py-1 bg-blue-500/20 rounded-full border border-blue-500/20">
-                      <span className="text-[10px] uppercase font-bold text-blue-300 tracking-wider">Novo</span>
+                    <div className="flex items-center gap-2 px-3 py-1 bg-red-500/20 rounded-full border border-red-500/20">
+                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
+                      <span className="text-[10px] uppercase font-black text-red-400 tracking-widest">Sinal On</span>
                     </div>
                   </div>
 
-                  <h3 className="text-xl font-bold text-white mb-2">Link do Repórter Externo</h3>
-                  <p className="text-slate-400 text-sm mb-6">Compartilhe este link com seus repórteres para que eles entrem ao vivo na transmissão via celular.</p>
+                  <div className="flex-1 min-h-[220px] relative mt-2 bg-black border-y border-white/5">
+                    <LiveViewer enabled={true} isAdmin={true} />
+                    <div className="absolute inset-0 pointer-events-none border-y border-white/5 bg-gradient-to-t from-black/20 to-transparent"></div>
+                  </div>
 
-                  <div className="flex gap-2 relative z-10">
-                    <div className="flex-1 bg-slate-950/50 border border-white/5 rounded-lg px-4 py-3 text-slate-300 font-mono text-xs truncate select-all">
-                      {window.location.origin}/reporter
+                  <div className="p-4 bg-slate-900/40 flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] uppercase font-black text-slate-500 tracking-widest">Reporter Web</span>
+                      <span className="text-[10px] text-blue-400 font-mono italic truncate max-w-[150px]">{window.location.origin}/reporter</span>
                     </div>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(`${window.location.origin}/reporter`);
-                        alert('Link copiado para a área de transferência!');
-                      }}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"
-                    >
-                      <span className="hidden sm:inline">Copiar</span>
-                    </button>
-                    <Link
-                      to="/reporter"
-                      target="_blank"
-                      className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
-                    >
-                      Abrir
-                    </Link>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/reporter`);
+                          toast.success('Link do repórter copiado!');
+                        }}
+                        className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg border border-white/5 transition-all"
+                        title="Copiar link do repórter"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
+                      <Link
+                        to="/admin/live-stream"
+                        className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black rounded-lg transition-all text-[10px] uppercase italic shadow-lg shadow-red-900/20"
+                      >
+                        Estúdio Pro
+                      </Link>
+                    </div>
                   </div>
                 </div>
 

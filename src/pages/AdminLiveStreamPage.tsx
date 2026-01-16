@@ -102,15 +102,15 @@ const AdminLiveStreamPage: React.FC = () => {
               // Isso evita re-renderizações desnecessárias do LiveViewer
               // Apenas atualizar se for mudança crítica (hls_url, etc)
               if (selectedStream?.id === updatedStream.id) {
-                const criticalFieldsChanged = 
+                const criticalFieldsChanged =
                   selectedStream.hls_url !== updatedStream.hls_url ||
                   selectedStream.channel_name !== updatedStream.channel_name ||
                   selectedStream.title !== updatedStream.title;
-                
+
                 // ✅ OTIMIZAÇÃO CRÍTICA: Apenas atualizar selectedStream se campos críticos mudaram
                 // Isso evita re-renderizações do LiveViewer para mudanças de viewer_count, etc
                 if (criticalFieldsChanged) {
-                setSelectedStream(updatedStream);
+                  setSelectedStream(updatedStream);
                 }
                 // Se não houver mudança crítica, NÃO atualizar selectedStream
                 // Isso mantém o player estável e evita reconexões desnecessárias
@@ -205,18 +205,11 @@ const AdminLiveStreamPage: React.FC = () => {
       // Título é mantido como o admin definiu (não sobrescrever)
       console.log(`Usando streamId: ${selectedStream.id}`);
 
-      // Room fixo do LiveKit (ZK Studio sempre transmite para 'zkpremios')
-      const livekitRoom = 'zkpremios';
-      const livekitUrl = 'wss://zkoficial-6xokn1hv.livekit.cloud';
-      const httpsUrl = livekitUrl.replace('wss://', 'https://');
-      const hlsUrl = `${httpsUrl}/hls/${livekitRoom}/index.m3u8`;
-
       const { data, error } = await supabase
         .from('live_streams')
         .update({
           is_active: true,
           started_at: new Date().toISOString(),
-          hls_url: hlsUrl // ✅ Configurar HLS URL para quando ZK Studio começar a transmitir
         })
         .eq('id', selectedStream.id)
         .select()
@@ -224,7 +217,7 @@ const AdminLiveStreamPage: React.FC = () => {
 
       if (error) throw error;
 
-      console.log('Supabase atualizado com sucesso', { hlsUrl });
+      console.log('Supabase atualizado com sucesso');
       setIsStreaming(true);
       setSelectedStream(data);
 
@@ -299,7 +292,7 @@ const AdminLiveStreamPage: React.FC = () => {
       // PROTEÇÃO: Não permitir exclusão se houver bolão ativo
       if (activePools && activePools.length > 0) {
         const poolsList = activePools.map(p => `"${p.match_title}" (${p.total_participants || 0} participantes)`).join('\n');
-        
+
         toast.error(
           `🚫 NÃO É POSSÍVEL EXCLUIR ESTA LIVE!\n\nHá ${activePools.length} bolão(ões) ATIVO(S) associado(s):\n\n${poolsList}\n\nFinalize ou desative os bolões antes de excluir a live.`,
           {
@@ -322,7 +315,7 @@ const AdminLiveStreamPage: React.FC = () => {
         .single();
 
       if (fetchError) throw fetchError;
-      
+
       const streamTitle = streamData?.title || 'Live';
       const isActive = streamData?.is_active || false;
 
@@ -342,19 +335,19 @@ const AdminLiveStreamPage: React.FC = () => {
         .eq('live_stream_id', id);
 
       let confirmMessage = `⚠️ EXCLUIR LIVE: "${streamTitle}"\n\n`;
-      
+
       if (allPools && allPools.length > 0) {
         const totalParticipants = allPools.reduce((sum, p) => sum + (p.total_participants || 0), 0);
         confirmMessage += `🚨 ATENÇÃO: Esta live tem ${allPools.length} bolão(ões) com ${totalParticipants} participante(s)!\n\n`;
         confirmMessage += `Ao excluir, TODOS os bolões e participantes serão PERMANENTEMENTE removidos.\n\n`;
         confirmMessage += `Esta ação NÃO PODE ser desfeita!\n\n`;
       }
-      
+
       confirmMessage += `Deseja realmente excluir esta live?`;
 
       const confirmed = window.confirm(confirmMessage);
       if (!confirmed) {
-        toast.info('Exclusão cancelada');
+        toast('Exclusão cancelada');
         return;
       }
 
@@ -365,7 +358,7 @@ const AdminLiveStreamPage: React.FC = () => {
           `🚨 ÚLTIMA CHANCE!\n\nVocê está prestes a excluir "${streamTitle}" e remover ${allPools.length} bolão(ões) com ${totalParticipants} participante(s) permanentemente.\n\nTem CERTEZA ABSOLUTA?`
         );
         if (!secondConfirm) {
-          toast.info('Exclusão cancelada');
+          toast('Exclusão cancelada');
           return;
         }
       }
@@ -379,7 +372,7 @@ const AdminLiveStreamPage: React.FC = () => {
       if (error) throw error;
 
       if (selectedStream?.id === id) setSelectedStream(null);
-      
+
       if (allPools && allPools.length > 0) {
         const totalParticipants = allPools.reduce((sum, p) => sum + (p.total_participants || 0), 0);
         toast.success(`Live "${streamTitle}" excluída. ${allPools.length} bolão(ões) e ${totalParticipants} participante(s) foram removidos.`, {
@@ -389,7 +382,7 @@ const AdminLiveStreamPage: React.FC = () => {
       } else {
         toast.success(`Live "${streamTitle}" excluída com sucesso!`);
       }
-      
+
       await loadStreams();
     } catch (error) {
       console.error('Erro ao excluir live:', error);

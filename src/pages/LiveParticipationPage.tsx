@@ -5,35 +5,15 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { useLiveGameRealtime } from '../hooks/useLiveGameRealtime';
+import { useLiveGameRealtime, LiveGame, Participant } from '../hooks/useLiveGameRealtime';
 import LiveGameNumberGrid from '../components/user/LiveGameNumberGrid';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 
-interface LiveGame {
-  id: string;
-  title: string;
-  description: string;
-  status: 'waiting' | 'active' | 'finished';
-  max_participants: number;
-  winner_number?: number;
-  winner_user_id?: string;
-  created_at: string;
-}
-
-interface Participant {
-  id: string;
-  user_id: string;
-  lucky_number: number;
-  status: 'active' | 'eliminated';
-  eliminated_at?: string;
-  user_name?: string;
-}
-
 const LiveParticipationPage: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const { user } = useAuth();
-  const { currentAppUser } = useData();
+  const { currentUser: currentAppUser } = useData();
   const navigate = useNavigate();
   const [luckyNumber, setLuckyNumber] = useState('');
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -42,7 +22,7 @@ const LiveParticipationPage: React.FC = () => {
 
   // Hook de tempo real
   const { game, participants, loading, isEliminated, refreshData } = useLiveGameRealtime(
-    gameId || '', 
+    gameId || '',
     user?.id
   );
 
@@ -52,12 +32,12 @@ const LiveParticipationPage: React.FC = () => {
   useEffect(() => {
     // Aguardar o carregamento completo antes de redirecionar
     if (loading) return;
-    
+
     if (!user) {
       navigate('/login');
       return;
     }
-    
+
     // Se for admin, redirecionar para página de controle
     if (currentAppUser?.is_admin) {
       navigate(`/admin/live-games/${gameId}/control`);
@@ -113,7 +93,7 @@ const LiveParticipationPage: React.FC = () => {
       toast.success(`Você entrou no jogo com o número ${number}!`);
       setShowJoinModal(false);
       setLuckyNumber('');
-      
+
       // Atualizar dados em tempo real
       refreshData();
     } catch (error) {
@@ -197,259 +177,256 @@ const LiveParticipationPage: React.FC = () => {
       <Header />
       <main className="flex-grow w-full py-4 sm:py-6 lg:py-8">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6 sm:mb-8"
-        >
-          <motion.button
-            whileHover={{ x: -5 }}
-            onClick={() => navigate(-1)}
-            className="text-blue-600 hover:text-blue-700 mb-4 flex items-center gap-2 transition-colors text-sm sm:text-base font-semibold"
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 sm:mb-8"
           >
-            ← Voltar para Lista
-          </motion.button>
-          
-          <div className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-              <div className="flex-1">
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-gray-900 mb-2">
-                  🎮 {game.title}
-                </h1>
-                <p className="text-gray-600 text-sm sm:text-base">
-                  {game.description || 'Jogo "Resta Um" - Seja o último participante!'}
-                </p>
-              </div>
-              <div className="flex flex-col sm:text-right gap-2">
-                <div className={`inline-block px-3 py-2 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold ${getStatusColor(game.status)} text-center`}>
-                  {getStatusText(game.status)}
-                </div>
-                <div className="text-gray-600 text-xs sm:text-sm font-semibold text-center sm:text-right">
-                  {participants.length}/{game.max_participants} participantes
-                </div>
-              </div>
-            </div>
+            <motion.button
+              whileHover={{ x: -5 }}
+              onClick={() => navigate(-1)}
+              className="text-blue-600 hover:text-blue-700 mb-4 flex items-center gap-2 transition-colors text-sm sm:text-base font-semibold"
+            >
+              ← Voltar para Lista
+            </motion.button>
 
-            {/* Winner Announcement */}
-            {game.status === 'finished' && game.winner_number && (
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="bg-gradient-to-r from-blue-100 to-blue-200 border-2 border-blue-300 rounded-xl p-4 mb-4"
-              >
-                <div className="text-center">
-                  <motion.div
-                    animate={{ rotate: [0, 10, -10, 0] }}
-                    transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}
-                    className="text-3xl sm:text-4xl mb-2"
-                  >
-                    🏆
-                  </motion.div>
-                  <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-gray-900 mb-2">
-                    Jogo Finalizado!
-                  </h3>
-                  <p className="text-blue-700 text-sm sm:text-base font-semibold">
-                    Número vencedor: <span className="font-black text-xl sm:text-2xl text-yellow-600">{game.winner_number}</span>
+            <div className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                <div className="flex-1">
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-gray-900 mb-2">
+                    🎮 {game.title}
+                  </h1>
+                  <p className="text-gray-600 text-sm sm:text-base">
+                    {game.description || 'Jogo "Resta Um" - Seja o último participante!'}
                   </p>
-                  {isWinner && (
-                    <motion.div
-                      animate={{ scale: [1, 1.1, 1] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                      className="mt-3 text-green-600 font-black text-sm sm:text-base lg:text-lg"
-                    >
-                      🎉 Parabéns! Você é o vencedor! 🎉
-                    </motion.div>
-                  )}
                 </div>
-              </motion.div>
-            )}
+                <div className="flex flex-col sm:text-right gap-2">
+                  <div className={`inline-block px-3 py-2 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold ${getStatusColor(game.status)} text-center`}>
+                    {getStatusText(game.status)}
+                  </div>
+                  <div className="text-gray-600 text-xs sm:text-sm font-semibold text-center sm:text-right">
+                    {participants.length}/{game.max_participants} participantes
+                  </div>
+                </div>
+              </div>
 
-            {/* My Participation Status */}
-            {myParticipation && (
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className={`rounded-xl p-3 sm:p-4 mb-4 border-2 ${
-                  myParticipation.status === 'active' 
+              {/* Winner Announcement */}
+              {game.status === 'finished' && game.winner_number && (
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="bg-gradient-to-r from-blue-100 to-blue-200 border-2 border-blue-300 rounded-xl p-4 mb-4"
+                >
+                  <div className="text-center">
+                    <motion.div
+                      animate={{ rotate: [0, 10, -10, 0] }}
+                      transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}
+                      className="text-3xl sm:text-4xl mb-2"
+                    >
+                      🏆
+                    </motion.div>
+                    <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-gray-900 mb-2">
+                      Jogo Finalizado!
+                    </h3>
+                    <p className="text-blue-700 text-sm sm:text-base font-semibold">
+                      Número vencedor: <span className="font-black text-xl sm:text-2xl text-yellow-600">{game.winner_number}</span>
+                    </p>
+                    {isWinner && (
+                      <motion.div
+                        animate={{ scale: [1, 1.1, 1] }}
+                        transition={{ duration: 1, repeat: Infinity }}
+                        className="mt-3 text-green-600 font-black text-sm sm:text-base lg:text-lg"
+                      >
+                        🎉 Parabéns! Você é o vencedor! 🎉
+                      </motion.div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* My Participation Status */}
+              {myParticipation && (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className={`rounded-xl p-3 sm:p-4 mb-4 border-2 ${myParticipation.status === 'active'
                     ? 'bg-green-50 border-green-300 text-green-700'
                     : 'bg-red-50 border-red-300 text-red-700'
-                }`}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div>
-                    <span className="font-bold text-sm sm:text-base">
-                      Seu número da sorte: {myParticipation.lucky_number}
-                    </span>
-                  </div>
-                  <div className="text-xs sm:text-sm font-semibold">
-                    {myParticipation.status === 'active' ? '✅ Ativo' : '❌ Eliminado'}
-                  </div>
-                </div>
-                {myParticipation.status === 'eliminated' && myParticipation.eliminated_at && (
-                  <div className="text-xs sm:text-sm mt-2 opacity-75">
-                    Eliminado em: {new Date(myParticipation.eliminated_at).toLocaleString('pt-BR')}
-                  </div>
-                )}
-              </motion.div>
-            )}
-
-            {/* Elimination Alert */}
-            {isEliminated && (
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="bg-red-50 border-2 border-red-300 rounded-xl p-4 mb-4"
-              >
-                <div className="text-center">
-                  <motion.div
-                    animate={{ rotate: [0, -10, 10, 0] }}
-                    transition={{ duration: 0.5, repeat: Infinity }}
-                    className="text-4xl mb-2"
-                  >
-                    💀
-                  </motion.div>
-                  <h3 className="text-lg font-black text-red-600 mb-2">
-                    Você foi eliminado!
-                  </h3>
-                  <p className="text-red-700 text-sm font-semibold">
-                    Infelizmente sua sorte não foi desta vez. Continue participando dos próximos jogos!
-                  </p>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Join Button */}
-            {canJoin && (
-              <div className="text-center">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowJoinModal(true)}
-                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 sm:px-8 sm:py-4 rounded-xl font-black text-base sm:text-lg transition-all duration-300 shadow-lg hover:shadow-xl w-full sm:w-auto"
+                    }`}
                 >
-                  🎯 Participar do Jogo
-                </motion.button>
-              </div>
-            )}
-          </div>
-        </motion.div>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                      <span className="font-bold text-sm sm:text-base">
+                        Seu número da sorte: {myParticipation.lucky_number}
+                      </span>
+                    </div>
+                    <div className="text-xs sm:text-sm font-semibold">
+                      {myParticipation.status === 'active' ? '✅ Ativo' : '❌ Eliminado'}
+                    </div>
+                  </div>
+                  {myParticipation.status === 'eliminated' && myParticipation.eliminated_at && (
+                    <div className="text-xs sm:text-sm mt-2 opacity-75">
+                      Eliminado em: {new Date(myParticipation.eliminated_at).toLocaleString('pt-BR')}
+                    </div>
+                  )}
+                </motion.div>
+              )}
 
-        {/* Number Grid */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-4 sm:p-6 mb-6"
-        >
-          <h3 className="text-lg sm:text-xl font-black text-gray-900 mb-4 flex items-center gap-2">
-            🎯 Números da Sorte (1-{game.max_participants})
-          </h3>
-          
-          <LiveGameNumberGrid
-            participants={participants}
-            currentUserId={user?.id}
-            onNumberClick={canJoin ? (number) => {
-              setLuckyNumber(number.toString());
-              setShowJoinModal(true);
-            } : undefined}
-            disabled={!canJoin}
-            maxNumbers={game.max_participants}
-          />
-        </motion.div>
+              {/* Elimination Alert */}
+              {isEliminated && (
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="bg-red-50 border-2 border-red-300 rounded-xl p-4 mb-4"
+                >
+                  <div className="text-center">
+                    <motion.div
+                      animate={{ rotate: [0, -10, 10, 0] }}
+                      transition={{ duration: 0.5, repeat: Infinity }}
+                      className="text-4xl mb-2"
+                    >
+                      💀
+                    </motion.div>
+                    <h3 className="text-lg font-black text-red-600 mb-2">
+                      Você foi eliminado!
+                    </h3>
+                    <p className="text-red-700 text-sm font-semibold">
+                      Infelizmente sua sorte não foi desta vez. Continue participando dos próximos jogos!
+                    </p>
+                  </div>
+                </motion.div>
+              )}
 
-        {/* Participants Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          {/* Active Participants */}
+              {/* Join Button */}
+              {canJoin && (
+                <div className="text-center">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowJoinModal(true)}
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 sm:px-8 sm:py-4 rounded-xl font-black text-base sm:text-lg transition-all duration-300 shadow-lg hover:shadow-xl w-full sm:w-auto"
+                  >
+                    🎯 Participar do Jogo
+                  </motion.button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Number Grid */}
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-white rounded-2xl shadow-lg border-2 border-green-200 p-4 sm:p-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-4 sm:p-6 mb-6"
           >
             <h3 className="text-lg sm:text-xl font-black text-gray-900 mb-4 flex items-center gap-2">
-              ✅ Participantes Ativos ({activeParticipants.length})
+              🎯 Números da Sorte (1-{game.max_participants})
             </h3>
-            
-            {activeParticipants.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 max-h-80 sm:max-h-96 overflow-y-auto no-scrollbar">
-                {activeParticipants.map((participant) => (
-                  <div
-                    key={participant.id}
-                    className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border-2 transition-all duration-300 ${
-                      participant.user_id === user?.id
+
+            <LiveGameNumberGrid
+              participants={participants}
+              currentUserId={user?.id}
+              onNumberClick={canJoin ? (number) => {
+                setLuckyNumber(number.toString());
+                setShowJoinModal(true);
+              } : undefined}
+              disabled={!canJoin}
+              maxNumbers={game.max_participants}
+            />
+          </motion.div>
+
+          {/* Participants Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            {/* Active Participants */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-white rounded-2xl shadow-lg border-2 border-green-200 p-4 sm:p-6"
+            >
+              <h3 className="text-lg sm:text-xl font-black text-gray-900 mb-4 flex items-center gap-2">
+                ✅ Participantes Ativos ({activeParticipants.length})
+              </h3>
+
+              {activeParticipants.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 max-h-80 sm:max-h-96 overflow-y-auto no-scrollbar">
+                  {activeParticipants.map((participant) => (
+                    <div
+                      key={participant.id}
+                      className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border-2 transition-all duration-300 ${participant.user_id === user?.id
                         ? 'border-blue-500 bg-blue-100 text-blue-700'
                         : 'border-gray-200 bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    <div className="text-center">
-                      <div className="text-lg sm:text-xl font-bold mb-1">
-                        {participant.lucky_number}
-                      </div>
-                      <div className="text-xs truncate">
-                        {participant.user_name}
-                      </div>
-                      {participant.user_id === user?.id && (
-                        <div className="text-xs text-blue-600 font-bold mt-1">
-                          (Você)
+                        }`}
+                    >
+                      <div className="text-center">
+                        <div className="text-lg sm:text-xl font-bold mb-1">
+                          {participant.lucky_number}
                         </div>
-                      )}
+                        <div className="text-xs truncate">
+                          {participant.user_name}
+                        </div>
+                        {participant.user_id === user?.id && (
+                          <div className="text-xs text-blue-600 font-bold mt-1">
+                            (Você)
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-6 sm:py-8 text-gray-400 text-sm sm:text-base">
-                Nenhum participante ativo
-              </div>
-            )}
-          </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 sm:py-8 text-gray-400 text-sm sm:text-base">
+                  Nenhum participante ativo
+                </div>
+              )}
+            </motion.div>
 
-          {/* Eliminated Participants */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-            className="bg-white rounded-2xl shadow-lg border-2 border-red-200 p-4 sm:p-6"
-          >
-            <h3 className="text-lg sm:text-xl font-black text-gray-900 mb-4 flex items-center gap-2">
-              ❌ Participantes Eliminados ({eliminatedParticipants.length})
-            </h3>
-            
-            {eliminatedParticipants.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 max-h-80 sm:max-h-96 overflow-y-auto no-scrollbar">
-                {eliminatedParticipants.map((participant) => (
-                  <div
-                    key={participant.id}
-                    className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border-2 opacity-60 transition-all duration-300 ${
-                      participant.user_id === user?.id
+            {/* Eliminated Participants */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-white rounded-2xl shadow-lg border-2 border-red-200 p-4 sm:p-6"
+            >
+              <h3 className="text-lg sm:text-xl font-black text-gray-900 mb-4 flex items-center gap-2">
+                ❌ Participantes Eliminados ({eliminatedParticipants.length})
+              </h3>
+
+              {eliminatedParticipants.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 max-h-80 sm:max-h-96 overflow-y-auto no-scrollbar">
+                  {eliminatedParticipants.map((participant) => (
+                    <div
+                      key={participant.id}
+                      className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border-2 opacity-60 transition-all duration-300 ${participant.user_id === user?.id
                         ? 'border-red-500 bg-red-100 text-red-700'
                         : 'border-gray-200 bg-gray-50 text-gray-400'
-                    }`}
-                  >
-                    <div className="text-center">
-                      <div className="text-lg sm:text-xl font-bold mb-1 line-through">
-                        {participant.lucky_number}
-                      </div>
-                      <div className="text-xs truncate">
-                        {participant.user_name}
-                      </div>
-                      {participant.user_id === user?.id && (
-                        <div className="text-xs text-red-400 mt-1">
-                          (Você)
+                        }`}
+                    >
+                      <div className="text-center">
+                        <div className="text-lg sm:text-xl font-bold mb-1 line-through">
+                          {participant.lucky_number}
                         </div>
-                      )}
+                        <div className="text-xs truncate">
+                          {participant.user_name}
+                        </div>
+                        {participant.user_id === user?.id && (
+                          <div className="text-xs text-red-400 mt-1">
+                            (Você)
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-6 sm:py-8 text-gray-400 text-sm sm:text-base">
-                Nenhum participante eliminado ainda
-              </div>
-            )}
-          </motion.div>
-        </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 sm:py-8 text-gray-400 text-sm sm:text-base">
+                  Nenhum participante eliminado ainda
+                </div>
+              )}
+            </motion.div>
+          </div>
         </div>
       </main>
       <Footer />
@@ -473,7 +450,7 @@ const LiveParticipationPage: React.FC = () => {
             <h2 className="text-lg sm:text-xl lg:text-2xl font-black text-gray-900 mb-4 sm:mb-6 text-center">
               🎯 Escolha seu Número da Sorte
             </h2>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-gray-700 text-sm font-bold mb-2">
@@ -504,7 +481,7 @@ const LiveParticipationPage: React.FC = () => {
                     const number = i + 1;
                     const isTaken = participants.some(p => p.lucky_number === number);
                     const isSelected = parseInt(luckyNumber) === number;
-                    
+
                     return (
                       <button
                         key={number}
@@ -512,9 +489,9 @@ const LiveParticipationPage: React.FC = () => {
                         disabled={isTaken}
                         className={`
                           w-8 h-8 rounded-lg text-xs font-bold transition-all duration-200
-                          ${isSelected 
-                            ? 'bg-yellow-500 text-white border-2 border-yellow-400 shadow-lg' 
-                            : isTaken 
+                          ${isSelected
+                            ? 'bg-yellow-500 text-white border-2 border-yellow-400 shadow-lg'
+                            : isTaken
                               ? 'bg-red-500 text-white border-2 border-red-400 cursor-not-allowed opacity-60'
                               : 'bg-blue-500 text-white border-2 border-blue-400 hover:bg-blue-600 hover:border-blue-500 hover:scale-110'
                           }
@@ -530,7 +507,7 @@ const LiveParticipationPage: React.FC = () => {
                 </p>
               </div>
             </div>
-            
+
             <div className="flex flex-col sm:flex-row gap-3 mt-4 sm:mt-6">
               <motion.button
                 whileHover={{ scale: 1.05 }}

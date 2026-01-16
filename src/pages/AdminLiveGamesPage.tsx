@@ -17,6 +17,7 @@ interface LiveGame {
   status: 'waiting' | 'active' | 'finished';
   created_at: string;
   participants_count: number;
+  elimination_interval?: number;
   winner_number?: number;
   winner_user_id?: string;
 }
@@ -137,7 +138,7 @@ const AdminLiveGamesPage: React.FC = () => {
 
       // PROTEÇÃO: Confirmação obrigatória com informações detalhadas
       let confirmMessage = `⚠️ EXCLUIR JOGO: "${gameTitle}"\n\n`;
-      
+
       if (participantsCount > 0) {
         confirmMessage += `🚨 ATENÇÃO: Este jogo tem ${participantsCount} participante(s)!\n\n`;
         confirmMessage += `Ao excluir, TODOS os participantes serão PERMANENTEMENTE removidos.\n\n`;
@@ -145,12 +146,12 @@ const AdminLiveGamesPage: React.FC = () => {
       } else {
         confirmMessage += `Este jogo não tem participantes.\n\n`;
       }
-      
+
       confirmMessage += `Deseja realmente excluir este jogo?`;
 
       const confirmed = window.confirm(confirmMessage);
       if (!confirmed) {
-        toast.info('Exclusão cancelada');
+        toast('Exclusão cancelada');
         return;
       }
 
@@ -160,7 +161,7 @@ const AdminLiveGamesPage: React.FC = () => {
           `🚨 ÚLTIMA CHANCE!\n\nVocê está prestes a excluir "${gameTitle}" e remover ${participantsCount} participante(s) permanentemente.\n\nTem CERTEZA ABSOLUTA?`
         );
         if (!secondConfirm) {
-          toast.info('Exclusão cancelada');
+          toast('Exclusão cancelada');
           return;
         }
       }
@@ -172,7 +173,7 @@ const AdminLiveGamesPage: React.FC = () => {
         .eq('id', gameId);
 
       if (error) throw error;
-      
+
       if (participantsCount > 0) {
         toast.success(`Jogo "${gameTitle}" excluído. ${participantsCount} participante(s) foram removidos.`, {
           duration: 6000,
@@ -181,7 +182,7 @@ const AdminLiveGamesPage: React.FC = () => {
       } else {
         toast.success(`Jogo "${gameTitle}" excluído com sucesso!`);
       }
-      
+
       loadGames();
     } catch (error) {
       console.error('Erro ao excluir jogo:', error);

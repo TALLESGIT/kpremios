@@ -16,6 +16,7 @@ interface LiveGame {
   max_participants: number;
   status: 'waiting' | 'active' | 'finished';
   winner_id?: string;
+  elimination_interval?: number;
   created_at: string;
 }
 
@@ -36,7 +37,7 @@ const AdminLiveControlPage: React.FC = () => {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [gameActive, setGameActive] = useState(false);
-  const [eliminationTimer, setEliminationTimer] = useState<number | null>(null);
+  const [eliminationTimer, setEliminationTimer] = useState<any>(null);
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
   const [recentEliminations, setRecentEliminations] = useState<Array<{
     user_name: string;
@@ -60,7 +61,7 @@ const AdminLiveControlPage: React.FC = () => {
       const interval = setInterval(() => {
         eliminateRandomParticipant();
       }, game.elimination_interval * 1000);
-      
+
       setEliminationTimer(interval);
       return () => clearInterval(interval);
     } else if (eliminationTimer) {
@@ -108,7 +109,7 @@ const AdminLiveControlPage: React.FC = () => {
         user_name: participant.users?.name || 'Usuário',
         user_phone: participant.users?.whatsapp || 'Sem telefone'
       }));
-      
+
       setParticipants(processedParticipants);
     } catch (error) {
 
@@ -132,14 +133,14 @@ const AdminLiveControlPage: React.FC = () => {
 
       const { error } = await supabase
         .from('live_games')
-        .update({ 
+        .update({
           status: 'active',
           started_at: new Date().toISOString()
         })
         .eq('id', gameId);
 
       if (error) throw error;
-      
+
       setGameActive(true);
       toast.success(`Jogo iniciado com ${activeParticipants.length} participantes!`);
       loadGame();
@@ -213,7 +214,7 @@ const AdminLiveControlPage: React.FC = () => {
     const activeParticipants = participants.filter(p => p.status === 'active');
     if (activeParticipants.length <= 1) {
       // Não finalizar automaticamente - deixar o admin decidir
-      toast.info('🎯 Resta apenas 1 participante! Use o botão "Finalizar Jogo" para declarar o vencedor.');
+      toast('🎯 Resta apenas 1 participante! Use o botão "Finalizar Jogo" para declarar o vencedor.');
       return;
     }
 
@@ -223,24 +224,24 @@ const AdminLiveControlPage: React.FC = () => {
     try {
       const { error } = await supabase
         .from('live_participants')
-        .update({ 
+        .update({
           status: 'eliminated',
           eliminated_at: new Date().toISOString()
         })
         .eq('id', participantToEliminate.id);
 
       if (error) throw error;
-      
+
       // Enviar notificação por WhatsApp
       await sendEliminationNotification(participantToEliminate);
-      
+
       // Adicionar à lista de eliminações recentes para notificação visual
       setRecentEliminations(prev => [...prev, {
         user_name: participantToEliminate.user_name || 'Usuário',
         lucky_number: participantToEliminate.lucky_number,
         eliminated_at: new Date().toISOString()
       }]);
-      
+
       toast.error(`❌ ${participantToEliminate.user_name} (${participantToEliminate.lucky_number}) foi eliminado!`);
       loadParticipants();
     } catch (error) {
@@ -257,13 +258,13 @@ const AdminLiveControlPage: React.FC = () => {
 
     try {
       // Encontrar participantes que serão eliminados
-      const participantsToEliminate = participants.filter(p => 
+      const participantsToEliminate = participants.filter(p =>
         selectedNumbers.includes(p.lucky_number) && p.status === 'active'
       );
 
       const { error } = await supabase
         .from('live_participants')
-        .update({ 
+        .update({
           status: 'eliminated',
           eliminated_at: new Date().toISOString()
         })
@@ -271,11 +272,11 @@ const AdminLiveControlPage: React.FC = () => {
         .in('lucky_number', selectedNumbers);
 
       if (error) throw error;
-      
+
       // Enviar notificações por WhatsApp para todos os eliminados
       for (const participant of participantsToEliminate) {
         await sendEliminationNotification(participant);
-        
+
         // Adicionar à lista de eliminações recentes
         setRecentEliminations(prev => [...prev, {
           user_name: participant.user_name || 'Usuário',
@@ -283,7 +284,7 @@ const AdminLiveControlPage: React.FC = () => {
           eliminated_at: new Date().toISOString()
         }]);
       }
-      
+
       toast.success(`${selectedNumbers.length} participantes eliminados!`);
       setSelectedNumbers([]);
       loadParticipants();
@@ -322,8 +323,8 @@ Obrigado por participar! 🎉`;
   };
 
   const toggleNumberSelection = (number: number) => {
-    setSelectedNumbers(prev => 
-      prev.includes(number) 
+    setSelectedNumbers(prev =>
+      prev.includes(number)
         ? prev.filter(n => n !== number)
         : [...prev, number]
     );
@@ -473,31 +474,29 @@ Obrigado por participar! 🎉`;
                     whileTap={{ scale: activeParticipants.length >= 2 ? 0.95 : 1 }}
                     onClick={startGame}
                     disabled={activeParticipants.length < 2}
-                    className={`flex-1 px-6 py-3 rounded-lg font-bold transition-all duration-200 ${
-                      activeParticipants.length < 2
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg'
-                    }`}
+                    className={`flex-1 px-6 py-3 rounded-lg font-bold transition-all duration-200 ${activeParticipants.length < 2
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg'
+                      }`}
                   >
                     <div className="flex items-center justify-center gap-2">
                       <Play className="h-5 w-5" />
-                      {activeParticipants.length < 2 
+                      {activeParticipants.length < 2
                         ? `Aguardando Participantes (${activeParticipants.length}/2)`
                         : `Iniciar Jogo (${activeParticipants.length} participantes)`
                       }
                     </div>
                   </motion.button>
-                  
+
                   <motion.button
                     whileHover={{ scale: activeParticipants.length > 0 ? 1.05 : 1 }}
                     whileTap={{ scale: activeParticipants.length > 0 ? 0.95 : 1 }}
                     onClick={closeSystem}
                     disabled={activeParticipants.length === 0}
-                    className={`flex-1 px-6 py-3 rounded-lg font-bold transition-all duration-200 ${
-                      activeParticipants.length === 0
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-lg'
-                    }`}
+                    className={`flex-1 px-6 py-3 rounded-lg font-bold transition-all duration-200 ${activeParticipants.length === 0
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-lg'
+                      }`}
                   >
                     <div className="flex items-center justify-center gap-2">
                       <Lock className="h-5 w-5" />
@@ -506,7 +505,7 @@ Obrigado por participar! 🎉`;
                   </motion.button>
                 </div>
               )}
-              
+
               {gameActive && (
                 <div className="flex flex-col sm:flex-row gap-3 w-full">
                   <motion.button
@@ -520,7 +519,7 @@ Obrigado por participar! 🎉`;
                       Finalizar Jogo
                     </div>
                   </motion.button>
-                  
+
                   <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4 text-center">
                     <p className="text-green-700 font-bold flex items-center justify-center gap-2">
                       <Lock className="h-5 w-5" />
@@ -573,7 +572,7 @@ Obrigado por participar! 🎉`;
             >
               <h2 className="text-xl font-black text-gray-900 mb-4">🎯 Eliminação Manual</h2>
               <p className="text-gray-700 mb-4 font-semibold">Selecione os números para eliminar manualmente:</p>
-              
+
               <div className="grid grid-cols-8 sm:grid-cols-12 lg:grid-cols-16 gap-2 mb-4">
                 {activeParticipants.map((participant) => (
                   <motion.button
@@ -581,17 +580,16 @@ Obrigado por participar! 🎉`;
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={() => toggleNumberSelection(participant.lucky_number)}
-                    className={`w-12 h-12 rounded-lg font-bold transition-all duration-200 ${
-                      selectedNumbers.includes(participant.lucky_number)
-                        ? 'bg-red-500 text-white border-2 border-red-400 shadow-lg'
-                        : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border-2 border-blue-300 hover:border-blue-400'
-                    }`}
+                    className={`w-12 h-12 rounded-lg font-bold transition-all duration-200 ${selectedNumbers.includes(participant.lucky_number)
+                      ? 'bg-red-500 text-white border-2 border-red-400 shadow-lg'
+                      : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border-2 border-blue-300 hover:border-blue-400'
+                      }`}
                   >
                     {participant.lucky_number}
                   </motion.button>
                 ))}
               </div>
-              
+
               {selectedNumbers.length > 0 && (
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -628,11 +626,10 @@ Obrigado por participar! 🎉`;
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.5 + index * 0.05 }}
-                    className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all duration-200 ${
-                      selectedNumbers.includes(participant.lucky_number)
-                        ? 'border-red-400 bg-red-50'
-                        : 'border-green-200 bg-green-50 hover:border-green-300'
-                    }`}
+                    className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all duration-200 ${selectedNumbers.includes(participant.lucky_number)
+                      ? 'border-red-400 bg-red-50'
+                      : 'border-green-200 bg-green-50 hover:border-green-300'
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
@@ -679,7 +676,7 @@ Obrigado por participar! 🎉`;
                       </div>
                     </div>
                     <div className="text-red-600 text-sm font-bold">
-                      {participant.eliminated_at 
+                      {participant.eliminated_at
                         ? new Date(participant.eliminated_at).toLocaleTimeString('pt-BR')
                         : 'Eliminado'
                       }
@@ -726,7 +723,7 @@ Obrigado por participar! 🎉`;
               key={`${elimination.lucky_number}-${elimination.eliminated_at}-${index}`}
               participant={elimination}
               onClose={() => {
-                setRecentEliminations(prev => 
+                setRecentEliminations(prev =>
                   prev.filter((_, i) => i !== index)
                 );
               }}
@@ -734,7 +731,7 @@ Obrigado por participar! 🎉`;
           ))}
         </div>
       </main>
-      
+
       <Footer />
     </div>
   );

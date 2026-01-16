@@ -1,28 +1,30 @@
 import { useLiveStatus } from '../hooks/useLiveStatus';
 import { HLSViewer } from './HLSViewer';
-import LiveKitViewer from './LiveKitViewer';
+import ZKViewer from './ZKViewer';
 
 interface LiveViewerProps {
   channelName?: string;
   fitMode?: 'contain' | 'cover';
   className?: string;
   showOfflineMessage?: boolean;
-  isAdmin?: boolean; // ✅ NOVO: Muta áudio quando admin está visualizando
+  isAdmin?: boolean;
+  enabled?: boolean;
 }
 
 /**
  * Componente inteligente que decide qual player usar:
- * - Mobile + HLS URL disponível → HLSViewer (RTC no mobile costuma ser instável/pesado)
- * - Desktop ou sem HLS → LiveKitViewer (RTC Nativo LiveKit, substitui Agora)
+ * - Mobile + HLS URL disponível → HLSViewer
+ * - Desktop ou sem HLS → ZKViewer (Agora.io)
  */
 export function LiveViewer({
   channelName = 'zktv',
   fitMode = 'contain',
   className = '',
   showOfflineMessage = true,
-  isAdmin = false, // ✅ NOVO: Default false (usuários ouvem áudio normalmente)
+  isAdmin = false,
+  enabled = true,
 }: LiveViewerProps) {
-  const { data, status, loading, error } = useLiveStatus(channelName);
+  const { data, loading, error } = useLiveStatus(channelName);
 
   const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
     navigator.userAgent
@@ -72,10 +74,6 @@ export function LiveViewer({
   const hasHlsUrl = data.hls_url && data.hls_url.trim() !== '';
   const isActuallyLive = data.is_active;
 
-  // Room do LiveKit - ZK Studio sempre transmite para 'zkpremios' (minúsculo, case-sensitive)
-  // O channel_name é apenas para identificação da stream no banco, não o room do LiveKit
-  const livekitRoom = 'zkpremios';
-
   const renderContent = () => {
     // Se a live estiver offline e showOfflineMessage=true
     if (!isActuallyLive && showOfflineMessage) {
@@ -98,20 +96,20 @@ export function LiveViewer({
       return <HLSViewer hlsUrl={data.hls_url!} fitMode={fitMode} />;
     }
 
-    // Tudo o resto (ou se HLS falhar) -> LiveKit RTC Nativo
-    console.log('🖥️ LiveViewer: Usando LiveKit RTC Nativo', {
-      room: livekitRoom,
+    // Tudo o resto -> ZKViewer (Agora.io)
+    console.log('🖥️ LiveViewer: Usando Agora.io (ZKViewer)', {
+      channel: data.channel_name || channelName,
       isMobile,
       hasHlsUrl,
-      isAdmin // ✅ LOG: Para debug
+      isAdmin
     });
 
     return (
-      <LiveKitViewer 
-        roomName={livekitRoom}
+      <ZKViewer
+        channel={data.channel_name || channelName}
         fitMode={fitMode}
-        muteAudio={isAdmin} // ✅ NOVO: Passa flag para mutar áudio
-        enabled={isActuallyLive || isAdmin} // ✅ Admin sempre pode ver preview (mesmo com is_active=false)
+        muteAudio={isAdmin}
+        enabled={enabled && (isActuallyLive || isAdmin)}
       />
     );
   };

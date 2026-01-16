@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
 
-interface Participant {
+export interface Participant {
   number: any;
   name: any;
   id: string;
@@ -14,7 +14,7 @@ interface Participant {
   user_phone?: string;
 }
 
-interface LiveGame {
+export interface LiveGame {
   current_round: ReactNode;
   id: string;
   title: string;
@@ -23,6 +23,8 @@ interface LiveGame {
   max_participants: number;
   current_participants: number;
   winner_id?: string;
+  winner_user_id?: string;
+  winner_number?: number;
   created_at: string;
   started_at?: string;
   ended_at?: string;

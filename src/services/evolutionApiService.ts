@@ -205,8 +205,10 @@ Infelizmente não conseguimos validar seu pagamento. ${data.reason ? `\n\n📝 *
 
 Sentimos muito pelo inconveniente. 🙏`;
 
+      case 'custom':
+        return data.message || `Olá ${data.name}! Mensagem da ZK Oficial.`;
       default:
-        return `Olá ${data.name}! Mensagem da ZK Oficial.`;
+        return data.message || `Olá ${data.name}! Mensagem da ZK Oficial.`;
     }
   }
 
@@ -231,7 +233,7 @@ Sentimos muito pelo inconveniente. 🙏`;
       );
 
       const data = await response.json();
-      
+
       // Se retornar QR Code, a instância precisa ser escaneada
       if (data.qrcode?.base64 || data.qrcode?.code || data.base64) {
         return {
@@ -680,7 +682,7 @@ Sentimos muito pelo inconveniente. 🙏`;
   /**
    * Envia notificações em massa
    */
-  async sendBulkNotification(userDataList: any[], type: string): Promise<Array<{ user: string; success: boolean; error?: string }>> {
+  async sendBulkNotification(userDataList: any[], type: string, raffleData?: any): Promise<Array<{ user: string; success: boolean; error?: string }>> {
     const results = [];
 
     for (const userData of userDataList) {
@@ -689,6 +691,7 @@ Sentimos muito pelo inconveniente. 🙏`;
           to: userData.whatsapp,
           message: '',
           type: type as any,
+          ...raffleData,
           ...userData
         });
 

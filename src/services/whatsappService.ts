@@ -160,8 +160,10 @@ Obrigado por participar! 🍀`;
 
 Parabéns! 🎊`;
 
+      case 'custom':
+        return data.message || `Olá ${data.name}! Mensagem da ZK Oficial.`;
       default:
-        return `Olá ${data.name}! Mensagem da ZK Oficial.`;
+        return data.message || `Olá ${data.name}! Mensagem da ZK Oficial.`;
     }
   }
 
@@ -421,7 +423,7 @@ Parabéns! 🎊`;
   }
 
   // Método para enviar para múltiplos usuários
-  async sendBulkNotification(userDataList: any[], type: string) {
+  async sendBulkNotification(userDataList: any[], type: string, raffleData?: any) {
     const results = [];
 
     for (const userData of userDataList) {
@@ -430,6 +432,7 @@ Parabéns! 🎊`;
           to: userData.whatsapp,
           message: '',
           type: type as any,
+          ...raffleData,
           ...userData
         });
         results.push({ user: userData.email || userData.name, success: result.success, error: result.error });
