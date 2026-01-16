@@ -133,13 +133,14 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
 
     try {
       setLoading(true);
-      // Atualizar resultado
+      // Atualizar resultado e definir result_set_at (data em que o resultado foi definido)
       const { error: updateError } = await supabase
         .from('match_pools')
         .update({
           result_home_score: home,
           result_away_score: away,
-          is_active: false // Desativar bolão após resultado
+          is_active: false, // Desativar bolão após resultado
+          result_set_at: new Date().toISOString() // ✅ NOVO: Data/hora em que o resultado foi definido (contagem de 7 dias começa aqui)
         })
         .eq('id', pool.id);
 

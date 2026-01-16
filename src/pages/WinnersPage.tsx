@@ -2,21 +2,85 @@ import { useState, useEffect } from 'react';
 import { Trophy, Calendar, User, Target, MessageCircle, Users as UsersIcon } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import PoolBetModal from '../components/pool/PoolBetModal';
+import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 
+interface ActivePool {
+  id: string;
+  match_title: string;
+  home_team: string;
+  away_team: string;
+}
+
 function WinnersPage() {
+  const { user } = useAuth();
+  const { currentUser } = useData();
+  // ✅ Verificar se é admin (para mostrar botão de contatar ganhador)
+  const isAdmin = currentUser?.is_admin || false;
+
   const [poolWinners, setPoolWinners] = useState<any[]>([]);
   const [loadingPools, setLoadingPools] = useState(true);
+  const [activePool, setActivePool] = useState<ActivePool | null>(null);
+  const [showPoolModal, setShowPoolModal] = useState(false);
 
   useEffect(() => {
     loadPoolWinners();
+    checkActivePool();
   }, []);
+
+  // ✅ NOVO: Buscar bolão ativo completo para o modal
+  const checkActivePool = async () => {
+    try {
+      // Buscar bolão ativo com todos os dados necessários para o modal
+      const { data: poolData, error: poolError } = await supabase
+        .from('match_pools')
+        .select('id, match_title, home_team, away_team')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!poolError && poolData) {
+        setActivePool({
+          id: poolData.id,
+          match_title: poolData.match_title,
+          home_team: poolData.home_team,
+          away_team: poolData.away_team
+        });
+        console.log('✅ Bolão ativo encontrado:', poolData);
+      } else {
+        setActivePool(null);
+        console.log('ℹ️ Nenhum bolão ativo encontrado');
+      }
+    } catch (err) {
+      console.error('Erro ao buscar bolão ativo:', err);
+      setActivePool(null);
+    }
+  };
+
+  // ✅ NOVO: Função para abrir o modal de participar do bolão
+  const handleParticipate = () => {
+    if (activePool) {
+      setShowPoolModal(true);
+    } else {
+      // Se não houver bolão ativo, redirecionar para home
+      window.location.href = '/';
+    }
+  };
 
   const loadPoolWinners = async () => {
     try {
       setLoadingPools(true);
-      // Buscar todas as apostas vencedoras
-      const { data, error } = await supabase
+      // ✅ CORREÇÃO: Buscar apostas vencedoras apenas de bolões onde o resultado foi definido há menos de 7 dias
+      // A contagem de 7 dias começa quando o admin define o resultado (result_set_at)
+      // Se result_set_at não existir, usa updated_at como fallback
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      // Buscar ganhadores - primeiro tentar com result_set_at, depois com updated_at
+      let { data, error } = await supabase
         .from('pool_bets')
         .select(`
           *,
@@ -29,6 +93,8 @@ function WinnersPage() {
             result_away_score,
             winners_count,
             prize_per_winner,
+            result_set_at,
+            updated_at,
             created_at
           ),
           users!inner (
@@ -40,9 +106,29 @@ function WinnersPage() {
         `)
         .eq('is_winner', true)
         .eq('payment_status', 'approved')
+        .not('match_pools.result_home_score', 'is', null)
+        .not('match_pools.result_away_score', 'is', null)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao carregar ganhadores:', error);
+        throw error;
+      }
+
+      // Filtrar no JavaScript para usar result_set_at ou updated_at como fallback
+      if (data && data.length > 0) {
+        data = data.filter((bet: any) => {
+          const pool = bet.match_pools;
+          const resultDate = pool.result_set_at || pool.updated_at; // Usa result_set_at ou updated_at
+          
+          if (!resultDate) return false;
+          
+          const resultDateObj = new Date(resultDate);
+          return resultDateObj >= sevenDaysAgo;
+        });
+      }
+      
+      console.log('📊 Ganhadores encontrados (após filtro de 7 dias):', data?.length || 0, data);
       setPoolWinners(data || []);
     } catch (err) {
       console.error('Erro ao carregar ganhadores do bolão:', err);
@@ -50,6 +136,21 @@ function WinnersPage() {
       setLoadingPools(false);
     }
   };
+
+  // ✅ NOVO: Agrupar ganhadores por jogo/bolão
+  const groupedWinners = poolWinners.reduce((acc: any, bet: any) => {
+    const poolId = bet.match_pools.id;
+    if (!acc[poolId]) {
+      acc[poolId] = {
+        pool: bet.match_pools,
+        winners: []
+      };
+    }
+    acc[poolId].winners.push(bet);
+    return acc;
+  }, {});
+
+  const poolsArray = Object.values(groupedWinners) as any[];
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-900">
@@ -81,128 +182,120 @@ function WinnersPage() {
           </div>
         </div>
 
-        {/* Pool Winners Section */}
-        {poolWinners.length > 0 && (
-          <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
+        {/* Pool Winners Section - Agrupado por Jogo */}
+        {poolsArray.length > 0 && (
+          <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-12 space-y-8">
             <div className="flex items-center gap-3 mb-6">
               <Target className="w-8 h-8 text-emerald-400" />
               <h2 className="text-3xl font-black text-white uppercase">Ganhadores do Bolão</h2>
             </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {poolWinners.map((bet, index) => {
-                const pool = bet.match_pools;
-                const winner = bet.users;
-                const poolDate = pool.created_at ? new Date(pool.created_at) : null;
 
-                return (
-                  <div
-                    key={bet.id}
-                    className="glass-panel p-0 rounded-3xl overflow-hidden group hover:-translate-y-1 transition-all duration-300 border border-emerald-500/20 bg-slate-800/40 backdrop-blur-md"
-                  >
-                    {/* Card Header */}
-                    <div className="relative h-24 bg-gradient-to-r from-emerald-900/50 to-emerald-800/50 p-6 flex items-center justify-between overflow-hidden">
-                      <div className="absolute inset-0 bg-emerald-600/10 group-hover:bg-emerald-600/20 transition-colors" />
-                      <div className="relative z-10 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-yellow-400/20 flex items-center justify-center backdrop-blur-sm border border-yellow-400/30">
-                          <Target className="h-5 w-5 text-yellow-400" />
-                        </div>
-                        <div>
-                          <p className="text-emerald-200 text-xs font-bold uppercase tracking-wider">Bolão</p>
-                          <p className="text-white font-black text-lg">Ganhador</p>
-                        </div>
-                      </div>
+            {/* ✅ NOVO: Loop por jogo/bolão */}
+            {poolsArray.map((group: any) => {
+              const pool = group.pool;
+              const winners = group.winners;
+              const poolDate = pool.created_at ? new Date(pool.created_at) : null;
+
+              return (
+                <div key={pool.id} className="glass-panel rounded-3xl overflow-hidden border border-emerald-500/20 bg-slate-800/40 backdrop-blur-md">
+                  {/* Cabeçalho do Jogo */}
+                  <div className="relative bg-gradient-to-r from-blue-600/20 to-blue-700/20 p-6 border-b border-blue-500/30">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Target className="w-6 h-6 text-blue-400" />
+                      <h3 className="text-xl sm:text-2xl font-black text-white uppercase">
+                        {pool.home_team} X {pool.away_team}
+                      </h3>
                     </div>
-
-                    {/* Card Content */}
-                    <div className="p-6 space-y-4">
-                      {/* Winner Info */}
-                      <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-full bg-slate-700/50 flex items-center justify-center flex-shrink-0 border border-white/5">
-                          <User className="h-5 w-5 text-emerald-400" />
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {/* Times e Placar */}
+                      <div className="flex items-center justify-between sm:col-span-2">
+                        <div className="text-center flex-1">
+                          <p className="text-xs font-medium text-slate-300 mb-2">{pool.home_team}</p>
+                          <p className="text-3xl font-black text-blue-400">{pool.result_home_score}</p>
                         </div>
-                        <div>
-                          <p className="text-xs font-medium text-slate-400 mb-1">Ganhador(a)</p>
-                          <p className="font-bold text-white text-lg leading-tight">
-                            {winner?.name || 'Nome não disponível'}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Match Info */}
-                      <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
-                        <p className="text-xs font-medium text-emerald-200 mb-2">{pool.match_title}</p>
-                        <div className="flex items-center justify-between">
-                          <div className="text-center flex-1">
-                            <p className="text-xs text-slate-400 mb-1">{pool.home_team}</p>
-                            <p className="text-2xl font-black text-emerald-400">{bet.predicted_home_score}</p>
-                          </div>
-                          <span className="text-emerald-400 font-black text-xl mx-2">x</span>
-                          <div className="text-center flex-1">
-                            <p className="text-xs text-slate-400 mb-1">{pool.away_team}</p>
-                            <p className="text-2xl font-black text-emerald-400">{bet.predicted_away_score}</p>
-                          </div>
-                        </div>
-                        <div className="mt-3 pt-3 border-t border-emerald-500/20 text-center">
-                          <p className="text-xs text-slate-400">Resultado Real</p>
-                          <p className="text-lg font-black text-white">
-                            {pool.result_home_score} x {pool.result_away_score}
-                          </p>
+                        <span className="text-blue-400 font-black text-2xl mx-3">x</span>
+                        <div className="text-center flex-1">
+                          <p className="text-xs font-medium text-slate-300 mb-2">{pool.away_team}</p>
+                          <p className="text-3xl font-black text-blue-400">{pool.result_away_score}</p>
                         </div>
                       </div>
 
-                      {/* Prize Info */}
-                      <div className="p-4 rounded-2xl bg-yellow-500/5 border border-yellow-500/10">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Trophy className="h-4 w-4 text-yellow-400" />
-                            <span className="text-xs font-medium text-yellow-200">Prêmio</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <UsersIcon className="h-3 w-3 text-slate-400" />
-                            <span className="text-xs text-slate-400">{pool.winners_count} ganhador(es)</span>
-                          </div>
+                      {/* Info do Bolão */}
+                      <div className="flex flex-col items-center sm:items-end justify-center gap-2 pt-4 sm:pt-0 border-t sm:border-t-0 sm:border-l border-blue-500/20 sm:pl-4">
+                        <div className="flex items-center gap-2">
+                          <Trophy className="h-4 w-4 text-yellow-400" />
+                          <span className="text-xs font-bold text-yellow-400">{winners.length} Ganhador(es)</span>
                         </div>
-                        <p className="text-2xl font-black text-yellow-400">
-                          R$ {bet.prize_amount?.toFixed(2) || pool.prize_per_winner?.toFixed(2) || '0.00'}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          de R$ {((pool.total_pool_amount || 0) * 0.70).toFixed(2)} distribuído
-                        </p>
-                      </div>
-
-                      {/* Date Info */}
-                      <div className="flex items-center gap-3 pb-4 border-b border-white/5">
-                        <Calendar className="h-4 w-4 text-slate-500" />
-                        <span className="text-slate-400 text-sm">
-                          {poolDate ? poolDate.toLocaleDateString('pt-BR', {
-                            day: '2-digit',
-                            month: 'long',
-                            year: 'numeric'
-                          }) : 'Data não disponível'}
-                        </span>
-                      </div>
-
-                      {/* WhatsApp Button */}
-                      {winner?.whatsapp && (
-                        <button
-                          onClick={() => {
-                            const message = `Parabéns! Você ganhou o bolão "${pool.match_title}"! 🎉\n\nSua aposta: ${bet.predicted_home_score} x ${bet.predicted_away_score}\nResultado: ${pool.result_home_score} x ${pool.result_away_score}\n\nVocê dividiu o prêmio de R$ ${pool.total_pool_amount?.toFixed(2) || '0.00'} com ${pool.winners_count} ganhador(es) e recebeu R$ ${bet.prize_amount?.toFixed(2) || pool.prize_per_winner?.toFixed(2) || '0.00'}.\n\nEntre em contato para receber seu prêmio!`;
-                            const whatsappUrl = `https://wa.me/${winner.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
-                            window.open(whatsappUrl, '_blank');
-                          }}
-                          className="w-full group/btn relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 p-[1px] transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/25 active:scale-[0.98]"
-                        >
-                          <div className="relative flex items-center justify-center gap-2 rounded-xl bg-slate-900/50 px-4 py-3 transition-all duration-300 group-hover/btn:bg-transparent">
-                            <MessageCircle className="h-5 w-5 text-emerald-400 group-hover/btn:text-white transition-colors" />
-                            <span className="font-bold text-white group-hover/btn:text-white">Contatar Ganhador</span>
+                        {poolDate && (
+                          <div className="flex items-center gap-2 text-xs text-slate-400">
+                            <Calendar className="h-3 w-3" />
+                            {poolDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
                           </div>
-                        </button>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+
+                  {/* Lista de Ganhadores */}
+                  <div className="p-6">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {winners.map((bet: any) => {
+                        const winner = bet.users;
+
+                        return (
+                          <div
+                            key={bet.id}
+                            className="p-4 rounded-2xl bg-slate-700/30 border border-emerald-500/10 hover:border-emerald-500/30 transition-all"
+                          >
+                            {/* Winner Info */}
+                            <div className="flex items-start gap-3 mb-4">
+                              <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0 border border-emerald-500/30">
+                                <User className="h-5 w-5 text-emerald-400" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-slate-400 mb-1">Ganhador(a)</p>
+                                <p className="font-bold text-white text-base leading-tight truncate">
+                                  {winner?.name || 'Nome não disponível'}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                  Palpite: {bet.predicted_home_score} x {bet.predicted_away_score}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Prize Info */}
+                            <div className="p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/10 mb-3">
+                              <div className="flex items-center justify-between mb-1">
+                                <Trophy className="h-3 w-3 text-yellow-400" />
+                                <span className="text-xs text-slate-400">{pool.winners_count} ganhador(es)</span>
+                              </div>
+                              <p className="text-xl font-black text-yellow-400">
+                                R$ {bet.prize_amount?.toFixed(2) || pool.prize_per_winner?.toFixed(2) || '0.00'}
+                              </p>
+                            </div>
+
+                            {/* WhatsApp Button - ✅ Só aparece para admin */}
+                            {isAdmin && winner?.whatsapp && (
+                              <button
+                                onClick={() => {
+                                  const message = `Parabéns! Você ganhou o bolão "${pool.match_title}"! 🎉\n\nSua aposta: ${bet.predicted_home_score} x ${bet.predicted_away_score}\nResultado: ${pool.result_home_score} x ${pool.result_away_score}\n\nVocê dividiu o prêmio de R$ ${pool.total_pool_amount?.toFixed(2) || '0.00'} com ${pool.winners_count} ganhador(es) e recebeu R$ ${bet.prize_amount?.toFixed(2) || pool.prize_per_winner?.toFixed(2) || '0.00'}.\n\nEntre em contato para receber seu prêmio!`;
+                                  const whatsappUrl = `https://wa.me/${winner.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+                                  window.open(whatsappUrl, '_blank');
+                                }}
+                                className="w-full px-3 py-2 text-xs font-bold text-white bg-emerald-500/20 hover:bg-emerald-500/30 rounded-lg transition-all border border-emerald-500/30"
+                              >
+                                Contatar Ganhador
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -217,17 +310,33 @@ function WinnersPage() {
                 Ainda não temos ganhadores
               </h2>
               <p className="text-blue-200/60 max-w-md mx-auto text-base sm:text-lg mb-8">
-                Os primeiros bolões ainda não foram finalizados.
-                Seja um dos primeiros a participar e garanta sua chance!
+                {activePool 
+                  ? 'Participe agora do bolão ativo e concorra a prêmios incríveis!'
+                  : 'Os primeiros bolões ainda não foram finalizados. Seja um dos primeiros a participar e garanta sua chance!'}
               </p>
-              <a href="/" className="inline-flex items-center justify-center px-8 py-4 text-base font-bold text-white transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl hover:from-blue-500 hover:to-blue-400 hover:shadow-lg hover:shadow-blue-500/25">
-                Participar Agora
-              </a>
+              <button
+                onClick={handleParticipate}
+                className="inline-flex items-center justify-center px-8 py-4 text-base font-bold text-white transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl hover:from-blue-500 hover:to-blue-400 hover:shadow-lg hover:shadow-blue-500/25"
+              >
+                {activePool ? 'Participar do Bolão' : 'Participar Agora'}
+              </button>
             </div>
           </div>
         )}
       </main>
       <Footer />
+
+      {/* Modal de Participar do Bolão */}
+      {activePool && (
+        <PoolBetModal
+          isOpen={showPoolModal}
+          onClose={() => setShowPoolModal(false)}
+          poolId={activePool.id}
+          matchTitle={activePool.match_title}
+          homeTeam={activePool.home_team}
+          awayTeam={activePool.away_team}
+        />
+      )}
     </div>
   );
 }

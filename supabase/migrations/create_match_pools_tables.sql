@@ -106,9 +106,11 @@ BEGIN
   END IF;
 
   -- Atualizar tabela match_pools
+  -- ✅ NOVO: Definir result_set_at se ainda não foi definido (garante que sempre teremos a data quando houver resultado)
   UPDATE match_pools
   SET winners_count = v_winners_count,
-      prize_per_winner = v_prize_per_winner
+      prize_per_winner = v_prize_per_winner,
+      result_set_at = COALESCE(result_set_at, NOW()) -- Define result_set_at se ainda não foi definido
   WHERE id = p_pool_id;
 
   -- Retornar estatísticas
