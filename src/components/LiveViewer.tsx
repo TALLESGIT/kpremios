@@ -81,12 +81,28 @@ export function LiveViewer({
     // Se a live estiver offline e showOfflineMessage=true
     if (!isActuallyLive && showOfflineMessage) {
       return (
-        <div className="flex items-center justify-center h-full bg-black">
-          <div className="text-center space-y-4 px-8">
-            <div className="text-6xl">📡</div>
-            <h2 className="text-2xl font-black text-white uppercase italic">Live Offline</h2>
-            <p className="text-slate-400 text-sm font-bold">A transmissão foi finalizada</p>
-            <div className="w-16 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent mx-auto"></div>
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zinc-950">
+          <div className="flex flex-col items-center space-y-6 animate-in fade-in duration-700">
+            {/* Ícone de Transmissão Encerrada */}
+            <div className="relative">
+              <div className="w-16 h-16 border-4 border-zinc-800 rounded-full flex items-center justify-center">
+                <div className="w-2 h-2 bg-zinc-700 rounded-full" />
+              </div>
+            </div>
+
+            <div className="text-center space-y-2 px-8">
+              <h3 className="text-white font-bold tracking-widest uppercase text-sm">
+                Transmissão Encerrada
+              </h3>
+              <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider max-w-xs mx-auto leading-relaxed">
+                O evento chegou ao fim. Obrigado por assistir!
+                <br />
+                Fique atento para as próximas lives.
+              </p>
+            </div>
+
+            {/* Linha decorativa discreta */}
+            <div className="w-12 h-1 bg-zinc-900 rounded-full" />
           </div>
         </div>
       );
