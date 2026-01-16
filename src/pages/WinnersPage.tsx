@@ -62,6 +62,13 @@ function WinnersPage() {
 
   // ✅ NOVO: Função para abrir o modal de participar do bolão
   const handleParticipate = () => {
+    // Se usuário não estiver logado, redirecionar para login
+    if (!user) {
+      window.location.href = '/login';
+      return;
+    }
+
+    // Se houver bolão ativo e usuário estiver logado, abrir modal
     if (activePool) {
       setShowPoolModal(true);
     } else {
@@ -326,8 +333,8 @@ function WinnersPage() {
       </main>
       <Footer />
 
-      {/* Modal de Participar do Bolão */}
-      {activePool && (
+      {/* Modal de Participar do Bolão - Apenas se usuário estiver logado */}
+      {activePool && user && (
         <PoolBetModal
           isOpen={showPoolModal}
           onClose={() => setShowPoolModal(false)}

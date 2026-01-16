@@ -517,17 +517,16 @@ function HomePage() {
                     </div>
                   </div>
 
-                  {/* Número de Participantes e Total Arrecadado */}
-                  <div className={`grid gap-2 text-xs ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                    <div className="bg-slate-900/50 rounded-lg p-2.5 border border-emerald-500/10">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <Users className="w-3.5 h-3.5 text-emerald-400" />
+                  {/* Número de Participantes e Total Arrecadado - Apenas para Admins */}
+                  {isAdmin && (
+                    <div className="grid gap-2 text-xs grid-cols-2">
+                      <div className="bg-slate-900/50 rounded-lg p-2.5 border border-emerald-500/10">
+                        <div className="flex items-center justify-center gap-1 mb-1">
+                          <Users className="w-3.5 h-3.5 text-emerald-400" />
+                        </div>
+                        <p className="text-lg font-black text-white">{activePool.total_participants || 0}</p>
+                        <p className="text-[9px] text-slate-400 font-medium">Participantes</p>
                       </div>
-                      <p className="text-lg font-black text-white">{activePool.total_participants || 0}</p>
-                      <p className="text-[9px] text-slate-400 font-medium">Participantes</p>
-                    </div>
-                    {/* Mostrar total arrecadado apenas para admins */}
-                    {isAdmin && (
                       <div className="bg-slate-900/50 rounded-lg p-2.5 border border-emerald-500/10">
                         <div className="flex items-center justify-center gap-1 mb-1">
                           <DollarSign className="w-3.5 h-3.5 text-slate-400" />
@@ -537,8 +536,8 @@ function HomePage() {
                         </p>
                         <p className="text-[9px] text-slate-400 font-medium">Total Arrecadado</p>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   {/* Mostrar Resultado e Ganhadores se houver */}
                   {(activePool.result_home_score !== null && activePool.result_away_score !== null) && (
