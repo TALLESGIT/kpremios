@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useLiveStatus } from '../hooks/useLiveStatus';
 import { HLSViewer } from './HLSViewer';
 import ZKViewer from './ZKViewer';
@@ -24,6 +25,8 @@ export function LiveViewer({
   isAdmin = false,
   enabled = true,
 }: LiveViewerProps) {
+
+
   const { data, loading, error } = useLiveStatus(channelName);
 
   const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -97,8 +100,13 @@ export function LiveViewer({
     }
 
     // Tudo o resto -> ZKViewer (Agora.io)
+    // ✅ CORREÇÃO: Forçar conexão no canal "ZkPremios" onde o ZK Studio transmite
+    // O channelName (prop) continua sendo usado para buscar status no Supabase (useLiveStatus)
+    const agoraChannel = 'ZkPremios';
+
     console.log('🖥️ LiveViewer: Usando Agora.io (ZKViewer)', {
-      channel: data.channel_name || channelName,
+      dbChannel: data.channel_name || channelName,
+      agoraChannel: agoraChannel,
       isMobile,
       hasHlsUrl,
       isAdmin
@@ -106,7 +114,7 @@ export function LiveViewer({
 
     return (
       <ZKViewer
-        channel={data.channel_name || channelName}
+        channel={agoraChannel}
         fitMode={fitMode}
         muteAudio={isAdmin}
         enabled={enabled && (isActuallyLive || isAdmin)}

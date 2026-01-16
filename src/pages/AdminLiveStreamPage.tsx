@@ -95,25 +95,25 @@ const AdminLiveStreamPage: React.FC = () => {
                 toast.success('Live ativada pelo ZK Studio!', { duration: 3000 });
               }
             } else {
-              // Apenas atualização de outros campos (viewer_count, etc)
-              // Atualizamos sem toast e SEM atualizar selectedStream para evitar re-renderizações
+              // ✅ OTIMIZAÇÃO CRÍTICA:
+              // Atualizamos a lista (setStreams) para refletir viewer_count, mas...
+              // NÃO atualizamos selectedStream a menos que seja vital (título, status, hls).
+              // Isso evita que o LiveViewer seja desmontado/remontado a cada atualização de contador.
               setStreams(prev => prev.map(s => s.id === updatedStream.id ? updatedStream : s));
-              // ✅ OTIMIZAÇÃO: Não atualizar selectedStream para campos que não afetam o player
-              // Isso evita re-renderizações desnecessárias do LiveViewer
-              // Apenas atualizar se for mudança crítica (hls_url, etc)
+
               if (selectedStream?.id === updatedStream.id) {
                 const criticalFieldsChanged =
-                  selectedStream.hls_url !== updatedStream.hls_url ||
+                  selectedStream.is_active !== updatedStream.is_active ||
                   selectedStream.channel_name !== updatedStream.channel_name ||
+                  selectedStream.hls_url !== updatedStream.hls_url ||
                   selectedStream.title !== updatedStream.title;
 
-                // ✅ OTIMIZAÇÃO CRÍTICA: Apenas atualizar selectedStream se campos críticos mudaram
-                // Isso evita re-renderizações do LiveViewer para mudanças de viewer_count, etc
                 if (criticalFieldsChanged) {
+                  console.log('🔄 Atualizando selectedStream por mudança crítica');
                   setSelectedStream(updatedStream);
+                } else {
+                  // Ignorar atualização no selectedStream para manter estabilidade do player
                 }
-                // Se não houver mudança crítica, NÃO atualizar selectedStream
-                // Isso mantém o player estável e evita reconexões desnecessárias
               }
             }
           } else {
@@ -486,7 +486,7 @@ const AdminLiveStreamPage: React.FC = () => {
                   {/* ✅ SEMPRE mostrar preview (mesmo quando não está transmitindo) */}
                   {/* Admin pode ver preview do ZK Studio mesmo com is_active=false */}
                   <MemoizedLiveViewer
-                    channelName={selectedStream.channel_name}
+                    channelName={selectedStream.channel_name || 'ZkPremios'}
                     fitMode="contain"
                     showOfflineMessage={false}
                     isAdmin={true}

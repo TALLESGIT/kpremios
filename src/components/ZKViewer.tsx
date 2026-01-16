@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 
 interface ZKViewerProps {
@@ -10,7 +10,7 @@ interface ZKViewerProps {
   enabled?: boolean;
 }
 
-export default function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio = false, enabled = true }: ZKViewerProps) {
+export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio = false, enabled = true }: ZKViewerProps) {
   const clientRef = useRef<any>(null);
   const videoTrackRef = useRef<any>(null);
   const audioTrackRef = useRef<any>(null);
@@ -31,6 +31,8 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
   // ✅ NOVO: Estado para fallback de codec
   const [useVP8Fallback, setUseVP8Fallback] = useState(false);
   const [decodeErrorCount, setDecodeErrorCount] = useState(0);
+
+
 
   useEffect(() => {
     fitModeRef.current = fitMode;
@@ -145,6 +147,11 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
         client.on('exception', (event: any) => {
           console.warn('⚠️ ZKViewer: Exception', event);
 
+          // Monitorar erro ICE 701
+          if (event.code === 701) {
+            console.error('❌ ZKViewer: Erro ICE 701 - Verifique firewall/nat');
+          }
+
           if (event.code === 1005 || event.msg === 'RECV_VIDEO_DECODE_FAILED') {
             setDecodeErrorCount(prev => {
               const newCount = prev + 1;
@@ -153,15 +160,8 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
               if (newCount >= 3 && !useVP8Fallback) {
                 console.log('🔄 Tentando VP8...');
                 setUseVP8Fallback(true);
-
-                if (clientRef.current) {
-                  clientRef.current.leave().then(() => {
-                    clientRef.current = null;
-                    setReconnectCount(prev => prev + 1);
-                  }).catch(() => {
-                    clientRef.current = null;
-                  });
-                }
+                // Trigger retry via state
+                setReconnectCount(prev => prev + 1);
               }
               return newCount;
             });
@@ -196,7 +196,7 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
                 videoTrackRef.current = user.videoTrack;
 
                 // ✅ CORREÇÃO: Usar qualidade ALTA (1) e desabilitar fallback para manter qualidade
-                try { 
+                try {
                   await client.setRemoteVideoStreamType?.(user.uid, 1);
                   // Fallback option: 1 = Disable (não fazer fallback automático, manter qualidade alta)
                   client.setStreamFallbackOption?.(user.uid, 1);
@@ -292,7 +292,7 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
 
         await client.setClientRole('audience', { level: 1 });
 
-        console.log('🔌 Conectando...', { channel, codec: useVP8Fallback ? 'VP8' : 'H.264' });
+        console.log('🔌 Conectando...', { channel, codec: useVP8Fallback ? 'VP8' : 'H.264', attempt: reconnectCount + 1 });
 
         const startTime = Date.now();
         setConnectionStartTime(startTime);
@@ -300,11 +300,11 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
         const timeoutId = setTimeout(() => {
           if (!isLive && mounted) {
             setError('Conexão demorou muito...');
+            // Retry automático após timeout
             setTimeout(() => {
               if (mounted && enabled) {
                 setReconnectCount(prev => prev + 1);
                 setError(null);
-                init();
               }
             }, 2000);
           }
@@ -314,35 +314,46 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
 
         try {
           await client.join(agoraAppId, channel, agoraToken, null);
-          clearTimeout(timeoutId);
-          setConnectionTimeout(null);
           console.log('✅ Conectado!', { channel, connectionTime: `${Date.now() - startTime}ms` });
+          // Timeouts limpos apenas quando 'user-published' ocorre (vide logic acima) ou aqui se conexão for suficiente
         } catch (joinError: any) {
           clearTimeout(timeoutId);
           throw joinError;
         }
       } catch (err: any) {
-        console.error('❌ Erro:', err);
+        console.error('❌ Erro de conexão:', err);
         if (mounted) {
           setError(err?.message || 'Erro ao conectar');
 
+          // Cleanup force
+          if (clientRef.current) {
+            try { clientRef.current.leave(); } catch { }
+            clientRef.current = null;
+          }
+
           if (!useVP8Fallback && reconnectCount < 2) {
-            console.log('🔄 Tentando VP8...');
+            console.log('🔄 Tentando VP8 após falha...');
             setUseVP8Fallback(true);
+            // O setUseVP8Fallback já vai triggerar o effect? Não, ele está na dependência? Sim.
+            // Mas incrementamos reconnectCount para garantir reset
             setTimeout(() => {
-              if (mounted && enabled) { setReconnectCount(prev => prev + 1); setError(null); init(); }
+              if (mounted && enabled) setReconnectCount(prev => prev + 1);
             }, 1000);
-          } else if (reconnectCount < 5) {
+
+          } else if (reconnectCount < 10) { // Aumentei tentativas
+            console.log(`🔄 Tentando novamente em 3s (Tentativa ${reconnectCount + 1})...`);
             setTimeout(() => {
-              if (mounted && enabled) { setReconnectCount(prev => prev + 1); setError(null); init(); }
+              if (mounted && enabled) {
+                setError(null);
+                setReconnectCount(prev => prev + 1);
+              }
             }, 3000);
           } else {
-            setError('Não foi possível conectar. Recarregue a página.');
+            setError('Não foi possível conectar. Verifique sua internet.');
           }
         }
       }
     };
-
     if (enabled) init();
 
     return () => {
@@ -354,7 +365,7 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
       if (bgTrackRef.current) { try { bgTrackRef.current.stop(); } catch { } bgTrackRef.current = null; }
       if (bgVideoElRef.current) { try { bgVideoElRef.current.pause?.(); (bgVideoElRef.current as any).srcObject = null; } catch { } bgVideoElRef.current.remove(); bgVideoElRef.current = null; }
     };
-  }, [appId, channel, token, muteAudio, enabled, useVP8Fallback, initAgora]);
+  }, [appId, channel, token, muteAudio, enabled, useVP8Fallback, initAgora, reconnectCount]);
 
   useEffect(() => {
     if (!enabled && clientRef.current) {
@@ -392,14 +403,39 @@ export default function ZKViewer({ appId, channel, token, fitMode = 'contain', m
       <div ref={bgRef} className="zk-video-bg" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 0, backgroundColor: 'black' }} />
       <div ref={fgRef} className="zk-video-fg" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 1, backgroundColor: 'transparent' }} />
       {!isLive && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/90 pb-10">
-          <div className="w-10 h-10 border-2 border-white/10 border-t-rose-500 rounded-full animate-spin mb-4" />
-          <p className="text-white/80 text-sm font-medium animate-pulse tracking-wide">{connectionStartTime ? 'CONECTANDO AO VIVO...' : 'AGUARDANDO TRANSMISSÃO...'}</p>
-          {reconnectCount > 0 && <p className="text-white/50 text-xs mt-2">Tentativa {reconnectCount + 1}...</p>}
-          {connectionStartTime && connectionElapsedTime > 0 && <p className="text-white/40 text-xs mt-1">{connectionElapsedTime}s</p>}
-          {useVP8Fallback && <p className="text-yellow-400/60 text-xs mt-2">Usando codec alternativo</p>}
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zinc-950">
+          <div className="flex flex-col items-center space-y-6 animate-in fade-in duration-700">
+            {/* Logo ou Ícone Minimalista */}
+            <div className="relative">
+              <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+              </div>
+            </div>
+
+            <div className="text-center space-y-2">
+              <h3 className="text-white font-bold tracking-widest uppercase text-sm">
+                {connectionStartTime ? 'Sincronizando Sinal' : 'Aguardando Transmissão'}
+              </h3>
+              <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider">
+                {connectionStartTime ? 'Estabelecendo conexão segura...' : 'O evento começará em breve'}
+              </p>
+            </div>
+          </div>
+
+          {/* Indicador discreto de tentativas (apenas visual, sem números) */}
+          {reconnectCount > 0 && (
+            <div className="absolute bottom-8 flex gap-1">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < (reconnectCount % 3) + 1 ? 'bg-blue-500/50' : 'bg-zinc-800'} transition-all`} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
+
+// ✅ OTIMIZAÇÃO: Memoizar o componente para evitar re-renders se props não mudarem
+export default React.memo(ZKViewer);
