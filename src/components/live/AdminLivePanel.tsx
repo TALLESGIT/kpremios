@@ -36,24 +36,11 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
     // Carregar estatísticas iniciais imediatamente
     loadStats();
 
-    // Subscribe para atualizações em tempo real
-    const viewerChannel = supabase
-      .channel(`viewer_count_${streamId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'viewer_sessions',
-          filter: `stream_id=eq.${streamId}`,
-        },
-        () => {
-          console.log('🔄 Viewer session mudou, recarregando stats...');
-          loadStats();
-        }
-      )
-      .subscribe();
+    // ✅ OTIMIZAÇÃO: Removido subscription Realtime de viewer_sessions para evitar cascata de queries
+    // Com 70+ viewers, cada heartbeat dispararia loadStats(), causando sobrecarga
+    // Vamos atualizar apenas periodicamente
 
+    // Subscribe apenas para mensagens (menos frequente que viewer_sessions)
     const messageChannel = supabase
       .channel(`message_count_${streamId}`)
       .on(
@@ -70,14 +57,15 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
       )
       .subscribe();
 
-    // Atualizar estatísticas periodicamente
+    // ✅ OTIMIZAÇÃO: Aumentado intervalo de 10s para 30s para reduzir carga
+    // Com 70+ viewers, atualizar a cada 10s é excessivo e causa lock no banco
     const interval = setInterval(() => {
       console.log('⏰ Atualizando estatísticas periodicamente...');
       loadStats();
-    }, 10000); // A cada 10 segundos
+    }, 30000); // A cada 30 segundos (reduzido de 10s)
 
     return () => {
-      supabase.removeChannel(viewerChannel);
+      // ✅ viewerChannel foi removido (otimização para 70+ viewers)
       supabase.removeChannel(messageChannel);
       clearInterval(interval);
     };

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { Plus, X, Pin, Trash2, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSocket } from '../../hooks/useSocket';
 
 interface Poll {
   id: string;
@@ -28,30 +28,105 @@ const PollManager: React.FC<PollManagerProps> = ({ streamId }) => {
     { id: 1, text: '' },
     { id: 2, text: '' }
   ]);
+  const [processingPolls, setProcessingPolls] = useState<Set<string>>(new Set());
 
+  // ✅ MIGRAÇÃO: Usar Socket.io em vez de Supabase Realtime
+  const { socket, isConnected, emit, on, off } = useSocket({
+    streamId,
+    autoConnect: true
+  });
+
+  // Carregar enquetes quando conectar
   useEffect(() => {
-    loadPolls();
-    
-    // Escutar mudanças em tempo real
-    const channel = supabase
-      .channel(`polls_${streamId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'stream_polls',
-        filter: `stream_id=eq.${streamId}`
-      }, () => {
+    if (isConnected && streamId) {
+      loadPolls();
+    }
+  }, [isConnected, streamId]);
+
+  // Escutar atualizações de enquetes via Socket.io
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const handlePollUpdated = (data: any) => {
+      console.log('🔄 PollManager: Enquete atualizada via Socket.io:', data.eventType, data.poll?.id, data.poll?.is_pinned);
+
+      // Remover da lista de processamento quando receber resposta
+      if (data.poll?.id) {
+        setProcessingPolls(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(data.poll.id);
+          return newSet;
+        });
+      } else if (data.oldPoll?.id) {
+        // Se foi deletada, remover da lista de processamento também
+        setProcessingPolls(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(data.oldPoll.id);
+          return newSet;
+        });
+      }
+
+      // Recarregar lista de enquetes quando houver atualização (com pequeno delay para garantir sincronização)
+      setTimeout(() => {
         loadPolls();
-      })
-      .subscribe();
+      }, 150);
+
+      // Dar feedback ao usuário sobre a atualização
+      const poll = data.poll;
+      if (poll) {
+        if (poll.is_pinned && poll.is_active) {
+          toast.success('Enquete fixada no chat!');
+        } else if (!poll.is_pinned && poll.is_active) {
+          toast.success('Enquete desfixada');
+        } else if (!poll.is_active) {
+          toast.success('Enquete desativada');
+        }
+      } else if (data.eventType === 'DELETE') {
+        toast.success('Enquete excluída');
+      }
+    };
+
+    const handlePollDeleted = (data: any) => {
+      console.log('🗑️ PollManager: Enquete deletada (resposta direta):', data.pollId);
+
+      // Remover da lista de processamento
+      if (data.pollId) {
+        setProcessingPolls(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(data.pollId);
+          return newSet;
+        });
+      }
+
+      toast.success('Enquete excluída com sucesso!');
+
+      // Recarregar lista com delay para garantir sincronização
+      setTimeout(() => {
+        loadPolls();
+      }, 150);
+    };
+
+    const handleError = (data: any) => {
+      console.error('❌ PollManager: Erro:', data.message);
+      toast.error(data.message || 'Erro ao processar ação');
+    };
+
+    on('poll-updated', handlePollUpdated);
+    on('poll-deleted', handlePollDeleted);
+    on('error', handleError);
 
     return () => {
-      supabase.removeChannel(channel);
+      off('poll-updated', handlePollUpdated);
+      off('poll-deleted', handlePollDeleted);
+      off('error', handleError);
     };
-  }, [streamId]);
+  }, [isConnected, streamId, on, off]);
 
   const loadPolls = async () => {
     try {
+      // Usar Supabase diretamente para buscar lista (não precisa de Socket.io para isso)
+      // já que é apenas leitura e não precisa de tempo real
+      const { supabase } = await import('../../lib/supabase');
       const { data, error } = await supabase
         .from('stream_polls')
         .select('*')
@@ -86,6 +161,34 @@ const PollManager: React.FC<PollManagerProps> = ({ streamId }) => {
     setOptions(options.map(opt => opt.id === id ? { ...opt, text } : opt));
   };
 
+  // Escutar resposta de criação de enquete
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const handlePollCreated = (data: any) => {
+      console.log('✅ PollManager: Enquete criada com sucesso:', {
+        id: data.poll?.id,
+        question: data.poll?.question,
+        is_active: data.poll?.is_active,
+        is_pinned: data.poll?.is_pinned
+      });
+
+      toast.success('Enquete criada e fixada no chat!');
+      setShowCreateModal(false);
+      setQuestion('');
+      setOptions([{ id: 1, text: '' }, { id: 2, text: '' }]);
+      // loadPolls será chamado automaticamente pelo listener de poll-updated
+      loadPolls();
+    };
+
+    on('poll-created', handlePollCreated);
+
+    return () => {
+      off('poll-created', handlePollCreated);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, on, off]);
+
   const handleCreatePoll = async () => {
     if (!question.trim()) {
       toast.error('Digite a pergunta da enquete');
@@ -98,101 +201,107 @@ const PollManager: React.FC<PollManagerProps> = ({ streamId }) => {
       return;
     }
 
-    try {
-      // Desativar/desfixar outras enquetes fixadas antes de criar a nova
-      await supabase
-        .from('stream_polls')
-        .update({ is_pinned: false })
-        .eq('stream_id', streamId)
-        .eq('is_pinned', true)
-        .eq('is_active', true);
+    // Verificar conexão do socket diretamente
+    if (!socket || !socket.connected) {
+      console.error('❌ PollManager: Socket não conectado', { socket: !!socket, connected: socket?.connected });
+      toast.error('Não conectado ao servidor. Tentando reconectar...');
 
-      // Criar nova enquete ativa e fixada
-      const { data: newPoll, error } = await supabase
-        .from('stream_polls')
-        .insert({
-          stream_id: streamId,
-          created_by: user?.id,
-          question: question.trim(),
-          options: validOptions.map((opt, idx) => ({ id: idx + 1, text: opt.text.trim() })),
-          is_active: true,
-          is_pinned: true
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('❌ PollManager: Erro ao criar enquete:', error);
-        throw error;
+      // Tentar reconectar
+      if (socket) {
+        socket.connect();
       }
-
-      console.log('✅ PollManager: Enquete criada com sucesso:', {
-        id: newPoll?.id,
-        question: newPoll?.question,
-        is_active: newPoll?.is_active,
-        is_pinned: newPoll?.is_pinned
-      });
-
-      toast.success('Enquete criada e fixada no chat!');
-      setShowCreateModal(false);
-      setQuestion('');
-      setOptions([{ id: 1, text: '' }, { id: 2, text: '' }]);
-      loadPolls();
-    } catch (error: any) {
-      console.error('Erro ao criar enquete:', error);
-      toast.error('Erro ao criar enquete: ' + error.message);
+      return;
     }
+
+    console.log('✅ PollManager: Criando enquete via Socket.io', { streamId, isConnected, socketConnected: socket.connected });
+
+    // Usar Socket.io para criar enquete
+    emit('poll-create', {
+      streamId,
+      question: question.trim(),
+      options: validOptions.map((opt, idx) => ({ id: idx + 1, text: opt.text.trim() })),
+      userId: user?.id || null
+    });
   };
 
   const handleTogglePin = async (pollId: string, currentPinStatus: boolean) => {
-    try {
-      if (currentPinStatus) {
-        // Desfixar
-        const { error } = await supabase
-          .from('stream_polls')
-          .update({ is_pinned: false })
-          .eq('id', pollId);
-        if (error) throw error;
-        toast.success('Enquete desfixada');
-      } else {
-        // Desfixar todas as outras primeiro
-        await supabase
-          .from('stream_polls')
-          .update({ is_pinned: false })
-          .eq('stream_id', streamId)
-          .neq('id', pollId);
-        
-        // Fixar esta
-        const { error } = await supabase
-          .from('stream_polls')
-          .update({ is_pinned: true })
-          .eq('id', pollId);
-        if (error) throw error;
-        toast.success('Enquete fixada no chat!');
-      }
-      loadPolls();
-    } catch (error: any) {
-      console.error('Erro ao alterar fixação:', error);
-      toast.error('Erro ao alterar fixação');
+    if (!isConnected) {
+      toast.error('Não conectado ao servidor');
+      return;
     }
+
+    // Proteção contra múltiplos cliques
+    if (processingPolls.has(pollId)) {
+      console.log('⚠️ PollManager: Operação já em andamento para enquete:', pollId);
+      return;
+    }
+
+    console.log('📌 PollManager: Toggle pin:', { pollId, currentPinStatus, newStatus: !currentPinStatus, streamId, isConnected });
+
+    // Adicionar à lista de processamento
+    setProcessingPolls(prev => new Set(prev).add(pollId));
+
+    try {
+      emit('poll-update', {
+        pollId,
+        streamId,
+        updates: {
+          is_pinned: !currentPinStatus
+        }
+      });
+      console.log('✅ PollManager: Evento poll-update emitido');
+    } catch (error) {
+      console.error('❌ PollManager: Erro ao emitir evento:', error);
+      setProcessingPolls(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(pollId);
+        return newSet;
+      });
+      toast.error('Erro ao atualizar enquete');
+    }
+
+    // Timeout de segurança para remover o bloqueio após 5 segundos
+    setTimeout(() => {
+      setProcessingPolls(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(pollId);
+        return newSet;
+      });
+    }, 5000);
   };
 
   const handleDeactivatePoll = async (pollId: string) => {
     if (!confirm('Desativar esta enquete? Os usuários não poderão mais votar.')) return;
-    
-    try {
-      const { error } = await supabase
-        .from('stream_polls')
-        .update({ is_active: false, is_pinned: false })
-        .eq('id', pollId);
 
-      if (error) throw error;
-      toast.success('Enquete desativada');
-      loadPolls();
-    } catch (error: any) {
-      console.error('Erro ao desativar enquete:', error);
-      toast.error('Erro ao desativar enquete');
+    if (!isConnected) {
+      toast.error('Não conectado ao servidor');
+      return;
     }
+
+    console.log('🔄 PollManager: Desativando enquete:', pollId);
+    emit('poll-update', {
+      pollId,
+      streamId,
+      updates: {
+        is_active: false,
+        is_pinned: false
+      }
+    });
+  };
+
+  const handleDeletePoll = async (pollId: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta enquete? Esta ação não pode ser desfeita.')) return;
+
+    if (!isConnected) {
+      toast.error('Não conectado ao servidor');
+      return;
+    }
+
+    console.log('🗑️ PollManager: Deletando enquete:', pollId);
+    emit('poll-delete', {
+      pollId,
+      streamId
+    });
   };
 
   return (
@@ -247,25 +356,47 @@ const PollManager: React.FC<PollManagerProps> = ({ streamId }) => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleTogglePin(poll.id, poll.is_pinned)}
-                    className={`p-2 rounded-lg transition-all ${
-                      poll.is_pinned
-                        ? 'bg-blue-600/20 text-blue-400'
-                        : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
-                    }`}
-                    title={poll.is_pinned ? 'Desfixar' : 'Fixar no chat'}
-                  >
-                    <Pin className={`w-4 h-4 ${poll.is_pinned ? 'fill-current' : ''}`} />
-                  </button>
+                  {poll.is_active && (
+                    <button
+                      onClick={() => handleTogglePin(poll.id, poll.is_pinned)}
+                      disabled={processingPolls.has(poll.id)}
+                      className={`p-2 rounded-lg transition-all ${processingPolls.has(poll.id)
+                          ? 'opacity-50 cursor-not-allowed'
+                          : poll.is_pinned
+                            ? 'bg-blue-600/20 text-blue-400'
+                            : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
+                        }`}
+                      title={poll.is_pinned ? 'Desfixar do chat' : 'Fixar no chat'}
+                    >
+                      <Pin className={`w-4 h-4 ${poll.is_pinned ? 'fill-current' : ''}`} />
+                    </button>
+                  )}
                   {poll.is_active && (
                     <button
                       onClick={() => handleDeactivatePoll(poll.id)}
                       className="p-2 bg-red-600/20 text-red-400 rounded-lg hover:bg-red-600/30 transition-all"
-                      title="Desativar enquete"
+                      title="Desativar enquete (parar votação)"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
+                  )}
+                  {!poll.is_active && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleTogglePin(poll.id, false)}
+                        className="p-2 bg-green-600/20 text-green-400 rounded-lg hover:bg-green-600/30 transition-all border border-green-600/30"
+                        title="Ativar e Fixar no chat"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeletePoll(poll.id)}
+                        className="p-2 bg-red-600/30 text-red-400 rounded-lg hover:bg-red-600/40 transition-all border border-red-600/50"
+                        title="Excluir enquete permanentemente"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

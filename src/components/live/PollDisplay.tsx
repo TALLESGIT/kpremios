@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { BarChart3, X, CheckCircle2 } from 'lucide-react';
+import { BarChart3, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSocket } from '../../hooks/useSocket';
 
 interface Poll {
   id: string;
@@ -21,9 +21,10 @@ interface PollResults {
 
 interface PollDisplayProps {
   streamId: string;
+  compact?: boolean;
 }
 
-const PollDisplay: React.FC<PollDisplayProps> = ({ streamId }) => {
+const PollDisplay: React.FC<PollDisplayProps> = ({ streamId, compact = false }) => {
   const { user } = useAuth();
   const [activePoll, setActivePoll] = useState<Poll | null>(null);
   const [results, setResults] = useState<PollResults[]>([]);
@@ -31,7 +32,13 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId }) => {
   const [hasVoted, setHasVoted] = useState(false);
   const [userVote, setUserVote] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  
+
+  // ✅ MIGRAÇÃO: Usar Socket.io em vez de Supabase Realtime
+  const { isConnected, on, off, emit } = useSocket({
+    streamId,
+    autoConnect: true
+  });
+
   // Gerar session_id único para usuários anônimos
   const getSessionId = () => {
     if (typeof window !== 'undefined') {
@@ -45,113 +52,36 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId }) => {
     return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
+  // Carregar enquete ativa quando conectar ou streamId mudar
   useEffect(() => {
-    loadActivePoll();
-    
-    // Escutar mudanças em tempo real para enquetes
-    const pollChannel = supabase
-      .channel(`poll_display_${streamId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'stream_polls',
-        filter: `stream_id=eq.${streamId}`
-      }, (payload) => {
-        console.log('🔄 PollDisplay: Mudança detectada na enquete:', payload.eventType);
-        // Recarregar enquete imediatamente quando houver mudança
-        loadActivePoll();
-      })
-      .subscribe();
+    if (!isConnected || !streamId) return;
 
-    // Escutar mudanças em votos - usar subscription dinâmica
-    let votesChannel: any = null;
-    
-    const setupVotesSubscription = (pollId: string) => {
-      // Remover subscription anterior se existir
-      if (votesChannel) {
-        supabase.removeChannel(votesChannel);
-      }
-      
-      // Criar nova subscription para votos desta enquete
-      votesChannel = supabase
-        .channel(`poll_votes_${pollId}`)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'poll_votes',
-          filter: `poll_id=eq.${pollId}`
-        }, () => {
-          console.log('🔄 PollDisplay: Novo voto detectado');
-          if (activePoll) {
-            loadPollResults(activePoll.id);
-          }
-        })
-        .subscribe();
-    };
+    console.log('🔍 PollDisplay: Buscando enquete ativa para stream:', streamId);
+    emit('poll-get-active', { streamId });
+  }, [isConnected, streamId, emit]);
 
-    // Configurar subscription de votos quando activePoll mudar
-    if (activePoll?.id) {
-      setupVotesSubscription(activePoll.id);
-    }
-
-    return () => {
-      supabase.removeChannel(pollChannel);
-      if (votesChannel) {
-        supabase.removeChannel(votesChannel);
-      }
-    };
-  }, [streamId]);
-  
-  // Subscription separada para votos que atualiza quando activePoll muda
+  // Escutar resposta de enquete ativa
   useEffect(() => {
-    if (!activePoll?.id) return;
-    
-    const votesChannel = supabase
-      .channel(`poll_votes_${activePoll.id}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'poll_votes',
-        filter: `poll_id=eq.${activePoll.id}`
-      }, () => {
-        console.log('🔄 PollDisplay: Novo voto detectado para enquete:', activePoll.id);
-        loadPollResults(activePoll.id);
-      })
-      .subscribe();
+    if (!isConnected) return;
 
-    return () => {
-      supabase.removeChannel(votesChannel);
-    };
-  }, [activePoll?.id]);
-
-  const loadActivePoll = async () => {
-    try {
-      console.log('🔍 PollDisplay: Carregando enquete ativa e fixada para stream:', streamId);
-      const { data, error } = await supabase
-        .from('stream_polls')
-        .select('*')
-        .eq('stream_id', streamId)
-        .eq('is_active', true)
-        .eq('is_pinned', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) {
-        console.error('❌ PollDisplay: Erro ao buscar enquete:', error);
-        throw error;
-      }
-
-      if (data) {
+    const handlePollActive = (data: any) => {
+      const poll = data.poll;
+      if (poll) {
         console.log('✅ PollDisplay: Enquete encontrada:', {
-          id: data.id,
-          question: data.question,
-          is_active: data.is_active,
-          is_pinned: data.is_pinned
+          id: poll.id,
+          question: poll.question,
+          is_active: poll.is_active,
+          is_pinned: poll.is_pinned
         });
-        setActivePoll(data);
-        await loadPollResults(data.id);
-        await checkUserVote(data.id);
+        setActivePoll(poll);
+        // Carregar resultados e verificar voto
+        emit('poll-get-results', { pollId: poll.id });
+        const sessionId = getSessionId();
+        emit('poll-check-vote', {
+          pollId: poll.id,
+          userId: user?.id || null,
+          sessionId: user?.id ? null : sessionId
+        });
       } else {
         console.log('⚠️ PollDisplay: Nenhuma enquete ativa e fixada encontrada');
         setActivePoll(null);
@@ -159,89 +89,142 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId }) => {
         setTotalVotes(0);
         setHasVoted(false);
       }
-    } catch (error: any) {
-      console.error('❌ PollDisplay: Erro ao carregar enquete:', error);
-    }
-  };
+    };
 
-  const loadPollResults = async (pollId: string) => {
-    try {
-      const { data, error } = await supabase.rpc('get_poll_results', {
-        p_poll_id: pollId
-      });
+    on('poll-active', handlePollActive);
 
-      if (error) throw error;
+    return () => {
+      off('poll-active', handlePollActive);
+    };
+  }, [isConnected, user?.id, on, off, emit]);
 
-      if (data && data.success) {
+  // Escutar atualizações de enquetes via Socket.io
+  useEffect(() => {
+    if (!isConnected || !streamId) return;
+
+    const handlePollUpdated = (data: any) => {
+      console.log('🔄 PollDisplay: Enquete atualizada via Socket.io:', data.eventType, data.poll?.id, data.poll?.is_pinned);
+
+      const updatedPoll = data.poll;
+
+      // Se foi deletada, limpar enquete ativa
+      if (data.eventType === 'DELETE') {
+        const deletedId = data.pollId || data.poll?.id;
+        console.log('🗑️ PollDisplay: Enquete deletada, limpando exibição:', deletedId);
+        if (deletedId === activePoll?.id || !deletedId) {
+          setActivePoll(null);
+          setResults([]);
+          setTotalVotes(0);
+          setHasVoted(false);
+        }
+        return;
+      }
+
+      // Se a atualização é da mesma stream, buscar enquete ativa para garantir sincronização
+      if (updatedPoll?.stream_id === streamId) {
+        console.log('🔄 PollDisplay: Atualização na stream detectada, buscando enquete ativa');
+        // Delay maior para garantir que o banco foi atualizado completamente
+        setTimeout(() => {
+          emit('poll-get-active', { streamId });
+        }, 200);
+      }
+    };
+
+    const handlePollVoteUpdated = (data: any) => {
+      console.log('🔄 PollDisplay: Voto atualizado via Socket.io:', data.pollId);
+      // Atualizar resultados se for da enquete ativa
+      if (data.pollId === activePoll?.id) {
         setResults(data.results || []);
         setTotalVotes(data.total_votes || 0);
       }
-    } catch (error: any) {
-      console.error('Erro ao carregar resultados:', error);
-    }
-  };
+    };
 
-  const checkUserVote = async (pollId: string) => {
-    try {
-      const sessionId = getSessionId();
-      const { data, error } = await supabase.rpc('has_user_voted', {
-        p_poll_id: pollId,
-        p_user_id: user?.id || null,
-        p_session_id: user?.id ? null : sessionId
-      });
+    on('poll-updated', handlePollUpdated);
+    on('poll-vote-updated', handlePollVoteUpdated);
 
-      if (error) throw error;
+    return () => {
+      off('poll-updated', handlePollUpdated);
+      off('poll-vote-updated', handlePollVoteUpdated);
+    };
+  }, [isConnected, activePoll?.id, streamId, user?.id, on, off, emit]);
 
-      setHasVoted(data || false);
+  // Escutar resultados da enquete
+  useEffect(() => {
+    if (!isConnected || !activePoll?.id) return;
 
-      // Se já votou, descobrir qual opção
-      if (data) {
-        const { data: voteData } = await supabase
-          .from('poll_votes')
-          .select('option_id')
-          .eq('poll_id', pollId)
-          .eq(user?.id ? 'user_id' : 'session_id', user?.id || sessionId)
-          .single();
-
-        if (voteData) {
-          setUserVote(voteData.option_id);
-        }
+    const handlePollResults = (data: any) => {
+      if (data.pollId === activePoll.id) {
+        setResults(data.results || []);
+        setTotalVotes(data.total_votes || 0);
       }
-    } catch (error: any) {
-      console.error('Erro ao verificar voto:', error);
-    }
-  };
+    };
 
-  const handleVote = async (optionId: number) => {
-    if (hasVoted || isLoading) return;
+    on('poll-results', handlePollResults);
 
-    setIsLoading(true);
-    try {
-      const sessionId = getSessionId();
-      const { data, error } = await supabase.rpc('vote_on_poll', {
-        p_poll_id: activePoll!.id,
-        p_option_id: optionId,
-        p_user_id: user?.id || null,
-        p_session_id: user?.id ? null : sessionId
-      });
+    return () => {
+      off('poll-results', handlePollResults);
+    };
+  }, [isConnected, activePoll?.id, on, off]);
 
-      if (error) throw error;
+  // Escutar status de voto do usuário
+  useEffect(() => {
+    if (!isConnected || !activePoll?.id) return;
 
-      if (data && data.success) {
+    const handlePollVoteStatus = (data: any) => {
+      if (data.pollId === activePoll.id) {
+        setHasVoted(data.hasVoted || false);
+        setUserVote(data.userVote || null);
+      }
+    };
+
+    on('poll-vote-status', handlePollVoteStatus);
+
+    return () => {
+      off('poll-vote-status', handlePollVoteStatus);
+    };
+  }, [isConnected, activePoll?.id, on, off]);
+
+  // Escutar resposta de voto
+  useEffect(() => {
+    if (!isConnected || !activePoll?.id) return;
+
+    const handlePollVoted = (data: any) => {
+      if (data.pollId === activePoll.id) {
         setHasVoted(true);
-        setUserVote(optionId);
+        setUserVote(data.optionId);
         setResults(data.results || []);
         setTotalVotes(data.total_votes || 0);
         toast.success('Voto registrado!');
-      } else {
-        toast.error(data?.error || 'Erro ao votar');
+        setIsLoading(false);
       }
-    } catch (error: any) {
-      console.error('Erro ao votar:', error);
-      toast.error('Erro ao votar');
-    } finally {
+    };
+
+    const handlePollVoteError = (data: any) => {
+      toast.error(data.message || 'Erro ao votar');
       setIsLoading(false);
-    }
+    };
+
+    on('poll-voted', handlePollVoted);
+    on('poll-vote-error', handlePollVoteError);
+
+    return () => {
+      off('poll-voted', handlePollVoted);
+      off('poll-vote-error', handlePollVoteError);
+    };
+  }, [isConnected, activePoll?.id, on, off]);
+
+  const handleVote = async (optionId: number) => {
+    if (hasVoted || isLoading || !isConnected || !activePoll) return;
+
+    setIsLoading(true);
+    const sessionId = getSessionId();
+
+    emit('poll-vote', {
+      pollId: activePoll.id,
+      optionId,
+      userId: user?.id || null,
+      sessionId: user?.id ? null : sessionId
+    });
   };
 
   if (!activePoll) return null;
@@ -257,16 +240,29 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId }) => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
-        className="bg-gradient-to-r from-blue-600/20 via-blue-500/20 to-blue-600/20 backdrop-blur-md border-2 border-blue-500/40 rounded-2xl p-4 mb-4"
+        className={`bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl ${compact ? 'p-3 mb-0' : 'p-5 mb-6'
+          } shadow-2xl relative overflow-hidden group`}
       >
-        <div className="flex items-center gap-2 mb-4">
-          <BarChart3 className="w-5 h-5 text-blue-400" />
-          <h4 className="text-white font-black text-sm uppercase italic">Enquete</h4>
+        {/* Glow de fundo sutil */}
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 blur-[60px] pointer-events-none group-hover:bg-blue-500/20 transition-colors" />
+
+        <div className={`flex items-center justify-between ${compact ? 'mb-2' : 'mb-5'}`}>
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-blue-500/20 rounded-lg">
+              <BarChart3 className={compact ? 'w-3 h-3 text-blue-400' : 'w-4 h-4 text-blue-400'} />
+            </div>
+            <h4 className={`text-white font-black uppercase italic tracking-wider ${compact ? 'text-[9px]' : 'text-xs'}`}>Enquete</h4>
+          </div>
+          {totalVotes > 0 && (
+            <span className={`text-slate-500 font-bold ${compact ? 'text-[8px]' : 'text-[10px]'}`}>
+              {totalVotes} votos
+            </span>
+          )}
         </div>
 
-        <h3 className="text-white font-bold text-base mb-4">{activePoll.question}</h3>
+        <h3 className={`text-white font-bold leading-tight ${compact ? 'text-[11px] mb-3' : 'text-base mb-5'}`}>{activePoll.question}</h3>
 
-        <div className="space-y-3">
+        <div className={compact ? 'space-y-2' : 'space-y-3'}>
           {activePoll.options.map((option: any) => {
             const result = results.find(r => r.option_id === option.id);
             const votes = result?.votes || 0;
@@ -278,28 +274,28 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId }) => {
                 <button
                   onClick={() => handleVote(option.id)}
                   disabled={hasVoted || isLoading}
-                  className={`w-full text-left p-3 rounded-xl border-2 transition-all ${
-                    hasVoted
+                  className={`w-full text-left rounded-xl border transition-all relative overflow-hidden ${compact ? 'p-2' : 'p-3.5'
+                    } ${hasVoted
                       ? isUserChoice
-                        ? 'bg-blue-600/30 border-blue-500/60 cursor-default'
-                        : 'bg-slate-800/50 border-slate-700/50 cursor-default opacity-60'
-                      : 'bg-slate-800/50 border-slate-700/50 hover:border-blue-500/50 hover:bg-slate-800 cursor-pointer'
-                  }`}
+                        ? 'bg-blue-600/20 border-blue-500/40 cursor-default'
+                        : 'bg-white/5 border-white/5 cursor-default opacity-60'
+                      : 'bg-white/5 border-white/5 hover:border-blue-500/40 hover:bg-white/10 cursor-pointer active:scale-[0.98]'
+                    }`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-white font-bold text-sm">{option.text}</span>
+                  <div className={`flex items-center justify-between ${hasVoted ? 'mb-1' : ''}`}>
+                    <span className={`text-white font-bold ${compact ? 'text-[10px]' : 'text-sm'}`}>{option.text}</span>
                     {isUserChoice && (
-                      <CheckCircle2 className="w-4 h-4 text-blue-400 fill-blue-400" />
+                      <CheckCircle2 className={compact ? 'w-3 h-3 text-blue-400 fill-blue-400' : 'w-4 h-4 text-blue-400 fill-blue-400'} />
                     )}
                   </div>
-                  
+
                   {hasVoted && (
                     <div className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-300">{votes} votos</span>
-                        <span className="text-blue-400 font-bold">{percentage}%</span>
+                      <div className="flex items-center justify-between text-[10px] mb-1.5">
+                        <span className="text-slate-400 font-medium">{percentage}%</span>
+                        <span className="text-blue-400 font-bold uppercase tracking-tighter">{votes} votos</span>
                       </div>
-                      <div className="w-full bg-slate-700/50 rounded-full h-2 overflow-hidden">
+                      <div className={`w-full bg-slate-700/50 rounded-full overflow-hidden ${compact ? 'h-1' : 'h-2'}`}>
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${percentage}%` }}
@@ -316,8 +312,8 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId }) => {
         </div>
 
         {hasVoted && (
-          <div className="mt-3 pt-3 border-t border-white/10">
-            <p className="text-slate-400 text-xs text-center">
+          <div className={`${compact ? 'mt-2 pt-2' : 'mt-3 pt-3'} border-t border-white/10`}>
+            <p className="text-slate-400 text-[9px] text-center">
               Total de votos: <span className="text-blue-400 font-bold">{totalVotes}</span>
             </p>
           </div>

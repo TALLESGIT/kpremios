@@ -9,6 +9,8 @@ import AdminLivePanel from '../components/live/AdminLivePanel';
 import ModeratorManager from '../components/live/ModeratorManager';
 import ChatModerationControls from '../components/live/ChatModerationControls';
 import PollManager from '../components/live/PollManager';
+import PollDisplay from '../components/live/PollDisplay';
+import PinnedLinkOverlay from '../components/live/PinnedLinkOverlay';
 import { LiveViewer } from '../components/LiveViewer';
 
 // ✅ Memoizar LiveViewer para evitar recriações desnecessárias
@@ -515,8 +517,15 @@ const AdminLiveStreamPage: React.FC = () => {
                 <PollManager streamId={selectedStream.id} />
                 <ChatModerationControls streamId={selectedStream.id} />
               </div>
-              <div className="lg:col-span-4 h-[650px] overflow-hidden rounded-[2.5rem] border border-white/5 bg-slate-900 shadow-2xl">
-                <LiveChat streamId={selectedStream.id} isActive={selectedStream.is_active} />
+              <div className="lg:col-span-4 space-y-4">
+                {/* Enquete e Link Fixado - Admin pode visualizar */}
+                <div className="space-y-3">
+                  <PollDisplay streamId={selectedStream.id} />
+                  <PinnedLinkOverlay streamId={selectedStream.id} />
+                </div>
+                <div className="h-[650px] overflow-hidden rounded-[2.5rem] border border-white/5 bg-slate-900 shadow-2xl">
+                  <LiveChat streamId={selectedStream.id} isActive={selectedStream.is_active} />
+                </div>
               </div>
             </div>
             <ModeratorManager streamId={selectedStream.id} />

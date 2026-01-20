@@ -9,6 +9,7 @@ import VipGrantedModal from '../components/vip/VipGrantedModal';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
+import { useSocket } from '../hooks/useSocket';
 import { ChevronDown, Play, Trophy, Ticket, MonitorPlay, Calendar, MapPin, Clock, Target, MessageCircle, DollarSign, Users } from 'lucide-react';
 import { CruzeiroGame } from '../types';
 import PoolBetModal from '../components/pool/PoolBetModal';
@@ -31,11 +32,18 @@ function HomePage() {
   const [showPoolModal, setShowPoolModal] = useState(false);
   const [showVipModal, setShowVipModal] = useState(false);
   const [vipExpiresAt, setVipExpiresAt] = useState<string | undefined>();
+  const [activeStreamId, setActiveStreamId] = useState<string | null>(null);
 
   // Verificar se o usuário está logado
   const isLoggedIn = user && currentUser;
   // Verificar se é admin
   const isAdmin = currentUser?.is_admin || false;
+
+  // ✅ MIGRAÇÃO: Usar Socket.io para atualizações de bolões quando houver stream ativa
+  const { socket, isConnected, on, off, joinStream, leaveStream } = useSocket({
+    streamId: activeStreamId || undefined,
+    autoConnect: !!activeStreamId
+  });
 
   // Verificar se há sorteios ativos e carregar dados
   useEffect(() => {
@@ -46,7 +54,7 @@ function HomePage() {
     // Verificar bolão independente da live (pode haver bolão sem live ativa)
     checkActivePool();
 
-    // Subscribe para mudanças em live_streams
+    // Subscribe para mudanças em live_streams (via Realtime ainda - menos crítico)
     const liveChannel = supabase
       .channel('home-live-updates')
       .on('postgres_changes', {
@@ -60,7 +68,55 @@ function HomePage() {
       })
       .subscribe();
 
-    // Subscribe para mudanças em match_pools (bolões) - Atualização em tempo real
+    // ✅ MIGRAÇÃO: Usar Socket.io para atualizações de match_pools quando houver stream ativa
+    // Para bolões sem stream, ainda usamos queries diretas (polling ou Realtime)
+
+    // Escutar atualizações de bolões via Socket.io (quando houver stream ativa)
+    let poolUpdateHandler: ((data: any) => void) | null = null;
+    let poolBetUpdateHandler: ((data: any) => void) | null = null;
+
+    if (activeStreamId && isConnected) {
+      joinStream(activeStreamId);
+
+      // Escutar atualizações de match_pools via Socket.io
+      poolUpdateHandler = (data: { eventType: string; pool: any; oldPool: any }) => {
+        console.log('📡 HomePage: Mudança em match_pools via Socket.io:', data.eventType, data.pool?.id);
+
+        // Atualizar estado quando bolão muda
+        if (data.eventType === 'INSERT' || data.eventType === 'UPDATE') {
+          if (data.pool?.is_active && data.pool?.live_stream_id === activeStreamId) {
+            setActivePool(data.pool);
+            checkActivePools();
+          } else if (data.pool?.live_stream_id === activeStreamId && !data.pool?.is_active) {
+            // Bolão desativado
+            checkActivePool(activeStreamId);
+            checkActivePools();
+          }
+        } else if (data.eventType === 'DELETE') {
+          // Bolão deletado
+          checkActivePool(activeStreamId);
+          checkActivePools();
+        } else {
+          // Fallback: sempre verificar novamente
+          checkActivePool(activeStreamId);
+          checkActivePools();
+        }
+      };
+
+      // Escutar atualizações de pool_bets via Socket.io
+      poolBetUpdateHandler = (data: { eventType: string; bet: any; oldBet: any; poolId: string }) => {
+        console.log('📡 HomePage: Mudança em pool_bets via Socket.io:', data.eventType);
+
+        // Atualizar contador de ganhadores quando houver mudanças
+        loadPoolWinnersCount();
+      };
+
+      on('pool-updated', poolUpdateHandler);
+      on('pool-bet-updated', poolBetUpdateHandler);
+    }
+
+    // ✅ FALLBACK: Manter subscription Realtime para bolões sem stream ativa (caso raro)
+    // Isso garante que mesmo sem stream, ainda recebemos atualizações
     const poolChannel = supabase
       .channel('home-pool-updates')
       .on('postgres_changes', {
@@ -68,16 +124,17 @@ function HomePage() {
         schema: 'public',
         table: 'match_pools'
       }, (payload) => {
-        console.log('📡 Mudança detectada em match_pools:', payload.eventType, payload.new);
-
-        // Sempre verificar novamente para garantir que o estado está correto
-        // Isso garante que INSERT, UPDATE e DELETE sejam tratados corretamente
-        checkActivePool();
-        checkActivePools();
+        // Se não temos stream ativa, usar Realtime
+        if (!activeStreamId || !isConnected) {
+          console.log('📡 Mudança detectada em match_pools (Realtime fallback):', payload.eventType, payload.new);
+          checkActivePool();
+          checkActivePools();
+        }
+        // Se temos stream ativa, Socket.io já cuida disso
       })
       .subscribe();
 
-    // Subscribe para mudanças em pool_bets (ganhadores) - Atualização em tempo real
+    // ✅ FALLBACK: Manter subscription Realtime para pool_bets sem stream ativa
     const poolBetsChannel = supabase
       .channel('home-pool-bets-updates')
       .on('postgres_changes', {
@@ -85,7 +142,11 @@ function HomePage() {
         schema: 'public',
         table: 'pool_bets'
       }, () => {
-        loadPoolWinnersCount();
+        // Se não temos stream ativa, usar Realtime
+        if (!activeStreamId || !isConnected) {
+          loadPoolWinnersCount();
+        }
+        // Se temos stream ativa, Socket.io já cuida disso
       })
       .subscribe();
 
@@ -103,12 +164,24 @@ function HomePage() {
       .subscribe();
 
     return () => {
+      // Limpar listeners Socket.io
+      if (poolUpdateHandler) {
+        off('pool-updated', poolUpdateHandler);
+      }
+      if (poolBetUpdateHandler) {
+        off('pool-bet-updated', poolBetUpdateHandler);
+      }
+      if (activeStreamId) {
+        leaveStream(activeStreamId);
+      }
+
+      // Limpar subscriptions Realtime
       supabase.removeChannel(liveChannel);
       supabase.removeChannel(poolChannel);
       supabase.removeChannel(poolBetsChannel);
       supabase.removeChannel(gamesChannel);
     };
-  }, []);
+  }, [activeStreamId, isConnected, on, off, joinStream, leaveStream]);
 
   // Listener para evento de VIP concedido
   useEffect(() => {
@@ -136,10 +209,12 @@ function HomePage() {
 
       if (!error && data) {
         setHasActiveLive(true);
+        setActiveStreamId(data.id);
         // Verificar se há bolão ativo para esta live
         checkActivePool(data.id);
       } else {
         setHasActiveLive(false);
+        setActiveStreamId(null);
         // Não resetar activePool aqui - deixar checkActivePool gerenciar
         checkActivePool();
       }
@@ -152,6 +227,7 @@ function HomePage() {
 
   const checkActivePool = async (streamId?: string) => {
     try {
+      // Primeiro, tentar buscar bolão ativo para a stream específica (se fornecida)
       let query = supabase
         .from('match_pools')
         .select('*')
@@ -159,15 +235,33 @@ function HomePage() {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      // Se tem streamId específico, filtrar por ele
+      // Se tem streamId específico, PRIORIZAR bolão dessa stream
       if (streamId) {
-        query = query.eq('live_stream_id', streamId);
+        const { data: streamPool, error: streamError } = await query.eq('live_stream_id', streamId).maybeSingle();
+
+        if (!streamError && streamPool) {
+          console.log('✅ HomePage: Bolão ativo encontrado para stream atual:', {
+            id: streamPool.id,
+            match_title: streamPool.match_title,
+            is_active: streamPool.is_active,
+            stream_id: streamPool.live_stream_id
+          });
+          setActivePool(streamPool);
+          return;
+        }
       }
 
-      const { data, error } = await query.maybeSingle();
+      // Se não encontrou para a stream específica, buscar QUALQUER bolão ativo
+      const { data, error } = await supabase
+        .from('match_pools')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       if (!error && data) {
-        console.log('✅ Bolão ativo encontrado:', {
+        console.log('✅ HomePage: Bolão ativo encontrado:', {
           id: data.id,
           match_title: data.match_title,
           is_active: data.is_active,
@@ -176,14 +270,14 @@ function HomePage() {
         setActivePool(data);
       } else {
         if (error) {
-          console.error('❌ Erro ao buscar bolão:', error);
+          console.error('❌ HomePage: Erro ao buscar bolão:', error);
         } else {
-          console.log('❌ Nenhum bolão ativo encontrado');
+          console.log('❌ HomePage: Nenhum bolão ativo encontrado');
         }
         setActivePool(null);
       }
     } catch (err) {
-      console.error('Erro ao verificar bolão:', err);
+      console.error('HomePage: Erro ao verificar bolão:', err);
       setActivePool(null);
     }
   };

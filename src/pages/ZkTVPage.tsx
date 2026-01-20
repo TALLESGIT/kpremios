@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
+import { useSocket } from '../hooks/useSocket';
 import {
     Tv,
     Calendar,
@@ -24,6 +25,8 @@ import Footer from '../components/shared/Footer';
 import { LiveViewer } from '../components/LiveViewer';
 import MobileLiveControls from '../components/live/MobileLiveControls';
 import LiveChat from '../components/live/LiveChat';
+import PollDisplay from '../components/live/PollDisplay';
+import PinnedLinkOverlay from '../components/live/PinnedLinkOverlay';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import VipSubscriptionModal from '../components/vip/VipSubscriptionModal';
 import PoolBetModal from '../components/pool/PoolBetModal';
@@ -88,6 +91,12 @@ const ZkTVPage: React.FC = () => {
         const newId = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         localStorage.setItem(key, newId);
         return newId;
+    });
+
+    // ✅ MIGRAÇÃO: Usar Socket.io para atualizações de bolões quando houver stream ativa
+    const { socket, isConnected, on, off, joinStream, leaveStream } = useSocket({
+        streamId: activeStream?.id || undefined,
+        autoConnect: !!activeStream?.id && activeStream?.is_active
     });
 
     // Função para atualizar contador de viewers
@@ -307,66 +316,127 @@ const ZkTVPage: React.FC = () => {
         }
     };
 
-    // Subscribe to pool updates
+    // ✅ MIGRAÇÃO: Usar Socket.io para atualizações de bolões quando houver stream ativa
     useEffect(() => {
-        const poolChannel = supabase
-            .channel('zktv-pool-updates')
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'match_pools'
-            }, (payload) => {
-                console.log('📡 ZkTVPage: Mudança detectada em match_pools:', payload.eventType);
-                // Sempre verificar novamente para garantir que o estado está correto
+        if (!activeStream?.id || !isConnected) {
+            // Fallback: Usar Realtime se não houver stream ativa
+            const poolChannel = supabase
+                .channel('zktv-pool-updates')
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'match_pools'
+                }, (payload) => {
+                    console.log('📡 ZkTVPage: Mudança detectada em match_pools (Realtime fallback):', payload.eventType);
+                    checkActivePool();
+                    loadLastPoolResult();
+                })
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(poolChannel);
+            };
+        }
+
+        // Usar Socket.io quando houver stream ativa
+        joinStream(activeStream.id);
+
+        const handlePoolUpdate = (data: { eventType: string; pool: any; oldPool: any }) => {
+            console.log('📡 ZkTVPage: Mudança em match_pools via Socket.io:', data.eventType, data.pool?.id);
+
+            // Atualizar estado quando bolão muda
+            if (data.eventType === 'INSERT' || data.eventType === 'UPDATE') {
+                if (data.pool?.is_active) {
+                    setActivePool(data.pool);
+                } else if (data.pool?.live_stream_id === activeStream.id && !data.pool?.is_active) {
+                    // Bolão desativado para esta stream
+                    checkActivePool();
+                }
+
+                // Atualizar último resultado se tiver resultado
+                if (data.pool?.result_home_score !== null && data.pool?.result_away_score !== null) {
+                    loadLastPoolResult();
+                }
+            } else if (data.eventType === 'DELETE') {
+                // Bolão deletado
                 checkActivePool();
-                loadLastPoolResult(); // Atualizar último resultado quando houver mudanças
-            })
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(poolChannel);
-        };
-    }, []);
-
-    // Atualizar heartbeat periodicamente
-    useEffect(() => {
-        if (!activeStream?.is_active) return;
-
-        // Executar imediatamente ao montar
-        const executeHeartbeat = async () => {
-            try {
-                // Garantir que a sessão existe primeiro
-                if (activeStream?.id) {
-                    await trackViewer(activeStream.id);
-                    await supabase.rpc('update_viewer_heartbeat', { p_session_id: sessionId });
-                    updateViewerCount(activeStream.id);
-                }
-            } catch (error) {
-                console.error('Erro ao atualizar heartbeat:', error);
-                // Em caso de erro, tentar criar/atualizar a sessão
-                if (activeStream?.id) {
-                    await trackViewer(activeStream.id);
-                }
+                loadLastPoolResult();
+            } else {
+                // Fallback: sempre verificar novamente
+                checkActivePool();
+                loadLastPoolResult();
             }
         };
 
-        executeHeartbeat();
+        on('pool-updated', handlePoolUpdate);
 
-        // Depois executar a cada 30 segundos
+        return () => {
+            off('pool-updated', handlePoolUpdate);
+            leaveStream(activeStream.id);
+        };
+    }, [activeStream?.id, activeStream?.is_active, isConnected, on, off, joinStream, leaveStream]);
+
+    // ✅ OTIMIZAÇÃO: Heartbeat otimizado + randomizado para 400+ viewers
+    // Evita chamar trackViewer (upsert pesado) a cada heartbeat
+    const heartbeatInitializedRef = useRef(false);
+    useEffect(() => {
+        if (!activeStream?.is_active) {
+            heartbeatInitializedRef.current = false; // Reset quando stream fica inativa
+            return;
+        }
+
+        // ✅ Randomizar primeiro heartbeat (0-15s) para distribuir carga inicial
+        const initialDelay = Math.floor(Math.random() * 15000); // 0-15 segundos
+
+        const initialTimeout = setTimeout(async () => {
+            try {
+                if (activeStream?.id) {
+                    // ✅ Primeira vez: criar sessão com trackViewer (faz upsert completo)
+                    await trackViewer(activeStream.id);
+                    heartbeatInitializedRef.current = true;
+                    // trackViewer já atualiza last_heartbeat, não precisa do RPC
+                }
+            } catch (error) {
+                console.error('Erro ao inicializar heartbeat:', error);
+                heartbeatInitializedRef.current = false;
+            }
+        }, initialDelay);
+
+        // ✅ Randomizar intervalo (25-35s) para distribuir heartbeats contínuos
+        const baseInterval = 30000; // 30 segundos base
+        const randomOffset = Math.floor(Math.random() * 10000) - 5000; // -5 a +5 segundos
+        const interval = baseInterval + randomOffset;
+
         const heartbeatInterval = setInterval(async () => {
             try {
                 if (activeStream?.id) {
-                    await trackViewer(activeStream.id);
-                    await supabase.rpc('update_viewer_heartbeat', { p_session_id: sessionId });
-                    updateViewerCount(activeStream.id);
+                    // ✅ Depois: usar apenas RPC leve (UPDATE simples, sem SELECT/INSERT)
+                    if (heartbeatInitializedRef.current) {
+                        const { error } = await supabase.rpc('update_viewer_heartbeat', { p_session_id: sessionId });
+                        // Se RPC falhar (sessão não existe), recriar com trackViewer
+                        if (error) {
+                            console.warn('⚠️ Heartbeat RPC falhou, recriando sessão:', error.message);
+                            heartbeatInitializedRef.current = false;
+                            await trackViewer(activeStream.id);
+                            heartbeatInitializedRef.current = true;
+                        }
+                    } else {
+                        // Se ainda não inicializado, usar trackViewer
+                        await trackViewer(activeStream.id);
+                        heartbeatInitializedRef.current = true;
+                    }
                 }
             } catch (error) {
                 console.error('Erro ao atualizar heartbeat:', error);
+                heartbeatInitializedRef.current = false; // Reset para próxima tentativa
             }
-        }, 30000); // A cada 30 segundos
+        }, interval);
 
-        return () => clearInterval(heartbeatInterval);
-    }, [activeStream?.id, activeStream?.is_active, sessionId, updateViewerCount, trackViewer]);
+        return () => {
+            clearTimeout(initialTimeout);
+            clearInterval(heartbeatInterval);
+        };
+    }, [activeStream?.id, activeStream?.is_active, sessionId, trackViewer]);
 
     // Sincronizar ref com state
     useEffect(() => {
@@ -764,6 +834,23 @@ const ZkTVPage: React.FC = () => {
         };
     }, []);
 
+    // 🔍 DEBUG: Log para identificar qual chat está sendo renderizado
+    useEffect(() => {
+        console.log('🔍 ZkTVPage Chat Rendering State:', {
+            isFullscreen,
+            isMobile,
+            isChatOpen,
+            isDockedChat,
+            isLandscape,
+            isLiveActive,
+            hasActiveStream: !!activeStream,
+            // Condições de renderização
+            shouldRenderDesktopFullscreen: isLiveActive && isFullscreen && !isMobile && isChatOpen && !!activeStream,
+            shouldRenderMobileDocked: isMobile && isFullscreen && isLandscape && isDockedChat && !!activeStream,
+            shouldRenderOverlay: isChatOpen && !!activeStream && !isDockedChat && !isFullscreen
+        });
+    }, [isFullscreen, isMobile, isChatOpen, isDockedChat, isLandscape, isLiveActive, activeStream]);
+
     return (
         <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-blue-500/30">
             <Header />
@@ -874,6 +961,52 @@ const ZkTVPage: React.FC = () => {
                                             fitMode={videoFitMode}
                                             showOfflineMessage={false}
                                         />
+
+                                        {/* Mensagem de Transmissão Encerrada */}
+                                        {!activeStream.is_active && (
+                                            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center z-30">
+                                                <div className="text-center px-6 max-w-2xl animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                                                    {/* Icon */}
+                                                    <div className="mb-8 relative">
+                                                        <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full"></div>
+                                                        <div className="relative text-8xl animate-pulse">📺</div>
+                                                    </div>
+
+                                                    {/* Title */}
+                                                    <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-4 tracking-tight">
+                                                        Transmissão Encerrada
+                                                    </h2>
+
+                                                    {/* Message */}
+                                                    <p className="text-lg sm:text-xl text-blue-200 mb-8 leading-relaxed">
+                                                        A transmissão ao vivo foi finalizada. 🎬<br />
+                                                        Obrigado por assistir! ⚽✨
+                                                    </p>
+
+                                                    {/* CTA */}
+                                                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                                                        <button
+                                                            onClick={() => window.location.reload()}
+                                                            className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl transition-all shadow-xl shadow-blue-600/30 hover:scale-105"
+                                                        >
+                                                            🔄 Recarregar Página
+                                                        </button>
+                                                        <a
+                                                            href="/"
+                                                            className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl transition-all border border-white/20"
+                                                        >
+                                                            🏠 Voltar ao Início
+                                                        </a>
+                                                    </div>
+
+                                                    {/* Footer */}
+                                                    <p className="mt-8 text-sm text-slate-400">
+                                                        Fique ligado nas próximas transmissões! 🔔
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {/* Overlay de mensagens VIP na tela - só mostra se realmente ativa */}
                                         {activeStream.is_active && activeStream.id && (
                                             <VipMessageOverlay streamId={activeStream.id} isActive={activeStream.is_active} />
@@ -961,16 +1094,30 @@ const ZkTVPage: React.FC = () => {
                                     </div>
                                 )}
 
+
+                                {/* Desktop Fullscreen - Sidebar Lateral (Chat + Enquete) - Estilo CazéTV */}
+                                {isFullscreen && !isMobile && isChatOpen && activeStream && (
+                                    <div className="absolute right-4 top-4 bottom-4 z-50 w-[320px] flex flex-col gap-3 pointer-events-auto">
+                                        <div className="flex-[3] min-h-0 bg-black/80 backdrop-blur-md rounded-2xl p-2 border border-white/10 overflow-hidden shadow-2xl">
+                                            <LiveChat key="chat-fullscreen-desktop" streamId={activeStream.id} isActive={activeStream.is_active} showHeader={false} />
+                                        </div>
+                                        <div className="flex-[1] min-h-0 pointer-events-auto bg-black/80 backdrop-blur-md rounded-2xl p-3 space-y-2 overflow-y-auto border border-white/10 custom-scrollbar shadow-2xl">
+                                            <PollDisplay streamId={activeStream.id} compact={true} />
+                                            <PinnedLinkOverlay streamId={activeStream.id} />
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Controles Mobile e Desktop */}
                                 {isLiveActive && (
                                     <>
-                                        {/* Botão Chat Desktop */}
+                                        {/* Botão Chat Desktop - Sempre visível em fullscreen */}
                                         {!isMobile && (
                                             <button
                                                 onClick={() => setIsChatOpen(!isChatOpen)}
-                                                className={`absolute bottom-4 left-4 p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all z-10 group ${showControls ? 'opacity-100' : 'opacity-0'
+                                                className={`absolute bottom-4 left-4 p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all z-10 group ${isFullscreen ? 'opacity-100' : (showControls ? 'opacity-100' : 'opacity-0')
                                                     }`}
-                                                title="Abrir chat"
+                                                title={isChatOpen ? "Fechar chat" : "Abrir chat"}
                                             >
                                                 <MessageSquare className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
                                             </button>
@@ -1049,33 +1196,14 @@ const ZkTVPage: React.FC = () => {
                             {/* Chat Docked (Mobile Fullscreen Landscape) - Aumentado para melhor visualização */}
                             {isMobile && isFullscreen && isLandscape && isDockedChat && activeStream && (
                                 <div className="w-[400px] min-w-[350px] max-w-[45vw] h-full bg-black/90 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl">
-                                    <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                                        <span className="text-xs font-black text-white uppercase italic tracking-widest">Chat ao Vivo</span>
-                                        <button onClick={() => setIsDockedChat(false)} className="p-1 hover:bg-white/10 rounded transition-colors">
-                                            <X className="w-5 h-5 text-white" />
-                                        </button>
-                                    </div>
                                     <div className="flex-1 overflow-hidden flex flex-col">
-                                        {activePool && (
-                                            <div className="p-3 bg-emerald-600/20 border-b border-emerald-500/20 flex flex-col gap-2 shrink-0">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-emerald-400 font-bold text-xs uppercase tracking-wider flex items-center gap-2">
-                                                        <Target className="w-3 h-3" />
-                                                        Bolão Ativo
-                                                    </span>
-                                                    <span className="text-white font-bold text-xs truncate max-w-[150px]">{activePool.match_title}</span>
-                                                </div>
-                                                <button
-                                                    onClick={() => setShowPoolModal(true)}
-                                                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors shadow-lg shadow-emerald-600/20 relative"
-                                                >
-                                                    <span className="relative z-10">PARTICIPAR AGORA</span>
-                                                    <span className="absolute inset-0 rounded-lg bg-emerald-400 opacity-20 animate-ping"></span>
-                                                </button>
-                                            </div>
-                                        )}
                                         <div className="flex-1 overflow-hidden">
-                                            <LiveChat streamId={activeStream.id} />
+                                            <LiveChat key="chat-mobile-docked" streamId={activeStream.id} showHeader={false} />
+                                        </div>
+                                        {/* Enquete em destaque no mobile landscape - Estilo CazéTV */}
+                                        <div className="px-3 py-2 border-t border-white/10 bg-black/40">
+                                            <PollDisplay streamId={activeStream.id} compact={true} />
+                                            <PinnedLinkOverlay streamId={activeStream.id} />
                                         </div>
                                     </div>
                                 </div>
@@ -1085,35 +1213,20 @@ const ZkTVPage: React.FC = () => {
                 </div>
             </section>
 
-            {/* Chat Overlay (Desktop e Mobile não fullscreen) */}
-            {isChatOpen && activeStream && !isDockedChat && (
-                <div className="fixed inset-0 md:inset-auto md:right-0 md:top-0 md:bottom-0 md:w-[450px] bg-black/95 backdrop-blur-md border-l border-white/10 z-[9999] flex flex-col shadow-2xl">
+            {/* Chat Overlay (Desktop e Mobile não fullscreen) - NÃO renderizar se estiver em fullscreen */}
+            {isChatOpen && activeStream && !isDockedChat && !isFullscreen && (
+                <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[450px] bg-black/95 backdrop-blur-md border-l border-white/10 z-[9999] flex flex-col shadow-2xl">
                     <div className="p-4 border-b border-white/10 flex items-center justify-between">
                         <span className="text-sm font-black text-white uppercase italic tracking-widest">Chat da Transmissão</span>
                         <button onClick={() => setIsChatOpen(false)}>
                             <X className="w-5 h-5 text-white" />
                         </button>
                     </div>
-                    <div className="flex-1 overflow-hidden flex flex-col">
-                        {activePool && (
-                            <div className="p-3 bg-emerald-600/20 border-b border-emerald-500/20 flex flex-col gap-2 shrink-0">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-emerald-400 font-bold text-xs uppercase tracking-wider flex items-center gap-2">
-                                        <Target className="w-3 h-3" />
-                                        Bolão Ativo
-                                    </span>
-                                    <span className="text-white font-bold text-xs truncate max-w-[150px]">{activePool.match_title}</span>
-                                </div>
-                                <button
-                                    onClick={() => setShowPoolModal(true)}
-                                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors shadow-lg shadow-emerald-600/20"
-                                >
-                                    PARTICIPAR AGORA
-                                </button>
-                            </div>
-                        )}
-                        <div className="flex-1 overflow-hidden">
-                            <LiveChat streamId={activeStream.id} />
+                    <div className="flex-1 overflow-hidden flex flex-col p-2 space-y-3">
+                        <PollDisplay streamId={activeStream.id} compact={true} />
+                        <PinnedLinkOverlay streamId={activeStream.id} />
+                        <div className="flex-1 min-h-0 bg-slate-900/50 rounded-2xl overflow-hidden border border-white/5">
+                            <LiveChat key="chat-overlay" streamId={activeStream.id} />
                         </div>
                     </div>
                 </div>
@@ -1244,7 +1357,12 @@ const ZkTVPage: React.FC = () => {
                                                                 </div>
                                                                 <div className="min-w-0 flex-1">
                                                                     <div className="text-xs sm:text-sm font-bold text-blue-500 mb-1 truncate">{game.competition}</div>
-                                                                    <div className="text-sm sm:text-base lg:text-xl font-black break-words">Cruzeiro <span className="text-slate-600 mx-1 sm:mx-2">VS</span> {game.opponent}</div>
+                                                                    {/* Mobile: duas linhas | Desktop: uma linha */}
+                                                                    <div className="text-sm sm:text-base lg:text-xl font-black text-center sm:text-left">
+                                                                        <span className="block sm:inline">Cruzeiro</span>
+                                                                        <span className="text-slate-600 mx-1 sm:mx-2 block sm:inline">x</span>
+                                                                        <span className="block sm:inline">{game.opponent}</span>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                             <div className="text-right flex-shrink-0">

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 import { Volume2 } from 'lucide-react';
 import googleTtsService from '../../services/googleTtsService';
+import { useSocket } from '../../hooks/useSocket';
 
 // Função para obter classes CSS baseadas na cor escolhida
 const getVipColorClasses = (colorValue: string) => {
@@ -105,21 +106,27 @@ const RATE_LIMIT_WINDOW = 60000; // Janela de 1 minuto para rate limiting
 
 const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActive }) => {
   console.log('🎬 VipMessageOverlay: Componente renderizado', { streamId, isActive });
-  
+
+  // ✅ MIGRAÇÃO: Usar Socket.io para escutar novas mensagens
+  const { socket, isConnected, on, off, joinStream, leaveStream } = useSocket({
+    streamId: isActive ? streamId : undefined,
+    autoConnect: isActive
+  });
+
   const [currentMessage, setCurrentMessage] = useState<VipMessage | null>(null);
   const [userRoles, setUserRoles] = useState<{ [userId: string]: { isVip: boolean; vipColor?: string } }>({});
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [overlayMessagesCount, setOverlayMessagesCount] = useState(0);
   const [queueWaitTime, setQueueWaitTime] = useState<number | null>(null);
   const userRolesRef = useRef<{ [userId: string]: { isVip: boolean; vipColor?: string } }>({});
-  
+
   // FILA DE MENSAGENS VIP - Processa uma de cada vez
   const messageQueueRef = useRef<VipMessage[]>([]);
   const isProcessingQueueRef = useRef(false);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const videoVolumeBeforeTTSRef = useRef<number | null>(null);
   const lastMessageProcessedAtRef = useRef<number>(0); // Timestamp da última mensagem processada
-  
+
   // MELHORIAS: Controle de rate limiting e limite por usuário
   const messagesInLastMinuteRef = useRef<Array<{ timestamp: number }>>([]); // Mensagens nos últimos 60 segundos
   const lastMessagePerUserRef = useRef<{ [userId: string]: number }>({}); // Última mensagem de cada usuário
@@ -216,14 +223,14 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
         // Tentar reproduzir com tratamento de erro robusto
         try {
           console.log('🔊 VipMessageOverlay: Tentando reproduzir áudio TTS...');
-          
+
           // Configurar áudio para melhor compatibilidade
           audio.preload = 'auto';
           audio.crossOrigin = 'anonymous';
-          
+
           // Tentar reproduzir diretamente
           const playPromise = audio.play();
-          
+
           if (playPromise !== undefined) {
             await playPromise;
             console.log('✅ VipMessageOverlay: Áudio TTS iniciado com sucesso');
@@ -231,10 +238,10 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
         } catch (playError: any) {
           // Se falhar por autoplay policy, tentar múltiplas estratégias
           console.warn('⚠️ VipMessageOverlay: Autoplay bloqueado, tentando estratégias alternativas...', playError);
-          
+
           // Estratégia 1: Aguardar e tentar novamente
           await new Promise(resolve => setTimeout(resolve, 300));
-          
+
           try {
             const retryPromise = audio.play();
             if (retryPromise !== undefined) {
@@ -243,26 +250,11 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
             }
           } catch (retryError1: any) {
             console.warn('⚠️ VipMessageOverlay: Retry 1 falhou, tentando estratégia 2...', retryError1);
-            
-            // Estratégia 2: Tentar com interação do usuário simulada
+
+            // Estratégia 2: Aguardar mais tempo e tentar novamente
+            await new Promise(resolve => setTimeout(resolve, 500));
+
             try {
-              // Criar um botão invisível para "desbloquear" autoplay
-              const unlockButton = document.createElement('button');
-              unlockButton.style.display = 'none';
-              unlockButton.onclick = async () => {
-                try {
-                  await audio.play();
-                  console.log('✅ VipMessageOverlay: Áudio TTS iniciado (após interação simulada)');
-                } catch (e) {
-                  console.error('❌ VipMessageOverlay: Falha mesmo com interação:', e);
-                }
-              };
-              document.body.appendChild(unlockButton);
-              unlockButton.click();
-              document.body.removeChild(unlockButton);
-              
-              // Aguardar um pouco e tentar novamente
-              await new Promise(resolve => setTimeout(resolve, 200));
               const finalPromise = audio.play();
               if (finalPromise !== undefined) {
                 await finalPromise;
@@ -301,15 +293,15 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
     // Verificar intervalo mínimo desde a última mensagem
     const now = Date.now();
     const timeSinceLastMessage = now - lastMessageProcessedAtRef.current;
-    
+
     if (timeSinceLastMessage < MIN_INTERVAL_BETWEEN_MESSAGES) {
       const waitTime = MIN_INTERVAL_BETWEEN_MESSAGES - timeSinceLastMessage;
       const waitSeconds = Math.ceil(waitTime / 1000);
       console.log(`⏳ Aguardando ${waitSeconds}s antes de processar próxima mensagem...`);
-      
+
       // Atualizar indicador visual de espera
       setQueueWaitTime(waitSeconds);
-      
+
       // Atualizar contador a cada segundo (apenas se houver mensagem atual sendo exibida)
       let remainingSeconds = waitSeconds;
       const intervalId = setInterval(() => {
@@ -321,7 +313,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
           clearInterval(intervalId);
         }
       }, 1000);
-      
+
       // Aguardar o intervalo mínimo antes de processar
       setTimeout(() => {
         clearInterval(intervalId);
@@ -330,7 +322,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
       }, waitTime);
       return;
     }
-    
+
     // Se não precisa esperar, limpar indicador
     setQueueWaitTime(null);
 
@@ -362,7 +354,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
       try {
         // Pequeno delay para garantir que o overlay apareceu
         await new Promise(resolve => setTimeout(resolve, 300));
-        
+
         // Reproduzir TTS
         await playTTS(message.tts_text);
       } catch (error) {
@@ -382,7 +374,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
     setCurrentMessage(null);
 
     // Determinar intervalo de cooldown baseado no tipo de mensagem
-    const cooldownInterval = message.message_type === 'tts' 
+    const cooldownInterval = message.message_type === 'tts'
       ? MIN_INTERVAL_AFTER_TTS  // 3 segundos após TTS
       : MIN_INTERVAL_AFTER_TEXT; // 2 segundos após texto
 
@@ -393,7 +385,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
 
     // Processar próxima mensagem da fila
     isProcessingQueueRef.current = false;
-    
+
     // Processar próxima mensagem
     processMessageQueue();
   };
@@ -452,241 +444,230 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
       return;
     }
 
-    console.log(`🔌 VipMessageOverlay: Iniciando conexão Realtime para stream: ${streamId}`);
+    console.log(`🔌 VipMessageOverlay: Iniciando conexão Socket.io para stream: ${streamId}`);
 
-    // Escutar novas mensagens em tempo real (sem filtro de user_id para aparecer para todos)
-    const channel = supabase.channel(`vip_overlay_${streamId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'live_chat_messages',
-        filter: `stream_id=eq.${streamId}`
-      }, async (payload) => {
-        const newMsg = payload.new as any;
+    // ✅ MIGRAÇÃO: Escutar novas mensagens via Socket.io (evento 'new-message')
+    const handleNewMessage = async (newMsg: any) => {
 
-        console.log('📨 VipMessageOverlay: Nova mensagem recebida via Realtime (TODOS devem ver):', {
-          id: newMsg.id,
-          user_id: newMsg.user_id,
-          message_type: newMsg.message_type,
-          stream_id: newMsg.stream_id,
-          message: newMsg.message?.substring(0, 50) + '...',
-          user_name: newMsg.user_name,
-          is_vip_field: newMsg.is_vip
-        });
+      console.log('📨 VipMessageOverlay: Nova mensagem recebida via Realtime (TODOS devem ver):', {
+        id: newMsg.id,
+        user_id: newMsg.user_id,
+        message_type: newMsg.message_type,
+        stream_id: newMsg.stream_id,
+        message: newMsg.message?.substring(0, 50) + '...',
+        user_name: newMsg.user_name,
+        is_vip_field: newMsg.is_vip
+      });
 
-        // IMPORTANTE: Se for mensagem TTS, deve aparecer para TODOS, independente de verificação VIP
-        const isTtsMessage = newMsg.message_type === 'tts';
-        
-        // Verificar se o usuário é VIP (apenas se não for TTS, pois TTS já é garantido)
-        let isVip = false;
-        if (newMsg.user_id && !isTtsMessage) {
-          // Verificar primeiro no cache
-          isVip = userRolesRef.current[newMsg.user_id]?.isVip;
+      // IMPORTANTE: Se for mensagem TTS, deve aparecer para TODOS, independente de verificação VIP
+      const isTtsMessage = newMsg.message_type === 'tts';
 
-          // Se não temos no cache, buscar diretamente
-          if (isVip === undefined) {
-            try {
-              // Tentar via RPC seguro (acessível para anônimos)
-              const { data, error } = await supabase.rpc('public_get_vip_status', {
-                p_user_id: newMsg.user_id
-              });
+      // Verificar se o usuário é VIP (apenas se não for TTS, pois TTS já é garantido)
+      let isVip = false;
+      if (newMsg.user_id && !isTtsMessage) {
+        // Verificar primeiro no cache
+        isVip = userRolesRef.current[newMsg.user_id]?.isVip;
 
-              if (error) {
-                // Fallback: tentar consulta direta (pode falhar para anônimos, mas tentamos)
-                console.warn('RPC public_get_vip_status falhou, tentando fallback...', error);
+        // Se não temos no cache, buscar diretamente
+        if (isVip === undefined) {
+          try {
+            // Tentar via RPC seguro (acessível para anônimos)
+            const { data, error } = await supabase.rpc('public_get_vip_status', {
+              p_user_id: newMsg.user_id
+            });
+
+            if (error) {
+              // Fallback: tentar consulta direta (pode falhar para anônimos, mas tentamos)
+              console.warn('RPC public_get_vip_status falhou, tentando fallback...', error);
+              try {
+                const { data: userData, error: userError } = await supabase
+                  .from('users')
+                  .select('is_vip, vip_color')
+                  .eq('id', newMsg.user_id)
+                  .single();
+
+                if (userError) {
+                  console.warn('Consulta direta também falhou (pode ser usuário anônimo):', userError);
+                  isVip = false;
+                } else {
+                  isVip = userData?.is_vip || false;
+                  // Atualizar cache com cor VIP
+                  setUserRoles(prev => ({
+                    ...prev,
+                    [newMsg.user_id]: {
+                      isVip: isVip || false,
+                      vipColor: userData?.vip_color || 'purple'
+                    }
+                  }));
+                }
+              } catch (fallbackErr) {
+                console.error('Erro no fallback de verificação VIP:', fallbackErr);
+                isVip = false;
+              }
+            } else {
+              isVip = data || false;
+              // Buscar cor VIP se for VIP
+              if (isVip) {
                 try {
-                  const { data: userData, error: userError } = await supabase
+                  const { data: userData } = await supabase
                     .from('users')
-                    .select('is_vip, vip_color')
+                    .select('vip_color')
                     .eq('id', newMsg.user_id)
                     .single();
 
-                  if (userError) {
-                    console.warn('Consulta direta também falhou (pode ser usuário anônimo):', userError);
-                    isVip = false;
-                  } else {
-                    isVip = userData?.is_vip || false;
-                    // Atualizar cache com cor VIP
-                    setUserRoles(prev => ({ 
-                      ...prev, 
-                      [newMsg.user_id]: { 
-                        isVip: isVip || false,
-                        vipColor: userData?.vip_color || 'purple'
-                      } 
+                  if (userData?.vip_color) {
+                    setUserRoles(prev => ({
+                      ...prev,
+                      [newMsg.user_id]: {
+                        isVip: true,
+                        vipColor: userData.vip_color
+                      }
                     }));
                   }
-                } catch (fallbackErr) {
-                  console.error('Erro no fallback de verificação VIP:', fallbackErr);
-                  isVip = false;
-                }
-              } else {
-                isVip = data || false;
-                // Buscar cor VIP se for VIP
-                if (isVip) {
-                  try {
-                    const { data: userData } = await supabase
-                      .from('users')
-                      .select('vip_color')
-                      .eq('id', newMsg.user_id)
-                      .single();
-                    
-                    if (userData?.vip_color) {
-                      setUserRoles(prev => ({ 
-                        ...prev, 
-                        [newMsg.user_id]: { 
-                          isVip: true,
-                          vipColor: userData.vip_color
-                        } 
-                      }));
-                    }
-                  } catch (err) {
-                    console.error('Erro ao buscar cor VIP:', err);
-                  }
+                } catch (err) {
+                  console.error('Erro ao buscar cor VIP:', err);
                 }
               }
-
-              // Atualizar cache se ainda não foi atualizado
-              if (!userRolesRef.current[newMsg.user_id]) {
-                setUserRoles(prev => ({ 
-                  ...prev, 
-                  [newMsg.user_id]: { 
-                    isVip: isVip || false,
-                    vipColor: prev[newMsg.user_id]?.vipColor || 'purple'
-                  } 
-                }));
-              }
-              
-              console.log(`✅ Status VIP verificado para ${newMsg.user_id}: ${isVip}`);
-            } catch (err) {
-              console.error('Erro ao verificar VIP:', err);
-              // Fallback seguro: assumir false para evitar erros
-              isVip = false;
             }
-          } else {
-            console.log(`✅ VipMessageOverlay: Status VIP do cache para ${newMsg.user_id}: ${isVip}`);
+
+            // Atualizar cache se ainda não foi atualizado
+            if (!userRolesRef.current[newMsg.user_id]) {
+              setUserRoles(prev => ({
+                ...prev,
+                [newMsg.user_id]: {
+                  isVip: isVip || false,
+                  vipColor: prev[newMsg.user_id]?.vipColor || 'purple'
+                }
+              }));
+            }
+
+            console.log(`✅ Status VIP verificado para ${newMsg.user_id}: ${isVip}`);
+          } catch (err) {
+            console.error('Erro ao verificar VIP:', err);
+            // Fallback seguro: assumir false para evitar erros
+            isVip = false;
           }
-        }
-          
-        console.log('🔍 VipMessageOverlay: Decisão de exibição:', {
-          isVip,
-          isTtsMessage,
-          shouldShow: isVip || isTtsMessage,
-          message_type: newMsg.message_type,
-          user_id: newMsg.user_id
-        });
-
-        // Se for VIP OU se for mensagem TTS, processar para overlay
-        // IMPORTANTE: Mensagens TTS devem aparecer para TODOS os usuários
-        if (isVip || isTtsMessage) {
-          console.log('✅ VipMessageOverlay: Mensagem será exibida (VIP ou TTS)');
-            
-          // Verificar quantas mensagens VIP já apareceram na tela
-          const { data: currentCount, error: countError } = await supabase.rpc('count_vip_overlay_messages', {
-            p_stream_id: streamId
-          });
-
-          const messagesShown = countError ? overlayMessagesCount : (currentCount || 0);
-
-          // Se já mostrou 10 mensagens, não mostrar mais
-          if (messagesShown >= 10) {
-            console.log('⚠️ VipMessageOverlay: Limite de mensagens VIP na tela atingido (10/10)');
-            return;
-          }
-
-          // MELHORIA 1: Verificar limite por usuário (cada VIP só pode enviar 1 mensagem por minuto)
-          const now = Date.now();
-          const lastMessageFromUser = lastMessagePerUserRef.current[newMsg.user_id];
-          
-          if (lastMessageFromUser && (now - lastMessageFromUser) < MIN_INTERVAL_PER_USER) {
-            const waitTime = Math.ceil((MIN_INTERVAL_PER_USER - (now - lastMessageFromUser)) / 1000);
-            console.log(`⏳ VipMessageOverlay: Usuário ${newMsg.user_name} precisa aguardar ${waitTime}s antes de enviar outra mensagem VIP`);
-            return; // Ignorar mensagem - usuário enviou muito recentemente
-          }
-
-          // MELHORIA 2: Verificar rate limiting global (máximo X mensagens por minuto)
-          // Limpar mensagens antigas (fora da janela de 1 minuto)
-          const oneMinuteAgo = now - RATE_LIMIT_WINDOW;
-          messagesInLastMinuteRef.current = messagesInLastMinuteRef.current.filter(
-            msg => msg.timestamp > oneMinuteAgo
-          );
-
-          // Verificar se excedeu o limite
-          if (messagesInLastMinuteRef.current.length >= MAX_VIP_MESSAGES_PER_MINUTE) {
-            const oldestMessage = messagesInLastMinuteRef.current[0];
-            const waitTime = Math.ceil((oldestMessage.timestamp + RATE_LIMIT_WINDOW - now) / 1000);
-            console.log(`⏳ VipMessageOverlay: Rate limit atingido (${MAX_VIP_MESSAGES_PER_MINUTE} mensagens/minuto). Aguarde ${waitTime}s`);
-            return; // Ignorar mensagem - limite global atingido
-          }
-
-          // MELHORIA 3: Mensagens TTS têm prioridade (adicionar no início da fila)
-          // Mensagens normais vão para o final da fila
-          const isTtsMessage = newMsg.message_type === 'tts' || newMsg.message_type === 'audio';
-          
-          const truncatedMsg = truncateMessage(newMsg.message);
-          // Buscar cor VIP do cache ou usar padrão
-          const vipColor = userRolesRef.current[newMsg.user_id]?.vipColor || 'purple';
-          
-          const messageData: VipMessage = {
-            id: newMsg.id,
-            user_id: newMsg.user_id,
-            message: truncatedMsg,
-            user_name: newMsg.user_name || newMsg.user_email?.split('@')[0] || 'VIP',
-            user_email: newMsg.user_email,
-            created_at: newMsg.created_at,
-            message_type: newMsg.message_type || 'text',
-            tts_text: newMsg.tts_text || newMsg.message,
-            audio_duration: newMsg.audio_duration,
-            vip_color: vipColor
-          };
-
-          console.log('➕ VipMessageOverlay: Adicionando mensagem VIP à fila:', {
-            id: messageData.id,
-            user_name: messageData.user_name,
-            message_type: messageData.message_type,
-            message_preview: messageData.message.substring(0, 30) + '...',
-            isTts: isTtsMessage,
-            priority: isTtsMessage ? 'high' : 'normal'
-          });
-
-          // Adicionar à fila (TTS no início, texto no final)
-          if (isTtsMessage) {
-            messageQueueRef.current.unshift(messageData); // Prioridade: início da fila
-          } else {
-            messageQueueRef.current.push(messageData); // Normal: final da fila
-          }
-
-          // Atualizar controles de rate limiting
-          messagesInLastMinuteRef.current.push({ timestamp: now });
-          lastMessagePerUserRef.current[newMsg.user_id] = now;
-
-          // Processar fila se não estiver processando
-          if (!isProcessingQueueRef.current) {
-            processMessageQueue();
-          }
-          
-          setOverlayMessagesCount(messagesShown + 1);
         } else {
-          console.log('❌ VipMessageOverlay: Usuário NÃO é VIP, ignorando mensagem para overlay');
+          console.log(`✅ VipMessageOverlay: Status VIP do cache para ${newMsg.user_id}: ${isVip}`);
         }
-      })
-      .subscribe((status) => {
-        console.log(`📡 VipMessageOverlay: Status da conexão Realtime: ${status}`, { streamId });
-        if (status === 'CHANNEL_ERROR') {
-          console.error('❌ VipMessageOverlay: Erro no canal Realtime', { streamId });
-        }
-        if (status === 'TIMED_OUT') {
-          console.warn('⚠️ VipMessageOverlay: Conexão Realtime expirou', { streamId });
-        }
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ VipMessageOverlay: Conectado ao Realtime com sucesso', { streamId });
-        }
+      }
+
+      console.log('🔍 VipMessageOverlay: Decisão de exibição:', {
+        isVip,
+        isTtsMessage,
+        shouldShow: isVip || isTtsMessage,
+        message_type: newMsg.message_type,
+        user_id: newMsg.user_id
       });
 
-    return () => {
-      console.log(`🔌 VipMessageOverlay: Fechando canal Realtime`, { streamId });
-      supabase.removeChannel(channel);
+      // Se for VIP OU se for mensagem TTS, processar para overlay
+      // IMPORTANTE: Mensagens TTS devem aparecer para TODOS os usuários
+      if (isVip || isTtsMessage) {
+        console.log('✅ VipMessageOverlay: Mensagem será exibida (VIP ou TTS)');
+
+        // Verificar quantas mensagens VIP já apareceram na tela
+        const { data: currentCount, error: countError } = await supabase.rpc('count_vip_overlay_messages', {
+          p_stream_id: streamId
+        });
+
+        const messagesShown = countError ? overlayMessagesCount : (currentCount || 0);
+
+        // Se já mostrou 10 mensagens, não mostrar mais
+        if (messagesShown >= 10) {
+          console.log('⚠️ VipMessageOverlay: Limite de mensagens VIP na tela atingido (10/10)');
+          return;
+        }
+
+        // MELHORIA 1: Verificar limite por usuário (cada VIP só pode enviar 1 mensagem por minuto)
+        const now = Date.now();
+        const lastMessageFromUser = lastMessagePerUserRef.current[newMsg.user_id];
+
+        if (lastMessageFromUser && (now - lastMessageFromUser) < MIN_INTERVAL_PER_USER) {
+          const waitTime = Math.ceil((MIN_INTERVAL_PER_USER - (now - lastMessageFromUser)) / 1000);
+          console.log(`⏳ VipMessageOverlay: Usuário ${newMsg.user_name} precisa aguardar ${waitTime}s antes de enviar outra mensagem VIP`);
+          return; // Ignorar mensagem - usuário enviou muito recentemente
+        }
+
+        // MELHORIA 2: Verificar rate limiting global (máximo X mensagens por minuto)
+        // Limpar mensagens antigas (fora da janela de 1 minuto)
+        const oneMinuteAgo = now - RATE_LIMIT_WINDOW;
+        messagesInLastMinuteRef.current = messagesInLastMinuteRef.current.filter(
+          msg => msg.timestamp > oneMinuteAgo
+        );
+
+        // Verificar se excedeu o limite
+        if (messagesInLastMinuteRef.current.length >= MAX_VIP_MESSAGES_PER_MINUTE) {
+          const oldestMessage = messagesInLastMinuteRef.current[0];
+          const waitTime = Math.ceil((oldestMessage.timestamp + RATE_LIMIT_WINDOW - now) / 1000);
+          console.log(`⏳ VipMessageOverlay: Rate limit atingido (${MAX_VIP_MESSAGES_PER_MINUTE} mensagens/minuto). Aguarde ${waitTime}s`);
+          return; // Ignorar mensagem - limite global atingido
+        }
+
+        // MELHORIA 3: Mensagens TTS têm prioridade (adicionar no início da fila)
+        // Mensagens normais vão para o final da fila
+        const isTtsMessage = newMsg.message_type === 'tts' || newMsg.message_type === 'audio';
+
+        const truncatedMsg = truncateMessage(newMsg.message);
+        // Buscar cor VIP do cache ou usar padrão
+        const vipColor = userRolesRef.current[newMsg.user_id]?.vipColor || 'purple';
+
+        const messageData: VipMessage = {
+          id: newMsg.id,
+          user_id: newMsg.user_id,
+          message: truncatedMsg,
+          user_name: newMsg.user_name || newMsg.user_email?.split('@')[0] || 'VIP',
+          user_email: newMsg.user_email,
+          created_at: newMsg.created_at,
+          message_type: newMsg.message_type || 'text',
+          tts_text: newMsg.tts_text || newMsg.message,
+          audio_duration: newMsg.audio_duration,
+          vip_color: vipColor
+        };
+
+        console.log('➕ VipMessageOverlay: Adicionando mensagem VIP à fila:', {
+          id: messageData.id,
+          user_name: messageData.user_name,
+          message_type: messageData.message_type,
+          message_preview: messageData.message.substring(0, 30) + '...',
+          isTts: isTtsMessage,
+          priority: isTtsMessage ? 'high' : 'normal'
+        });
+
+        // Adicionar à fila (TTS no início, texto no final)
+        if (isTtsMessage) {
+          messageQueueRef.current.unshift(messageData); // Prioridade: início da fila
+        } else {
+          messageQueueRef.current.push(messageData); // Normal: final da fila
+        }
+
+        // Atualizar controles de rate limiting
+        messagesInLastMinuteRef.current.push({ timestamp: now });
+        lastMessagePerUserRef.current[newMsg.user_id] = now;
+
+        // Processar fila se não estiver processando
+        if (!isProcessingQueueRef.current) {
+          processMessageQueue();
+        }
+
+        setOverlayMessagesCount(messagesShown + 1);
+      } else {
+        console.log('❌ VipMessageOverlay: Usuário NÃO é VIP, ignorando mensagem para overlay');
+      }
     };
-  }, [streamId, isActive]);
+
+    // ✅ Escutar evento 'new-message' do Socket.io
+    if (socket && isConnected) {
+      on('new-message', handleNewMessage);
+      console.log('✅ VipMessageOverlay: Conectado ao Socket.io e escutando mensagens VIP');
+    }
+
+    return () => {
+      if (socket) {
+        console.log(`🔌 VipMessageOverlay: Removendo listener Socket.io`, { streamId });
+        off('new-message', handleNewMessage);
+      }
+    };
+  }, [streamId, isActive, socket, isConnected, on, off]);
 
   // Log quando currentMessage muda
   useEffect(() => {
@@ -749,7 +730,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
         {(() => {
           const vipColor = currentMessage.vip_color || 'purple';
           const colorClasses = getVipColorClasses(vipColor);
-          
+
           return (
             <div className={`bg-gradient-to-r ${colorClasses.bg} backdrop-blur-md border-2 ${colorClasses.border} rounded-2xl px-5 py-3 shadow-2xl w-full max-w-lg mx-auto`}>
               <div className="flex items-center gap-3 mb-2">

@@ -2,33 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { MessageSquare, Smile, Send, Pin, Link2, X, Palette, Mic, Volume2, Heart } from 'lucide-react';
-import PollDisplay from './PollDisplay';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { useSocketChat, type ChatMessage } from '../../hooks/useSocketChat';
 
-interface ChatMessage {
-  id: string;
-  user_id: string | null;
-  message: string;
-  created_at: string;
-  user_email?: string;
-  user_name?: string;
-  is_pinned?: boolean;
-  pinned_link?: string;
-  user_is_admin?: boolean;
-  user_is_vip?: boolean;
-  user_is_moderator?: boolean;
-  message_type?: 'text' | 'audio' | 'tts';
-  tts_text?: string;
-  audio_url?: string;
-  audio_duration?: number;
-  likes_count?: number;
-}
 
 interface LiveChatProps {
   streamId: string;
   isActive?: boolean; // Se a live está ativa (permite enviar mensagens)
+  className?: string;
+  showHeader?: boolean;
 }
 
 const EMOJI_CATEGORIES = {
@@ -68,15 +52,16 @@ const VIP_COLOR_PRESETS = [
   { name: 'Prata', value: 'silver', hex: '#94a3b8' },
 ];
 
-const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
+const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, className, showHeader = true }) => {
   const { user } = useAuth();
   const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);
   const { currentUser } = useData();
   const navigate = useNavigate();
+
+  // Manter controle local de messages para compatibilidade com código existente
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [pinnedMessage, setPinnedMessage] = useState<ChatMessage | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isModerator, setIsModerator] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -94,7 +79,6 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
   const [audioCountRemaining, setAudioCountRemaining] = useState<number>(3);
   const [vipOverlayCountRemaining, setVipOverlayCountRemaining] = useState<number>(10);
   const [likedMessages, setLikedMessages] = useState<Set<string>>(new Set());
-  const [hasActivePoll, setHasActivePoll] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -102,26 +86,43 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
   const isInitialLoadRef = useRef(true);
   const userScrolledUpRef = useRef(false);
 
+  // ✅ MIGRAÇÃO: Usar useSocketChat para mensagens em tempo real via Socket.io
+  // ✅ Sempre habilitar para admin, mesmo se isActive for false
+  // ✅ DEBUG: Log para verificar se isActive está correto
+  useEffect(() => {
+    console.log('🔍 LiveChat: isActive =', isActive, 'isAdmin =', isAdmin, 'streamId =', streamId);
+  }, [isActive, isAdmin, streamId]);
+
+  const {
+    messages: socketMessages,
+    isConnected: socketConnected,
+    sendMessage: socketSendMessage,
+    emit: socketEmit
+  } = useSocketChat({
+    streamId,
+    enabled: isActive !== false || isAdmin // Sempre habilitar se for admin ou se isActive não for false
+  });
+
   // Função para carregar contadores de limites VIP
   const loadVipLimits = async () => {
     if (!user || !isVip || !streamId) return;
-    
+
     try {
       // Contar áudios enviados pelo usuário nesta live
       const { data: audioCount, error: audioError } = await supabase.rpc('count_user_audio_messages', {
         p_user_id: user.id,
         p_stream_id: streamId
       });
-      
+
       if (!audioError && audioCount !== null) {
         setAudioCountRemaining(Math.max(0, 3 - audioCount));
       }
-      
+
       // Contar mensagens VIP na tela nesta live
       const { data: overlayCount, error: overlayError } = await supabase.rpc('count_vip_overlay_messages', {
         p_stream_id: streamId
       });
-      
+
       if (!overlayError && overlayCount !== null) {
         setVipOverlayCountRemaining(Math.max(0, 10 - overlayCount));
       }
@@ -130,144 +131,27 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
     }
   };
 
-  // Verificar se há enquete ativa
   useEffect(() => {
-    const checkActivePoll = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('stream_polls')
-          .select('id')
-          .eq('stream_id', streamId)
-          .eq('is_active', true)
-          .eq('is_pinned', true)
-          .maybeSingle();
-
-        if (error) {
-          console.error('Erro ao verificar enquete ativa:', error);
-          return;
-        }
-
-        setHasActivePoll(!!data);
-      } catch (error) {
-        console.error('Erro ao verificar enquete ativa:', error);
-      }
-    };
-
-    checkActivePoll();
-
-    // Escutar mudanças em tempo real para enquetes
-    const pollChannel = supabase
-      .channel(`live_chat_poll_check_${streamId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'stream_polls',
-        filter: `stream_id=eq.${streamId}`
-      }, () => {
-        checkActivePoll();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(pollChannel);
-    };
-  }, [streamId]);
-
-  useEffect(() => {
+    // Carregar mensagens iniciais (do Supabase) - roles, likes e histórico
     loadMessages();
     checkModeratorStatus();
     checkAdminStatus();
     checkVipStatus();
     checkBanStatus();
     loadVipColor(); // loadVipColor é async mas não precisa await aqui
-    
+
     // Carregar limites VIP após verificar status
     if (isVip) {
       loadVipLimits();
     }
-
-    console.log(`🔌 Iniciando conexão Realtime para stream: ${streamId}`);
-
-    const channel = supabase.channel(`live_chat_${streamId}`)
-      .on('postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'live_chat_messages',
-          filter: `stream_id=eq.${streamId}`
-        },
-        (payload) => {
-          const newId = (payload.new as any)?.id;
-          console.log('📨 Realtime payload recebido:', payload.eventType, newId);
-
-          if (payload.eventType === 'INSERT') {
-            const newMsg = payload.new as ChatMessage;
-            setMessages(prev => {
-              if (prev.find(m => m.id === newMsg.id)) return prev;
-              const updated = [...prev, newMsg];
-              return updated.slice(-150); // Manter as últimas 150 mensagens para performance
-            });
-            if (newMsg.is_pinned) setPinnedMessage(newMsg);
-            if (newMsg.user_id && !userRoles[newMsg.user_id]) {
-              loadUserRoles([newMsg.user_id]);
-            }
-          } else if (payload.eventType === 'UPDATE') {
-            const updated = payload.new as ChatMessage;
-            setMessages(prev => prev.map(m => m.id === updated.id ? updated : m));
-            if (updated.is_pinned) {
-              setPinnedMessage(updated);
-            } else if (pinnedMessage?.id === updated.id) {
-              setPinnedMessage(null);
-            }
-            // Se likes_count mudou, atualizar
-            if (updated.likes_count !== undefined) {
-              // Não precisa fazer nada, já está atualizado no estado
-            }
-          } else if (payload.eventType === 'DELETE') {
-            const deleted = payload.old as ChatMessage;
-            setMessages(prev => prev.filter(m => m.id !== deleted.id));
-            if (pinnedMessage?.id === deleted.id) {
-              setPinnedMessage(null);
-            }
-          }
-          
-          // Atualizar contadores VIP quando nova mensagem é inserida
-          if (payload.eventType === 'INSERT' && isVip) {
-            const newMsg = payload.new as ChatMessage;
-            if (newMsg.message_type === 'tts' && newMsg.user_id === user?.id) {
-              // Atualizar contador de áudios
-              loadVipLimits();
-            }
-            if (newMsg.user_id && userRoles[newMsg.user_id]?.isVip) {
-              // Atualizar contador de mensagens na tela
-              loadVipLimits();
-            }
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log(`📡 Status da conexão Realtime: ${status}`);
-        if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Erro no canal Realtime, tentando reconectar...');
-          toast.error('Erro na conexão do chat. Tentando reconectar...');
-        }
-        if (status === 'TIMED_OUT') {
-          console.warn('⚠️ Conexão Realtime expirou');
-        }
-      });
-
-    return () => {
-      console.log('🔌 Fechando canal Realtime');
-      supabase.removeChannel(channel);
-    };
-  }, [streamId]); // user removed from dependencies
+  }, [streamId, isVip]); // Apenas streamId e isVip são necessários para recarregar dados iniciais
 
   useEffect(() => {
     // Fazer scroll apenas dentro do container do chat, não na página inteira
     if (messagesContainerRef.current && messagesEndRef.current) {
       const container = messagesContainerRef.current;
       const target = messagesEndRef.current;
-      
+
       // Na primeira carga, fazer scroll para o final
       if (isInitialLoadRef.current) {
         isInitialLoadRef.current = false;
@@ -279,22 +163,22 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
         }, 100);
         return;
       }
-      
+
       // Se o usuário rolou para cima, não fazer scroll automático
       if (userScrolledUpRef.current) {
         return;
       }
-      
+
       // Verificar se o usuário está próximo do final (dentro de 100px)
       const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
-      
+
       // Só fazer scroll automático se estiver próximo do final
       if (isNearBottom) {
         const containerRect = container.getBoundingClientRect();
         const targetRect = target.getBoundingClientRect();
         const scrollTop = container.scrollTop;
         const targetTop = targetRect.top - containerRect.top + scrollTop;
-        
+
         // Fazer scroll suave apenas dentro do container
         container.scrollTo({
           top: targetTop,
@@ -337,9 +221,6 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
     const { data } = await supabase.from('live_chat_messages').select('*').eq('stream_id', streamId).order('created_at', { ascending: true }).limit(100);
     if (data) {
       setMessages(data);
-      const pinned = data.find(m => m.is_pinned);
-      if (pinned) setPinnedMessage(pinned);
-
       // Carregar roles dos usuários que enviaram mensagens
       const userIds = data.filter(m => m.user_id).map(m => m.user_id!);
       if (userIds.length > 0) {
@@ -363,19 +244,19 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
       }
 
       const likedSet = new Set<string>();
-      
+
       for (const msgId of messageIds) {
         const { data } = await supabase.rpc('has_user_liked', {
           p_message_id: msgId,
           p_user_id: user?.id || null,
           p_session_id: user?.id ? null : sessionId
         });
-        
+
         if (data) {
           likedSet.add(msgId);
         }
       }
-      
+
       setLikedMessages(likedSet);
     } catch (error) {
       console.error('Erro ao carregar likes:', error);
@@ -408,8 +289,8 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
         setLikedMessages(newLikedMessages);
 
         // Atualizar contador na mensagem
-        setMessages(prev => prev.map(msg => 
-          msg.id === messageId 
+        setMessages(prev => prev.map(msg =>
+          msg.id === messageId
             ? { ...msg, likes_count: data.likes_count || 0 }
             : msg
         ));
@@ -472,25 +353,25 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
   // Salvar cor personalizada do VIP
   const saveVipColor = async (color: string) => {
     if (!user) return;
-    
+
     // Salvar no localStorage
     localStorage.setItem(`vip_color_${user.id}`, color);
     setVipCustomColor(color);
-    
+
     // Salvar no banco de dados também
     try {
       const { error } = await supabase
         .from('users')
         .update({ vip_color: color })
         .eq('id', user.id);
-      
+
       if (error) {
         console.error('Erro ao salvar cor VIP no banco:', error);
       }
     } catch (err) {
       console.error('Erro ao salvar cor VIP:', err);
     }
-    
+
     setShowColorPicker(false);
     toast.success('Cor personalizada salva!');
   };
@@ -536,6 +417,88 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
       console.error('Erro ao carregar roles dos usuários:', err);
     }
   };
+
+  // ✅ Sincronizar messages do Socket.io com estado local (depois das declarações de funções)
+  // ✅ CORREÇÃO: Evitar loop infinito usando refs para rastrear mudanças
+  const socketMessagesRef = useRef<ChatMessage[]>([]);
+  const lastSyncRef = useRef<string>('');
+
+  useEffect(() => {
+    if (socketMessages.length === 0) {
+      socketMessagesRef.current = [];
+      return;
+    }
+
+    // ✅ Gerar hash simples das mensagens para detectar mudanças reais
+    const messagesHash = socketMessages.map(m => `${m.id}:${m.likes_count || 0}`).join(',');
+
+    // Se nada mudou, não atualizar
+    if (messagesHash === lastSyncRef.current && messages.length === socketMessages.length) {
+      return;
+    }
+
+    lastSyncRef.current = messagesHash;
+    socketMessagesRef.current = socketMessages;
+
+    // ✅ Merge inteligente: preservar likes_count local se a nova mensagem não trouxer atualização
+    setMessages(prev => {
+      const prevMap = new Map(prev.map(m => [m.id, m]));
+
+      // Verificar se realmente precisa atualizar
+      let needsUpdate = false;
+      const merged = socketMessages.map(msg => {
+        const prevMsg = prevMap.get(msg.id);
+
+        if (!prevMsg) {
+          needsUpdate = true;
+          return msg; // Nova mensagem
+        }
+
+        // Se likes_count mudou, precisa atualizar
+        if (msg.likes_count !== prevMsg.likes_count) {
+          needsUpdate = true;
+          return msg;
+        }
+
+        // Se nada mudou, manter referência anterior (evita re-render)
+        return prevMsg;
+      });
+
+      // Se o número de mensagens mudou, precisa atualizar
+      if (prev.length !== merged.length) {
+        needsUpdate = true;
+      }
+
+      // Se nada mudou, retornar referência anterior
+      if (!needsUpdate) {
+        return prev;
+      }
+
+      return merged;
+    });
+
+    // Carregar roles de novos usuários (só novos)
+    const newUserIds = socketMessages
+      .filter(m => m.user_id && !userRoles[m.user_id])
+      .map(m => m.user_id!);
+    if (newUserIds.length > 0) {
+      loadUserRoles(newUserIds);
+    }
+
+    // Atualizar contadores VIP quando nova mensagem é inserida via Socket.io
+    if (isVip && socketMessages.length > 0) {
+      const latestMessage = socketMessages[socketMessages.length - 1];
+      if (latestMessage) {
+        if (latestMessage.message_type === 'tts' && latestMessage.user_id === user?.id) {
+          loadVipLimits();
+        }
+        if (latestMessage.user_id && userRoles[latestMessage.user_id]?.isVip) {
+          loadVipLimits();
+        }
+      }
+    }
+    // ✅ CORREÇÃO: Usar apenas dependências estáveis, socketMessages.length em vez de socketMessages
+  }, [socketMessages.length, messages.length, isVip, user?.id, userRoles, loadUserRoles, loadVipLimits]);
 
   // Funções para validar conteúdo
   const containsPhoneNumber = (text: string): boolean => {
@@ -772,18 +735,18 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
         // Atualizar contador de áudios restantes
         const remaining = Math.max(0, 3 - (audioCount || 0) - 1);
         setAudioCountRemaining(remaining);
-        
+
         // Recarregar limites VIP
         await loadVipLimits();
-        
+
         // Mostrar toast com contadores restantes
-        const messagesText = vipOverlayCountRemaining > 0 
-          ? `${vipOverlayCountRemaining} msgs na tela` 
+        const messagesText = vipOverlayCountRemaining > 0
+          ? `${vipOverlayCountRemaining} msgs na tela`
           : 'Limite de msgs na tela atingido';
-        const audioText = remaining > 0 
-          ? `${remaining} áudios restantes` 
+        const audioText = remaining > 0
+          ? `${remaining} áudios restantes`
           : 'Limite de áudios atingido';
-        
+
         toast.success(
           `🔊 Áudio enviado! ${messagesText} | ${audioText}`,
           { duration: 4000 }
@@ -849,38 +812,17 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
 
       setNewMessage('');
 
-      const { error: insertError } = await supabase.from('live_chat_messages').insert({
-        stream_id: streamId,
-        user_id: user.id,
-        message: msg,
-        user_email: user.email,
-        user_name: (currentUser?.name || user.email?.split('@')[0] || 'Usuário').split(' ')[0],
-        message_type: 'text'
-      });
-
-      if (insertError) {
-        console.error('Erro ao inserir mensagem:', insertError);
-        toast.error('Erro ao enviar mensagem: ' + insertError.message);
-      } else {
-        // Se for VIP, mostrar contadores restantes após enviar mensagem
-        if (isVip) {
-          // Recarregar limites VIP
-          await loadVipLimits();
-          
-          // Mostrar toast com contadores restantes
-          const messagesText = vipOverlayCountRemaining > 0 
-            ? `${vipOverlayCountRemaining} msgs na tela` 
-            : 'Limite de msgs na tela atingido';
-          const audioText = audioCountRemaining > 0 
-            ? `${audioCountRemaining} áudios restantes` 
-            : 'Limite de áudios atingido';
-          
-          toast.success(
-            `💎 Mensagem enviada! ${messagesText} | ${audioText}`,
-            { duration: 4000 }
-          );
-        }
+      // ✅ MIGRAÇÃO: Usar Socket.io para enviar mensagem (via useSocketChat)
+      if (!socketConnected) {
+        toast.error('Não conectado ao servidor. Tentando reconectar...');
+        return;
       }
+
+      // Enviar via Socket.io (backend vai salvar no Supabase e broadcastar)
+      socketSendMessage(msg, { messageType: 'text' });
+
+      // ✅ Mensagem será adicionada automaticamente via Socket.io quando o backend broadcastar
+      // Os contadores VIP serão atualizados automaticamente no useEffect que sincroniza socketMessages
     } catch (err) {
       console.error('Erro ao enviar mensagem:', err);
       toast.error('Erro ao enviar mensagem');
@@ -937,164 +879,111 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
     }
 
     try {
-      // Desfixar qualquer link anterior
-      await supabase
-        .from('live_chat_messages')
-        .update({ is_pinned: false, pinned_link: null })
-        .eq('stream_id', streamId)
-        .eq('is_pinned', true);
+      console.log('📌 LiveChat: Fixando link via Socket.io:', validLink);
 
-      // Criar nova mensagem fixada com o link
-      const { error } = await supabase.from('live_chat_messages').insert({
-        stream_id: streamId,
-        user_id: user?.id || null,
+      socketEmit('chat-pin-link', {
+        streamId,
+        userId: user?.id,
         message: linkMessage.trim() || 'Link compartilhado',
-        user_email: user?.email,
-        user_name: (currentUser?.name || user?.email?.split('@')[0] || 'Admin').split(' ')[0],
-        is_pinned: true,
-        pinned_link: validLink
+        pinned_link: validLink,
+        userName: (currentUser?.name || user?.email?.split('@')[0] || 'Admin').split(' ')[0],
+        userEmail: user?.email
       });
 
-      if (error) {
-        console.error('Erro ao fixar link:', error);
-        toast.error('Erro ao fixar link: ' + error.message);
-      } else {
-        toast.success('Link fixado com sucesso!');
-        setShowPinLinkModal(false);
-        setLinkToPin('');
-        setLinkMessage('');
-      }
+      setShowPinLinkModal(false);
+      setLinkToPin('');
+      setLinkMessage('');
+      // Sucesso será confirmado pelo evento pinned-link-updated (se houver listener) ou pelo toast de feedback do socket
+      toast.success('Solicitação de fixação enviada');
     } catch (err) {
       console.error('Erro ao fixar link:', err);
       toast.error('Erro ao fixar link');
     }
   };
 
-  const unpinLink = async () => {
+  const handleUnpinLink = async () => {
     if (!confirm('Desfixar este link?')) return;
     try {
-      await supabase
-        .from('live_chat_messages')
-        .update({ is_pinned: false, pinned_link: null })
-        .eq('stream_id', streamId)
-        .eq('is_pinned', true);
-
-      toast.success('Link desfixado');
+      console.log('📌 LiveChat: Desfixando link via Socket.io');
+      socketEmit('chat-unpin-link', { streamId });
+      toast.success('Solicitação de desfixação enviada');
     } catch (err) {
       console.error('Erro ao desfixar link:', err);
       toast.error('Erro ao desfixar link');
     }
   };
 
+  const rootClassName = ['flex flex-col h-full bg-slate-900', className].filter(Boolean).join(' ');
+
   return (
-    <div className="flex flex-col h-full bg-slate-900">
-      <div className="p-4 border-b border-white/5 bg-slate-800/40 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <MessageSquare className="w-5 h-5 text-blue-400" />
-          <h3 className="text-sm font-black text-white uppercase italic tracking-tight">Chat ao Vivo</h3>
-        </div>
-        <div className="flex items-center gap-2">
-          {(isAdmin || isModerator) && (
-            <button
-              onClick={() => setShowPinLinkModal(true)}
-              className="p-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg transition-all"
-              title="Fixar link no chat"
-            >
-              <Link2 className="w-4 h-4 text-blue-400" />
-            </button>
-          )}
-          {isVip && (
-            <div className="relative" ref={colorPickerRef}>
-              <button
-                onClick={() => setShowColorPicker(!showColorPicker)}
-                className="p-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg transition-all"
-                title="Escolher cor personalizada"
-              >
-                <Palette className="w-4 h-4 text-purple-400" />
-              </button>
-              {showColorPicker && (
-                <div className="absolute top-full right-0 mt-2 w-64 bg-slate-800 rounded-2xl border border-white/10 p-4 shadow-2xl z-50">
-                  <div className="mb-3">
-                    <p className="text-[10px] font-black text-purple-400 uppercase mb-3">💎 Escolher Cor VIP</p>
-                    <div className="grid grid-cols-5 gap-2">
-                      {VIP_COLOR_PRESETS.map((color) => (
-                        <button
-                          key={color.value}
-                          onClick={() => saveVipColor(color.value)}
-                          className={`w-10 h-10 rounded-lg border-2 transition-all hover:scale-110 ${vipCustomColor === color.value
-                            ? 'border-white ring-2 ring-offset-2 ring-offset-slate-800 ring-white'
-                            : 'border-white/20'
-                            }`}
-                          style={{ backgroundColor: color.hex }}
-                          title={color.name}
-                        >
-                          {vipCustomColor === color.value && (
-                            <span className="text-white text-xs">✓</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-[8px] text-slate-400 mt-3 text-center">
-                      Suas mensagens aparecerão nesta cor
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Área de Enquete Fixada (Fixa no topo) */}
-      <div className="px-4 py-2 border-b border-white/5">
-        <PollDisplay streamId={streamId} />
-      </div>
-
-      {/* Área de Mensagem Fixada (Fixa no topo) - Ocultar para usuários quando há enquete ativa, mas admin sempre vê */}
-      {pinnedMessage && (!hasActivePoll || isAdmin) && (
-        <div className="px-4 py-2 border-b border-white/5 bg-slate-800/60 backdrop-blur-md sticky top-0 z-20">
-          <div className="p-3 bg-gradient-to-r from-blue-600/30 to-blue-500/20 border border-blue-500/30 rounded-xl shadow-lg">
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2">
-                <Pin className="w-3.5 h-3.5 text-blue-400" />
-                <span className="text-[9px] font-black text-blue-300 uppercase tracking-widest">
-                  {pinnedMessage.pinned_link ? 'Link Fixado' : 'Mensagem Fixada'}
-                </span>
-              </div>
-              {(isAdmin || isModerator) && (
+    <div className={rootClassName}>
+      {showHeader && (
+        <div className="p-4 border-b border-white/5 bg-slate-800/40 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <MessageSquare className="w-5 h-5 text-blue-400" />
+            <h3 className="text-sm font-black text-white uppercase italic tracking-tight">Chat ao Vivo</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            {(isAdmin || isModerator) && (
+              <div className="flex gap-2">
                 <button
-                  onClick={unpinLink}
-                  className="p-1 hover:bg-red-500/20 rounded-lg transition-all"
-                  title="Desfixar"
+                  onClick={() => setShowPinLinkModal(true)}
+                  className="p-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg transition-all"
+                  title="Fixar link no chat"
                 >
-                  <X className="w-3 h-3 text-red-400" />
+                  <Link2 className="w-4 h-4 text-blue-400" />
                 </button>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-white font-bold truncate">
-                  {pinnedMessage.message}
-                </p>
-              </div>
-
-              {pinnedMessage.pinned_link && (
-                <a
-                  href={pinnedMessage.pinned_link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase rounded-lg transition-all shadow-lg"
+                <button
+                  onClick={handleUnpinLink}
+                  className="p-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-all"
+                  title="Desfixar link atual"
                 >
-                  <Link2 className="w-3 h-3" />
-                  Abrir
-                </a>
-              )}
-            </div>
+                  <X className="w-4 h-4 text-red-400" />
+                </button>
+              </div>
+            )}
+            {isVip && (
+              <div className="relative" ref={colorPickerRef}>
+                <button
+                  onClick={() => setShowColorPicker(!showColorPicker)}
+                  className="p-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg transition-all"
+                  title="Escolher cor personalizada"
+                >
+                  <Palette className="w-4 h-4 text-purple-400" />
+                </button>
+                {showColorPicker && (
+                  <div className="absolute top-full right-0 mt-2 w-64 bg-slate-800 rounded-2xl border border-white/10 p-4 shadow-2xl z-50">
+                    <div className="mb-3">
+                      <p className="text-[10px] font-black text-purple-400 uppercase mb-3">💎 Escolher Cor VIP</p>
+                      <div className="grid grid-cols-5 gap-2">
+                        {VIP_COLOR_PRESETS.map((color) => (
+                          <button
+                            key={color.value}
+                            onClick={() => saveVipColor(color.value)}
+                            className={`w-10 h-10 rounded-lg border-2 transition-all hover:scale-110 ${vipCustomColor === color.value
+                              ? 'border-white ring-2 ring-offset-2 ring-offset-slate-800 ring-white'
+                              : 'border-white/20'
+                              }`}
+                            style={{ backgroundColor: color.hex }}
+                            title={color.name}
+                          >
+                            {vipCustomColor === color.value && (
+                              <span className="text-white text-xs">✓</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[8px] text-slate-400 mt-3 text-center">
+                        Suas mensagens aparecerão nesta cor
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
-
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
         {messages.filter(msg => !msg.is_pinned).map((msg) => {
           const styles = getMessageStyles(msg);
@@ -1133,11 +1022,10 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true }) => {
                   {/* Botão de Like */}
                   <button
                     onClick={() => handleToggleLike(msg.id)}
-                    className={`flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition-all ${
-                      likedMessages.has(msg.id)
-                        ? 'text-red-400 hover:bg-red-500/10'
-                        : 'text-slate-400 hover:bg-slate-700/50 hover:text-red-400'
-                    }`}
+                    className={`flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition-all ${likedMessages.has(msg.id)
+                      ? 'text-red-400 hover:bg-red-500/10'
+                      : 'text-slate-400 hover:bg-slate-700/50 hover:text-red-400'
+                      }`}
                     title="Curtir"
                   >
                     <Heart className={`w-4 h-4 ${likedMessages.has(msg.id) ? 'fill-current' : ''}`} />

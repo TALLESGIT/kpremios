@@ -5,9 +5,16 @@ import { toast } from 'react-hot-toast';
 import { ArrowLeft, Eye, Share2, X, Trophy, Calendar, ChevronRight, MessageCircle, Crown, Tv, Minimize2, Maximize2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
+import { useSocket } from '../hooks/useSocket';
 import { LiveViewer } from '../components/LiveViewer';
 import LiveChat from '../components/live/LiveChat';
+import BottomOverlay from '../components/live/BottomOverlay';
+import SideOverlay from '../components/live/SideOverlay';
+import PinnedLinkOverlay from '../components/live/PinnedLinkOverlay';
+import PollDisplay from '../components/live/PollDisplay';
 import MobileLiveControls from '../components/live/MobileLiveControls';
+import { useOrientation } from '../hooks/useOrientation';
+import { useFullscreen } from '../hooks/useFullscreen';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import VipSubscriptionModal from '../components/vip/VipSubscriptionModal';
 import Header from '../components/shared/Header';
@@ -33,6 +40,13 @@ const PublicLiveStreamPage: React.FC = () => {
   const { currentUser } = useData();
   const [stream, setStream] = useState<LiveStream | null>(null);
   const streamId = stream?.id; // Alias estável para efeitos
+
+  // ✅ MIGRAÇÃO: Usar Socket.io para escutar atualizações da stream
+  const { socket, isConnected, on, off, joinStream, leaveStream } = useSocket({
+    streamId: streamId || undefined,
+    autoConnect: !!streamId
+  });
+
   const [loading, setLoading] = useState(true);
   const [currentViewerCount, setCurrentViewerCount] = useState(0);
   const trackViewerExecutedRef = useRef(false);
@@ -45,10 +59,10 @@ const PublicLiveStreamPage: React.FC = () => {
     return nuevo;
   });
 
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [isLandscape, setIsLandscape] = useState(false);
+  const { isLandscape } = useOrientation();
+  const { isFullscreen } = useFullscreen();
   const [videoFitMode, setVideoFitMode] = useState<'contain' | 'cover'>('contain');
   const [showControls, setShowControls] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
@@ -68,7 +82,7 @@ const PublicLiveStreamPage: React.FC = () => {
   // Handler para duplo clique - tela cheia (com suporte melhorado para mobile)
   const handleDoubleClick = () => {
     if (!videoContainerRef.current) return;
-    
+
     try {
       if (isFullscreen) {
         // Sair do fullscreen
@@ -189,7 +203,7 @@ const PublicLiveStreamPage: React.FC = () => {
         const session = data[0];
         const sessionStartedAt = new Date(session.started_at).getTime();
         const isNewSession = Math.abs(sessionStartedAt - Date.now()) < 2000;
-        
+
         // Se criou nova sessão e usuário está logado, tentar conceder VIP
         if (isNewSession && user?.id) {
           try {
@@ -230,7 +244,7 @@ const PublicLiveStreamPage: React.FC = () => {
               .eq('session_id', sessionId)
               .eq('stream_id', currentStream.id)
               .maybeSingle();
-            
+
             if (existingSession) {
               await supabase
                 .from('viewer_sessions')
@@ -247,13 +261,13 @@ const PublicLiveStreamPage: React.FC = () => {
           }
           return; // Não bloquear o fluxo
         }
-        
+
         // Tratar timeouts e erros de conexão como não-críticos
         if (error.message?.includes('timeout') || error.message?.includes('failed to connect') || error.code === 'PGRST116') {
           console.warn('⚠️ trackViewer: Erro de conexão/timeout, tentando novamente na próxima vez:', error.message);
           return; // Não bloquear o fluxo
         }
-        
+
         console.error('❌ Erro ao criar/atualizar viewer_session:', error);
         // Não lançar erro para não quebrar o fluxo da aplicação
       } else {
@@ -271,27 +285,40 @@ const PublicLiveStreamPage: React.FC = () => {
     }
   }, [sessionId, user?.id]); // Removido stream e updateViewerCount das dependências
 
-  // Função para atualizar heartbeat
+  // ✅ OTIMIZAÇÃO: Heartbeat otimizado - evita chamar trackViewer toda vez
+  // Com 400 viewers, cada heartbeat duplicado = 800 queries/min extras desnecessárias
+  const heartbeatInitializedRef = useRef(false);
   const updateHeartbeat = useCallback(async () => {
     const currentStream = streamRef.current;
     if (!currentStream || !currentStream.is_active) return;
-    try {
-      // Primeiro, garantir que a sessão existe
-      await trackViewer();
 
-      // Depois atualizar o heartbeat
-      const { error } = await supabase.rpc('update_viewer_heartbeat', { p_session_id: sessionId });
-      if (error) {
-        console.error('Erro ao atualizar heartbeat:', error);
-        // Se falhar, tentar criar/atualizar a sessão novamente
+    try {
+      // ✅ Primeira vez: criar sessão com trackViewer (faz upsert completo)
+      if (!heartbeatInitializedRef.current) {
         await trackViewer();
+        heartbeatInitializedRef.current = true;
+        return; // Sair - trackViewer já atualiza last_heartbeat
+      }
+
+      // ✅ Depois: usar apenas RPC leve (muito mais rápido)
+      // RPC update_viewer_heartbeat só faz UPDATE (sem SELECT/INSERT)
+      const { error } = await supabase.rpc('update_viewer_heartbeat', { p_session_id: sessionId });
+
+      // Se RPC falhar (sessão não existe), recriar com trackViewer
+      if (error) {
+        console.warn('⚠️ Heartbeat RPC falhou, recriando sessão:', error.message);
+        heartbeatInitializedRef.current = false; // Reset para próxima tentativa
+        await trackViewer();
+        heartbeatInitializedRef.current = true;
       }
     } catch (e) {
       console.error('Erro no heartbeat:', e);
-      // Em caso de erro, tentar criar/atualizar a sessão
+      // Em caso de erro crítico, recriar sessão
+      heartbeatInitializedRef.current = false;
       await trackViewer();
+      heartbeatInitializedRef.current = true;
     }
-  }, [sessionId, trackViewer]); // Adicionado trackViewer para garantir que a sessão existe
+  }, [sessionId, trackViewer]);
 
   useEffect(() => {
     if (channelName) { loadStream(); loadZkTVData(); }
@@ -304,54 +331,60 @@ const PublicLiveStreamPage: React.FC = () => {
     document.body.scrollTop = 0;
   }, []);
 
-  // Unificado: Listener para todas as mudanças na stream via Realtime
+  // ✅ MIGRAÇÃO: Listener para todas as mudanças na stream via Socket.io
   useEffect(() => {
-    if (!streamId) return;
+    if (!streamId || !socket || !isConnected) return;
 
-    console.log(`🔌 Conectando Realtime para stream: ${streamId}`);
+    console.log(`🔌 Conectando Socket.io para stream: ${streamId}`);
 
-    const channel = supabase.channel(`public_stream_v2_${streamId}`)
-      .on('postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'live_streams', filter: `id=eq.${streamId}` },
-        (payload) => {
-          const updated = payload.new as LiveStream;
-          const current = streamRef.current;
-          const wasActive = current?.is_active;
+    // Entrar na sala da stream
+    joinStream(streamId);
 
-          console.log('📡 Mudança na stream detectada via Realtime:', updated.is_active ? 'AO VIVO' : 'OFFLINE');
+    // Escutar evento 'stream-updated' do Socket.io
+    const handleStreamUpdate = (data: { streamId: string; updates: Partial<LiveStream> }) => {
+      if (data.streamId !== streamId) return;
 
-          // Atualizar estado
-          setStream(updated);
-          setCurrentViewerCount(updated.viewer_count || 0);
+      const current = streamRef.current;
+      const wasActive = current?.is_active;
+      const updated = { ...current, ...data.updates } as LiveStream;
 
-          // Lógica de tracking de sessão baseada na mudança de estado
-          if (!updated.is_active && wasActive) {
-            console.log('📡 PublicLiveStreamPage: Live encerrada detectada via Realtime');
-            setIsChatOpen(false);
-            // Marcar sessão como inativa
-            supabase.from('viewer_sessions')
-              .update({ is_active: false, ended_at: new Date().toISOString() })
-              .eq('session_id', sessionId)
-              .eq('stream_id', streamId);
+      console.log('📡 Mudança na stream detectada via Socket.io:', updated.is_active ? 'AO VIVO' : 'OFFLINE');
 
-            // Mostrar notificação
-            toast.error('A transmissão foi encerrada pelo administrador');
-          } else if (updated.is_active) {
-            // Se está ativa (seja mudança ou já estava ativa), registrar/atualizar sessão
-            console.log('✅ Realtime: Stream ativa, chamando trackViewer');
-            trackViewer();
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log(`📡 Status da conexão stream: ${status}`);
-      });
+      // Atualizar estado
+      setStream(updated);
+      if (data.updates.viewer_count !== undefined) {
+        setCurrentViewerCount(data.updates.viewer_count);
+      }
+
+      // Lógica de tracking de sessão baseada na mudança de estado
+      if (!updated.is_active && wasActive) {
+        console.log('📡 PublicLiveStreamPage: Live encerrada detectada via Socket.io');
+        setIsChatOpen(false);
+        // Marcar sessão como inativa
+        supabase.from('viewer_sessions')
+          .update({ is_active: false, ended_at: new Date().toISOString() })
+          .eq('session_id', sessionId)
+          .eq('stream_id', streamId);
+
+        // Mostrar notificação
+        toast.error('A transmissão foi encerrada pelo administrador');
+      } else if (updated.is_active) {
+        // Se está ativa (seja mudança ou já estava ativa), registrar/atualizar sessão
+        console.log('✅ Socket.io: Stream ativa, chamando trackViewer');
+        trackViewer();
+      }
+    };
+
+    on('stream-updated', handleStreamUpdate);
 
     return () => {
-      console.log('🔌 Desconectando Realtime canal stream');
-      supabase.removeChannel(channel);
+      console.log('🔌 Desconectando Socket.io stream');
+      off('stream-updated', handleStreamUpdate);
+      if (streamId) {
+        leaveStream(streamId);
+      }
     };
-  }, [streamId, sessionId, trackViewer]); // Dependências estáveis
+  }, [streamId, sessionId, trackViewer, socket, isConnected, on, off, joinStream, leaveStream]); // Dependências estáveis
 
   useEffect(() => {
     if (!stream) {
@@ -389,26 +422,39 @@ const PublicLiveStreamPage: React.FC = () => {
     };
   }, [stream?.id, stream?.is_active, trackViewer, updateViewerCount]);
 
-  // Heartbeat e atualização periódica do contador
+  // ✅ OTIMIZAÇÃO: Heartbeat randomizado para evitar thundering herd com 70+ viewers
+  // Randomiza timing para distribuir carga ao longo do tempo
   useEffect(() => {
     const currentStream = streamRef.current;
     if (!currentStream || !currentStream.is_active) return;
 
-    // Executar imediatamente ao montar
-    updateHeartbeat();
-    updateViewerCount(currentStream.id);
+    // ✅ Randomizar primeiro heartbeat (0-15s) para distribuir carga inicial
+    const initialDelay = Math.floor(Math.random() * 15000); // 0-15 segundos
 
-    // Depois executar a cada 30 segundos
+    const initialTimeout = setTimeout(() => {
+      updateHeartbeat();
+      // Não atualizar viewer_count aqui - o admin já faz isso periodicamente
+    }, initialDelay);
+
+    // ✅ Randomizar intervalo (25-35s) para distribuir heartbeats contínuos
+    const baseInterval = 30000; // 30 segundos base
+    const randomOffset = Math.floor(Math.random() * 10000) - 5000; // -5 a +5 segundos
+    const interval = baseInterval + randomOffset;
+
     const intervalId = setInterval(() => {
       const st = streamRef.current;
       if (st && st.is_active) {
         updateHeartbeat();
-        updateViewerCount(st.id);
+        // ✅ Não chamar updateViewerCount aqui - deixa o admin fazer isso
+        // Com 70+ viewers, cada um chamando updateViewerCount a cada 30s = ~140 queries/min
       }
-    }, 30000);
+    }, interval);
 
-    return () => clearInterval(intervalId);
-  }, [updateHeartbeat, updateViewerCount]); // Removido stream.id/is_active para evitar reset do timer
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(intervalId);
+    };
+  }, [updateHeartbeat]); // Removido updateViewerCount para reduzir queries
 
   const loadStream = async () => {
     setLoading(true);
@@ -487,15 +533,12 @@ const PublicLiveStreamPage: React.FC = () => {
     const checkMobile = () => {
       const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768;
       setIsMobile(mobile);
-      setIsLandscape(window.innerWidth > window.innerHeight);
     };
 
     const handleRotation = () => {
       if (!isMobile) return;
-      const landscape = window.innerWidth > window.innerHeight;
-      setIsLandscape(landscape);
 
-      if (landscape && !isFullscreen && videoContainerRef.current) {
+      if (isLandscape && !isFullscreen && videoContainerRef.current) {
         const el = videoContainerRef.current;
         try {
           if (el.requestFullscreen) el.requestFullscreen();
@@ -515,12 +558,27 @@ const PublicLiveStreamPage: React.FC = () => {
     return () => {
       window.removeEventListener('resize', checkMobile);
     };
-  }, [isMobile, isFullscreen]);
+  }, [isMobile, isFullscreen, isLandscape]);
+
+  // ✅ Handler para rotação (apenas mobile)
+  const handleRotate = () => {
+    if (!isMobile) return;
+    try {
+      if (screen.orientation && (screen.orientation as any).lock) {
+        const target = isLandscape ? 'portrait' : 'landscape';
+        (screen.orientation as any).lock(target).catch(() => { });
+      } else {
+        toast.error('Rotação manual não suportada');
+      }
+    } catch (e) {
+      console.error('Erro ao rotacionar:', e);
+    }
+  };
 
   // ✅ Handler para fullscreen (com suporte melhorado para mobile)
   const handleFullscreen = () => {
     if (!videoContainerRef.current) return;
-    
+
     try {
       if (isFullscreen) {
         // Sair do fullscreen
@@ -586,13 +644,26 @@ const PublicLiveStreamPage: React.FC = () => {
   };
 
   useEffect(() => {
-    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
     window.addEventListener('toggle-chat', () => setIsChatOpen(p => !p));
     return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      window.removeEventListener('toggle-chat', () => setIsChatOpen(p => !p));
     };
   }, []);
+
+  // 🔍 DEBUG: Log para identificar qual chat está sendo renderizado
+  useEffect(() => {
+    console.log('🔍 PublicLiveStreamPage Chat Rendering State:', {
+      isFullscreen,
+      isMobile,
+      isChatOpen,
+      isLandscape,
+      hasStream: !!stream,
+      // Condições de renderização
+      shouldRenderDesktopFullscreen: isFullscreen && !isMobile && isChatOpen && !!stream,
+      shouldRenderSidebarDesktop: !isFullscreen && !!stream,
+    });
+  }, [isFullscreen, isMobile, isChatOpen, isLandscape, stream]);
+
 
   useEffect(() => {
     if (isMobile && isFullscreen && isLandscape) setVideoFitMode(isChatOpen ? 'contain' : 'cover');
@@ -702,9 +773,82 @@ const PublicLiveStreamPage: React.FC = () => {
                   channelName={channelName} // Dynamic channel from params
                 />
 
+                {/* Mensagem de Transmissão Encerrada */}
+                {!stream.is_active && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center z-30">
+                    <div className="text-center px-6 max-w-2xl animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                      {/* Icon */}
+                      <div className="mb-8 relative">
+                        <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full"></div>
+                        <div className="relative text-8xl animate-pulse">📺</div>
+                      </div>
+
+                      {/* Title */}
+                      <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-4 tracking-tight">
+                        Transmissão Encerrada
+                      </h2>
+
+                      {/* Message */}
+                      <p className="text-lg sm:text-xl text-blue-200 mb-8 leading-relaxed">
+                        A transmissão ao vivo foi finalizada. 🎬<br />
+                        Obrigado por assistir! ⚽✨
+                      </p>
+
+                      {/* CTA */}
+                      <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                        <button
+                          onClick={() => window.location.reload()}
+                          className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl transition-all shadow-xl shadow-blue-600/30 hover:scale-105"
+                        >
+                          🔄 Recarregar Página
+                        </button>
+                        <a
+                          href="/"
+                          className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl transition-all border border-white/20"
+                        >
+                          🏠 Voltar ao Início
+                        </a>
+                      </div>
+
+                      {/* Footer */}
+                      <p className="mt-8 text-sm text-slate-400">
+                        Fique ligado nas próximas transmissões! 🔔
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Overlay de mensagens VIP na tela */}
                 {stream.is_active && (
                   <VipMessageOverlay streamId={stream.id} isActive={stream.is_active} />
+                )}
+
+                {/* Overlays para Fullscreen (MODO NATIVO E FIXO) */}
+                {/* Mobile Portrait Fullscreen */}
+                {isFullscreen && !isLandscape && isMobile && (
+                  <BottomOverlay streamId={stream.id}>
+                    <PinnedLinkOverlay streamId={stream.id} />
+                  </BottomOverlay>
+                )}
+                {/* Mobile Landscape Fullscreen */}
+                {isFullscreen && isLandscape && isChatOpen && isMobile && (
+                  <SideOverlay
+                    streamId={stream.id}
+                    isActive={stream.is_active}
+                    pinnedLinkSlot={<PinnedLinkOverlay streamId={stream.id} />}
+                  />
+                )}
+                {/* Desktop Fullscreen - Overlay lateral direito - NÃO renderizar se for mobile landscape */}
+                {isFullscreen && !isMobile && isChatOpen && !(isMobile && isLandscape) && (
+                  <div className="absolute right-4 top-4 bottom-4 z-50 w-[320px] flex flex-col gap-3 pointer-events-auto">
+                    <div className="flex-[3] min-h-0 bg-black/80 backdrop-blur-md rounded-xl p-2 border border-white/10 overflow-hidden">
+                      <LiveChat key="chat-fullscreen-desktop" streamId={stream.id} isActive={stream.is_active} showHeader={false} />
+                    </div>
+                    <div className="flex-[1] min-h-0 pointer-events-auto bg-black/80 backdrop-blur-md rounded-xl p-3 space-y-2 overflow-y-auto border border-white/10 custom-scrollbar">
+                      <PollDisplay streamId={stream.id} compact={true} />
+                      <PinnedLinkOverlay streamId={stream.id} />
+                    </div>
+                  </div>
                 )}
 
 
@@ -723,15 +867,14 @@ const PublicLiveStreamPage: React.FC = () => {
 
                 {/* Botão Fullscreen Desktop */}
                 {stream.is_active && !isMobile && (
-                  <div className={`absolute bottom-4 right-4 flex gap-2 z-10 transition-opacity duration-300 ${
-                    showControls ? 'opacity-100' : 'opacity-0'
-                  }`}>
+                  <div className={`absolute bottom-4 right-4 flex gap-2 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'
+                    }`}>
                     {/* Botão Cast (Chromecast/AirPlay) - Aparece automaticamente quando disponível */}
-                    <CastButton 
+                    <CastButton
                       hlsUrl={stream.hls_url}
                       channelName={channelName || 'zktv'}
                     />
-                    
+
                     {/* Botão Picture-in-Picture / Cast Hint */}
                     {document.pictureInPictureEnabled && (
                       <button
@@ -761,7 +904,7 @@ const PublicLiveStreamPage: React.FC = () => {
                   isActive={stream.is_active}
                   isFullscreen={isFullscreen}
                   onFullscreen={handleFullscreen}
-                  onRotate={() => setIsLandscape(!isLandscape)}
+                  onRotate={handleRotate}
                   onToggleFit={() => setVideoFitMode(p => p === 'contain' ? 'cover' : 'contain')}
                   fitMode={videoFitMode}
                   isDocked={isDockedChat}
@@ -769,13 +912,12 @@ const PublicLiveStreamPage: React.FC = () => {
                   isPictureInPicture={!!document.pictureInPictureElement}
                   containerRef={videoContainerRef}
                 />
-                
+
                 {/* Botão Cast para Mobile - Aparece automaticamente quando há TV disponível */}
                 {stream.is_active && isMobile && (
-                  <div className={`absolute top-4 right-4 z-10 transition-opacity duration-300 ${
-                    showControls ? 'opacity-100' : 'opacity-0'
-                  }`}>
-                    <CastButton 
+                  <div className={`absolute top-4 right-4 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'
+                    }`}>
+                    <CastButton
                       hlsUrl={stream.hls_url}
                       channelName={channelName || 'zktv'}
                     />
@@ -785,14 +927,12 @@ const PublicLiveStreamPage: React.FC = () => {
               {isDockedChat && (
                 <div className={`h-full bg-black/40 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl animate-in slide-in-from-right duration-300 ${isMobile ? 'w-[400px] min-w-[350px] max-w-[45vw]' : 'w-[300px]'
                   }`}>
-                  <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                    <span className={`font-black text-white uppercase italic tracking-widest ${isMobile ? 'text-xs' : 'text-[10px]'
-                      }`}>Chat da Transmissão</span>
-                    <button onClick={() => setIsChatOpen(false)} className="p-1 hover:bg-white/10 rounded transition-colors">
-                      <X className={`text-white ${isMobile ? 'w-5 h-5' : 'w-4 h-4'}`} />
-                    </button>
+                  <div className="flex-1 overflow-hidden">
+                    <LiveChat
+                      streamId={stream.id}
+                      showHeader={false}
+                    />
                   </div>
-                  <div className="flex-1 overflow-hidden"><LiveChat streamId={stream.id} /></div>
                 </div>
               )}
             </div>
@@ -825,13 +965,32 @@ const PublicLiveStreamPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="lg:col-span-4 h-[650px] flex flex-col sticky top-24">
-            <div className="flex-1 bg-slate-900 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
-              <LiveChat streamId={stream.id} isActive={stream.is_active} />
+          {!isFullscreen && (
+            <div className="lg:col-span-4 space-y-4 sticky top-24">
+              {/* Enquete e Link Fixado - Desktop (fora do fullscreen) */}
+              {!isFullscreen && !isMobile && (
+                <div className="space-y-3">
+                  <PollDisplay streamId={stream.id} />
+                  <PinnedLinkOverlay streamId={stream.id} />
+                </div>
+              )}
+              {/* Enquete e Link Fixado - Mobile (acima do chat, não flutuante) */}
+              {!isFullscreen && isMobile && (
+                <div className="space-y-3 mb-4 px-4">
+                  <PollDisplay streamId={stream.id} />
+                  <PinnedLinkOverlay streamId={stream.id} />
+                </div>
+              )}
+              <div className="h-[650px] flex flex-col">
+                <div className="flex-1 bg-slate-900 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
+                  <LiveChat key="chat-sidebar-desktop" streamId={stream.id} isActive={stream.is_active} />
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </main>
+      {/* REMOVIDO: Enquete flutuante em mobile - agora fica acima do chat */}
       <Footer />
 
       {/* Modal de Assinatura VIP */}
