@@ -2,9 +2,9 @@
 // ChatHost - Instância única que renderiza o chat no slot ativo
 // =====================================================
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { getActiveSlot, subscribe } from './chatSlotRegistry';
+import { getActiveSlot, subscribe, ChatSlot } from './chatSlotRegistry';
 import { Chat } from './Chat';
 import { useStreamRegistry } from './StreamRegistryProvider';
 
@@ -18,15 +18,22 @@ import { useStreamRegistry } from './StreamRegistryProvider';
 export function ChatHost() {
   // Obter streamId do registry global (registrado pelas páginas)
   const { streamId } = useStreamRegistry();
-  const [activeSlot, setActiveSlot] = useState<ReturnType<typeof getActiveSlot>>(null);
+  const [activeSlot, setActiveSlot] = useState<ChatSlot | null>(null);
+  const lastSlotIdRef = useRef<string | null>(null);
+
+  // Atualizar slot apenas se realmente mudou (evita re-renders desnecessários)
+  const updateActiveSlot = useCallback(() => {
+    const slot = getActiveSlot();
+    const newSlotId = slot?.id || null;
+    
+    // Só atualizar state se o slot realmente mudou
+    if (newSlotId !== lastSlotIdRef.current) {
+      lastSlotIdRef.current = newSlotId;
+      setActiveSlot(slot);
+    }
+  }, []);
 
   useEffect(() => {
-    // Atualizar slot ativo quando slots mudarem
-    const updateActiveSlot = () => {
-      const slot = getActiveSlot();
-      setActiveSlot(slot);
-    };
-
     // Verificar slot inicial
     updateActiveSlot();
 
@@ -34,13 +41,14 @@ export function ChatHost() {
     const unsubscribe = subscribe(updateActiveSlot);
 
     // Verificar periodicamente (fallback caso o listener não funcione)
-    const interval = setInterval(updateActiveSlot, 500);
+    // Intervalo maior para reduzir overhead
+    const interval = setInterval(updateActiveSlot, 1000);
 
     return () => {
       unsubscribe();
       clearInterval(interval);
     };
-  }, []);
+  }, [updateActiveSlot]);
 
   // Não renderizar se não houver streamId ou slot ativo
   if (!streamId || !activeSlot) {

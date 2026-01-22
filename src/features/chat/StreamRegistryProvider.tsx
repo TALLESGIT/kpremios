@@ -4,7 +4,7 @@
 // Páginas registram seu streamId quando têm uma stream carregada
 // Isso garante que o chat funcione em todas as rotas (/zk-tv, /live/:slug)
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef, ReactNode } from 'react';
 
 interface StreamRegistryContextValue {
   streamId: string | null;
@@ -20,26 +20,33 @@ interface StreamRegistryProviderProps {
 
 export function StreamRegistryProvider({ children }: StreamRegistryProviderProps) {
   const [streamId, setStreamId] = useState<string | null>(null);
+  const streamIdRef = useRef<string | null>(null);
 
-  // Registrar um streamId ativo
+  // Manter ref sincronizado com state
+  streamIdRef.current = streamId;
+
+  // Registrar um streamId ativo (função estável - não recria)
   const registerStreamId = useCallback((id: string) => {
-    if (id && id !== streamId) {
+    if (id && id !== streamIdRef.current) {
       console.log('📡 StreamRegistry: Registrando streamId:', id);
       setStreamId(id);
     }
-  }, [streamId]);
+  }, []); // Sem dependências - usa ref internamente
 
   // Desregistrar o streamId (quando a página desmonta)
   const unregisterStreamId = useCallback(() => {
-    console.log('📡 StreamRegistry: Desregistrando streamId');
-    setStreamId(null);
-  }, []);
+    if (streamIdRef.current) {
+      console.log('📡 StreamRegistry: Desregistrando streamId');
+      setStreamId(null);
+    }
+  }, []); // Sem dependências
 
-  const value: StreamRegistryContextValue = {
+  // Memoizar value para evitar re-renders desnecessários
+  const value = useMemo<StreamRegistryContextValue>(() => ({
     streamId,
     registerStreamId,
     unregisterStreamId
-  };
+  }), [streamId, registerStreamId, unregisterStreamId]);
 
   return (
     <StreamRegistryContext.Provider value={value}>
