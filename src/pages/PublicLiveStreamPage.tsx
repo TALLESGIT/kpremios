@@ -999,8 +999,8 @@ const PublicLiveStreamPage: React.FC = () => {
               )}
             </div>
 
-            {/* Chat Fixo - Abaixo de Próximos Jogos (não fullscreen) */}
-            {!isFullscreen && stream && (
+            {/* Chat Fixo - Abaixo de Próximos Jogos (não fullscreen e quando overlay não está aberto) */}
+            {!isFullscreen && !isChatOpen && stream && (
               <div className="space-y-4 mt-8">
                 <PollDisplay streamId={stream.id} />
                 <PinnedLinkOverlay streamId={stream.id} />
