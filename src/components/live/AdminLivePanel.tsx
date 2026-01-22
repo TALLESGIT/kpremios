@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Users, MessageSquare, Eye, TrendingUp, Clock, Copy, Share2 } from 'lucide-react';
+import { useSocket } from '../../hooks/useSocket';
 import { toast } from 'react-hot-toast';
 
 interface AdminLivePanelProps {
@@ -27,6 +28,34 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
   });
   const [viewerCount, setViewerCount] = useState(0);
   const [streamLink, setStreamLink] = useState('');
+  
+  // ✅ Socket.io para atualizações em tempo real
+  const { socket, isConnected, on, off } = useSocket({
+    streamId: streamId,
+    autoConnect: !!streamId && isActive
+  });
+
+  // ✅ Listener para atualizações de viewer count em tempo real
+  useEffect(() => {
+    if (!streamId || !socket || !isConnected) return;
+
+    const handleViewerCountUpdate = (data: { streamId: string; count: number }) => {
+      if (data.streamId === streamId) {
+        console.log('📊 Viewer count atualizado via Socket.io:', data.count);
+        setViewerCount(data.count);
+        setStats((prev) => ({
+          ...prev,
+          activeViewers: data.count,
+        }));
+      }
+    };
+
+    on('viewer-count-updated', handleViewerCountUpdate);
+
+    return () => {
+      off('viewer-count-updated', handleViewerCountUpdate);
+    };
+  }, [streamId, socket, isConnected, on, off]);
 
   useEffect(() => {
     // Gerar link da transmissão
@@ -57,12 +86,12 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
       )
       .subscribe();
 
-    // ✅ OTIMIZAÇÃO: Aumentado intervalo de 10s para 30s para reduzir carga
-    // Com 70+ viewers, atualizar a cada 10s é excessivo e causa lock no banco
+    // ✅ OTIMIZAÇÃO: Intervalo de 5s para atualizações mais rápidas
+    // Socket.io já distribui a carga, então podemos atualizar com mais frequência
     const interval = setInterval(() => {
       console.log('⏰ Atualizando estatísticas periodicamente...');
       loadStats();
-    }, 30000); // A cada 30 segundos (reduzido de 10s)
+    }, 5000); // A cada 5 segundos para tempo real
 
     return () => {
       // ✅ viewerChannel foi removido (otimização para 70+ viewers)

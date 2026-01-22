@@ -108,7 +108,7 @@ const ZkTVPage: React.FC = () => {
         autoConnect: !!activeStream?.id && activeStream?.is_active
     });
 
-    // Função para atualizar contador de viewers
+    // Função para atualizar contador de viewers (reduzida frequência - deixar backend fazer)
     const updateViewerCount = useCallback(async (streamId: string) => {
         try {
             const { data: countData, error } = await supabase.rpc(
@@ -124,11 +124,11 @@ const ZkTVPage: React.FC = () => {
             const activeCount = Number(countData) || 0;
             setCurrentViewerCount(activeCount);
 
-            // Atualizar na tabela
-            await supabase
-                .from('live_streams')
-                .update({ viewer_count: activeCount })
-                .eq('id', streamId);
+            // Não atualizar na tabela - deixar o backend fazer via Socket.io
+            // await supabase
+            //     .from('live_streams')
+            //     .update({ viewer_count: activeCount })
+            //     .eq('id', streamId);
         } catch (e) {
             console.error('❌ Erro ao atualizar viewer_count:', e);
         }

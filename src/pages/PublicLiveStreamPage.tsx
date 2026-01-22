@@ -444,17 +444,17 @@ const PublicLiveStreamPage: React.FC = () => {
     const currentStream = streamRef.current;
     if (!currentStream || !currentStream.is_active) return;
 
-    // ✅ Randomizar primeiro heartbeat (0-15s) para distribuir carga inicial
-    const initialDelay = Math.floor(Math.random() * 15000); // 0-15 segundos
+    // ✅ Randomizar primeiro heartbeat (0-5s) para distribuir carga inicial
+    const initialDelay = Math.floor(Math.random() * 5000); // 0-5 segundos
 
     const initialTimeout = setTimeout(() => {
       updateHeartbeat();
       // Não atualizar viewer_count aqui - o admin já faz isso periodicamente
     }, initialDelay);
 
-    // ✅ Randomizar intervalo (25-35s) para distribuir heartbeats contínuos
-    const baseInterval = 30000; // 30 segundos base
-    const randomOffset = Math.floor(Math.random() * 10000) - 5000; // -5 a +5 segundos
+    // ✅ Randomizar intervalo (8-12s) para heartbeats mais frequentes
+    const baseInterval = 10000; // 10 segundos base
+    const randomOffset = Math.floor(Math.random() * 4000) - 2000; // -2 a +2 segundos
     const interval = baseInterval + randomOffset;
 
     const intervalId = setInterval(() => {
