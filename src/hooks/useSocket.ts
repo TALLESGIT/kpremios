@@ -20,17 +20,10 @@ const getSocketServerUrl = (): string => {
                        !window.location.hostname.startsWith('192.168.');
 
   if (isProduction) {
-    // Em produção, usar HTTPS e subdomínio api
-    const protocol = window.location.protocol === 'https:' ? 'https:' : 'https:';
-    const hostname = window.location.hostname;
-    
-    // Se já estiver em zkoficial.com.br, usar api.zkoficial.com.br
-    if (hostname.includes('zkoficial.com.br')) {
-      return `${protocol}//api.zkoficial.com.br`;
-    }
-    
-    // Caso contrário, usar o mesmo hostname com porta (se necessário)
-    return `${protocol}//${hostname}`;
+    // ⚠️ CRÍTICO: Em produção, SEMPRE usar api.zkoficial.com.br
+    // Independente de onde o frontend está hospedado (Vercel, etc)
+    // O backend Socket.IO está sempre em api.zkoficial.com.br
+    return 'https://api.zkoficial.com.br';
   }
 
   // 3. Desenvolvimento local
