@@ -165,6 +165,11 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   }
 });
 
+// ✅ NOVO: Wrapper resiliente que usa cache quando Supabase falha
+const SupabaseWrapper = require('./supabase-wrapper');
+const cache = require('./resilient-cache');
+const supabaseWrapper = new SupabaseWrapper(supabase);
+
 // =====================================================
 // ROTAS HTTP (Para health check)
 // =====================================================
@@ -200,6 +205,10 @@ app.get('/health', (req, res) => {
         used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
         total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
       }
+    },
+    cache: supabaseWrapper.getStats(),
+    supabase: {
+      healthy: supabaseWrapper.isHealthy()
     }
   });
 });
@@ -270,6 +279,10 @@ io.on('connection', (socket) => {
   const broadcastViewerCount = (streamId) => {
     const room = io.sockets.adapter.rooms.get(`stream:${streamId}`);
     const viewerCount = room ? room.size : 0;
+    
+    // ✅ RESILIENTE: Atualizar cache (não bloqueia se Supabase falhar)
+    supabaseWrapper.updateViewerCount(streamId, viewerCount);
+    
     io.to(`stream:${streamId}`).emit('viewer-count-updated', { 
       streamId, 
       count: viewerCount,
@@ -296,6 +309,9 @@ io.on('connection', (socket) => {
         streamRooms.set(streamId, new Set());
       }
       streamRooms.get(streamId).add(socket.id);
+
+      // ✅ RESILIENTE: Adicionar ao cache
+      cache.addViewer(streamId, socket.id);
 
       console.log(`👥 Viewer ${socket.id} entrou na stream ${streamId}`);
 
@@ -326,6 +342,9 @@ io.on('connection', (socket) => {
           streamRooms.delete(streamId);
         }
       }
+
+      // ✅ RESILIENTE: Remover do cache
+      cache.removeViewer(streamId, socket.id);
 
       console.log(`👋 Viewer ${socket.id} saiu da stream ${streamId}`);
 
@@ -562,12 +581,12 @@ io.on('connection', (socket) => {
     try {
       console.log(`❤️ Backend: Processando like na mensagem ${messageId} (user: ${userId || sessionId})`);
 
-      // Chamar RPC do Supabase para toggle like
-      const { data: result, error } = await supabase.rpc('toggle_message_like', {
-        p_message_id: messageId,
-        p_user_id: userId || null,
-        p_session_id: userId ? null : sessionId
-      });
+      // ✅ RESILIENTE: Usar wrapper que cai para cache se Supabase falhar
+      const { data: result, error, fromCache } = await supabaseWrapper.toggleMessageLike(messageId, userId || sessionId);
+
+      if (fromCache) {
+        console.warn('⚠️ Like processado via cache (Supabase indisponível)');
+      }
 
       if (error) {
         console.error('❌ Erro ao processar like:', error);
@@ -575,22 +594,15 @@ io.on('connection', (socket) => {
         return;
       }
 
-      if (result && result.success) {
-        // Buscar likes_count atualizado da mensagem
-        const { data: messageData } = await supabase
-          .from('live_chat_messages')
-          .select('likes_count')
-          .eq('id', messageId)
-          .single();
-
-        const likesCount = messageData?.likes_count || 0;
+      if (result) {
+        const likesCount = result.likes_count || 1;
 
         // Broadcast para TODOS os viewers da stream
         io.to(`stream:${streamId}`).emit('message-liked', {
           messageId,
           streamId,
           likes_count: likesCount,
-          liked: result.liked,
+          liked: result.liked !== false,
           likedBy: userId || sessionId
         });
 
@@ -1251,16 +1263,14 @@ io.on('connection', (socket) => {
         streamRooms.delete(streamId);
       }
       
+      // ✅ RESILIENTE: Remover do cache
+      if (wasInRoom) {
+        cache.removeViewer(streamId, socket.id);
+      }
+      
       // ✅ NOVO: Se o viewer estava nesta sala, broadcast contagem atualizada
       if (wasInRoom) {
-        const room = io.sockets.adapter.rooms.get(`stream:${streamId}`);
-        const viewerCount = room ? room.size : 0;
-        io.to(`stream:${streamId}`).emit('viewer-count-updated', { 
-          streamId, 
-          count: viewerCount,
-          timestamp: Date.now()
-        });
-        console.log(`📊 Viewer count atualizado após disconnect para stream ${streamId}: ${viewerCount}`);
+        broadcastViewerCount(streamId);
       }
     }
   });
