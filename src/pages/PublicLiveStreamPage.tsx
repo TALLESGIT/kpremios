@@ -945,11 +945,7 @@ const PublicLiveStreamPage: React.FC = () => {
                       isPictureInPicture={!!document.pictureInPictureElement}
                       containerRef={videoContainerRef}
                       onChatToggle={() => {
-                        if (isFullscreen && isLandscape) {
-                          setIsDockedChat(!isDockedChat);
-                        } else {
-                          setIsChatOpen(!isChatOpen);
-                        }
+                        setIsChatOpen(!isChatOpen);
                       }}
                     />
                     {/* Botão Cast para Mobile - Aparece automaticamente quando há TV disponível */}
