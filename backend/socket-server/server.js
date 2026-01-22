@@ -1358,6 +1358,45 @@ const pollVotesChannel = supabase
 
 console.log('✅ Canais Realtime do Supabase configurados para enquetes e votos');
 
+// Canal para escutar mudanças em live_streams (inicio/fim de transmissao)
+const liveStreamsChannel = supabase
+  .channel('socket-live-streams-updates')
+  .on('postgres_changes', {
+    event: '*',
+    schema: 'public',
+    table: 'live_streams'
+  }, (payload) => {
+    const stream = payload.new || payload.old;
+    const streamId = stream?.id;
+    
+    console.log('📺 Mudança detectada em live_streams:', payload.eventType, streamId);
+    
+    if (!streamId) return;
+    
+    // Broadcast para todos os viewers da stream
+    io.to(`stream:${streamId}`).emit('stream-updated', {
+      streamId: streamId,
+      updates: payload.new || {},
+      eventType: payload.eventType
+    });
+    
+    // Se a live foi encerrada (is_active mudou de true para false)
+    if (payload.eventType === 'UPDATE' && 
+        payload.old?.is_active === true && 
+        payload.new?.is_active === false) {
+      console.log('🛑 Live encerrada! Notificando todos os viewers da stream:', streamId);
+      
+      // Emitir evento especifico de encerramento
+      io.to(`stream:${streamId}`).emit('stream-ended', {
+        streamId: streamId,
+        message: 'A transmissão foi encerrada pelo administrador'
+      });
+    }
+  })
+  .subscribe();
+
+console.log('✅ Canal Realtime configurado para live_streams');
+
 // Exemplo de função para notificar mudanças na stream (pode ser chamada via webhook)
 app.post('/webhook/stream-update', async (req, res) => {
   try {
