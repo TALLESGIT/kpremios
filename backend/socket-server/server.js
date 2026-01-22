@@ -639,7 +639,7 @@ io.on('connection', (socket) => {
 
   // Criar enquete (admin apenas)
   socket.on('poll-create', async (data) => {
-    const { streamId, question, options, userId } = data;
+    const { streamId, question, options, userId, durationSeconds } = data;
 
     if (!streamId || !question || !options || !Array.isArray(options)) {
       socket.emit('error', { message: 'streamId, question e options são obrigatórios' });
@@ -660,6 +660,11 @@ io.on('connection', (socket) => {
         .eq('is_pinned', true)
         .eq('is_active', true);
 
+      // Calcular starts_at e ends_at se durationSeconds for fornecido
+      const now = new Date();
+      const startsAt = now.toISOString();
+      const endsAt = durationSeconds ? new Date(now.getTime() + durationSeconds * 1000).toISOString() : null;
+
       // Criar nova enquete ativa e fixada
       const { data: newPoll, error } = await supabase
         .from('stream_polls')
@@ -669,7 +674,10 @@ io.on('connection', (socket) => {
           question: question.trim(),
           options: options.map((opt, idx) => ({ id: idx + 1, text: opt.text.trim() })),
           is_active: true,
-          is_pinned: true
+          is_pinned: true,
+          duration_seconds: durationSeconds || null,
+          starts_at: startsAt,
+          ends_at: endsAt
         })
         .select()
         .single();
@@ -695,13 +703,62 @@ io.on('connection', (socket) => {
         poll: newPoll,
         oldPoll: null
       });
+      // Emitir alias poll:start para compatibilidade
+      io.to(`stream:${streamId}`).emit('poll:start', {
+        poll: newPoll,
+        streamId
+      });
 
       socket.emit('poll-created', { poll: newPoll });
       console.log(`📊 Enquete criada na stream ${streamId}: ${newPoll.id}`);
+
+      // Se duration_seconds foi fornecido, agendar auto-end
+      if (durationSeconds && durationSeconds > 0) {
+        setTimeout(async () => {
+          try {
+            // Verificar se a enquete ainda está ativa
+            const { data: currentPoll } = await supabase
+              .from('stream_polls')
+              .select('*')
+              .eq('id', newPoll.id)
+              .single();
+
+            if (currentPoll && currentPoll.is_active) {
+              // Desativar enquete automaticamente
+              const { error: updateError } = await supabase
+                .from('stream_polls')
+                .update({ is_active: false, is_pinned: false })
+                .eq('id', newPoll.id);
+
+              if (!updateError) {
+                // Broadcast poll:end e poll-updated
+                io.to(`stream:${streamId}`).emit('poll:end', {
+                  pollId: newPoll.id,
+                  streamId
+                });
+                io.to(`stream:${streamId}`).emit('poll-updated', {
+                  eventType: 'UPDATE',
+                  poll: { ...currentPoll, is_active: false, is_pinned: false },
+                  oldPoll: currentPoll
+                });
+                console.log(`⏰ Enquete ${newPoll.id} encerrada automaticamente após ${durationSeconds}s`);
+              }
+            }
+          } catch (err) {
+            console.error('❌ Erro ao encerrar enquete automaticamente:', err);
+          }
+        }, durationSeconds * 1000);
+      }
     } catch (error) {
       console.error('❌ Erro ao processar criação de enquete:', error);
       socket.emit('error', { message: 'Erro ao criar enquete' });
     }
+  });
+
+  // Alias: poll:start (compatibilidade)
+  socket.on('poll:start', (data) => {
+    // Redirecionar para poll-create
+    socket.emit('poll-create', data);
   });
 
   // Atualizar enquete (pin/unpin, ativar/desativar)
@@ -801,6 +858,13 @@ io.on('connection', (socket) => {
             poll: freshPoll,
             oldPoll: currentPoll
           });
+          // Emitir alias poll:update para compatibilidade
+          io.to(`stream:${finalStreamId}`).emit('poll:update', {
+            eventType: 'UPDATE',
+            poll: freshPoll,
+            oldPoll: currentPoll,
+            streamId: finalStreamId
+          });
           const roomSize = io.sockets.adapter.rooms.get(`stream:${finalStreamId}`)?.size || 0;
           console.log(`📡 Broadcast enviado para stream ${finalStreamId} (${roomSize} viewers)`);
 
@@ -886,6 +950,11 @@ io.on('connection', (socket) => {
 
       // Resposta individual para o socket que fez a requisição
       socket.emit('poll-deleted', { pollId });
+      // Emitir alias poll:end para compatibilidade
+      io.to(`stream:${finalStreamId}`).emit('poll:end', {
+        pollId,
+        streamId: finalStreamId
+      });
       console.log(`✅ Resposta poll-deleted enviada para socket ${socket.id}`);
     } catch (error) {
       console.error('❌ Erro ao processar deleção de enquete:', error);
@@ -1053,6 +1122,14 @@ io.on('connection', (socket) => {
           pollId,
           results: voteResult.results || [],
           totalVotes: voteResult.total_votes || 0
+        });
+        // Emitir alias poll:vote para compatibilidade
+        io.to(`stream:${pollData.stream_id}`).emit('poll:vote', {
+          pollId,
+          optionId,
+          results: voteResult.results || [],
+          totalVotes: voteResult.total_votes || 0,
+          streamId: pollData.stream_id
         });
       }
 

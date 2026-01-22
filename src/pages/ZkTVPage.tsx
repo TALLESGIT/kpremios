@@ -24,7 +24,9 @@ import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import { LiveViewer } from '../components/LiveViewer';
 import MobileLiveControls from '../components/live/MobileLiveControls';
-import LiveChat from '../components/live/LiveChat';
+import { ChatSlot } from '../features/chat/ChatSlot';
+import { FloatingChatButton } from '../features/chat/FloatingChatButton';
+import { ChatDrawer } from '../features/chat/ChatDrawer';
 import PollDisplay from '../components/live/PollDisplay';
 import PinnedLinkOverlay from '../components/live/PinnedLinkOverlay';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
@@ -1099,7 +1101,7 @@ const ZkTVPage: React.FC = () => {
                                 {isFullscreen && !isMobile && isChatOpen && activeStream && (
                                     <div className="absolute right-4 top-4 bottom-4 z-50 w-[320px] flex flex-col gap-3 pointer-events-auto">
                                         <div className="flex-[3] min-h-0 bg-black/80 backdrop-blur-md rounded-2xl p-2 border border-white/10 overflow-hidden shadow-2xl">
-                                            <LiveChat key="chat-fullscreen-desktop" streamId={activeStream.id} isActive={activeStream.is_active} showHeader={false} />
+                                            <ChatSlot id="zktv-desktop-fullscreen-chat" priority={100} className="h-full" />
                                         </div>
                                         <div className="flex-[1] min-h-0 pointer-events-auto bg-black/80 backdrop-blur-md rounded-2xl p-3 space-y-2 overflow-y-auto border border-white/10 custom-scrollbar shadow-2xl">
                                             <PollDisplay streamId={activeStream.id} compact={true} />
@@ -1198,7 +1200,7 @@ const ZkTVPage: React.FC = () => {
                                 <div className="w-[400px] min-w-[350px] max-w-[45vw] h-full bg-black/90 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl">
                                     <div className="flex-1 overflow-hidden flex flex-col">
                                         <div className="flex-1 overflow-hidden">
-                                            <LiveChat key="chat-mobile-docked" streamId={activeStream.id} showHeader={false} />
+                                            <ChatSlot id="zktv-mobile-landscape-docked-chat" priority={90} className="h-full" />
                                         </div>
                                         {/* Enquete em destaque no mobile landscape - Estilo CazéTV */}
                                         <div className="px-3 py-2 border-t border-white/10 bg-black/40">
@@ -1226,10 +1228,25 @@ const ZkTVPage: React.FC = () => {
                         <PollDisplay streamId={activeStream.id} compact={true} />
                         <PinnedLinkOverlay streamId={activeStream.id} />
                         <div className="flex-1 min-h-0 bg-slate-900/50 rounded-2xl overflow-hidden border border-white/5">
-                            <LiveChat key="chat-overlay" streamId={activeStream.id} />
+                            <ChatSlot id="zktv-overlay-chat" priority={80} className="h-full" />
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Floating Chat Button (Mobile Fullscreen) */}
+            {isMobile && isFullscreen && activeStream && activeStream.is_active && !isChatOpen && (
+                <FloatingChatButton onClick={() => setIsChatOpen(true)} />
+            )}
+
+            {/* ChatDrawer (Mobile Fullscreen Portrait) */}
+            {isMobile && isFullscreen && !isLandscape && activeStream && (
+                <ChatDrawer
+                    isOpen={isChatOpen}
+                    onClose={() => setIsChatOpen(false)}
+                    streamId={activeStream.id}
+                    isActive={activeStream.is_active}
+                />
             )}
 
             {/* Content Section */}

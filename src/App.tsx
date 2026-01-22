@@ -49,9 +49,14 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import ProtectedRoute from './components/shared/ProtectedRoute';
 import UserProtectedRoute from './components/ProtectedRoute';
+import { ChatProvider } from './features/chat/ChatProvider';
+import { ChatHost } from './features/chat/ChatHost';
+import { StreamIdProvider, useStreamId } from './features/chat/StreamIdProvider';
+import { PollOverlay } from './features/polls/PollOverlay';
 
-function AppContent() {
+function AppContentInner() {
   const { user, loading } = useAuth();
+  const currentStreamId = useStreamId();
 
   // Rotas públicas que podem ser acessadas durante o loading
   const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password', '/forgot-email'];
@@ -297,8 +302,22 @@ function AppContent() {
           {/* Redirect /admin to /admin/login if not authenticated */}
           <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
         </Routes>
+        {/* ChatHost global - renderiza chat no slot ativo */}
+        <ChatHost streamId={currentStreamId} />
+        {/* PollOverlay global - overlay temporário para enquetes */}
+        <PollOverlay streamId={currentStreamId} />
       </Router>
     </DataProvider>
+  );
+}
+
+function AppContent() {
+  return (
+    <ChatProvider>
+      <StreamIdProvider>
+        <AppContentInner />
+      </StreamIdProvider>
+    </ChatProvider>
   );
 }
 

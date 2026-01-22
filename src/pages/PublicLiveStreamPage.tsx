@@ -7,7 +7,9 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useSocket } from '../hooks/useSocket';
 import { LiveViewer } from '../components/LiveViewer';
-import LiveChat from '../components/live/LiveChat';
+import { ChatSlot } from '../features/chat/ChatSlot';
+import { FloatingChatButton } from '../features/chat/FloatingChatButton';
+import { ChatDrawer } from '../features/chat/ChatDrawer';
 import BottomOverlay from '../components/live/BottomOverlay';
 import SideOverlay from '../components/live/SideOverlay';
 import PinnedLinkOverlay from '../components/live/PinnedLinkOverlay';
@@ -838,29 +840,12 @@ const PublicLiveStreamPage: React.FC = () => {
                     pinnedLinkSlot={<PinnedLinkOverlay streamId={stream.id} />}
                   />
                 )}
-                {/* Mobile Portrait Fullscreen - Chat Overlay Lateral */}
-                {isMobile && isFullscreen && !isLandscape && isChatOpen && stream && (
-                  <div className="fixed right-0 top-0 bottom-0 w-[85vw] max-w-[400px] bg-black/95 backdrop-blur-md border-l border-white/10 z-[100] flex flex-col shadow-2xl">
-                    <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                      <span className="text-sm font-black text-white uppercase italic tracking-widest">Chat da Transmissão</span>
-                      <button onClick={() => setIsChatOpen(false)}>
-                        <X className="w-5 h-5 text-white" />
-                      </button>
-                    </div>
-                    <div className="flex-1 overflow-hidden flex flex-col p-2 space-y-3">
-                      <PollDisplay streamId={stream.id} compact={true} />
-                      <PinnedLinkOverlay streamId={stream.id} />
-                      <div className="flex-1 min-h-0 bg-slate-900/50 rounded-2xl overflow-hidden border border-white/5">
-                        <LiveChat key="chat-mobile-portrait-fullscreen" streamId={stream.id} showHeader={false} />
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {/* Desktop Fullscreen - Overlay lateral direito - NÃO renderizar se for mobile landscape */}
-                {isFullscreen && !isMobile && isChatOpen && !(isMobile && isLandscape) && (
+                {/* Mobile Portrait Fullscreen - ChatDrawer será renderizado via ChatHost se isChatOpen */}
+                {/* Desktop Fullscreen - ChatSlot para sidebar lateral */}
+                {isFullscreen && !isMobile && isChatOpen && stream && (
                   <div className="absolute right-4 top-4 bottom-4 z-50 w-[320px] flex flex-col gap-3 pointer-events-auto">
                     <div className="flex-[3] min-h-0 bg-black/80 backdrop-blur-md rounded-xl p-2 border border-white/10 overflow-hidden">
-                      <LiveChat key="chat-fullscreen-desktop" streamId={stream.id} isActive={stream.is_active} showHeader={false} />
+                      <ChatSlot id="desktop-fullscreen-chat" priority={100} className="h-full" />
                     </div>
                     <div className="flex-[1] min-h-0 pointer-events-auto bg-black/80 backdrop-blur-md rounded-xl p-3 space-y-2 overflow-y-auto border border-white/10 custom-scrollbar">
                       <PollDisplay streamId={stream.id} compact={true} />
@@ -959,14 +944,12 @@ const PublicLiveStreamPage: React.FC = () => {
                   </>
                 )}
               </div>
-              {isDockedChat && (
+              {/* Mobile Landscape Fullscreen - Chat Docked */}
+              {isDockedChat && stream && (
                 <div className={`h-full bg-black/40 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl animate-in slide-in-from-right duration-300 ${isMobile ? 'w-[400px] min-w-[350px] max-w-[45vw]' : 'w-[300px]'
                   }`}>
                   <div className="flex-1 overflow-hidden">
-                    <LiveChat
-                      streamId={stream.id}
-                      showHeader={false}
-                    />
+                    <ChatSlot id="mobile-landscape-docked-chat" priority={90} className="h-full" />
                   </div>
                 </div>
               )}
@@ -1005,7 +988,7 @@ const PublicLiveStreamPage: React.FC = () => {
                 <PollDisplay streamId={stream.id} />
                 <PinnedLinkOverlay streamId={stream.id} />
                 <div className="h-[600px] bg-slate-900 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl">
-                  <LiveChat key="chat-fixed" streamId={stream.id} isActive={stream.is_active} />
+                  <ChatSlot id="fixed-chat" priority={50} className="h-full" />
                 </div>
               </div>
             )}
@@ -1027,10 +1010,25 @@ const PublicLiveStreamPage: React.FC = () => {
             <PollDisplay streamId={stream.id} compact={true} />
             <PinnedLinkOverlay streamId={stream.id} />
             <div className="flex-1 min-h-0 bg-slate-900/50 rounded-2xl overflow-hidden border border-white/5">
-              <LiveChat key="chat-overlay" streamId={stream.id} />
+              <ChatSlot id="overlay-chat" priority={80} className="h-full" />
             </div>
           </div>
         </div>
+      )}
+
+      {/* Floating Chat Button (Mobile Fullscreen) */}
+      {isMobile && isFullscreen && stream && stream.is_active && !isChatOpen && (
+        <FloatingChatButton onClick={() => setIsChatOpen(true)} />
+      )}
+
+      {/* ChatDrawer (Mobile Fullscreen Portrait) */}
+      {isMobile && isFullscreen && !isLandscape && stream && (
+        <ChatDrawer
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          streamId={stream.id}
+          isActive={stream.is_active}
+        />
       )}
 
       <Footer />
