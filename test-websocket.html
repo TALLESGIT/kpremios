@@ -4,23 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Teste WebSocket - Socket.IO</title>
-    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" onerror="handleSocketIOError()"></script>
     <script>
-        // Verificar se Socket.IO carregou
+        function handleSocketIOError() {
+            document.body.innerHTML = '<div style="padding: 50px; text-align: center; background: #f44336; color: white; font-family: Arial; min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column;"><h1>❌ Erro ao carregar Socket.IO</h1><p>O CDN do Socket.IO não carregou. Verifique sua conexão com a internet.</p><p>Tente recarregar a página (F5)</p></div>';
+        }
+        
+        // Verificar se Socket.IO carregou após 2 segundos
         window.addEventListener('load', () => {
-            if (typeof io === 'undefined') {
-                document.body.innerHTML = '<div style="padding: 50px; text-align: center; background: #f44336; color: white; font-family: Arial;"><h1>❌ Erro ao carregar Socket.IO</h1><p>O CDN do Socket.IO não carregou. Verifique sua conexão com a internet.</p></div>';
-            }
+            setTimeout(() => {
+                if (typeof io === 'undefined') {
+                    handleSocketIOError();
+                }
+            }, 2000);
         });
     </script>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+        
         body {
             font-family: Arial, sans-serif;
             max-width: 800px;
-            margin: 50px auto;
+            margin: 0 auto;
             padding: 20px;
             background: #1a1a1a;
             color: #fff;
+            display: block;
         }
         .container {
             background: #2a2a2a;
@@ -96,9 +113,17 @@
     </style>
 </head>
 <body>
+    <noscript>
+        <div style="padding: 50px; text-align: center; background: #f44336; color: white;">
+            <h1>❌ JavaScript Desabilitado</h1>
+            <p>Por favor, habilite o JavaScript para usar este teste.</p>
+        </div>
+    </noscript>
+    
     <div class="container">
         <h1>🔌 Teste de Conexão WebSocket</h1>
         <p>URL do servidor: <strong id="serverUrl">https://api.zkoficial.com.br</strong></p>
+        <p id="loadingStatus" style="color: #ff9800;">⏳ Carregando Socket.IO...</p>
         
         <div id="status" class="disconnected">Desconectado</div>
         
@@ -247,6 +272,19 @@
 
         // Auto-conectar ao carregar a página
         window.addEventListener('load', () => {
+            const loadingStatus = document.getElementById('loadingStatus');
+            if (loadingStatus) {
+                if (typeof io !== 'undefined') {
+                    loadingStatus.textContent = '✅ Socket.IO carregado!';
+                    loadingStatus.style.color = '#4CAF50';
+                    setTimeout(() => {
+                        loadingStatus.style.display = 'none';
+                    }, 2000);
+                } else {
+                    loadingStatus.textContent = '❌ Socket.IO não carregou';
+                    loadingStatus.style.color = '#f44336';
+                }
+            }
             log('Página carregada. Clique em "Conectar" para testar.', 'info');
         });
     </script>
