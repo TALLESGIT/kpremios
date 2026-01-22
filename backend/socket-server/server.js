@@ -157,10 +157,17 @@ io.on('connection', (socket) => {
 
   // Chat: Viewer envia mensagem
   socket.on('chat-message', async (data) => {
-    const { streamId, userId, message, messageType, userName } = data;
+    const { streamId, userId, message, messageType, userName, tts_text, audio_duration } = data;
     
     if (!streamId || !message) {
       socket.emit('error', { message: 'streamId e message são obrigatórios' });
+      return;
+    }
+
+    // ⚠️ EXIGIR LOGIN: Usuário deve estar logado para enviar mensagens
+    if (!userId) {
+      socket.emit('error', { message: 'Você precisa fazer login para enviar mensagens. Faça login ou cadastre-se.' });
+      console.log(`❌ Tentativa de enviar mensagem sem login na stream ${streamId}`);
       return;
     }
 
@@ -194,16 +201,25 @@ io.on('connection', (socket) => {
         console.log(`👤 Backend: Mensagem de usuário anônimo: ${finalUserName}`);
       }
 
+      // Preparar dados da mensagem (incluindo campos TTS se for mensagem de áudio)
+      const messageData = {
+        stream_id: streamId,
+        user_id: userId || null,
+        message: message,
+        message_type: messageType || 'text',
+        user_name: finalUserName
+      };
+
+      // Se for mensagem TTS, adicionar campos específicos
+      if (messageType === 'tts') {
+        messageData.tts_text = tts_text || message;
+        messageData.audio_duration = audio_duration || null;
+      }
+
       // Salvar mensagem no Supabase
       const { data: savedMessage, error } = await supabase
         .from('live_chat_messages')
-        .insert({
-          stream_id: streamId,
-          user_id: userId || null,
-          message: message,
-          message_type: messageType || 'text',
-          user_name: finalUserName
-        })
+        .insert(messageData)
         .select()
         .single();
 

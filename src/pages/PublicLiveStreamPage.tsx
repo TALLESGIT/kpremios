@@ -838,6 +838,24 @@ const PublicLiveStreamPage: React.FC = () => {
                     pinnedLinkSlot={<PinnedLinkOverlay streamId={stream.id} />}
                   />
                 )}
+                {/* Mobile Portrait Fullscreen - Chat Overlay Lateral */}
+                {isMobile && isFullscreen && !isLandscape && isChatOpen && stream && (
+                  <div className="fixed right-0 top-0 bottom-0 w-[85vw] max-w-[400px] bg-black/95 backdrop-blur-md border-l border-white/10 z-[100] flex flex-col shadow-2xl">
+                    <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                      <span className="text-sm font-black text-white uppercase italic tracking-widest">Chat da Transmissão</span>
+                      <button onClick={() => setIsChatOpen(false)}>
+                        <X className="w-5 h-5 text-white" />
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-hidden flex flex-col p-2 space-y-3">
+                      <PollDisplay streamId={stream.id} compact={true} />
+                      <PinnedLinkOverlay streamId={stream.id} />
+                      <div className="flex-1 min-h-0 bg-slate-900/50 rounded-2xl overflow-hidden border border-white/5">
+                        <LiveChat key="chat-mobile-portrait-fullscreen" streamId={stream.id} showHeader={false} />
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {/* Desktop Fullscreen - Overlay lateral direito - NÃO renderizar se for mobile landscape */}
                 {isFullscreen && !isMobile && isChatOpen && !(isMobile && isLandscape) && (
                   <div className="absolute right-4 top-4 bottom-4 z-50 w-[320px] flex flex-col gap-3 pointer-events-auto">
@@ -912,35 +930,37 @@ const PublicLiveStreamPage: React.FC = () => {
                   </div>
                 )}
 
-                <MobileLiveControls
-                  isActive={stream.is_active}
-                  isFullscreen={isFullscreen}
-                  onFullscreen={handleFullscreen}
-                  onRotate={handleRotate}
-                  onToggleFit={() => setVideoFitMode(p => p === 'contain' ? 'cover' : 'contain')}
-                  fitMode={videoFitMode}
-                  isDocked={isDockedChat}
-                  onPictureInPicture={togglePiP}
-                  isPictureInPicture={!!document.pictureInPictureElement}
-                  containerRef={videoContainerRef}
-                  onChatToggle={() => {
-                    if (isFullscreen && isLandscape) {
-                      setIsDockedChat(!isDockedChat);
-                    } else {
-                      setIsChatOpen(!isChatOpen);
-                    }
-                  }}
-                />
-
-                {/* Botão Cast para Mobile - Aparece automaticamente quando há TV disponível */}
+                {/* Controles Mobile */}
                 {stream.is_active && isMobile && (
-                  <div className={`absolute top-4 right-4 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'
-                    }`}>
-                    <CastButton
-                      hlsUrl={stream.hls_url}
-                      channelName={channelName || 'zktv'}
+                  <>
+                    <MobileLiveControls
+                      isActive={stream.is_active}
+                      isFullscreen={isFullscreen}
+                      onFullscreen={handleFullscreen}
+                      onRotate={handleRotate}
+                      onToggleFit={() => setVideoFitMode(p => p === 'contain' ? 'cover' : 'contain')}
+                      fitMode={videoFitMode}
+                      isDocked={isDockedChat}
+                      onPictureInPicture={togglePiP}
+                      isPictureInPicture={!!document.pictureInPictureElement}
+                      containerRef={videoContainerRef}
+                      onChatToggle={() => {
+                        if (isFullscreen && isLandscape) {
+                          setIsDockedChat(!isDockedChat);
+                        } else {
+                          setIsChatOpen(!isChatOpen);
+                        }
+                      }}
                     />
-                  </div>
+                    {/* Botão Cast para Mobile - Aparece automaticamente quando há TV disponível */}
+                    <div className={`absolute top-4 right-4 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'
+                      }`}>
+                      <CastButton
+                        hlsUrl={stream.hls_url}
+                        channelName={channelName || 'zktv'}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
               {isDockedChat && (
@@ -982,6 +1002,17 @@ const PublicLiveStreamPage: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* Chat Fixo - Abaixo de Próximos Jogos (não fullscreen) */}
+            {!isFullscreen && stream && (
+              <div className="space-y-4 mt-8">
+                <PollDisplay streamId={stream.id} />
+                <PinnedLinkOverlay streamId={stream.id} />
+                <div className="h-[600px] bg-slate-900 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl">
+                  <LiveChat key="chat-fixed" streamId={stream.id} isActive={stream.is_active} />
+                </div>
+              </div>
+            )}
           </div>
 
         </div>

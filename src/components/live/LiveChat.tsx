@@ -716,42 +716,39 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
       const words = msg.split(' ').length;
       const estimatedDuration = Math.ceil((words / 150) * 60); // em segundos
 
-      // Inserir mensagem com tipo TTS
-      const { error: insertError } = await supabase.from('live_chat_messages').insert({
-        stream_id: streamId,
-        user_id: user.id,
-        message: msg,
-        user_email: user.email,
-        user_name: (currentUser?.name || user.email?.split('@')[0] || 'Usuário').split(' ')[0],
-        message_type: 'tts',
+      // ✅ MIGRAÇÃO: Usar Socket.io para enviar mensagem TTS (igual às mensagens normais)
+      if (!socketConnected) {
+        toast.error('Não conectado ao servidor. Tentando reconectar...');
+        setIsSendingAudio(false);
+        return;
+      }
+
+      // Enviar via Socket.io com tipo TTS (backend vai salvar no Supabase com message_type='tts')
+      socketSendMessage(msg, { 
+        messageType: 'tts',
         tts_text: msg,
         audio_duration: estimatedDuration
       });
 
-      if (insertError) {
-        console.error('Erro ao inserir mensagem de áudio:', insertError);
-        toast.error('Erro ao enviar mensagem de áudio: ' + insertError.message);
-      } else {
-        // Atualizar contador de áudios restantes
-        const remaining = Math.max(0, 3 - (audioCount || 0) - 1);
-        setAudioCountRemaining(remaining);
+      // Atualizar contador de áudios restantes
+      const remaining = Math.max(0, 3 - (audioCount || 0) - 1);
+      setAudioCountRemaining(remaining);
 
-        // Recarregar limites VIP
-        await loadVipLimits();
+      // Recarregar limites VIP
+      await loadVipLimits();
 
-        // Mostrar toast com contadores restantes
-        const messagesText = vipOverlayCountRemaining > 0
-          ? `${vipOverlayCountRemaining} msgs na tela`
-          : 'Limite de msgs na tela atingido';
-        const audioText = remaining > 0
-          ? `${remaining} áudios restantes`
-          : 'Limite de áudios atingido';
+      // Mostrar toast com contadores restantes
+      const messagesText = vipOverlayCountRemaining > 0
+        ? `${vipOverlayCountRemaining} msgs na tela`
+        : 'Limite de msgs na tela atingido';
+      const audioText = remaining > 0
+        ? `${remaining} áudios restantes`
+        : 'Limite de áudios atingido';
 
-        toast.success(
-          `🔊 Áudio enviado! ${messagesText} | ${audioText}`,
-          { duration: 4000 }
-        );
-      }
+      toast.success(
+        `🔊 Áudio enviado! ${messagesText} | ${audioText}`,
+        { duration: 4000 }
+      );
     } catch (err) {
       console.error('Erro ao enviar mensagem de áudio:', err);
       toast.error('Erro ao enviar mensagem de áudio');
