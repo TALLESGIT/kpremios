@@ -10,6 +10,10 @@ class SupabaseWrapper {
   constructor(supabaseClient) {
     this.supabase = supabaseClient;
     this.timeout = 5000; // 5 segundos de timeout
+    
+    // ✅ THROTTLE: Atualizar viewer_count no Supabase apenas a cada 10s
+    this.viewerCountThrottle = new Map(); // streamId -> timestamp da última atualização
+    this.VIEWER_COUNT_UPDATE_INTERVAL = 10000; // 10 segundos
   }
 
   // =====================================================
@@ -180,6 +184,18 @@ class SupabaseWrapper {
   async updateViewerCount(streamId, count) {
     // Sempre atualizar o cache primeiro (instantâneo)
     const viewers = cache.getViewerCount(streamId);
+    
+    // ✅ THROTTLE: Atualizar Supabase apenas a cada 10 segundos
+    const now = Date.now();
+    const lastUpdate = this.viewerCountThrottle.get(streamId) || 0;
+    
+    if (now - lastUpdate < this.VIEWER_COUNT_UPDATE_INTERVAL) {
+      // Ignorar atualização (throttle)
+      return { data: { viewer_count: viewers }, error: null, fromCache: true };
+    }
+    
+    // Atualizar timestamp
+    this.viewerCountThrottle.set(streamId, now);
     
     // Tentar atualizar no Supabase (não bloquear se falhar)
     this.supabase

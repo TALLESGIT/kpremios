@@ -52,6 +52,9 @@ const AdminLiveStreamPage: React.FC = () => {
   const [newStreamTitle, setNewStreamTitle] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  // ✅ THROTTLE: Ignorar UPDATEs do Realtime se foram há menos de 3 segundos
+  const [lastRealtimeUpdate, setLastRealtimeUpdate] = useState<number>(0);
 
   // Handler para duplo clique - tela cheia
   const handleDoubleClick = (containerSelector: string) => {
@@ -81,6 +84,14 @@ const AdminLiveStreamPage: React.FC = () => {
 
           if (payload.eventType === 'UPDATE' && payload.new) {
             const updatedStream = payload.new as LiveStream;
+            const now = Date.now();
+
+            // ✅ THROTTLE: Ignorar UPDATEs frequentes (< 3s) para evitar lags
+            if (now - lastRealtimeUpdate < 3000) {
+              console.log('⏭️ Ignorando UPDATE (throttle de 3s)');
+              return;
+            }
+            setLastRealtimeUpdate(now);
 
             // Se for mudança no status de ativação, atualizamos na hora!
             const statusChanged = updatedStream.is_active !== (selectedStream?.is_active ?? false);
