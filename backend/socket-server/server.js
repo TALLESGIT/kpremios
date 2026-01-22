@@ -102,6 +102,8 @@ app.use(cors({
 app.use(express.json());
 
 // Inicializar Socket.io com CORS e configurações otimizadas para produção
+// ✅ CRÍTICO: Em produção, usar APENAS websocket (sem polling)
+// Polling causa problemas com proxy reverso e não é necessário em produção
 const io = new Server(server, {
   path: '/socket.io/', // Path explícito para Socket.IO
   cors: {
@@ -109,19 +111,22 @@ const io = new Server(server, {
     methods: ['GET', 'POST'],
     credentials: true
   },
-  // Transports: WebSocket prioritário, polling como fallback
-  transports: ['websocket', 'polling'],
+  // CRÍTICO: Em produção, apenas websocket (sem polling)
+  // Polling não funciona bem com proxy reverso e causa "Transport unknown"
+  // Em dev, manter polling como fallback para desenvolvimento local
+  transports: isProduction ? ['websocket'] : ['websocket', 'polling'],
+  // Em produção, não permitir upgrade (já é websocket direto)
+  // Em dev, permitir upgrade de polling para websocket
+  allowUpgrades: !isProduction,
   // Configurações para conexões longas (streaming)
   pingTimeout: 60000, // 60 segundos
   pingInterval: 25000, // 25 segundos
   // Compatibilidade com versões antigas do Socket.IO
   allowEIO3: true,
-  // Permitir upgrade de conexão
-  allowUpgrades: true,
   // Timeout para handshake
   connectTimeout: 45000,
-  // Permitir CORS para todas as origens permitidas
-  serveClient: false // Não servir o cliente Socket.IO (usar CDN)
+  // Não servir o cliente Socket.IO (usar CDN no frontend)
+  serveClient: false
 });
 
 // Inicializar Supabase
