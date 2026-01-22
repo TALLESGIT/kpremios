@@ -1106,8 +1106,8 @@ const ZkTVPage: React.FC = () => {
 
                                 {/* Desktop Fullscreen - Sidebar Lateral (Chat + Enquete) - Estilo CazéTV */}
                                 {isFullscreen && !isMobile && isChatOpen && activeStream && (
-                                    <div className="absolute right-4 top-4 bottom-4 z-50 w-[320px] flex flex-col gap-3 pointer-events-auto">
-                                        <div className="flex-[3] min-h-0 bg-black/80 backdrop-blur-md rounded-2xl p-2 border border-white/10 overflow-hidden shadow-2xl">
+                                    <div className="absolute right-4 top-4 bottom-4 z-50 w-[400px] flex flex-col gap-3 pointer-events-auto">
+                                        <div className="flex-[4] min-h-0 bg-black/80 backdrop-blur-md rounded-2xl p-2 border border-white/10 overflow-hidden shadow-2xl">
                                             <ChatSlot id="zktv-desktop-fullscreen-chat" priority={100} className="h-full" />
                                         </div>
                                         <div className="flex-[1] min-h-0 pointer-events-auto bg-black/80 backdrop-blur-md rounded-2xl p-3 space-y-2 overflow-y-auto border border-white/10 custom-scrollbar shadow-2xl">
@@ -1234,17 +1234,15 @@ const ZkTVPage: React.FC = () => {
 
             {/* Chat Overlay (Desktop e Mobile não fullscreen) - NÃO renderizar se estiver em fullscreen */}
             {isChatOpen && activeStream && !isDockedChat && !isFullscreen && (
-                <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[450px] bg-black/95 backdrop-blur-md border-l border-white/10 z-[9999] flex flex-col shadow-2xl">
+                <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[500px] bg-black/95 backdrop-blur-md border-l border-white/10 z-[9999] flex flex-col shadow-2xl">
                     <div className="p-4 border-b border-white/10 flex items-center justify-between">
                         <span className="text-sm font-black text-white uppercase italic tracking-widest">Chat da Transmissão</span>
                         <button onClick={() => setIsChatOpen(false)}>
                             <X className="w-5 h-5 text-white" />
                         </button>
                     </div>
-                    <div className="flex-1 overflow-hidden flex flex-col p-2 space-y-3">
-                        <PollDisplay streamId={activeStream.id} compact={true} />
-                        <PinnedLinkOverlay streamId={activeStream.id} />
-                        <div className="flex-1 min-h-0 bg-slate-900/50 rounded-2xl overflow-hidden border border-white/5">
+                    <div className="flex-1 overflow-hidden flex flex-col">
+                        <div className="flex-1 min-h-0 h-full">
                             <ChatSlot id="zktv-overlay-chat" priority={80} className="h-full" />
                         </div>
                     </div>
