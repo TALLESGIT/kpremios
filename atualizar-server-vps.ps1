@@ -22,7 +22,8 @@ Write-Host "[INFO] Enviando para VPS..." -ForegroundColor Yellow
 
 # Fazer backup do arquivo atual na VPS (via SSH)
 Write-Host "[INFO] Fazendo backup do arquivo atual..." -ForegroundColor Yellow
-ssh ${VPS_USER}@${VPS_IP} "cp $REMOTE_PATH ${REMOTE_PATH}.backup.\$(date +%Y%m%d_%H%M%S)"
+$backupCmd = "cp $REMOTE_PATH ${REMOTE_PATH}.backup.`$(date +%Y%m%d_%H%M%S)"
+ssh ${VPS_USER}@${VPS_IP} $backupCmd
 
 # Enviar arquivo via SCP
 Write-Host "[INFO] Enviando arquivo..." -ForegroundColor Yellow
