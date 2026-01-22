@@ -25,6 +25,7 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
   const [error, setError] = useState<string | null>(null);
   const [reconnectCount, setReconnectCount] = useState(0);
   const [connectionTimeout, setConnectionTimeout] = useState<NodeJS.Timeout | null>(null);
+  const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null); // ✅ Ref para acessar timeout em callbacks
   const [connectionStartTime, setConnectionStartTime] = useState<number | null>(null);
   const [connectionElapsedTime, setConnectionElapsedTime] = useState<number>(0);
 
@@ -130,8 +131,24 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
         client.on('connection-state-change', (state: string) => {
           if (!mounted) return;
           console.log('🔌 ZKViewer: connection-state-change', state);
+          
+          // ✅ CORREÇÃO: Limpar timeout quando conectado
+          if (state === 'CONNECTED' && connectionTimeoutRef.current) {
+            console.log('✅ ZKViewer: Conexão estabelecida, aguardando stream...');
+            clearTimeout(connectionTimeoutRef.current);
+            connectionTimeoutRef.current = null;
+            setConnectionTimeout(null);
+            // Não limpar erro aqui - aguardar user-published para isso
+          }
+          
           if (state === 'DISCONNECTED') {
             setIsLive(false);
+            // Se desconectou, permitir timeout novamente
+            if (connectionTimeoutRef.current) {
+              clearTimeout(connectionTimeoutRef.current);
+              connectionTimeoutRef.current = null;
+              setConnectionTimeout(null);
+            }
           }
         });
 
@@ -181,8 +198,10 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
               setError(null);
               setDecodeErrorCount(0);
 
-              if (connectionTimeout) {
-                clearTimeout(connectionTimeout);
+              // ✅ CORREÇÃO: Limpar timeout quando stream aparece
+              if (connectionTimeoutRef.current) {
+                clearTimeout(connectionTimeoutRef.current);
+                connectionTimeoutRef.current = null;
                 setConnectionTimeout(null);
               }
 
@@ -298,7 +317,13 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
         setConnectionStartTime(startTime);
 
         const timeoutId = setTimeout(() => {
-          if (!isLive && mounted) {
+          // ✅ CORREÇÃO: Só mostrar erro se realmente não estiver conectado
+          // Verificar connection state antes de mostrar erro
+          const connectionState = clientRef.current?.connectionState;
+          const isConnected = connectionState === 'CONNECTED' || connectionState === 'CONNECTING';
+          
+          if (!isLive && !isConnected && mounted) {
+            console.warn('⚠️ ZKViewer: Timeout de conexão - tentando reconectar...');
             setError('Conexão demorou muito...');
             // Retry automático após timeout
             setTimeout(() => {
@@ -307,17 +332,34 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
                 setError(null);
               }
             }, 2000);
+          } else if (isConnected && !isLive) {
+            // Se está conectado mas ainda não recebeu stream, aguardar mais
+            console.log('⏳ ZKViewer: Conectado, aguardando stream...');
+            // Não mostrar erro, apenas aguardar
           }
-        }, 15000) as unknown as NodeJS.Timeout;
+        }, 30000) as unknown as NodeJS.Timeout; // ✅ Aumentado para 30 segundos
 
+        connectionTimeoutRef.current = timeoutId;
         setConnectionTimeout(timeoutId);
 
         try {
           await client.join(agoraAppId, channel, agoraToken, null);
           console.log('✅ Conectado!', { channel, connectionTime: `${Date.now() - startTime}ms` });
-          // Timeouts limpos apenas quando 'user-published' ocorre (vide logic acima) ou aqui se conexão for suficiente
+          
+          // ✅ CORREÇÃO: Limpar timeout quando join é bem-sucedido
+          // O timeout só deve disparar se realmente não conseguir conectar
+          // Se conectou, aguardar o stream aparecer (user-published)
+          if (connectionTimeoutRef.current) {
+            clearTimeout(connectionTimeoutRef.current);
+            connectionTimeoutRef.current = null;
+            setConnectionTimeout(null);
+          }
         } catch (joinError: any) {
-          clearTimeout(timeoutId);
+          if (connectionTimeoutRef.current) {
+            clearTimeout(connectionTimeoutRef.current);
+            connectionTimeoutRef.current = null;
+            setConnectionTimeout(null);
+          }
           throw joinError;
         }
       } catch (err: any) {
