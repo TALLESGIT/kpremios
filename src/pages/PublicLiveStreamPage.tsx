@@ -1002,38 +1002,21 @@ const PublicLiveStreamPage: React.FC = () => {
         </div>
       </main>
 
-      {/* Chat Overlay (Desktop e Mobile não fullscreen) - NÃO renderizar se estiver em fullscreen */}
-      {isChatOpen && stream && !isDockedChat && !isFullscreen && (
-        <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[450px] bg-black/95 backdrop-blur-md border-l border-white/10 z-[9999] flex flex-col shadow-2xl">
-          <div className="p-4 border-b border-white/10 flex items-center justify-between">
-            <span className="text-sm font-black text-white uppercase italic tracking-widest">Chat da Transmissão</span>
-            <button onClick={() => setIsChatOpen(false)}>
-              <X className="w-5 h-5 text-white" />
-            </button>
-          </div>
-          <div className="flex-1 overflow-hidden flex flex-col p-2 space-y-3">
-            <PollDisplay streamId={stream.id} compact={true} />
-            <PinnedLinkOverlay streamId={stream.id} />
-            <div className="flex-1 min-h-0 bg-slate-900/50 rounded-2xl overflow-hidden border border-white/5">
-              <ChatSlot id="overlay-chat" priority={80} className="h-full" />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Floating Chat Button (Mobile Fullscreen) */}
-      {isMobile && isFullscreen && stream && stream.is_active && !isChatOpen && (
-        <FloatingChatButton onClick={() => setIsChatOpen(true)} />
-      )}
-
-      {/* ChatDrawer (Mobile Fullscreen Portrait) */}
-      {isMobile && isFullscreen && !isLandscape && stream && (
-        <ChatDrawer
-          isOpen={isChatOpen}
-          onClose={() => setIsChatOpen(false)}
-          streamId={stream.id}
-          isActive={stream.is_active}
-        />
+      {/* ChatDrawer (Mobile Fullscreen) */}
+      {isMobile && isFullscreen && stream && (
+        <>
+          {/* Floating Chat Button - só aparece se chat não estiver aberto */}
+          {!isChatOpen && stream.is_active && (
+            <FloatingChatButton onClick={() => setIsChatOpen(true)} />
+          )}
+          {/* ChatDrawer para mobile fullscreen */}
+          <ChatDrawer
+            isOpen={isChatOpen}
+            onClose={() => setIsChatOpen(false)}
+            streamId={stream.id}
+            isActive={stream.is_active}
+          />
+        </>
       )}
 
       <Footer />

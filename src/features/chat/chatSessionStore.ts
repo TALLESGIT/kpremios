@@ -24,7 +24,7 @@ interface SocketHelpers {
   off: (event: string, callback?: (data: any) => void) => void;
 }
 
-class ChatSessionStore {
+export class ChatSessionStore {
   private streamId: string;
   private state: ChatSessionState = {
     messages: [],
@@ -174,8 +174,16 @@ class ChatSessionStore {
   }
 
   // Atualizar estado e notificar listeners
-  private updateState(updates: Partial<ChatSessionState>) {
-    this.state = { ...this.state, ...updates };
+  // Aceita objeto parcial OU função que recebe estado anterior
+  private updateState(updates: Partial<ChatSessionState> | ((prev: ChatSessionState) => ChatSessionState | Partial<ChatSessionState>)) {
+    if (typeof updates === 'function') {
+      const result = updates(this.state);
+      // Se a função retornar o mesmo objeto (sem mudanças), não notificar
+      if (result === this.state) return;
+      this.state = { ...this.state, ...result };
+    } else {
+      this.state = { ...this.state, ...updates };
+    }
     this.notifyListeners();
   }
 
