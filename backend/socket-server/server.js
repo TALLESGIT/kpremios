@@ -82,10 +82,22 @@ const corsOrigin = (origin, callback) => {
   callback(new Error('Not allowed by CORS'));
 };
 
-// Middleware de log para depurar origens
+// Middleware de log para depurar origens e requisições Socket.IO
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin) {
+  const path = req.path;
+  
+  // Log detalhado para requisições Socket.IO
+  if (path && path.includes('socket.io')) {
+    console.log(`📡 Requisição Socket.IO:`, {
+      method: req.method,
+      path: req.path,
+      origin: origin || 'none',
+      upgrade: req.headers.upgrade || 'none',
+      connection: req.headers.connection || 'none',
+      query: req.query
+    });
+  } else if (origin) {
     console.log(`📡 Requisição recebida da origem: ${origin}`);
   }
   next();
@@ -204,11 +216,29 @@ const socketIoChatMessages = new Set(); // messageId -> timestamp
 
 // Logs detalhados de conexão Socket.IO
 io.engine.on('connection_error', (err) => {
-  console.error('❌ Socket.IO: Erro de conexão:', err.req?.headers?.origin || 'unknown origin', err.message);
-  console.error('❌ Detalhes:', {
+  const origin = err.req?.headers?.origin || 'unknown origin';
+  const userAgent = err.req?.headers?.['user-agent'] || 'unknown';
+  const host = err.req?.headers?.host || 'unknown';
+  const upgrade = err.req?.headers?.upgrade || 'none';
+  const connection = err.req?.headers?.connection || 'none';
+  
+  console.error('❌ Socket.IO: Erro de conexão:', origin);
+  console.error('❌ Mensagem:', err.message);
+  console.error('❌ Detalhes completos:', {
     code: err.code,
     context: err.context,
-    type: err.type
+    type: err.type,
+    req: {
+      method: err.req?.method,
+      url: err.req?.url,
+      headers: {
+        origin,
+        host,
+        upgrade,
+        connection,
+        'user-agent': userAgent
+      }
+    }
   });
 });
 
