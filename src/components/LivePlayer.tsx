@@ -44,6 +44,7 @@ export function LivePlayer({
 
     try {
       video.muted = false;
+      video.volume = 1.0; // ✅ Garantir volume máximo
       await video.play();
       console.log('✅ LivePlayer: Áudio ativado após interação');
     } catch (err) {
@@ -80,9 +81,10 @@ export function LivePlayer({
       return;
     }
 
-    video.muted = true;
+    video.muted = false; // ✅ Não mutar por padrão para ter áudio
     video.playsInline = true;
     video.preload = 'auto';
+    video.volume = 1.0; // ✅ Volume máximo por padrão
 
     const handleLoadStart = () => {
       console.log('🔄 LivePlayer: Iniciando carregamento HLS...');
@@ -254,22 +256,26 @@ export function LivePlayer({
     } else if (Hls.isSupported()) {
       // Usar hls.js para navegadores que não suportam HLS nativamente
       console.log('✅ LivePlayer: Usando hls.js para reproduzir HLS (Chrome/Firefox/Edge)');
-      // ✅ Configuração otimizada para reduzir travamento
+      // ✅ Configuração ULTRA otimizada para reduzir travamento
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
-        backBufferLength: 30,        // Reduzido de 90 para 30 (menos buffer = menos travamento)
-        maxBufferLength: 15,          // Reduzido de 30 para 15 (mais responsivo)
-        maxMaxBufferLength: 30,       // Reduzido de 60 para 30
+        backBufferLength: 10,         // Reduzido de 30 para 10 (mínimo buffer atrás)
+        maxBufferLength: 10,          // Reduzido de 15 para 10 (buffer mínimo à frente)
+        maxMaxBufferLength: 20,       // Reduzido de 30 para 20
         startLevel: -1,               // Auto-seleção de qualidade
         debug: false,
         // ✅ Configurações adicionais para mobile
-        maxBufferSize: 30 * 1000 * 1000,  // 30MB max buffer
-        maxBufferHole: 0.5,           // Tolerar pequenos buracos no buffer
+        maxBufferSize: 20 * 1000 * 1000,  // 20MB max buffer (reduzido de 30MB)
+        maxBufferHole: 0.3,           // Tolerar buracos menores (mais agressivo)
         manifestLoadingTimeOut: 10000, // 10s timeout para manifest
         manifestLoadingMaxRetry: 4,    // 4 tentativas
         levelLoadingTimeOut: 10000,    // 10s timeout para segments
         levelLoadingMaxRetry: 4,       // 4 tentativas
+        // ✅ Configurações de latência
+        liveSyncDurationCount: 3,     // Manter apenas 3 segmentos de sincronização
+        liveMaxLatencyDurationCount: 5, // Máximo 5 segmentos de latência
+        maxFragLookUpTolerance: 0.2,  // Tolerância de busca de fragmento
       });
       
       hlsRef.current = hls;
@@ -410,7 +416,6 @@ export function LivePlayer({
         <video
           ref={videoRef}
           autoPlay
-          muted
           playsInline
           controls
           preload="auto"

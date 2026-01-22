@@ -50,6 +50,7 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "" }: LiveHl
     setNeedsInteraction(false);
     try {
       video.muted = false;
+      video.volume = 1.0; // ✅ Garantir volume máximo
       await video.play();
     } catch (err) {
       console.warn("Erro ao ativar áudio:", err);
@@ -97,9 +98,10 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "" }: LiveHl
       setErrorMessage(null);
       reconnectAttempts.current = 0;
 
-      video.muted = true;
+      video.muted = false; // ✅ Não mutar por padrão para ter áudio
       video.playsInline = true;
       video.preload = "auto";
+      video.volume = 1.0; // ✅ Volume máximo por padrão
 
       // ✅ Detecção melhorada de suporte HLS (mais permissiva)
       const isNativeHlsSupported = video.canPlayType('application/vnd.apple.mpegurl') !== '' || 
@@ -139,23 +141,27 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "" }: LiveHl
           }
         });
       } else if (Hls.isSupported()) {
-        // ✅ Configuração otimizada para reduzir travamento
+        // ✅ Configuração ULTRA otimizada para reduzir travamento
         const hls = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
-          backBufferLength: 30,        // Reduzido de 90 para 30
-          maxBufferLength: 15,          // Reduzido de 30 para 15
-          maxMaxBufferLength: 30,       // Reduzido de 60 para 30
+          backBufferLength: 10,         // Reduzido de 30 para 10 (mínimo buffer atrás)
+          maxBufferLength: 10,          // Reduzido de 15 para 10 (buffer mínimo à frente)
+          maxMaxBufferLength: 20,       // Reduzido de 30 para 20
           startLevel: -1,
           maxLiveSyncPlaybackRate: 1.5,
           debug: false,
           // ✅ Configurações adicionais para mobile
-          maxBufferSize: 30 * 1000 * 1000,
-          maxBufferHole: 0.5,
+          maxBufferSize: 20 * 1000 * 1000,  // 20MB max buffer (reduzido de 30MB)
+          maxBufferHole: 0.3,           // Tolerar buracos menores (mais agressivo)
           manifestLoadingTimeOut: 10000,
           manifestLoadingMaxRetry: 4,
           levelLoadingTimeOut: 10000,
           levelLoadingMaxRetry: 4,
+          // ✅ Configurações de latência
+          liveSyncDurationCount: 3,     // Manter apenas 3 segmentos de sincronização
+          liveMaxLatencyDurationCount: 5, // Máximo 5 segmentos de latência
+          maxFragLookUpTolerance: 0.2,  // Tolerância de busca de fragmento
         });
 
         hlsRef.current = hls;
@@ -331,7 +337,6 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "" }: LiveHl
         className="w-full h-full object-contain"
         controls
         playsInline
-        muted
         autoPlay
         preload="auto"
       />
