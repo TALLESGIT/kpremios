@@ -23,6 +23,7 @@ import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import { CastButton } from '../components/CastButton';
 import { CruzeiroGame, CruzeiroStanding } from '../types';
+import { useRegisterStreamId } from '../features/chat/useRegisterStreamId';
 
 interface LiveStream {
   id: string;
@@ -42,6 +43,10 @@ const PublicLiveStreamPage: React.FC = () => {
   const { currentUser } = useData();
   const [stream, setStream] = useState<LiveStream | null>(null);
   const streamId = stream?.id; // Alias estável para efeitos
+
+  // ✅ REGISTRAR STREAM ID GLOBALMENTE
+  // Isso permite que o ChatHost global encontre o streamId desta página
+  useRegisterStreamId(streamId);
 
   // ✅ MIGRAÇÃO: Usar Socket.io para escutar atualizações da stream
   const { socket, isConnected, on, off, joinStream, leaveStream } = useSocket({

@@ -35,6 +35,7 @@ import PoolBetModal from '../components/pool/PoolBetModal';
 import { CastButton } from '../components/CastButton';
 import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useRegisterStreamId } from '../features/chat/useRegisterStreamId';
 import toast from 'react-hot-toast';
 
 interface LiveStream {
@@ -55,6 +56,8 @@ interface QuickStats {
 
 const ZkTVPage: React.FC = () => {
     const { user } = useAuth();
+    
+    // Estados principais
     const [settings, setSettings] = useState<CruzeiroSettings | null>(null);
     const [games, setGames] = useState<CruzeiroGame[]>([]);
     const [standings, setStandings] = useState<CruzeiroStanding[]>([]);
@@ -94,6 +97,10 @@ const ZkTVPage: React.FC = () => {
         localStorage.setItem(key, newId);
         return newId;
     });
+
+    // ✅ REGISTRAR STREAM ID GLOBALMENTE
+    // Isso permite que o ChatHost global encontre o streamId desta página
+    useRegisterStreamId(activeStream?.id);
 
     // ✅ MIGRAÇÃO: Usar Socket.io para atualizações de bolões quando houver stream ativa
     const { socket, isConnected, on, off, joinStream, leaveStream } = useSocket({
@@ -1198,6 +1205,16 @@ const ZkTVPage: React.FC = () => {
                             {/* Chat Docked (Mobile Fullscreen Landscape) - Aumentado para melhor visualização */}
                             {isMobile && isFullscreen && isLandscape && isDockedChat && activeStream && (
                                 <div className="w-[400px] min-w-[350px] max-w-[45vw] h-full bg-black/90 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl">
+                                    {/* Header com botão de fechar */}
+                                    <div className="p-3 border-b border-white/10 flex items-center justify-between shrink-0">
+                                        <span className="text-xs font-black text-white uppercase italic tracking-wider">Chat</span>
+                                        <button 
+                                            onClick={() => setIsDockedChat(false)}
+                                            className="p-1.5 hover:bg-white/10 rounded-lg transition-all"
+                                        >
+                                            <X className="w-4 h-4 text-white" />
+                                        </button>
+                                    </div>
                                     <div className="flex-1 overflow-hidden flex flex-col">
                                         <div className="flex-1 overflow-hidden">
                                             <ChatSlot id="zktv-mobile-landscape-docked-chat" priority={90} className="h-full" />
@@ -1235,8 +1252,18 @@ const ZkTVPage: React.FC = () => {
             )}
 
             {/* Floating Chat Button (Mobile Fullscreen) */}
-            {isMobile && isFullscreen && activeStream && activeStream.is_active && !isChatOpen && (
-                <FloatingChatButton onClick={() => setIsChatOpen(true)} />
+            {/* Em landscape: abre chat docked | Em portrait: abre chat drawer */}
+            {isMobile && isFullscreen && activeStream && activeStream.is_active && (
+                <>
+                    {/* Landscape: botão só aparece se chat docked não estiver aberto */}
+                    {isLandscape && !isDockedChat && (
+                        <FloatingChatButton onClick={() => setIsDockedChat(true)} />
+                    )}
+                    {/* Portrait: botão só aparece se chat drawer não estiver aberto */}
+                    {!isLandscape && !isChatOpen && (
+                        <FloatingChatButton onClick={() => setIsChatOpen(true)} />
+                    )}
+                </>
             )}
 
             {/* ChatDrawer (Mobile Fullscreen Portrait) */}

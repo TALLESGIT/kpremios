@@ -51,16 +51,17 @@ import ProtectedRoute from './components/shared/ProtectedRoute';
 import UserProtectedRoute from './components/ProtectedRoute';
 import { ChatProvider } from './features/chat/ChatProvider';
 import { ChatHost } from './features/chat/ChatHost';
-import { StreamIdProvider, useStreamId } from './features/chat/StreamIdProvider';
+import { StreamRegistryProvider, useRegisteredStreamId } from './features/chat/StreamRegistryProvider';
 import { PollOverlay } from './features/polls/PollOverlay';
 
-// Componente interno que usa useStreamId (deve estar dentro do StreamIdProvider)
+// Componente interno que usa o streamId do registry global
+// As páginas (ZkTVPage, PublicLiveStreamPage) registram seu streamId via useRegisterStreamId
 function GlobalChatAndPollOverlay() {
-  const currentStreamId = useStreamId();
+  const currentStreamId = useRegisteredStreamId();
   return (
     <>
-      {/* ChatHost global - renderiza chat no slot ativo */}
-      <ChatHost streamId={currentStreamId} />
+      {/* ChatHost global - renderiza chat no slot ativo usando streamId do registry */}
+      <ChatHost />
       {/* PollOverlay global - overlay temporário para enquetes */}
       <PollOverlay streamId={currentStreamId} />
     </>
@@ -183,7 +184,7 @@ function AppContentInner() {
         }}
       />
       <Router>
-        <StreamIdProvider>
+        <StreamRegistryProvider>
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/winners" element={<WinnersPage />} />
@@ -315,9 +316,9 @@ function AppContentInner() {
             {/* Redirect /admin to /admin/login if not authenticated */}
             <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
           </Routes>
-          {/* ChatHost e PollOverlay - renderizados dentro do StreamIdProvider e Router */}
+          {/* ChatHost e PollOverlay - renderizados dentro do StreamRegistryProvider e Router */}
           <GlobalChatAndPollOverlay />
-        </StreamIdProvider>
+        </StreamRegistryProvider>
       </Router>
     </DataProvider>
   );

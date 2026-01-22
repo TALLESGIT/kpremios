@@ -1,86 +1,35 @@
 // =====================================================
-// useCurrentStreamId - Hook para obter streamId atual da rota/página
+// useCurrentStreamId - DEPRECATED
+// =====================================================
+// 
+// Este hook foi substituído pelo sistema de registro explícito.
+// 
+// PROBLEMA ORIGINAL:
+// - Fazia queries assíncronas para inferir streamId baseado na rota
+// - Race conditions entre ZkTVPage.loadActiveStream() e este hook
+// - Causava chat da /zk-tv não funcionar corretamente
+//
+// NOVA ARQUITETURA:
+// - Páginas registram explicitamente seu streamId via useRegisterStreamId
+// - ChatHost e outros componentes usam useRegisteredStreamId
+// - Elimina race conditions e garante sincronização
+//
+// MIGRAÇÃO:
+// - Use useRegisterStreamId(streamId) nas páginas que têm stream
+// - Use useRegisteredStreamId() para acessar o streamId global
+//
+// Este arquivo será removido em uma versão futura.
 // =====================================================
 
-import { useParams, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useRegisteredStreamId } from './StreamRegistryProvider';
 
 /**
- * Hook que detecta o streamId atual baseado na rota:
- * - /live/:channelName -> busca stream por channel_name
- * - /zk-tv -> busca stream ativa ou zktv
+ * @deprecated Use useRegisteredStreamId do StreamRegistryProvider
  */
 export function useCurrentStreamId(): string | null {
-  const params = useParams<{ channelName?: string }>();
-  const location = useLocation();
-  const [streamId, setStreamId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const resolveStreamId = async () => {
-      // Rota /live/:channelName
-      if (params.channelName) {
-        const { data } = await supabase
-          .from('live_streams')
-          .select('id')
-          .eq('channel_name', params.channelName)
-          .maybeSingle();
-        
-        if (mounted) {
-          setStreamId(data?.id || null);
-        }
-        return;
-      }
-
-      // Rota /zk-tv
-      if (location.pathname === '/zk-tv') {
-        // Buscar stream ativa primeiro
-        let { data, error } = await supabase
-          .from('live_streams')
-          .select('id')
-          .eq('is_active', true)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        // Se não encontrar, buscar zktv
-        if (!data || error) {
-          const { data: zktvData } = await supabase
-            .from('live_streams')
-            .select('id')
-            .eq('channel_name', 'zktv')
-            .maybeSingle();
-          data = zktvData;
-        }
-
-        if (mounted) {
-          setStreamId(data?.id || null);
-        }
-        return;
-      }
-
-      // Outras rotas - sem stream
-      if (mounted) {
-        setStreamId(null);
-      }
-    };
-
-    resolveStreamId();
-
-    // Re-verificar periodicamente (para mudanças de stream ativa)
-    const interval = setInterval(() => {
-      if (mounted) {
-        resolveStreamId();
-      }
-    }, 5000);
-
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, [params.channelName, location.pathname]);
-
-  return streamId;
+  console.warn(
+    '⚠️ useCurrentStreamId está deprecated. ' +
+    'Use useRegisterStreamId nas páginas e useRegisteredStreamId para acessar.'
+  );
+  return useRegisteredStreamId();
 }
