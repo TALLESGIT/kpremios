@@ -54,9 +54,21 @@ import { ChatHost } from './features/chat/ChatHost';
 import { StreamIdProvider, useStreamId } from './features/chat/StreamIdProvider';
 import { PollOverlay } from './features/polls/PollOverlay';
 
+// Componente interno que usa useStreamId (deve estar dentro do StreamIdProvider)
+function GlobalChatAndPollOverlay() {
+  const currentStreamId = useStreamId();
+  return (
+    <>
+      {/* ChatHost global - renderiza chat no slot ativo */}
+      <ChatHost streamId={currentStreamId} />
+      {/* PollOverlay global - overlay temporário para enquetes */}
+      <PollOverlay streamId={currentStreamId} />
+    </>
+  );
+}
+
 function AppContentInner() {
   const { user, loading } = useAuth();
-  const currentStreamId = useStreamId();
 
   // Rotas públicas que podem ser acessadas durante o loading
   const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password', '/forgot-email'];
@@ -302,10 +314,8 @@ function AppContentInner() {
           {/* Redirect /admin to /admin/login if not authenticated */}
           <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
         </Routes>
-        {/* ChatHost global - renderiza chat no slot ativo */}
-        <ChatHost streamId={currentStreamId} />
-        {/* PollOverlay global - overlay temporário para enquetes */}
-        <PollOverlay streamId={currentStreamId} />
+        {/* ChatHost e PollOverlay - renderizados dentro do StreamIdProvider */}
+        <GlobalChatAndPollOverlay />
       </Router>
     </DataProvider>
   );
