@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Eye, Share2, X, Trophy, Calendar, ChevronRight, MessageCircle, Crown, Tv, Minimize2, Maximize2 } from 'lucide-react';
+import { ArrowLeft, Eye, Share2, X, Trophy, Calendar, ChevronRight, MessageCircle, Crown, Tv, Minimize2, Maximize2, MessageSquare } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useSocket } from '../hooks/useSocket';
@@ -753,8 +753,8 @@ const PublicLiveStreamPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          <div className="lg:col-span-8 space-y-10">
+        <div className="space-y-10">
+          <div className="space-y-10">
             <div
               ref={videoContainerRef}
               onDoubleClick={handleDoubleClick}
@@ -865,6 +865,18 @@ const PublicLiveStreamPage: React.FC = () => {
                   </div>
                 )}
 
+                {/* Botão Chat Desktop - Sempre visível em fullscreen */}
+                {stream.is_active && !isMobile && (
+                  <button
+                    onClick={() => setIsChatOpen(!isChatOpen)}
+                    className={`absolute bottom-4 left-4 p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all z-10 group ${isFullscreen ? 'opacity-100' : (showControls ? 'opacity-100' : 'opacity-0')
+                      }`}
+                    title={isChatOpen ? "Fechar chat" : "Abrir chat"}
+                  >
+                    <MessageSquare className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+                  </button>
+                )}
+
                 {/* Botão Fullscreen Desktop */}
                 {stream.is_active && !isMobile && (
                   <div className={`absolute bottom-4 right-4 flex gap-2 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'
@@ -911,6 +923,13 @@ const PublicLiveStreamPage: React.FC = () => {
                   onPictureInPicture={togglePiP}
                   isPictureInPicture={!!document.pictureInPictureElement}
                   containerRef={videoContainerRef}
+                  onChatToggle={() => {
+                    if (isFullscreen && isLandscape) {
+                      setIsDockedChat(!isDockedChat);
+                    } else {
+                      setIsChatOpen(!isChatOpen);
+                    }
+                  }}
                 />
 
                 {/* Botão Cast para Mobile - Aparece automaticamente quando há TV disponível */}
@@ -965,32 +984,28 @@ const PublicLiveStreamPage: React.FC = () => {
             </div>
           </div>
 
-          {!isFullscreen && (
-            <div className="lg:col-span-4 space-y-4 sticky top-24">
-              {/* Enquete e Link Fixado - Desktop (fora do fullscreen) */}
-              {!isFullscreen && !isMobile && (
-                <div className="space-y-3">
-                  <PollDisplay streamId={stream.id} />
-                  <PinnedLinkOverlay streamId={stream.id} />
-                </div>
-              )}
-              {/* Enquete e Link Fixado - Mobile (acima do chat, não flutuante) */}
-              {!isFullscreen && isMobile && (
-                <div className="space-y-3 mb-4 px-4">
-                  <PollDisplay streamId={stream.id} />
-                  <PinnedLinkOverlay streamId={stream.id} />
-                </div>
-              )}
-              <div className="h-[650px] flex flex-col">
-                <div className="flex-1 bg-slate-900 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
-                  <LiveChat key="chat-sidebar-desktop" streamId={stream.id} isActive={stream.is_active} />
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </main>
-      {/* REMOVIDO: Enquete flutuante em mobile - agora fica acima do chat */}
+
+      {/* Chat Overlay (Desktop e Mobile não fullscreen) - NÃO renderizar se estiver em fullscreen */}
+      {isChatOpen && stream && !isDockedChat && !isFullscreen && (
+        <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[450px] bg-black/95 backdrop-blur-md border-l border-white/10 z-[9999] flex flex-col shadow-2xl">
+          <div className="p-4 border-b border-white/10 flex items-center justify-between">
+            <span className="text-sm font-black text-white uppercase italic tracking-widest">Chat da Transmissão</span>
+            <button onClick={() => setIsChatOpen(false)}>
+              <X className="w-5 h-5 text-white" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-hidden flex flex-col p-2 space-y-3">
+            <PollDisplay streamId={stream.id} compact={true} />
+            <PinnedLinkOverlay streamId={stream.id} />
+            <div className="flex-1 min-h-0 bg-slate-900/50 rounded-2xl overflow-hidden border border-white/5">
+              <LiveChat key="chat-overlay" streamId={stream.id} />
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
 
       {/* Modal de Assinatura VIP */}

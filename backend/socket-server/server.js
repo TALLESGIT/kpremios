@@ -99,6 +99,9 @@ const streamRooms = new Map(); // streamId -> Set<socketId>
 // Flag para evitar broadcast duplicado quando atualizamos via Socket.io
 const socketIoUpdates = new Set(); // pollId -> timestamp
 
+// Flag para evitar broadcast duplicado de mensagens de chat quando enviamos via Socket.io
+const socketIoChatMessages = new Set(); // messageId -> timestamp
+
 io.on('connection', (socket) => {
   console.log(`✅ Viewer conectado: ${socket.id}`);
 
@@ -215,6 +218,15 @@ io.on('connection', (socket) => {
         });
         return;
       }
+
+      // Marcar que esta mensagem veio do Socket.io (para evitar broadcast duplicado do Realtime)
+      socketIoChatMessages.add(savedMessage.id);
+      setTimeout(() => {
+        socketIoChatMessages.delete(savedMessage.id);
+      }, 2000); // Remover após 2 segundos
+
+      // Pequeno delay para garantir que o banco foi atualizado antes do broadcast
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       // Broadcast para TODOS os viewers da stream
       io.to(`stream:${streamId}`).emit('new-message', savedMessage);
@@ -917,6 +929,17 @@ const chatMessagesChannel = supabase
 
     console.log(`📡 Realtime Chat: Evento ${eventType} na stream ${data.stream_id}`);
 
+    // ⚠️ IMPORTANTE: Verificar se esta mensagem veio do Socket.io
+    // Se sim, não fazer broadcast duplicado (o Socket.io já fez)
+    if (eventType === 'INSERT' && data.id && socketIoChatMessages.has(data.id)) {
+      console.log(`⏭️ Ignorando broadcast duplicado do Realtime para mensagem ${data.id} (já foi broadcastado via Socket.io)`);
+      // Ainda processar pinned-link se necessário
+      if (data.is_pinned) {
+        io.to(`stream:${data.stream_id}`).emit('pinned-link-updated', data);
+      }
+      return;
+    }
+
     // Se a mensagem for ou era fixada, notificar mudança de pinned-link
     if (data.is_pinned || (payload.old && payload.old.is_pinned)) {
       console.log(`📌 Mudança em mensagem FIXADA via Realtime: ${data.id}`);
@@ -925,8 +948,8 @@ const chatMessagesChannel = supabase
 
     // Broadcast para todos os viewers da stream (mensagens normais)
     if (eventType === 'INSERT') {
-      // Ignorar se veio do socket handler (opcional, new-message já é enviado)
-      // Mas para garantir redundância e suporte a inserts externos (webhooks/bot):
+      // Broadcast apenas se for uma mensagem externa (não via Socket.io)
+      // O handler Socket.io já faz broadcast, então este é apenas backup para webhooks/bots
       io.to(`stream:${data.stream_id}`).emit('new-message', data);
     } else if (eventType === 'UPDATE') {
       io.to(`stream:${data.stream_id}`).emit('message-updated', data);
