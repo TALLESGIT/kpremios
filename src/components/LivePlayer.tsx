@@ -241,24 +241,35 @@ export function LivePlayer({
     }
     
     // Verificar se o navegador suporta HLS nativamente (Safari)
-    const isNativeHlsSupported = video.canPlayType('application/vnd.apple.mpegurl');
+    // ✅ Detecção melhorada de suporte HLS (mais permissiva)
+    const isNativeHlsSupported = video.canPlayType('application/vnd.apple.mpegurl') !== '' || 
+                                  video.canPlayType('application/x-mpegURL') !== '' ||
+                                  video.canPlayType('video/mp2t') !== '';
     
     if (isNativeHlsSupported) {
       // Safari e alguns navegadores mobile suportam HLS nativamente
-      console.log('✅ LivePlayer: Navegador suporta HLS nativamente (Safari)');
+      console.log('✅ LivePlayer: Navegador suporta HLS nativamente (Safari/iOS)');
       video.src = hlsUrl;
       video.load();
     } else if (Hls.isSupported()) {
       // Usar hls.js para navegadores que não suportam HLS nativamente
-      console.log('✅ LivePlayer: Usando hls.js para reproduzir HLS');
+      console.log('✅ LivePlayer: Usando hls.js para reproduzir HLS (Chrome/Firefox/Edge)');
+      // ✅ Configuração otimizada para reduzir travamento
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
-        backBufferLength: 90,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        startLevel: -1,
+        backBufferLength: 30,        // Reduzido de 90 para 30 (menos buffer = menos travamento)
+        maxBufferLength: 15,          // Reduzido de 30 para 15 (mais responsivo)
+        maxMaxBufferLength: 30,       // Reduzido de 60 para 30
+        startLevel: -1,               // Auto-seleção de qualidade
         debug: false,
+        // ✅ Configurações adicionais para mobile
+        maxBufferSize: 30 * 1000 * 1000,  // 30MB max buffer
+        maxBufferHole: 0.5,           // Tolerar pequenos buracos no buffer
+        manifestLoadingTimeOut: 10000, // 10s timeout para manifest
+        manifestLoadingMaxRetry: 4,    // 4 tentativas
+        levelLoadingTimeOut: 10000,    // 10s timeout para segments
+        levelLoadingMaxRetry: 4,       // 4 tentativas
       });
       
       hlsRef.current = hls;
@@ -309,11 +320,21 @@ export function LivePlayer({
         }
       });
     } else {
-      // Navegador não suporta HLS de forma alguma
-      console.error('❌ LivePlayer: Navegador não suporta HLS');
-      setStatus('error');
-      setErrorMessage('Seu navegador não suporta reprodução de vídeo ao vivo. Tente usar Chrome, Firefox, Edge ou Safari.');
-      return;
+      // ⚠️ Navegador não suporta HLS - tentar fallback
+      console.warn('⚠️ LivePlayer: Navegador não suporta HLS nativamente nem hls.js');
+      console.warn('⚠️ User Agent:', navigator.userAgent);
+      
+      // Tentar carregar mesmo assim (alguns navegadores antigos podem funcionar)
+      try {
+        video.src = hlsUrl;
+        video.load();
+        console.log('🔄 LivePlayer: Tentando carregar HLS diretamente como fallback...');
+      } catch (e) {
+        console.error('❌ LivePlayer: Falha no fallback:', e);
+        setStatus('error');
+        setErrorMessage('Seu navegador pode não suportar reprodução ao vivo. Tente atualizar seu navegador ou use Chrome, Firefox, Edge ou Safari.');
+        return;
+      }
     }
 
     video.addEventListener('loadstart', handleLoadStart);
@@ -407,6 +428,9 @@ export function LivePlayer({
               <p className="text-white text-sm font-medium">
                 {isPreview ? 'Aguardando ZK Studio conectar...' : 'Carregando transmissão...'}
               </p>
+              {!isPreview && (
+                <p className="text-slate-400 text-xs">Aguarde, estamos conectando você à live</p>
+              )}
               {isPreview && (
                 <p className="text-slate-400 text-xs mt-2 max-w-md mx-auto">
                   Abra o ZK Studio e inicie a transmissão para ver o preview

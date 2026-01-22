@@ -101,7 +101,10 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "" }: LiveHl
       video.playsInline = true;
       video.preload = "auto";
 
-      const isNativeHlsSupported = video.canPlayType("application/vnd.apple.mpegurl");
+      // ✅ Detecção melhorada de suporte HLS (mais permissiva)
+      const isNativeHlsSupported = video.canPlayType('application/vnd.apple.mpegurl') !== '' || 
+                                    video.canPlayType('application/x-mpegURL') !== '' ||
+                                    video.canPlayType('video/mp2t') !== '';
 
       if (isNativeHlsSupported) {
         video.src = url;
@@ -136,15 +139,23 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "" }: LiveHl
           }
         });
       } else if (Hls.isSupported()) {
+        // ✅ Configuração otimizada para reduzir travamento
         const hls = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
-          backBufferLength: 90,
-          maxBufferLength: 30,
-          maxMaxBufferLength: 60,
+          backBufferLength: 30,        // Reduzido de 90 para 30
+          maxBufferLength: 15,          // Reduzido de 30 para 15
+          maxMaxBufferLength: 30,       // Reduzido de 60 para 30
           startLevel: -1,
           maxLiveSyncPlaybackRate: 1.5,
           debug: false,
+          // ✅ Configurações adicionais para mobile
+          maxBufferSize: 30 * 1000 * 1000,
+          maxBufferHole: 0.5,
+          manifestLoadingTimeOut: 10000,
+          manifestLoadingMaxRetry: 4,
+          levelLoadingTimeOut: 10000,
+          levelLoadingMaxRetry: 4,
         });
 
         hlsRef.current = hls;
