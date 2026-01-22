@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Teste WebSocket - Socket.IO</title>
     <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script>
+        // Verificar se Socket.IO carregou
+        window.addEventListener('load', () => {
+            if (typeof io === 'undefined') {
+                document.body.innerHTML = '<div style="padding: 50px; text-align: center; background: #f44336; color: white; font-family: Arial;"><h1>❌ Erro ao carregar Socket.IO</h1><p>O CDN do Socket.IO não carregou. Verifique sua conexão com a internet.</p></div>';
+            }
+        });
+    </script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -107,17 +115,28 @@
     </div>
 
     <script>
+        // Verificar se Socket.IO está disponível
+        if (typeof io === 'undefined') {
+            document.body.innerHTML = '<div style="padding: 50px; text-align: center; background: #f44336; color: white; font-family: Arial;"><h1>❌ Erro: Socket.IO não carregou</h1><p>Recarregue a página ou verifique sua conexão.</p></div>';
+        }
+
         let socket = null;
         const serverUrl = 'https://api.zkoficial.com.br';
 
         function log(message, type = 'info') {
-            const logDiv = document.getElementById('log');
-            const entry = document.createElement('div');
-            entry.className = `log-entry log-${type}`;
-            const timestamp = new Date().toLocaleTimeString();
-            entry.textContent = `[${timestamp}] ${message}`;
-            logDiv.appendChild(entry);
-            logDiv.scrollTop = logDiv.scrollHeight;
+            try {
+                const logDiv = document.getElementById('log');
+                if (!logDiv) return;
+                
+                const entry = document.createElement('div');
+                entry.className = `log-entry log-${type}`;
+                const timestamp = new Date().toLocaleTimeString();
+                entry.textContent = `[${timestamp}] ${message}`;
+                logDiv.appendChild(entry);
+                logDiv.scrollTop = logDiv.scrollHeight;
+            } catch (e) {
+                console.error('Erro ao fazer log:', e);
+            }
         }
 
         function clearLog() {
@@ -131,46 +150,82 @@
         }
 
         function connect() {
-            if (socket && socket.connected) {
-                log('Já está conectado!', 'info');
-                return;
+            try {
+                if (typeof io === 'undefined') {
+                    log('❌ Socket.IO não está disponível. Recarregue a página.', 'error');
+                    return;
+                }
+
+                if (socket && socket.connected) {
+                    log('Já está conectado!', 'info');
+                    return;
+                }
+
+                log('Tentando conectar...', 'info');
+                updateStatus('connecting', 'Conectando...');
+                
+                const connectBtn = document.getElementById('connectBtn');
+                const disconnectBtn = document.getElementById('disconnectBtn');
+                if (connectBtn) connectBtn.disabled = true;
+                if (disconnectBtn) disconnectBtn.disabled = false;
+
+                socket = io(serverUrl, {
+                    transports: ['websocket'],
+                    withCredentials: true,
+                    reconnection: true,
+                    reconnectionDelay: 1000,
+                    reconnectionAttempts: 5
+                });
+            } catch (e) {
+                log(`❌ Erro ao conectar: ${e.message}`, 'error');
+                updateStatus('disconnected', 'Erro');
+                const connectBtn = document.getElementById('connectBtn');
+                const disconnectBtn = document.getElementById('disconnectBtn');
+                if (connectBtn) connectBtn.disabled = false;
+                if (disconnectBtn) disconnectBtn.disabled = true;
             }
 
-            log('Tentando conectar...', 'info');
-            updateStatus('connecting', 'Conectando...');
-            
-            document.getElementById('connectBtn').disabled = true;
-            document.getElementById('disconnectBtn').disabled = false;
-
-            socket = io(serverUrl, {
-                transports: ['websocket'],
-                withCredentials: true,
-                reconnection: true,
-                reconnectionDelay: 1000,
-                reconnectionAttempts: 5
-            });
-
             socket.on('connect', () => {
-                log(`✅ Conectado! Socket ID: ${socket.id}`, 'info');
-                updateStatus('connected', `Conectado (${socket.id})`);
+                try {
+                    log(`✅ Conectado! Socket ID: ${socket.id}`, 'info');
+                    updateStatus('connected', `Conectado (${socket.id})`);
+                } catch (e) {
+                    console.error('Erro no evento connect:', e);
+                }
             });
 
             socket.on('disconnect', (reason) => {
-                log(`❌ Desconectado. Motivo: ${reason}`, 'error');
-                updateStatus('disconnected', 'Desconectado');
-                document.getElementById('connectBtn').disabled = false;
-                document.getElementById('disconnectBtn').disabled = true;
+                try {
+                    log(`❌ Desconectado. Motivo: ${reason}`, 'error');
+                    updateStatus('disconnected', 'Desconectado');
+                    const connectBtn = document.getElementById('connectBtn');
+                    const disconnectBtn = document.getElementById('disconnectBtn');
+                    if (connectBtn) connectBtn.disabled = false;
+                    if (disconnectBtn) disconnectBtn.disabled = true;
+                } catch (e) {
+                    console.error('Erro no evento disconnect:', e);
+                }
             });
 
             socket.on('connect_error', (error) => {
-                log(`❌ Erro de conexão: ${error.message}`, 'error');
-                updateStatus('disconnected', 'Erro de Conexão');
-                document.getElementById('connectBtn').disabled = false;
-                document.getElementById('disconnectBtn').disabled = true;
+                try {
+                    log(`❌ Erro de conexão: ${error.message || error}`, 'error');
+                    updateStatus('disconnected', 'Erro de Conexão');
+                    const connectBtn = document.getElementById('connectBtn');
+                    const disconnectBtn = document.getElementById('disconnectBtn');
+                    if (connectBtn) connectBtn.disabled = false;
+                    if (disconnectBtn) disconnectBtn.disabled = true;
+                } catch (e) {
+                    console.error('Erro no evento connect_error:', e);
+                }
             });
 
             socket.on('error', (error) => {
-                log(`❌ Erro: ${JSON.stringify(error)}`, 'error');
+                try {
+                    log(`❌ Erro: ${JSON.stringify(error)}`, 'error');
+                } catch (e) {
+                    console.error('Erro no evento error:', e);
+                }
             });
 
             // Testar evento de stream
