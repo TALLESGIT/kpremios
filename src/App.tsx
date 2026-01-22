@@ -183,139 +183,141 @@ function AppContentInner() {
         }}
       />
       <Router>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/winners" element={<WinnersPage />} />
-          <Route path="/my-numbers" element={<MyNumbersPage />} />
-          <Route path="/live-games" element={<LiveGamesPage />} />
-          <Route path="/live-games/:gameId" element={<LiveParticipationPage />} />
+        <StreamIdProvider>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/winners" element={<WinnersPage />} />
+            <Route path="/my-numbers" element={<MyNumbersPage />} />
+            <Route path="/live-games" element={<LiveGamesPage />} />
+            <Route path="/live-games/:gameId" element={<LiveParticipationPage />} />
 
-          {/* Novas rotas de autenticação */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/forgot-email" element={<ForgotEmailPage />} />
-          <Route path="/dashboard" element={
-            <UserProtectedRoute>
-              <UserDashboardPage />
-            </UserProtectedRoute>
-          } />
-          <Route path="/live-raffle" element={
-            <UserProtectedRoute>
-              <LiveRafflePage />
-            </UserProtectedRoute>
-          } />
-          <Route path="/free-raffles" element={
-            <UserProtectedRoute>
-              <FreeRafflesPage />
-            </UserProtectedRoute>
-          } />
+            {/* Novas rotas de autenticação */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/forgot-email" element={<ForgotEmailPage />} />
+            <Route path="/dashboard" element={
+              <UserProtectedRoute>
+                <UserDashboardPage />
+              </UserProtectedRoute>
+            } />
+            <Route path="/live-raffle" element={
+              <UserProtectedRoute>
+                <LiveRafflePage />
+              </UserProtectedRoute>
+            } />
+            <Route path="/free-raffles" element={
+              <UserProtectedRoute>
+                <FreeRafflesPage />
+              </UserProtectedRoute>
+            } />
 
-          <Route path="/zk-tv" element={<ZkTVPage />} />
+            <Route path="/zk-tv" element={<ZkTVPage />} />
 
-          {/* Competições e Tabelas */}
-          <Route path="/competicoes" element={<CompetitionsPage />} />
-          <Route path="/tabela/:competitionName" element={<StandingsPage />} />
+            {/* Competições e Tabelas */}
+            <Route path="/competicoes" element={<CompetitionsPage />} />
+            <Route path="/tabela/:competitionName" element={<StandingsPage />} />
 
-          {/* Rotas antigas do admin */}
-          <Route path="/admin/login" element={<AdminLoginPage />} />
-          <Route path="/admin/register" element={<AdminRegisterPage />} />
-          <Route path="/test-admin" element={<TestAdminPage />} />
-          <Route path="/loading-demo" element={<LoadingDemo />} />
-          <Route
-            path="/admin/dashboard"
-            element={
-              <ProtectedRoute>
-                <AdminDashboardPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/approvals"
-            element={
-              <ProtectedRoute>
-                <AdminApprovalsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/users"
-            element={
-              <ProtectedRoute>
-                <AdminUsersPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/raffles"
-            element={
-              <ProtectedRoute>
-                <AdminRafflesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/raffles/create"
-            element={
-              <ProtectedRoute>
-                <CreateRafflePageSimple />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/live-games"
-            element={
-              <ProtectedRoute>
-                <AdminLiveGamesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/live-games/:gameId/control"
-            element={
-              <ProtectedRoute>
-                <AdminLiveControlPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/live-stream"
-            element={
-              <ProtectedRoute>
-                <AdminLiveStreamPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/zk-tv"
-            element={
-              <ProtectedRoute>
-                <AdminZkTVPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/banners"
-            element={
-              <ProtectedRoute>
-                <AdminBannersPage />
-              </ProtectedRoute>
-            }
-          />
+            {/* Rotas antigas do admin */}
+            <Route path="/admin/login" element={<AdminLoginPage />} />
+            <Route path="/admin/register" element={<AdminRegisterPage />} />
+            <Route path="/test-admin" element={<TestAdminPage />} />
+            <Route path="/loading-demo" element={<LoadingDemo />} />
+            <Route
+              path="/admin/dashboard"
+              element={
+                <ProtectedRoute>
+                  <AdminDashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/approvals"
+              element={
+                <ProtectedRoute>
+                  <AdminApprovalsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute>
+                  <AdminUsersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/raffles"
+              element={
+                <ProtectedRoute>
+                  <AdminRafflesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/raffles/create"
+              element={
+                <ProtectedRoute>
+                  <CreateRafflePageSimple />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/live-games"
+              element={
+                <ProtectedRoute>
+                  <AdminLiveGamesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/live-games/:gameId/control"
+              element={
+                <ProtectedRoute>
+                  <AdminLiveControlPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/live-stream"
+              element={
+                <ProtectedRoute>
+                  <AdminLiveStreamPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/zk-tv"
+              element={
+                <ProtectedRoute>
+                  <AdminZkTVPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/banners"
+              element={
+                <ProtectedRoute>
+                  <AdminBannersPage />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Rotas públicas de live streaming */}
-          <Route path="/live/:channelName" element={<PublicLiveStreamPage />} />
-          {/* <Route path="/reporter" element={<ReporterPage />} /> */}
+            {/* Rotas públicas de live streaming */}
+            <Route path="/live/:channelName" element={<PublicLiveStreamPage />} />
+            {/* <Route path="/reporter" element={<ReporterPage />} /> */}
 
-          {/* Rota de diagnóstico do Agora.io */}
-          {/* <Route path="/diagnostico-agora" element={<DiagnosticoAgoraPage />} /> */}
+            {/* Rota de diagnóstico do Agora.io */}
+            {/* <Route path="/diagnostico-agora" element={<DiagnosticoAgoraPage />} /> */}
 
-          {/* Redirect /admin to /admin/login if not authenticated */}
-          <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
-        </Routes>
-        {/* ChatHost e PollOverlay - renderizados dentro do StreamIdProvider */}
-        <GlobalChatAndPollOverlay />
+            {/* Redirect /admin to /admin/login if not authenticated */}
+            <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
+          </Routes>
+          {/* ChatHost e PollOverlay - renderizados dentro do StreamIdProvider e Router */}
+          <GlobalChatAndPollOverlay />
+        </StreamIdProvider>
       </Router>
     </DataProvider>
   );
@@ -324,9 +326,7 @@ function AppContentInner() {
 function AppContent() {
   return (
     <ChatProvider>
-      <StreamIdProvider>
-        <AppContentInner />
-      </StreamIdProvider>
+      <AppContentInner />
     </ChatProvider>
   );
 }
