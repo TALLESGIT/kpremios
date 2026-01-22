@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import React from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -53,8 +53,8 @@ const AdminLiveStreamPage: React.FC = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [loading, setLoading] = useState(true);
   
-  // ✅ THROTTLE: Ignorar UPDATEs do Realtime se foram há menos de 3 segundos
-  const [lastRealtimeUpdate, setLastRealtimeUpdate] = useState<number>(0);
+  // ✅ THROTTLE: useRef para persistir entre re-renders
+  const lastRealtimeUpdateRef = useRef<number>(0);
 
   // Handler para duplo clique - tela cheia
   const handleDoubleClick = (containerSelector: string) => {
@@ -87,11 +87,11 @@ const AdminLiveStreamPage: React.FC = () => {
             const now = Date.now();
 
             // ✅ THROTTLE: Ignorar UPDATEs frequentes (< 3s) para evitar lags
-            if (now - lastRealtimeUpdate < 3000) {
+            if (now - lastRealtimeUpdateRef.current < 3000) {
               console.log('⏭️ Ignorando UPDATE (throttle de 3s)');
               return;
             }
-            setLastRealtimeUpdate(now);
+            lastRealtimeUpdateRef.current = now;
 
             // Se for mudança no status de ativação, atualizamos na hora!
             const statusChanged = updatedStream.is_active !== (selectedStream?.is_active ?? false);
