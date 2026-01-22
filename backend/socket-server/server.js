@@ -15,47 +15,113 @@ const { Server } = require('socket.io');
 const { createClient } = require('@supabase/supabase-js');
 const cors = require('cors');
 
+// =====================================================
+// CONFIGURAÇÃO E INICIALIZAÇÃO (ORDEM CRÍTICA)
+// =====================================================
+
+// ✅ CRÍTICO: Inicializar Express e HTTP server PRIMEIRO
+const app = express();
+const server = http.createServer(app);
+
 // Configuração
 console.log('📂 Backend CWD:', process.cwd());
 console.log('📂 Backend Dirname:', __dirname);
 const PORT = process.env.PORT || 3001;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const isProduction = NODE_ENV === 'production';
+
 console.log('🌐 Frontend URL configurada:', FRONTEND_URL);
+console.log('🔧 Ambiente:', NODE_ENV);
 
 // Processar FRONTEND_URL (pode ter múltiplas URLs separadas por vírgula)
 const frontendOrigins = FRONTEND_URL.split(',')
   .map(url => url.trim())
   .filter(url => url.length > 0);
 
-// Lista completa de origens permitidas
-const allowedOrigins = [
-  ...frontendOrigins,
-  'https://*.vercel.app',
-  /^https:\/\/.*\.vercel\.app$/,
-  'http://localhost:5173',
-  'http://localhost:3000'
-];
+// Função customizada para validar origem CORS
+const corsOrigin = (origin, callback) => {
+  // Permitir requisições sem origem (mobile apps, Postman, etc)
+  if (!origin) {
+    return callback(null, true);
+  }
 
-// Inicializar Express e HTTP server
-const app = express();
-const server = http.createServer(app);
+  // Lista de origens permitidas (strings exatas)
+  const allowedExactOrigins = [
+    ...frontendOrigins,
+    'https://www.zkoficial.com.br',
+    'https://zkoficial.com.br',
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000'
+  ];
+
+  // Verificar origem exata
+  if (allowedExactOrigins.includes(origin)) {
+    return callback(null, true);
+  }
+
+  // Verificar subdomínios de zkoficial.com.br (regex)
+  if (/^https:\/\/[a-zA-Z0-9-]+\.zkoficial\.com\.br$/.test(origin)) {
+    return callback(null, true);
+  }
+
+  // Verificar Vercel (regex)
+  if (/^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(origin)) {
+    return callback(null, true);
+  }
+
+  // Em desenvolvimento, permitir qualquer localhost
+  if (!isProduction && /^http:\/\/localhost:\d+$/.test(origin)) {
+    return callback(null, true);
+  }
+
+  // Rejeitar origem não permitida
+  console.warn(`⚠️ CORS: Origem bloqueada: ${origin}`);
+  callback(new Error('Not allowed by CORS'));
+};
+
+// Middleware de log para depurar origens
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    console.log(`📡 Requisição recebida da origem: ${origin}`);
+  }
+  next();
+});
 
 // Middleware CORS para permitir conexões do frontend
 app.use(cors({
-  origin: allowedOrigins,
-  credentials: true
+  origin: corsOrigin,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 app.use(express.json());
 
-// Inicializar Socket.io com CORS
+// Inicializar Socket.io com CORS e configurações otimizadas para produção
 const io = new Server(server, {
+  path: '/socket.io/', // Path explícito para Socket.IO
   cors: {
-    origin: allowedOrigins,
+    origin: corsOrigin,
     methods: ['GET', 'POST'],
     credentials: true
   },
-  transports: ['websocket', 'polling']
+  // Transports: WebSocket prioritário, polling como fallback
+  transports: ['websocket', 'polling'],
+  // Configurações para conexões longas (streaming)
+  pingTimeout: 60000, // 60 segundos
+  pingInterval: 25000, // 25 segundos
+  // Compatibilidade com versões antigas do Socket.IO
+  allowEIO3: true,
+  // Permitir upgrade de conexão
+  allowUpgrades: true,
+  // Timeout para handshake
+  connectTimeout: 45000,
+  // Permitir CORS para todas as origens permitidas
+  serveClient: false // Não servir o cliente Socket.IO (usar CDN)
 });
 
 // Inicializar Supabase
@@ -88,12 +154,34 @@ app.get('/', (req, res) => {
     status: 'ok',
     message: 'Socket.io Server está rodando!',
     version: '1.0.0',
-    connectedClients: io.sockets.sockets.size
+    environment: NODE_ENV,
+    connectedClients: io.sockets.sockets.size,
+    timestamp: new Date().toISOString()
   });
 });
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+  const connectedClients = io.sockets.sockets.size;
+  const rooms = Array.from(io.sockets.adapter.rooms.keys());
+  const streamRoomsCount = rooms.filter(room => room.startsWith('stream:')).length;
+  
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    environment: NODE_ENV,
+    socketio: {
+      connected: io.engine.clientsCount,
+      rooms: streamRoomsCount,
+      transports: io.engine.transports
+    },
+    server: {
+      uptime: process.uptime(),
+      memory: {
+        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
+        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
+      }
+    }
+  });
 });
 
 // =====================================================
@@ -109,8 +197,36 @@ const socketIoUpdates = new Set(); // pollId -> timestamp
 // Flag para evitar broadcast duplicado de mensagens de chat quando enviamos via Socket.io
 const socketIoChatMessages = new Set(); // messageId -> timestamp
 
+// Logs detalhados de conexão Socket.IO
+io.engine.on('connection_error', (err) => {
+  console.error('❌ Socket.IO: Erro de conexão:', err.req?.headers?.origin || 'unknown origin', err.message);
+  console.error('❌ Detalhes:', {
+    code: err.code,
+    context: err.context,
+    type: err.type
+  });
+});
+
 io.on('connection', (socket) => {
-  console.log(`✅ Viewer conectado: ${socket.id}`);
+  const clientInfo = {
+    id: socket.id,
+    transport: socket.conn.transport.name,
+    remoteAddress: socket.handshake.address,
+    origin: socket.handshake.headers.origin || 'unknown',
+    userAgent: socket.handshake.headers['user-agent'] || 'unknown'
+  };
+  
+  console.log(`✅ Viewer conectado:`, clientInfo);
+  
+  // Log de upgrade de transporte (polling -> websocket)
+  socket.conn.on('upgrade', () => {
+    console.log(`🔄 Socket ${socket.id} fez upgrade para: ${socket.conn.transport.name}`);
+  });
+  
+  // Log de erro no socket
+  socket.on('error', (error) => {
+    console.error(`❌ Erro no socket ${socket.id}:`, error);
+  });
 
   // Viewer se junta à sala da stream
   socket.on('join-stream', async (data) => {
@@ -917,8 +1033,8 @@ io.on('connection', (socket) => {
   });
 
   // Desconexão
-  socket.on('disconnect', () => {
-    console.log(`❌ Viewer desconectado: ${socket.id}`);
+  socket.on('disconnect', (reason) => {
+    console.log(`❌ Viewer desconectado: ${socket.id}, motivo: ${reason}`);
 
     // Remover de todas as salas
     for (const [streamId, sockets] of streamRooms.entries()) {
@@ -1154,7 +1270,14 @@ server.listen(PORT, () => {
   console.log('🚀 Socket.io Server iniciado!');
   console.log(`📡 Porta: ${PORT}`);
   console.log(`🌐 Frontend URL: ${FRONTEND_URL}`);
+  console.log(`🔧 Ambiente: ${NODE_ENV}`);
   console.log(`✅ Pronto para receber conexões WebSocket`);
+  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  
+  if (isProduction) {
+    console.log('⚠️  PRODUÇÃO: Certifique-se de que o Nginx está configurado para proxy WebSocket');
+    console.log('⚠️  PRODUÇÃO: Verifique se o certificado SSL está válido');
+  }
 });
 
 // Tratamento de erros não capturados

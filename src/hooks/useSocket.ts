@@ -6,7 +6,39 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_SERVER_URL = import.meta.env.VITE_SOCKET_SERVER_URL || 'http://localhost:3001';
+// Função para determinar a URL do servidor Socket.IO dinamicamente
+const getSocketServerUrl = (): string => {
+  // 1. Verificar variável de ambiente explícita (prioridade máxima)
+  const envUrl = import.meta.env.VITE_SOCKET_SERVER_URL;
+  if (envUrl) {
+    return envUrl;
+  }
+
+  // 2. Detectar ambiente baseado na URL atual
+  const isProduction = window.location.hostname !== 'localhost' && 
+                       window.location.hostname !== '127.0.0.1' &&
+                       !window.location.hostname.startsWith('192.168.');
+
+  if (isProduction) {
+    // Em produção, usar HTTPS e subdomínio api
+    const protocol = window.location.protocol === 'https:' ? 'https:' : 'https:';
+    const hostname = window.location.hostname;
+    
+    // Se já estiver em zkoficial.com.br, usar api.zkoficial.com.br
+    if (hostname.includes('zkoficial.com.br')) {
+      return `${protocol}//api.zkoficial.com.br`;
+    }
+    
+    // Caso contrário, usar o mesmo hostname com porta (se necessário)
+    return `${protocol}//${hostname}`;
+  }
+
+  // 3. Desenvolvimento local
+  return 'http://localhost:3001';
+};
+
+const SOCKET_SERVER_URL = getSocketServerUrl();
+console.log('🔌 useSocket: URL do servidor Socket.IO:', SOCKET_SERVER_URL);
 
 // Singleton global para o socket
 let globalSocket: Socket | null = null;
@@ -78,15 +110,29 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
 
     // Criar novo socket apenas se não existir um global
     if (!globalSocket) {
+      const isProduction = window.location.hostname !== 'localhost' && 
+                           window.location.hostname !== '127.0.0.1' &&
+                           !window.location.hostname.startsWith('192.168.');
+      
       console.log('🔌 useSocket: Criando novo socket global...', SOCKET_SERVER_URL);
+      console.log('🔌 useSocket: Ambiente:', isProduction ? 'PRODUÇÃO' : 'DESENVOLVIMENTO');
 
       const newSocket = io(SOCKET_SERVER_URL, {
-        transports: ['websocket', 'polling'],
+        path: '/socket.io/', // Path explícito para Socket.IO
+        // Em produção, priorizar WebSocket; em dev, manter fallback
+        transports: isProduction ? ['websocket'] : ['websocket', 'polling'],
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
         reconnectionAttempts: Infinity,
-        timeout: 20000
+        timeout: 20000,
+        // Configurações para produção HTTPS/WSS
+        upgrade: true,
+        rememberUpgrade: isProduction, // Em produção, lembrar upgrade para WebSocket
+        // Credenciais para CORS
+        withCredentials: true,
+        // Auto-connect
+        autoConnect: true
       });
 
       globalSocket = newSocket;
