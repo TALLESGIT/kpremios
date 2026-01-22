@@ -295,6 +295,7 @@ const PublicLiveStreamPage: React.FC = () => {
   // ✅ OTIMIZAÇÃO: Heartbeat otimizado - evita chamar trackViewer toda vez
   // Com 400 viewers, cada heartbeat duplicado = 800 queries/min extras desnecessárias
   const heartbeatInitializedRef = useRef(false);
+  const heartbeatErrorCountRef = useRef(0);
   const updateHeartbeat = useCallback(async () => {
     const currentStream = streamRef.current;
     if (!currentStream || !currentStream.is_active) return;
@@ -304,6 +305,7 @@ const PublicLiveStreamPage: React.FC = () => {
       if (!heartbeatInitializedRef.current) {
         await trackViewer();
         heartbeatInitializedRef.current = true;
+        heartbeatErrorCountRef.current = 0; // Reset contador de erros
         return; // Sair - trackViewer já atualiza last_heartbeat
       }
 
@@ -313,17 +315,45 @@ const PublicLiveStreamPage: React.FC = () => {
 
       // Se RPC falhar (sessão não existe), recriar com trackViewer
       if (error) {
+        // ✅ CORREÇÃO: Ignorar erros de autenticação (400) para não quebrar a live
+        if (error.message?.includes('Invalid login credentials') || error.message?.includes('JWT')) {
+          console.warn('⚠️ Heartbeat: Erro de autenticação ignorado (usuário anônimo)');
+          heartbeatErrorCountRef.current++;
+          // Se muitos erros consecutivos, tentar recriar sessão
+          if (heartbeatErrorCountRef.current > 5) {
+            console.log('🔄 Muitos erros de heartbeat, tentando recriar sessão...');
+            heartbeatInitializedRef.current = false;
+            heartbeatErrorCountRef.current = 0;
+          }
+          return; // Não tentar recriar a cada erro
+        }
+        
         console.warn('⚠️ Heartbeat RPC falhou, recriando sessão:', error.message);
-        heartbeatInitializedRef.current = false; // Reset para próxima tentativa
+        heartbeatInitializedRef.current = false;
         await trackViewer();
         heartbeatInitializedRef.current = true;
+        heartbeatErrorCountRef.current = 0;
+      } else {
+        // Sucesso - reset contador de erros
+        heartbeatErrorCountRef.current = 0;
       }
-    } catch (e) {
-      console.error('Erro no heartbeat:', e);
-      // Em caso de erro crítico, recriar sessão
-      heartbeatInitializedRef.current = false;
-      await trackViewer();
-      heartbeatInitializedRef.current = true;
+    } catch (e: any) {
+      // ✅ CORREÇÃO: Não quebrar a live por erros de heartbeat
+      console.warn('⚠️ Erro no heartbeat (não crítico):', e?.message || e);
+      heartbeatErrorCountRef.current++;
+      
+      // Apenas recriar sessão se muitos erros consecutivos
+      if (heartbeatErrorCountRef.current > 5) {
+        console.log('🔄 Muitos erros de heartbeat, tentando recriar sessão...');
+        heartbeatInitializedRef.current = false;
+        heartbeatErrorCountRef.current = 0;
+        try {
+          await trackViewer();
+          heartbeatInitializedRef.current = true;
+        } catch (trackError) {
+          console.error('❌ Erro ao recriar sessão:', trackError);
+        }
+      }
     }
   }, [sessionId, trackViewer]);
 

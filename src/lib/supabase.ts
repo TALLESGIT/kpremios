@@ -21,7 +21,11 @@ export const supabase = createClient(validUrl, validKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    flowType: 'pkce'
+    flowType: 'pkce',
+    // ✅ CORREÇÃO: Não tentar refresh automático em caso de erro 400
+    // Isso evita loops de erro quando o token está inválido
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    storageKey: 'supabase.auth.token',
   },
   realtime: {
     params: {

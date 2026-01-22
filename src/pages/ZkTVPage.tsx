@@ -398,6 +398,7 @@ const ZkTVPage: React.FC = () => {
     // ✅ OTIMIZAÇÃO: Heartbeat otimizado + randomizado para 400+ viewers
     // Evita chamar trackViewer (upsert pesado) a cada heartbeat
     const heartbeatInitializedRef = useRef(false);
+    const heartbeatErrorCountRef = useRef(0);
     useEffect(() => {
         if (!activeStream?.is_active) {
             heartbeatInitializedRef.current = false; // Reset quando stream fica inativa
@@ -434,20 +435,46 @@ const ZkTVPage: React.FC = () => {
                         const { error } = await supabase.rpc('update_viewer_heartbeat', { p_session_id: sessionId });
                         // Se RPC falhar (sessão não existe), recriar com trackViewer
                         if (error) {
+                            // ✅ CORREÇÃO: Ignorar erros de autenticação (400) para não quebrar a live
+                            if (error.message?.includes('Invalid login credentials') || error.message?.includes('JWT')) {
+                                console.warn('⚠️ Heartbeat: Erro de autenticação ignorado (usuário anônimo)');
+                                heartbeatErrorCountRef.current++;
+                                // Se muitos erros consecutivos, tentar recriar sessão
+                                if (heartbeatErrorCountRef.current > 5) {
+                                    console.log('🔄 Muitos erros de heartbeat, tentando recriar sessão...');
+                                    heartbeatInitializedRef.current = false;
+                                    heartbeatErrorCountRef.current = 0;
+                                }
+                                return; // Não tentar recriar a cada erro
+                            }
+                            
                             console.warn('⚠️ Heartbeat RPC falhou, recriando sessão:', error.message);
                             heartbeatInitializedRef.current = false;
                             await trackViewer(activeStream.id);
                             heartbeatInitializedRef.current = true;
+                            heartbeatErrorCountRef.current = 0;
+                        } else {
+                            // Sucesso - reset contador de erros
+                            heartbeatErrorCountRef.current = 0;
                         }
                     } else {
                         // Se ainda não inicializado, usar trackViewer
                         await trackViewer(activeStream.id);
                         heartbeatInitializedRef.current = true;
+                        heartbeatErrorCountRef.current = 0;
                     }
                 }
-            } catch (error) {
-                console.error('Erro ao atualizar heartbeat:', error);
-                heartbeatInitializedRef.current = false; // Reset para próxima tentativa
+            } catch (error: any) {
+                // ✅ CORREÇÃO: Não quebrar a live por erros de heartbeat
+                console.warn('⚠️ Erro no heartbeat (não crítico):', error?.message || error);
+                heartbeatErrorCountRef.current++;
+                
+                // Apenas recriar sessão se muitos erros consecutivos
+                if (heartbeatErrorCountRef.current > 5) {
+                    console.log('🔄 Muitos erros de heartbeat, tentando recriar sessão...');
+                    heartbeatInitializedRef.current = false;
+                    heartbeatErrorCountRef.current = 0;
+                }
             }
         }, interval);
 
