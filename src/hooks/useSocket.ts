@@ -119,14 +119,16 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
 
       const newSocket = io(SOCKET_SERVER_URL, {
         path: '/socket.io/', // Path explícito para Socket.IO
-        // Em produção, priorizar WebSocket; em dev, manter fallback
-        transports: isProduction ? ['websocket'] : ['websocket', 'polling'],
+        // CRÍTICO: Socket.IO Engine.IO 4.x sempre precisa de handshake inicial via polling
+        // Depois faz upgrade automático para websocket (melhor performance)
+        // Sempre incluir polling primeiro, depois websocket
+        transports: ['polling', 'websocket'],
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
         reconnectionAttempts: Infinity,
         timeout: 20000,
-        // Configurações para produção HTTPS/WSS
+        // Permitir upgrade de polling para websocket (recomendado)
         upgrade: true,
         rememberUpgrade: isProduction, // Em produção, lembrar upgrade para WebSocket
         // Credenciais para CORS
