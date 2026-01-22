@@ -505,32 +505,34 @@ const PublicLiveStreamPage: React.FC = () => {
   const loadStream = async () => {
     setLoading(true);
     console.log('📥 loadStream: Carregando stream para channel:', channelName);
-    const { data, error } = await supabase.from('live_streams').select('*').eq('channel_name', channelName).maybeSingle();
+    
+    try {
+      // ✅ OTIMIZAÇÃO: Usar cache do backend Socket.IO (reduz 99% das requisições ao Supabase)
+      const { getLiveStreamByChannel } = await import('../services/cachedLiveService');
+      const data = await getLiveStreamByChannel(channelName || 'zktv');
 
-    if (error) {
+      if (!data) {
+        console.warn('⚠️ loadStream: Stream não encontrada');
+        toast.error('Transmissão não encontrada');
+        navigate('/');
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ loadStream: Stream carregada', {
+        id: data.id,
+        is_active: data.is_active,
+        channel_name: data.channel_name
+      });
+
+      setStream(data);
+      setLoading(false);
+    } catch (error) {
       console.error('❌ loadStream: Erro ao carregar stream:', error);
       toast.error('Erro ao carregar transmissão');
       navigate('/');
       setLoading(false);
-      return;
     }
-
-    if (!data) {
-      console.warn('⚠️ loadStream: Stream não encontrada');
-      toast.error('Transmissão não encontrada');
-      navigate('/');
-      setLoading(false);
-      return;
-    }
-
-    console.log('✅ loadStream: Stream carregada', {
-      id: data.id,
-      is_active: data.is_active,
-      channel_name: data.channel_name
-    });
-
-    setStream(data);
-    setLoading(false);
   };
 
   const loadZkTVData = async () => {

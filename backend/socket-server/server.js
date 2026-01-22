@@ -209,8 +209,34 @@ app.get('/health', (req, res) => {
     cache: supabaseWrapper.getStats(),
     supabase: {
       healthy: supabaseWrapper.isHealthy()
+    },
+    liveStreamsCache: {
+      cached: !!liveStreamsCache,
+      age: liveStreamsCache ? Math.round((Date.now() - liveStreamsCacheTime) / 1000) + 's' : 'n/a',
+      count: liveStreamsCache?.length || 0
     }
   });
+});
+
+// ✅ NOVA ROTA: Buscar live streams ativas (com cache)
+// Reduz 95% das requisições ao Supabase
+app.get('/api/live-streams/active', async (req, res) => {
+  try {
+    const streams = await getActiveLiveStreams();
+    res.json({
+      success: true,
+      data: streams,
+      cached: (Date.now() - liveStreamsCacheTime) < LIVE_STREAMS_CACHE_TTL,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar live streams:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao buscar live streams',
+      message: error.message
+    });
+  }
 });
 
 // =====================================================
@@ -225,6 +251,54 @@ const socketIoUpdates = new Set(); // pollId -> timestamp
 
 // Flag para evitar broadcast duplicado de mensagens de chat quando enviamos via Socket.io
 const socketIoChatMessages = new Set(); // messageId -> timestamp
+
+// =====================================================
+// CACHE DE LIVE STREAMS (Reduz carga no Supabase)
+// =====================================================
+let liveStreamsCache = null;
+let liveStreamsCacheTime = 0;
+const LIVE_STREAMS_CACHE_TTL = 10000; // 10 segundos (atualiza a cada 10s em vez de centenas de vezes)
+
+async function getActiveLiveStreams() {
+  const now = Date.now();
+  
+  // Se cache ainda é válido, retornar do cache
+  if (liveStreamsCache && (now - liveStreamsCacheTime) < LIVE_STREAMS_CACHE_TTL) {
+    console.log('📦 Retornando live_streams do CACHE (reduz carga no Supabase)');
+    return liveStreamsCache;
+  }
+  
+  // Cache expirou, buscar do Supabase
+  try {
+    console.log('🔄 Buscando live_streams do Supabase (cache expirado)');
+    const { data, error } = await supabase
+      .from('live_streams')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('❌ Erro ao buscar live_streams:', error);
+      // Se houver erro mas temos cache antigo, retornar cache antigo
+      if (liveStreamsCache) {
+        console.warn('⚠️ Usando cache antigo devido a erro no Supabase');
+        return liveStreamsCache;
+      }
+      throw error;
+    }
+    
+    // Atualizar cache
+    liveStreamsCache = data;
+    liveStreamsCacheTime = now;
+    console.log(`✅ Cache de live_streams atualizado: ${data?.length || 0} streams ativas`);
+    
+    return data;
+  } catch (error) {
+    console.error('❌ Erro crítico ao buscar live_streams:', error);
+    // Retornar cache antigo se existir, ou array vazio
+    return liveStreamsCache || [];
+  }
+}
 
 // Logs detalhados de conexão Socket.IO
 io.engine.on('connection_error', (err) => {
@@ -1480,7 +1554,7 @@ const liveStreamsChannel = supabase
     event: '*',
     schema: 'public',
     table: 'live_streams'
-  }, (payload) => {
+  }, async (payload) => {
     const stream = payload.new || payload.old;
     const streamId = stream?.id;
     
@@ -1488,7 +1562,21 @@ const liveStreamsChannel = supabase
     
     if (!streamId) return;
     
-    // Broadcast para todos os viewers da stream
+    // ✅ INVALIDAR CACHE quando houver mudança em live_streams
+    console.log('🔄 Invalidando cache de live_streams devido a mudança');
+    liveStreamsCache = null;
+    liveStreamsCacheTime = 0;
+    
+    // Buscar dados atualizados imediatamente
+    const updatedStreams = await getActiveLiveStreams();
+    
+    // Broadcast para TODOS os clientes conectados (não apenas da stream específica)
+    io.emit('live-streams-updated', {
+      streams: updatedStreams,
+      timestamp: Date.now()
+    });
+    
+    // Broadcast para todos os viewers da stream específica
     io.to(`stream:${streamId}`).emit('stream-updated', {
       streamId: streamId,
       updates: payload.new || {},

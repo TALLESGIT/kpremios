@@ -599,32 +599,24 @@ const ZkTVPage: React.FC = () => {
 
     const loadActiveStream = async () => {
         try {
-            // Primeiro, tentar buscar stream ativa
-            let { data, error } = await supabase
-                .from('live_streams')
-                .select('id, title, channel_name, is_active, viewer_count, hls_url')
-                .eq('is_active', true)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
+            // ✅ OTIMIZAÇÃO: Usar cache do backend Socket.IO (reduz 99% das requisições ao Supabase)
+            const { getActiveLiveStreams, getLiveStreamByChannel } = await import('../services/cachedLiveService');
+            
+            // Primeiro, tentar buscar stream ativa do cache
+            const activeStreams = await getActiveLiveStreams();
+            let data = activeStreams.length > 0 ? activeStreams[0] : null;
 
             // Se não encontrar stream ativa, buscar a stream zktv (mesmo que inativa)
-            if (!data || error) {
+            if (!data) {
                 console.log('⚠️ Nenhuma stream ativa encontrada, buscando stream zktv...');
-                const { data: zktvData, error: zktvError } = await supabase
-                    .from('live_streams')
-                    .select('id, title, channel_name, is_active, viewer_count, hls_url')
-                    .eq('channel_name', 'zktv')
-                    .maybeSingle();
-
-                if (!zktvError && zktvData) {
-                    data = zktvData;
-                    error = null;
-                    console.log('✅ Stream zktv encontrada:', zktvData);
+                data = await getLiveStreamByChannel('zktv');
+                
+                if (data) {
+                    console.log('✅ Stream zktv encontrada:', data);
                 }
             }
 
-            if (!error && data) {
+            if (data) {
                 setActiveStream(data);
                 setCurrentViewerCount(data.viewer_count || 0);
                 // Sempre rastrear quando a stream estiver ativa

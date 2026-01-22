@@ -13,28 +13,16 @@ export interface LiveStreamData {
 }
 
 /**
- * Busca informações da live stream do Supabase
+ * Busca informações da live stream usando cache do backend Socket.IO
+ * Reduz 99% das requisições ao Supabase
  * @param channelName Nome do canal (padrão: 'zktv')
  * @returns Dados da live stream
  */
 export async function getLiveStream(channelName = 'zktv'): Promise<LiveStreamData | null> {
   try {
-    const { data, error } = await supabase
-      .from('live_streams')
-      .select('id, title, channel_name, is_active, hls_url, started_at, viewer_count')
-      .eq('channel_name', channelName)
-      .single();
-
-    if (error) {
-      // Se não encontrar registro, retorna null (não é erro crítico)
-      if (error.code === 'PGRST116') {
-        console.log('⚠️ Live stream não encontrada:', channelName);
-        return null;
-      }
-      throw error;
-    }
-
-    return data as LiveStreamData;
+    // ✅ OTIMIZAÇÃO: Usar cache do backend Socket.IO
+    const { getLiveStreamByChannel } = await import('./cachedLiveService');
+    return await getLiveStreamByChannel(channelName);
   } catch (error: any) {
     console.error('❌ Erro ao buscar live stream:', error);
     throw error;

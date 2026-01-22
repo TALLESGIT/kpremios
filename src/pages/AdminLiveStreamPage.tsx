@@ -134,6 +134,8 @@ const AdminLiveStreamPage: React.FC = () => {
   const loadStreams = async () => {
     try {
       setLoading(true);
+      // ✅ Admin usa Supabase direto (apenas 1 usuário, não sobrecarrega)
+      // Viewers usam cache do backend Socket.IO
       const { data, error } = await supabase.from('live_streams').select('*').order('created_at', { ascending: false });
       if (error) throw error;
       setStreams(data || []);
