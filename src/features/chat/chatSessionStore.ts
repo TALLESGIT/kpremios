@@ -147,14 +147,32 @@ export class ChatSessionStore {
       }));
     };
 
+    // ✅ NOVO: Handler para likes em tempo real
+    const handleMessageLiked = (data: { messageId: string; streamId: string; likes_count: number; liked: boolean; likedBy: string }) => {
+      console.log('❤️ ChatSessionStore: Like atualizado via Socket.io:', data.messageId, 'likes:', data.likes_count);
+      // Filtrar apenas mensagens desta stream
+      if (data.streamId !== this.streamId) return;
+      
+      this.updateState(prev => ({
+        ...prev,
+        messages: prev.messages.map(m => 
+          m.id === data.messageId 
+            ? { ...m, likes_count: data.likes_count } 
+            : m
+        )
+      }));
+    };
+
     this.socketHelpers.on('new-message', handleNewMessage);
     this.socketHelpers.on('message-updated', handleMessageUpdated);
     this.socketHelpers.on('message-deleted', handleMessageDeleted);
+    this.socketHelpers.on('message-liked', handleMessageLiked);
 
     // Armazenar handlers para cleanup
     this.messageHandlers.set('new-message', handleNewMessage);
     this.messageHandlers.set('message-updated', handleMessageUpdated);
     this.messageHandlers.set('message-deleted', handleMessageDeleted);
+    this.messageHandlers.set('message-liked', handleMessageLiked);
   }
 
   // Enviar mensagem (não usado diretamente - provider faz isso)

@@ -266,6 +266,18 @@ io.on('connection', (socket) => {
     console.error(`❌ Erro no socket ${socket.id}:`, error);
   });
 
+  // Função auxiliar para broadcast de contagem de viewers
+  const broadcastViewerCount = (streamId) => {
+    const room = io.sockets.adapter.rooms.get(`stream:${streamId}`);
+    const viewerCount = room ? room.size : 0;
+    io.to(`stream:${streamId}`).emit('viewer-count-updated', { 
+      streamId, 
+      count: viewerCount,
+      timestamp: Date.now()
+    });
+    console.log(`📊 Viewer count atualizado para stream ${streamId}: ${viewerCount}`);
+  };
+
   // Viewer se junta à sala da stream
   socket.on('join-stream', async (data) => {
     const { streamId } = data;
@@ -292,6 +304,9 @@ io.on('connection', (socket) => {
 
       // Notificar outros viewers (opcional - para contagem)
       socket.to(`stream:${streamId}`).emit('viewer-joined', { streamId });
+
+      // ✅ NOVO: Broadcast atualizado da contagem de viewers para TODOS
+      broadcastViewerCount(streamId);
     } catch (error) {
       console.error('❌ Erro ao entrar na stream:', error);
       socket.emit('error', { message: 'Erro ao entrar na stream' });
@@ -313,6 +328,9 @@ io.on('connection', (socket) => {
       }
 
       console.log(`👋 Viewer ${socket.id} saiu da stream ${streamId}`);
+
+      // ✅ NOVO: Broadcast atualizado da contagem de viewers para TODOS
+      broadcastViewerCount(streamId);
     }
   });
 
@@ -333,15 +351,17 @@ io.on('connection', (socket) => {
     }
 
     try {
-      // ✅ SEMPRE buscar nome do usuário no banco quando userId estiver presente
-      // Isso garante que usamos o nome correto mesmo se o frontend enviar nome errado
+      // ✅ SEMPRE buscar dados do usuário no banco quando userId estiver presente
+      // Isso garante que usamos o nome correto e incluímos is_vip/is_admin
       let finalUserName = 'Anônimo';
+      let userIsVip = false;
+      let userIsAdmin = false;
 
       if (userId) {
-        console.log(`🔍 Backend: Buscando nome do usuário para userId: ${userId}`);
+        console.log(`🔍 Backend: Buscando dados do usuário para userId: ${userId}`);
         const { data: userData, error: userError } = await supabase
           .from('users')
-          .select('name, id')
+          .select('name, id, is_vip, is_admin')
           .eq('id', userId)
           .single();
 
@@ -349,11 +369,13 @@ io.on('connection', (socket) => {
           console.error(`❌ Erro ao buscar usuário:`, userError);
         }
 
-        if (userData?.name) {
-          finalUserName = userData.name;
-          console.log(`✅ Backend: Nome do usuário encontrado: ${finalUserName} (ID: ${userData.id})`);
+        if (userData) {
+          finalUserName = userData.name || userName || 'Anônimo';
+          userIsVip = userData.is_vip || false;
+          userIsAdmin = userData.is_admin || false;
+          console.log(`✅ Backend: Dados do usuário: ${finalUserName} (VIP: ${userIsVip}, Admin: ${userIsAdmin})`);
         } else {
-          console.warn(`⚠️ Backend: Usuário não encontrado ou sem nome, usando userName do frontend ou "Anônimo"`);
+          console.warn(`⚠️ Backend: Usuário não encontrado, usando userName do frontend ou "Anônimo"`);
           finalUserName = userName || 'Anônimo';
         }
       } else {
@@ -405,10 +427,17 @@ io.on('connection', (socket) => {
       // Pequeno delay para garantir que o banco foi atualizado antes do broadcast
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      // Broadcast para TODOS os viewers da stream
-      io.to(`stream:${streamId}`).emit('new-message', savedMessage);
+      // ✅ NOVO: Enriquecer mensagem com dados de VIP/Admin para broadcast
+      const enrichedMessage = {
+        ...savedMessage,
+        is_vip: userIsVip,
+        is_admin: userIsAdmin
+      };
 
-      console.log(`💬 Mensagem enviada na stream ${streamId} por ${finalUserName} (userId: ${userId || 'null'})`);
+      // Broadcast para TODOS os viewers da stream (com dados de VIP/Admin)
+      io.to(`stream:${streamId}`).emit('new-message', enrichedMessage);
+
+      console.log(`💬 Mensagem enviada na stream ${streamId} por ${finalUserName} (VIP: ${userIsVip}, Admin: ${userIsAdmin})`);
     } catch (error) {
       console.error('❌ Erro ao processar mensagem:', error);
       socket.emit('error', { message: 'Erro ao processar mensagem' });
@@ -508,6 +537,68 @@ io.on('connection', (socket) => {
     } catch (error) {
       console.error('❌ Erro ao contar viewers:', error);
       socket.emit('error', { message: 'Erro ao contar viewers' });
+    }
+  });
+
+  // =====================================================
+  // LIKES DE MENSAGENS - Handler Socket.io
+  // =====================================================
+
+  // Like/Unlike em mensagem de chat
+  socket.on('like-message', async (data) => {
+    const { streamId, messageId, userId, sessionId } = data;
+
+    if (!streamId || !messageId) {
+      socket.emit('error', { message: 'streamId e messageId são obrigatórios' });
+      return;
+    }
+
+    // Precisa de userId OU sessionId para identificar quem curtiu
+    if (!userId && !sessionId) {
+      socket.emit('error', { message: 'userId ou sessionId é obrigatório para curtir' });
+      return;
+    }
+
+    try {
+      console.log(`❤️ Backend: Processando like na mensagem ${messageId} (user: ${userId || sessionId})`);
+
+      // Chamar RPC do Supabase para toggle like
+      const { data: result, error } = await supabase.rpc('toggle_message_like', {
+        p_message_id: messageId,
+        p_user_id: userId || null,
+        p_session_id: userId ? null : sessionId
+      });
+
+      if (error) {
+        console.error('❌ Erro ao processar like:', error);
+        socket.emit('error', { message: 'Erro ao processar like: ' + error.message });
+        return;
+      }
+
+      if (result && result.success) {
+        // Buscar likes_count atualizado da mensagem
+        const { data: messageData } = await supabase
+          .from('live_chat_messages')
+          .select('likes_count')
+          .eq('id', messageId)
+          .single();
+
+        const likesCount = messageData?.likes_count || 0;
+
+        // Broadcast para TODOS os viewers da stream
+        io.to(`stream:${streamId}`).emit('message-liked', {
+          messageId,
+          streamId,
+          likes_count: likesCount,
+          liked: result.liked,
+          likedBy: userId || sessionId
+        });
+
+        console.log(`❤️ Like processado: mensagem ${messageId}, total likes: ${likesCount}, liked: ${result.liked}`);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao processar like:', error);
+      socket.emit('error', { message: 'Erro ao processar like' });
     }
   });
 
@@ -1151,11 +1242,25 @@ io.on('connection', (socket) => {
   socket.on('disconnect', (reason) => {
     console.log(`❌ Viewer desconectado: ${socket.id}, motivo: ${reason}`);
 
-    // Remover de todas as salas
+    // Remover de todas as salas e broadcast viewer count
     for (const [streamId, sockets] of streamRooms.entries()) {
+      const wasInRoom = sockets.has(socket.id);
       sockets.delete(socket.id);
+      
       if (sockets.size === 0) {
         streamRooms.delete(streamId);
+      }
+      
+      // ✅ NOVO: Se o viewer estava nesta sala, broadcast contagem atualizada
+      if (wasInRoom) {
+        const room = io.sockets.adapter.rooms.get(`stream:${streamId}`);
+        const viewerCount = room ? room.size : 0;
+        io.to(`stream:${streamId}`).emit('viewer-count-updated', { 
+          streamId, 
+          count: viewerCount,
+          timestamp: Date.now()
+        });
+        console.log(`📊 Viewer count atualizado após disconnect para stream ${streamId}: ${viewerCount}`);
       }
     }
   });

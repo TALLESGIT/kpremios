@@ -382,11 +382,20 @@ const PublicLiveStreamPage: React.FC = () => {
       }
     };
 
+    // ✅ NOVO: Handler para atualização de contagem de viewers em tempo real
+    const handleViewerCountUpdate = (data: { streamId: string; count: number }) => {
+      if (data.streamId !== streamId) return;
+      console.log('👥 PublicLiveStreamPage: Viewer count atualizado via Socket.io:', data.count);
+      setCurrentViewerCount(data.count);
+    };
+
     on('stream-updated', handleStreamUpdate);
+    on('viewer-count-updated', handleViewerCountUpdate);
 
     return () => {
       console.log('🔌 Desconectando Socket.io stream');
       off('stream-updated', handleStreamUpdate);
+      off('viewer-count-updated', handleViewerCountUpdate);
       if (streamId) {
         leaveStream(streamId);
       }

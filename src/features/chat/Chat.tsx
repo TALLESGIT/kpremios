@@ -320,23 +320,22 @@ export function Chat({ streamId, isActive = true, className, showHeader = true }
         sessionStorage.setItem('session_id', sessionId);
       }
 
-      const { data, error } = await supabase.rpc('toggle_message_like', {
-        p_message_id: messageId,
-        p_user_id: user?.id || null,
-        p_session_id: user?.id ? null : sessionId
+      // ✅ NOVO: Emitir via Socket.io ao invés de chamar RPC diretamente
+      // O backend processa e faz broadcast para todos
+      emit(streamId, 'like-message', {
+        messageId,
+        userId: user?.id || null,
+        sessionId: user?.id ? null : sessionId
       });
 
-      if (error) throw error;
-
-      if (data && data.success) {
-        const newLikedMessages = new Set(likedMessages);
-        if (data.liked) {
-          newLikedMessages.add(messageId);
-        } else {
-          newLikedMessages.delete(messageId);
-        }
-        setLikedMessages(newLikedMessages);
+      // Atualização otimista do estado local (será confirmado pelo broadcast)
+      const newLikedMessages = new Set(likedMessages);
+      if (likedMessages.has(messageId)) {
+        newLikedMessages.delete(messageId);
+      } else {
+        newLikedMessages.add(messageId);
       }
+      setLikedMessages(newLikedMessages);
     } catch (error: any) {
       console.error('Erro ao curtir mensagem:', error);
       toast.error('Erro ao curtir mensagem');
@@ -386,9 +385,18 @@ export function Chat({ streamId, isActive = true, className, showHeader = true }
 
   const getMessageStyles = (msg: ChatMessage) => {
     const hasLink = containsLink(msg.message);
+    
+    // ✅ NOVO: Primeiro verificar dados da própria mensagem (vêm do backend em tempo real)
+    // Fallback para userRoles (para mensagens antigas carregadas do banco)
+    const msgData = msg as any; // Type cast para acessar is_vip, is_admin
     const roles = userRoles[msg.user_id || ''] || { isAdmin: false, isVip: false, isModerator: false };
+    
+    // Priorizar dados da mensagem, depois fallback para userRoles
+    const isUserAdmin = msgData.is_admin === true || roles.isAdmin;
+    const isUserVip = msgData.is_vip === true || roles.isVip;
+    const isUserModerator = roles.isModerator; // Moderador ainda vem do userRoles
 
-    if (roles.isAdmin) {
+    if (isUserAdmin) {
       return {
         border: hasLink ? 'border-2 border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.3)]' : 'border-2 border-yellow-500/60',
         bg: hasLink ? 'bg-gradient-to-r from-yellow-600/30 to-yellow-500/20' : 'bg-gradient-to-r from-yellow-900/20 to-yellow-800/10',
@@ -397,7 +405,7 @@ export function Chat({ streamId, isActive = true, className, showHeader = true }
         badgeClass: 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300',
         isHighlighted: hasLink
       };
-    } else if (roles.isModerator) {
+    } else if (isUserModerator) {
       return {
         border: hasLink ? 'border-2 border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'border-2 border-blue-500/60',
         bg: hasLink ? 'bg-gradient-to-r from-blue-600/30 to-blue-500/20' : 'bg-gradient-to-r from-blue-900/20 to-blue-800/10',
@@ -406,7 +414,7 @@ export function Chat({ streamId, isActive = true, className, showHeader = true }
         badgeClass: 'bg-blue-500/20 border-blue-500/40 text-blue-300',
         isHighlighted: hasLink
       };
-    } else if (roles.isVip) {
+    } else if (isUserVip) {
       const isOwnMessage = msg.user_id === user?.id;
       const colorToUse = isOwnMessage ? vipCustomColor : 'purple';
       const colorConfig = VIP_COLOR_PRESETS.find(c => c.value === colorToUse) || VIP_COLOR_PRESETS[0];

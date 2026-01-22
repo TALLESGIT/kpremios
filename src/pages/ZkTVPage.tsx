@@ -377,10 +377,20 @@ const ZkTVPage: React.FC = () => {
             }
         };
 
+        // ✅ NOVO: Handler para atualização de contagem de viewers em tempo real
+        const handleViewerCountUpdate = (data: { streamId: string; count: number }) => {
+            if (data.streamId === activeStream.id) {
+                console.log('👥 ZkTVPage: Viewer count atualizado via Socket.io:', data.count);
+                setCurrentViewerCount(data.count);
+            }
+        };
+
         on('pool-updated', handlePoolUpdate);
+        on('viewer-count-updated', handleViewerCountUpdate);
 
         return () => {
             off('pool-updated', handlePoolUpdate);
+            off('viewer-count-updated', handleViewerCountUpdate);
             leaveStream(activeStream.id);
         };
     }, [activeStream?.id, activeStream?.is_active, isConnected, on, off, joinStream, leaveStream]);
