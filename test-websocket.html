@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste WebSocket - Socket.IO</title>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        .disconnect {
+            background: #f44336;
+        }
+        .disconnect:hover {
+            background: #da190b;
+        }
+        #status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .connected {
+            background: #4CAF50;
+            color: white;
+        }
+        .disconnected {
+            background: #f44336;
+            color: white;
+        }
+        .connecting {
+            background: #ff9800;
+            color: white;
+        }
+        #log {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #4CAF50;
+            padding-left: 10px;
+        }
+        .log-error {
+            border-left-color: #f44336;
+            color: #ff6b6b;
+        }
+        .log-info {
+            border-left-color: #2196F3;
+            color: #64b5f6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 Teste de Conexão WebSocket</h1>
+        <p>URL do servidor: <strong id="serverUrl">https://api.zkoficial.com.br</strong></p>
+        
+        <div id="status" class="disconnected">Desconectado</div>
+        
+        <div>
+            <button id="connectBtn" onclick="connect()">Conectar</button>
+            <button id="disconnectBtn" class="disconnect" onclick="disconnect()" disabled>Desconectar</button>
+            <button onclick="clearLog()">Limpar Log</button>
+        </div>
+        
+        <div>
+            <h3>📋 Log de Eventos:</h3>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        const serverUrl = 'https://api.zkoficial.com.br';
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function updateStatus(status, text) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = status;
+            statusDiv.textContent = text;
+        }
+
+        function connect() {
+            if (socket && socket.connected) {
+                log('Já está conectado!', 'info');
+                return;
+            }
+
+            log('Tentando conectar...', 'info');
+            updateStatus('connecting', 'Conectando...');
+            
+            document.getElementById('connectBtn').disabled = true;
+            document.getElementById('disconnectBtn').disabled = false;
+
+            socket = io(serverUrl, {
+                transports: ['websocket'],
+                withCredentials: true,
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionAttempts: 5
+            });
+
+            socket.on('connect', () => {
+                log(`✅ Conectado! Socket ID: ${socket.id}`, 'info');
+                updateStatus('connected', `Conectado (${socket.id})`);
+            });
+
+            socket.on('disconnect', (reason) => {
+                log(`❌ Desconectado. Motivo: ${reason}`, 'error');
+                updateStatus('disconnected', 'Desconectado');
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+            });
+
+            socket.on('connect_error', (error) => {
+                log(`❌ Erro de conexão: ${error.message}`, 'error');
+                updateStatus('disconnected', 'Erro de Conexão');
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+            });
+
+            socket.on('error', (error) => {
+                log(`❌ Erro: ${JSON.stringify(error)}`, 'error');
+            });
+
+            // Testar evento de stream
+            socket.on('joined-stream', (data) => {
+                log(`📡 Entrou na stream: ${JSON.stringify(data)}`, 'info');
+            });
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                log('Desconexão solicitada', 'info');
+                updateStatus('disconnected', 'Desconectado');
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+            }
+        }
+
+        // Auto-conectar ao carregar a página
+        window.addEventListener('load', () => {
+            log('Página carregada. Clique em "Conectar" para testar.', 'info');
+        });
+    </script>
+</body>
+</html>
