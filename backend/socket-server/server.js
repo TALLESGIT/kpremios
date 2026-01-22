@@ -89,13 +89,17 @@ app.use((req, res, next) => {
   
   // Log detalhado para requisições Socket.IO
   if (path && path.includes('socket.io')) {
-    console.log(`📡 Requisição Socket.IO:`, {
+    console.log(`📡 Requisição Socket.IO recebida:`, {
       method: req.method,
       path: req.path,
+      fullUrl: req.url,
       origin: origin || 'none',
       upgrade: req.headers.upgrade || 'none',
       connection: req.headers.connection || 'none',
-      query: req.query
+      host: req.headers.host || 'none',
+      query: req.query,
+      transport: req.query.transport || 'none',
+      eio: req.query.EIO || 'none'
     });
   } else if (origin) {
     console.log(`📡 Requisição recebida da origem: ${origin}`);
@@ -123,13 +127,12 @@ const io = new Server(server, {
     methods: ['GET', 'POST'],
     credentials: true
   },
-  // CRÍTICO: Em produção, apenas websocket (sem polling)
-  // Polling não funciona bem com proxy reverso e causa "Transport unknown"
-  // Em dev, manter polling como fallback para desenvolvimento local
-  transports: isProduction ? ['websocket'] : ['websocket', 'polling'],
-  // Em produção, não permitir upgrade (já é websocket direto)
-  // Em dev, permitir upgrade de polling para websocket
-  allowUpgrades: !isProduction,
+  // CRÍTICO: Em produção, permitir websocket direto E polling inicial para handshake
+  // Socket.IO Engine.IO 4.x pode precisar de polling inicial antes do upgrade
+  // Mas priorizar websocket direto quando possível
+  transports: isProduction ? ['websocket', 'polling'] : ['websocket', 'polling'],
+  // Permitir upgrade de polling para websocket (melhor performance)
+  allowUpgrades: true,
   // Configurações para conexões longas (streaming)
   pingTimeout: 60000, // 60 segundos
   pingInterval: 25000, // 25 segundos
