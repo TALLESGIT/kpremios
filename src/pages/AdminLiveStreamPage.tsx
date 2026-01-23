@@ -70,6 +70,13 @@ const AdminLiveStreamPage: React.FC = () => {
   useEffect(() => {
     loadStreams();
 
+    // ✅ Remover listener anterior se existir (evitar múltiplos listeners)
+    const existingChannel = supabase.getChannels().find(ch => ch.topic === 'admin-live-updates');
+    if (existingChannel) {
+      console.log('🧹 Removendo listener anterior do Realtime');
+      supabase.removeChannel(existingChannel);
+    }
+
     const channel = supabase
       .channel('admin-live-updates')
       .on(
@@ -85,12 +92,15 @@ const AdminLiveStreamPage: React.FC = () => {
           if (payload.eventType === 'UPDATE' && payload.new) {
             const updatedStream = payload.new as LiveStream;
             const now = Date.now();
+            const timeSinceLastUpdate = now - lastRealtimeUpdateRef.current;
 
             // ✅ THROTTLE: Ignorar UPDATEs frequentes (< 3s) para evitar lags
-            if (now - lastRealtimeUpdateRef.current < 3000) {
-              console.log('⏭️ Ignorando UPDATE (throttle de 3s)');
+            console.log(`⏱️ Throttle check: ${timeSinceLastUpdate}ms desde último UPDATE`);
+            if (timeSinceLastUpdate < 3000) {
+              console.log(`⏭️ Ignorando UPDATE (throttle de 3s) - ${timeSinceLastUpdate}ms < 3000ms`);
               return;
             }
+            console.log(`✅ Throttle passou: ${timeSinceLastUpdate}ms >= 3000ms, processando UPDATE`);
             lastRealtimeUpdateRef.current = now;
 
             // Se for mudança no status de ativação, atualizamos na hora!
