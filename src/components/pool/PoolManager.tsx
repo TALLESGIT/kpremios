@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { Target, Play, Square, Trophy, Users, DollarSign, CheckCircle, X } from 'lucide-react';
+import { Target, Play, Square, Trophy, Users, DollarSign } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { whatsappService } from '../../services/whatsappService';
 import CustomToast from '../shared/CustomToast';
@@ -22,10 +22,10 @@ interface MatchPool {
   total_pool_amount: number;
   winners_count: number;
   prize_per_winner: number;
+  accumulated_amount: number;
 }
 
 const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
-  const { user } = useAuth();
   const [pool, setPool] = useState<MatchPool | null>(null);
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -153,7 +153,7 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
 
       if (winnersError) {
         console.error('Erro ao calcular ganhadores:', winnersError);
-        toast.custom((t) => (
+        toast.custom(() => (
           <CustomToast
             type="error"
             title="ERRO AO CALCULAR GANHADORES"
@@ -162,10 +162,10 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
         ), { duration: 3000 });
       } else {
         const winnersCount = winnersData?.winners_count || 0;
-        
+
         // Mensagem informando se houve ganhador(es)
         if (winnersCount > 0) {
-          toast.custom((t) => (
+          toast.custom(() => (
             <CustomToast
               type="success"
               title="RESULTADO DEFINIDO COM SUCESSO!"
@@ -173,7 +173,7 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
             />
           ), { duration: 4000 });
         } else {
-          toast.custom((t) => (
+          toast.custom(() => (
             <CustomToast
               type="warning"
               title="RESULTADO DEFINIDO"
@@ -181,7 +181,7 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
             />
           ), { duration: 3000 });
         }
-        
+
         // Enviar notificações automáticas para ganhadores
         if (winnersCount > 0) {
           try {
@@ -208,16 +208,19 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
               // Enviar notificações para cada ganhador
               for (const winner of winners) {
                 try {
-                  if (winner.users?.whatsapp && winner.users?.name) {
+                  // Ajuste para lidar com o fato de 'users' poder vir como objeto ou array
+                  const userData: any = Array.isArray(winner.users) ? winner.users[0] : winner.users;
+
+                  if (userData?.whatsapp && userData?.name) {
                     // Teste: verificar se é o número de teste (33) 999030124
                     const testWhatsApp = '33999030124';
-                    const winnerWhatsApp = winner.users.whatsapp.replace(/\D/g, '');
-                    
+                    const winnerWhatsApp = userData.whatsapp.replace(/\D/g, '');
+
                     const result = await whatsappService.sendMessage({
-                      to: winner.users.whatsapp,
+                      to: userData.whatsapp,
                       message: '',
                       type: 'pool_winner',
-                      name: winner.users.name,
+                      name: userData.name,
                       matchTitle: pool.match_title,
                       predictedScore: `${winner.predicted_home_score} x ${winner.predicted_away_score}`,
                       realScore: `${pool.result_home_score} x ${pool.result_away_score}`,
@@ -230,17 +233,17 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
                       successCount++;
                       // Se for o número de teste, mostrar mensagem especial
                       if (winnerWhatsApp === testWhatsApp) {
-                        toast.custom((t) => (
+                        toast.custom(() => (
                           <CustomToast
                             type="success"
                             title="MENSAGEM DE TESTE ENVIADA!"
-                            message={`Mensagem enviada com sucesso para ${winner.users.name} (${winner.users.whatsapp})`}
+                            message={`Mensagem enviada com sucesso para ${userData.name} (${userData.whatsapp})`}
                           />
                         ), { duration: 4000 });
                       }
                     } else {
                       errorCount++;
-                      console.error(`Erro ao enviar notificação para ${winner.users.name}:`, result.error);
+                      console.error(`Erro ao enviar notificação para ${userData.name}:`, result.error);
                     }
 
                     // Pequena pausa entre mensagens para evitar rate limiting
@@ -253,7 +256,7 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
               }
 
               if (successCount > 0) {
-                toast.custom((t) => (
+                toast.custom(() => (
                   <CustomToast
                     type="success"
                     title="NOTIFICAÇÕES ENVIADAS"
@@ -262,7 +265,7 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
                 ), { duration: 3000 });
               }
               if (errorCount > 0) {
-                toast.custom((t) => (
+                toast.custom(() => (
                   <CustomToast
                     type="error"
                     title="ERRO AO ENVIAR NOTIFICAÇÕES"
@@ -321,11 +324,10 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
             <button
               onClick={togglePool}
               disabled={loading}
-              className={`px-6 py-3 font-black rounded-xl uppercase text-xs transition-all ${
-                pool.is_active
-                  ? 'bg-red-600 hover:bg-red-500 text-white'
-                  : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-              }`}
+              className={`px-6 py-3 font-black rounded-xl uppercase text-xs transition-all ${pool.is_active
+                ? 'bg-red-600 hover:bg-red-500 text-white'
+                : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                }`}
             >
               {pool.is_active ? (
                 <>
@@ -374,8 +376,8 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
                     <DollarSign className="w-4 h-4 text-green-400" />
                     <p className="text-slate-400 text-xs">Prêmio Total</p>
                   </div>
-                  <p className="text-2xl font-black text-white">R$ {(pool.total_pool_amount * 0.70).toFixed(2)}</p>
-                  <p className="text-xs text-slate-500 mt-1">de R$ {pool.total_pool_amount.toFixed(2)} arrecadado</p>
+                  <p className="text-2xl font-black text-white">R$ {((pool.total_pool_amount * 0.70) + (pool.accumulated_amount || 0)).toFixed(2)}</p>
+                  <p className="text-xs text-slate-500 mt-1">Base: R$ {(pool.total_pool_amount * 0.70).toFixed(2)} + Acumulado: R$ {(pool.accumulated_amount || 0).toFixed(2)}</p>
                 </div>
               </div>
 

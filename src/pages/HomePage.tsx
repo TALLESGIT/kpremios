@@ -600,12 +600,12 @@ function HomePage() {
                         <p className="text-emerald-400 text-[10px] font-black uppercase tracking-wider">Prêmio Disponível</p>
                       </div>
                       <p className="text-3xl sm:text-4xl font-black text-emerald-300 mb-1 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]">
-                        R$ {((activePool.total_pool_amount || 0) * 0.70).toFixed(2).replace('.', ',')}
+                        R$ {((activePool.total_pool_amount || 0) * 0.70 + (activePool.accumulated_amount || 0)).toFixed(2).replace('.', ',')}
                       </p>
                       {/* Mostrar apenas para admins */}
                       {isAdmin && (
                         <p className="text-[9px] text-emerald-400/60 font-medium">
-                          {((activePool.total_pool_amount || 0) * 0.30).toFixed(2).replace('.', ',')} (30%) para a plataforma
+                          Base: R$ {((activePool.total_pool_amount || 0) * 0.70).toFixed(2).replace('.', ',')} + Acumulado: R$ {(activePool.accumulated_amount || 0).toFixed(2).replace('.', ',')} | 30% ({((activePool.total_pool_amount || 0) * 0.30).toFixed(2).replace('.', ',')}) plataforma
                         </p>
                       )}
                     </div>
