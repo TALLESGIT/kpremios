@@ -133,18 +133,36 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
 
     try {
       setLoading(true);
-      // Atualizar resultado e definir result_set_at (data em que o resultado foi definido)
-      const { error: updateError } = await supabase
+
+      // Atualizar resultado (tentar com result_set_at; se coluna não existir, tentar sem)
+      const updatePayload: Record<string, unknown> = {
+        result_home_score: home,
+        result_away_score: away,
+        is_active: false,
+        result_set_at: new Date().toISOString()
+      };
+
+      let { error: updateError } = await supabase
         .from('match_pools')
-        .update({
-          result_home_score: home,
-          result_away_score: away,
-          is_active: false, // Desativar bolão após resultado
-          result_set_at: new Date().toISOString() // ✅ NOVO: Data/hora em que o resultado foi definido (contagem de 7 dias começa aqui)
-        })
+        .update(updatePayload)
         .eq('id', pool.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        const msg = (updateError as { message?: string }).message || '';
+        if (msg.includes('result_set_at') || msg.includes('does not exist') || (updateError as { code?: string }).code === '42703') {
+          delete updatePayload.result_set_at;
+          const retry = await supabase.from('match_pools').update(updatePayload).eq('id', pool.id);
+          updateError = retry.error;
+          if (!updateError) {
+            console.warn('Coluna result_set_at não existe. Execute a migration 20260115_add_result_set_at_to_match_pools.sql no Supabase.');
+          }
+        }
+      }
+
+      if (updateError) {
+        console.error('Erro ao salvar resultado do bolão:', updateError);
+        throw new Error((updateError as { message?: string }).message || 'Erro ao salvar resultado');
+      }
 
       // Calcular ganhadores
       const { data: winnersData, error: winnersError } = await supabase.rpc('calculate_pool_winners', {
@@ -153,13 +171,16 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
 
       if (winnersError) {
         console.error('Erro ao calcular ganhadores:', winnersError);
+        const errMsg = (winnersError as { message?: string }).message || '';
         toast.custom(() => (
           <CustomToast
             type="error"
             title="ERRO AO CALCULAR GANHADORES"
-            message="Resultado salvo, mas houve erro ao calcular ganhadores"
+            message={errMsg.includes('result_set_at') || errMsg.includes('does not exist')
+              ? 'Resultado salvo. Execute no Supabase (SQL) a migration: 20260115_add_result_set_at_to_match_pools.sql'
+              : 'Resultado salvo, mas houve erro ao calcular ganhadores. Veja o console.'}
           />
-        ), { duration: 3000 });
+        ), { duration: 5000 });
       } else {
         const winnersCount = winnersData?.winners_count || 0;
 
