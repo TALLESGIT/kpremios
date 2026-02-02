@@ -224,6 +224,31 @@ CREATE INDEX IF NOT EXISTS idx_chat_stream_perf ON live_chat_messages(stream_id,
 
 ---
 
+## 🧪 Teste de carga com usuários reais (850 clientes)
+
+Para um teste de carga real com login/cadastro e depois limpeza:
+
+1. **Criar 850 usuários de teste** (Auth + `public.users`). Requer `SUPABASE_SERVICE_ROLE_KEY` no `.env`:
+   ```bash
+   npm run create-load-test-users
+   # ou: node create-load-test-users.js 850
+   ```
+   Gera o ficheiro `load-test-users.json` (não versionado).
+
+2. **Rodar o load test** usando esses usuários (mensagens com `userId`/`userName` reais):
+   ```bash
+   node load-test.js 850 <streamId> https://api.zkoficial.com.br load-test-users.json
+   ```
+   Se omitir o último argumento, o script procura `load-test-users.json` na mesma pasta.
+
+3. **Apagar os cadastros de teste** (mensagens, `public.users`, Auth):
+   ```bash
+   npm run delete-load-test-users
+   # ou: node delete-load-test-users.js [pathUsersJson]
+   ```
+
+---
+
 ## 📝 Próximos Passos
 
 1. ✅ Configurar `.env` com suas credenciais

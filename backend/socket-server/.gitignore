@@ -4,6 +4,9 @@ node_modules/
 # Environment variables
 .env
 
+# Dados de teste de carga (contém IDs de usuários)
+load-test-users.json
+
 # Logs
 *.log
 npm-debug.log*

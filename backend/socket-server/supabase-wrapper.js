@@ -58,7 +58,7 @@ class SupabaseWrapper {
       async () => {
         const { data, error } = await this.supabase
           .from('users')
-          .select('id, name, username, is_vip, is_admin, vip_color')
+          .select('id, name, is_vip, is_admin, vip_color')
           .eq('id', userId)
           .single();
         
@@ -72,7 +72,6 @@ class SupabaseWrapper {
         return cache.getUser(userId) || {
           id: userId,
           name: 'Usuário',
-          username: 'Usuário',
           is_vip: false,
           is_admin: false,
           vip_color: null

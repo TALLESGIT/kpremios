@@ -248,6 +248,7 @@ app.get('/api/live-streams/active', async (req, res) => {
 
 // Armazenar conexões por stream
 const streamRooms = new Map(); // streamId -> Set<socketId>
+const lastViewerCountByStream = new Map(); // streamId -> count (para logar só quando mudar)
 
 // Flag para evitar broadcast duplicado quando atualizamos via Socket.io
 const socketIoUpdates = new Set(); // pollId -> timestamp
@@ -258,6 +259,9 @@ const socketIoChatMessages = new Set(); // messageId -> timestamp
 // ✅ Write-Behind: buffer de mensagens para batch insert (reduz 90% das escritas)
 const messageBuffer = [];
 const MESSAGE_FLUSH_INTERVAL_MS = 4000; // 3 a 5 segundos
+
+// Likes em mensagens com id temporário (antes do batch insert) — só em memória
+const tempMessageLikes = new Map(); // messageId -> { count, likedBy: Set }
 
 // Flush do buffer de mensagens a cada 3–5 s (uma única escrita em lote)
 setInterval(async () => {
@@ -377,20 +381,22 @@ io.on('connection', (socket) => {
     console.error(`❌ Erro no socket ${socket.id}:`, error);
   });
 
-  // Função auxiliar para broadcast de contagem de viewers
   const broadcastViewerCount = (streamId) => {
     const room = io.sockets.adapter.rooms.get(`stream:${streamId}`);
     const viewerCount = room ? room.size : 0;
-    
-    // ✅ RESILIENTE: Atualizar cache (não bloqueia se Supabase falhar)
+
     supabaseWrapper.updateViewerCount(streamId, viewerCount);
-    
-    io.to(`stream:${streamId}`).emit('viewer-count-updated', { 
-      streamId, 
+
+    io.to(`stream:${streamId}`).emit('viewer-count-updated', {
+      streamId,
       count: viewerCount,
       timestamp: Date.now()
     });
-    console.log(`📊 Viewer count atualizado para stream ${streamId}: ${viewerCount}`);
+
+    if (lastViewerCountByStream.get(streamId) !== viewerCount) {
+      lastViewerCountByStream.set(streamId, viewerCount);
+      console.log(`📊 Viewer count atualizado para stream ${streamId}: ${viewerCount}`);
+    }
   };
 
   // Viewer se junta à sala da stream
@@ -403,27 +409,22 @@ io.on('connection', (socket) => {
     }
 
     try {
-      // Entrar na sala da stream
+      const alreadyInRoom = streamRooms.get(streamId)?.has(socket.id);
+
       socket.join(`stream:${streamId}`);
 
-      // Manter registro de viewers por stream
       if (!streamRooms.has(streamId)) {
         streamRooms.set(streamId, new Set());
       }
       streamRooms.get(streamId).add(socket.id);
-
-      // ✅ RESILIENTE: Adicionar ao cache
       cache.addViewer(streamId, socket.id);
 
-      console.log(`👥 Viewer ${socket.id} entrou na stream ${streamId}`);
+      if (!alreadyInRoom) {
+        console.log(`👥 Viewer ${socket.id} entrou na stream ${streamId}`);
+        socket.to(`stream:${streamId}`).emit('viewer-joined', { streamId });
+      }
 
-      // Confirmar entrada
       socket.emit('joined-stream', { streamId });
-
-      // Notificar outros viewers (opcional - para contagem)
-      socket.to(`stream:${streamId}`).emit('viewer-joined', { streamId });
-
-      // ✅ NOVO: Broadcast atualizado da contagem de viewers para TODOS
       broadcastViewerCount(streamId);
     } catch (error) {
       console.error('❌ Erro ao entrar na stream:', error);
@@ -635,17 +636,38 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Precisa de userId OU sessionId para identificar quem curtiu
     if (!userId && !sessionId) {
       socket.emit('error', { message: 'userId ou sessionId é obrigatório para curtir' });
       return;
     }
 
-    try {
-      console.log(`❤️ Backend: Processando like na mensagem ${messageId} (user: ${userId || sessionId})`);
+    const who = userId || sessionId;
 
-      // ✅ RESILIENTE: Usar wrapper que cai para cache se Supabase falhar
-      const { data: result, error, fromCache } = await supabaseWrapper.toggleMessageLike(messageId, userId || sessionId);
+    try {
+      // Mensagem com id temporário (ainda não gravada no banco) — like só em memória
+      if (String(messageId).startsWith('temp-')) {
+        const entry = tempMessageLikes.get(messageId) || { count: 0, likedBy: new Set() };
+        if (entry.likedBy.has(who)) {
+          entry.likedBy.delete(who);
+          entry.count = Math.max(0, entry.count - 1);
+        } else {
+          entry.likedBy.add(who);
+          entry.count += 1;
+        }
+        tempMessageLikes.set(messageId, entry);
+        io.to(`stream:${streamId}`).emit('message-liked', {
+          messageId,
+          streamId,
+          likes_count: entry.count,
+          liked: entry.likedBy.has(who),
+          likedBy: who
+        });
+        return;
+      }
+
+      console.log(`❤️ Backend: Processando like na mensagem ${messageId} (user: ${who})`);
+
+      const { data: result, error, fromCache } = await supabaseWrapper.toggleMessageLike(messageId, who);
 
       if (fromCache) {
         console.warn('⚠️ Like processado via cache (Supabase indisponível)');
