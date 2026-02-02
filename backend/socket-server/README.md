@@ -108,34 +108,24 @@ O servidor estará rodando em: `http://localhost:3001`
 
 ## 🔌 Como Usar no Frontend
 
-Substituir `supabase.channel()` por `socket.io`:
+Use a URL do Socket na variável de ambiente (ex.: `VITE_SOCKET_URL` no Vite). Em produção: `https://api.zkoficial.com.br`.
 
-### **Antes (Supabase Realtime):**
-
-```typescript
-const channel = supabase.channel(`live_chat_${streamId}`)
-  .on('postgres_changes', {
-    event: 'INSERT',
-    schema: 'public',
-    table: 'live_chat_messages',
-    filter: `stream_id=eq.${streamId}`
-  }, (payload) => {
-    setMessages(prev => [...prev, payload.new]);
-  })
-  .subscribe();
-```
-
-### **Depois (Socket.io):**
+### **Exemplo mínimo (chat):**
 
 ```typescript
 import { io } from 'socket.io-client';
 
-const socket = io('wss://backend.seudominio.com', {
-  transports: ['websocket']
+const socketUrl = import.meta.env.VITE_SOCKET_URL || 'https://api.zkoficial.com.br';
+const socket = io(socketUrl, {
+  path: '/socket.io/',
+  transports: ['websocket', 'polling']
 });
 
 // Entrar na sala da stream
 socket.emit('join-stream', { streamId });
+
+socket.on('joined-stream', () => { /* pronto */ });
+socket.on('viewer-count-updated', (data) => { /* data.count */ });
 
 // Escutar novas mensagens
 socket.on('new-message', (message) => {
@@ -147,8 +137,13 @@ socket.emit('chat-message', {
   streamId,
   userId: user?.id,
   message: 'Olá!',
+  messageType: 'text',
   userName: user?.name
 });
+
+// Curtir mensagem
+socket.emit('like-message', { streamId, messageId, userId: user?.id });
+socket.on('message-liked', (data) => { /* atualizar UI */ });
 ```
 
 ---
@@ -163,14 +158,34 @@ socket.emit('chat-message', {
 - `vip-message` - Enviar mensagem VIP
 - `stream-update` - Atualizar stream
 - `get-viewer-count` - Obter contagem de viewers
+- `like-message` - Curtir mensagem (`streamId`, `messageId`, `userId` ou `sessionId`)
+- `chat-pin-link` - Fixar link no chat (admin)
+- `chat-unpin-link` - Desfixar link
+- `chat-get-pinned-link` - Obter link fixado
+- `poll-create` / `poll:start` - Criar enquete
+- `poll-update` - Atualizar enquete
+- `poll-delete` - Encerrar/deletar enquete
+- `poll-get-active` - Obter enquete ativa da stream
+- `poll-get-results` - Obter resultados
+- `poll-check-vote` - Verificar se usuário já votou
+- `poll-vote` - Votar (`pollId`, `optionId`)
 
 ### **Servidor → Cliente:**
 
-- `joined-stream` - Confirmação de entrada
+- `joined-stream` - Confirmação de entrada na stream
+- `viewer-joined` - Outro viewer entrou (broadcast)
+- `viewer-count-updated` - Contagem de viewers atualizada
+- `viewer-count` - Resposta a `get-viewer-count`
 - `new-message` - Nova mensagem no chat
+- `message-liked` - Mensagem recebeu like
+- `message-updated` / `message-deleted` - Mensagem editada/removida
 - `new-vip-message` - Nova mensagem VIP
 - `stream-updated` - Stream foi atualizada
-- `viewer-count` - Contagem de viewers
+- `stream-ended` - Transmissão encerrada
+- `pinned-link-updated` - Link fixado atualizado
+- `pinned-link-active` - Resposta a `chat-get-pinned-link`
+- `poll-updated`, `poll:start`, `poll:end`, `poll:update`, `poll:vote` - Enquetes
+- `poll-created`, `poll-deleted`, `poll-active`, `poll-results`, `poll-voted`, `poll-vote-updated`
 - `error` - Erro
 
 ---
