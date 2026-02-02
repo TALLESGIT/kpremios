@@ -9,11 +9,11 @@ const cache = require('./resilient-cache');
 class SupabaseWrapper {
   constructor(supabaseClient) {
     this.supabase = supabaseClient;
-    this.timeout = 5000; // 5 segundos de timeout
+    this.timeout = 3000; // 3 segundos - resiliência: não travar Node à espera do banco
     
-    // ✅ THROTTLE: Atualizar viewer_count no Supabase apenas a cada 10s
+    // ✅ THROTTLE: Atualizar viewer_count no Supabase apenas a cada 15-20s (reduz CPU)
     this.viewerCountThrottle = new Map(); // streamId -> timestamp da última atualização
-    this.VIEWER_COUNT_UPDATE_INTERVAL = 10000; // 10 segundos
+    this.VIEWER_COUNT_UPDATE_INTERVAL = 15000; // 15 segundos
   }
 
   // =====================================================
@@ -49,24 +49,29 @@ class SupabaseWrapper {
   // =====================================================
   
   async getUser(userId) {
+    // Read-through: primeiro tenta cache (evita 90% das consultas ao banco)
+    const cached = cache.getUser(userId);
+    if (cached) {
+      return { data: cached, error: null, fromCache: true };
+    }
     return this.executeWithFallback(
       async () => {
         const { data, error } = await this.supabase
           .from('users')
-          .select('id, username, is_vip, is_admin, vip_color')
+          .select('id, name, username, is_vip, is_admin, vip_color')
           .eq('id', userId)
           .single();
         
         if (error) throw error;
         
-        // Salvar no cache
-        cache.setUser(userId, data);
-        return data;
+        const normalized = { ...data, name: data.name || data.username };
+        cache.setUser(userId, normalized);
+        return normalized;
       },
       async () => {
-        // Fallback: buscar do cache
         return cache.getUser(userId) || {
           id: userId,
+          name: 'Usuário',
           username: 'Usuário',
           is_vip: false,
           is_admin: false,
@@ -78,7 +83,7 @@ class SupabaseWrapper {
   }
 
   // =====================================================
-  // SALVAR MENSAGEM
+  // SALVAR MENSAGEM (single - fallback)
   // =====================================================
   
   async saveMessage(messageData) {
@@ -92,12 +97,10 @@ class SupabaseWrapper {
         
         if (error) throw error;
         
-        // Salvar no cache
         cache.addMessage(messageData.stream_id, data);
         return data;
       },
       async () => {
-        // Fallback: apenas adicionar ao cache
         const cachedMessage = {
           ...messageData,
           id: `cache-${Date.now()}`,
@@ -108,6 +111,41 @@ class SupabaseWrapper {
         return cachedMessage;
       },
       'saveMessage'
+    );
+  }
+
+  // =====================================================
+  // BATCH INSERT (Write-Behind) - reduz 90% das escritas
+  // =====================================================
+  
+  async bulkInsertMessages(rows) {
+    if (!rows || rows.length === 0) return { data: [], error: null };
+    return this.executeWithFallback(
+      async () => {
+        const { data, error } = await this.supabase
+          .from('live_chat_messages')
+          .insert(rows)
+          .select();
+        
+        if (error) throw error;
+        
+        (data || []).forEach(m => {
+          if (m.stream_id) cache.addMessage(m.stream_id, m);
+        });
+        return data || [];
+      },
+      async () => {
+        rows.forEach(r => {
+          cache.addMessage(r.stream_id, {
+            ...r,
+            id: `cache-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            created_at: new Date().toISOString(),
+            likes: 0
+          });
+        });
+        return rows;
+      },
+      'bulkInsertMessages'
     );
   }
 

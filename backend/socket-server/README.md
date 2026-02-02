@@ -208,13 +208,30 @@ Acesse: `http://seu-vps:3001/health`
 
 ---
 
+## ⚠️ SQL obrigatório no Supabase
+
+Para reduzir CPU e evitar o painel laranja, execute no **SQL Editor** do Supabase (ou via MCP Supabase `execute_sql`):
+
+```sql
+-- 1. Índice para busca de perfis (essencial para login/cache)
+CREATE INDEX IF NOT EXISTS idx_users_id_fast ON users(id);
+
+-- 2. Índice para mensagens da live (essencial para carregar histórico)
+CREATE INDEX IF NOT EXISTS idx_chat_stream_perf ON live_chat_messages(stream_id, created_at DESC);
+```
+
+*(O `ALTER SYSTEM SET idle_in_transaction_session_timeout` não é suportado no Supabase gerido — ignore.)*
+
+---
+
 ## 📝 Próximos Passos
 
 1. ✅ Configurar `.env` com suas credenciais
-2. ✅ Testar localmente (`npm start`)
-3. ✅ Deploy na VPS
-4. ✅ Atualizar frontend para usar Socket.io
-5. ✅ Configurar domínio/SSL (Nginx + Let's Encrypt)
+2. ✅ Executar o SQL acima no Supabase
+3. ✅ Testar localmente (`npm start`)
+4. ✅ Deploy na VPS
+5. ✅ Atualizar frontend para usar Socket.io
+6. ✅ Configurar domínio/SSL (Nginx + Let's Encrypt)
 
 ---
 

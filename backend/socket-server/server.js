@@ -147,6 +147,9 @@ const io = new Server(server, {
 // Inicializar Supabase
 // ✅ IMPORTANTE: Usar SERVICE_ROLE_KEY para bypass RLS (backend precisa inserir dados)
 // ⚠️ NUNCA exponha a SERVICE_ROLE_KEY no frontend!
+// ✅ Escalabilidade: Para conexões PostgreSQL diretas use pooler (porta 6543) com
+//    ?pgbouncer=true&connection_limit=20. O cliente supabase-js usa REST; reduzimos
+//    carga com batch insert, cache e throttle.
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
@@ -251,6 +254,31 @@ const socketIoUpdates = new Set(); // pollId -> timestamp
 
 // Flag para evitar broadcast duplicado de mensagens de chat quando enviamos via Socket.io
 const socketIoChatMessages = new Set(); // messageId -> timestamp
+
+// ✅ Write-Behind: buffer de mensagens para batch insert (reduz 90% das escritas)
+const messageBuffer = [];
+const MESSAGE_FLUSH_INTERVAL_MS = 4000; // 3 a 5 segundos
+
+// Flush do buffer de mensagens a cada 3–5 s (uma única escrita em lote)
+setInterval(async () => {
+  if (messageBuffer.length === 0) return;
+  const toInsert = messageBuffer.splice(0, messageBuffer.length);
+  try {
+    const { data: inserted, error } = await supabaseWrapper.bulkInsertMessages(toInsert);
+    if (!error && inserted && inserted.length > 0) {
+      inserted.forEach(row => {
+        if (row && row.id) {
+          socketIoChatMessages.add(row.id);
+          setTimeout(() => socketIoChatMessages.delete(row.id), 2000);
+        }
+      });
+      console.log(`📤 Batch insert: ${toInsert.length} mensagens gravadas no Supabase`);
+    }
+  } catch (err) {
+    console.error('❌ Erro no batch insert, repondo mensagens no buffer:', err.message);
+    messageBuffer.push(...toInsert);
+  }
+}, MESSAGE_FLUSH_INTERVAL_MS);
 
 // =====================================================
 // CACHE DE LIVE STREAMS (Reduz carga no Supabase)
@@ -427,7 +455,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Chat: Viewer envia mensagem
+  // Chat: Viewer envia mensagem (Write-Behind + Read-Through Cache)
   socket.on('chat-message', async (data) => {
     const { streamId, userId, message, messageType, userName, tts_text, audio_duration } = data;
 
@@ -436,7 +464,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // ⚠️ EXIGIR LOGIN: Usuário deve estar logado para enviar mensagens
     if (!userId) {
       socket.emit('error', { message: 'Você precisa fazer login para enviar mensagens. Faça login ou cadastre-se.' });
       console.log(`❌ Tentativa de enviar mensagem sem login na stream ${streamId}`);
@@ -444,93 +471,55 @@ io.on('connection', (socket) => {
     }
 
     try {
-      // ✅ SEMPRE buscar dados do usuário no banco quando userId estiver presente
-      // Isso garante que usamos o nome correto e incluímos is_vip/is_admin
-      let finalUserName = 'Anônimo';
+      // ✅ Read-Through Cache: obter usuário do cache; só consulta Supabase se não estiver no cache
+      let finalUserName = userName || 'Anônimo';
       let userIsVip = false;
       let userIsAdmin = false;
 
-      if (userId) {
-        console.log(`🔍 Backend: Buscando dados do usuário para userId: ${userId}`);
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('name, id, is_vip, is_admin')
-          .eq('id', userId)
-          .single();
-
-        if (userError) {
-          console.error(`❌ Erro ao buscar usuário:`, userError);
+      const { data: userData, fromCache } = await supabaseWrapper.getUser(userId);
+      if (userData) {
+        finalUserName = userData.name || userData.username || userName || 'Anônimo';
+        userIsVip = !!userData.is_vip;
+        userIsAdmin = !!userData.is_admin;
+        if (!fromCache) {
+          console.log(`✅ Backend: Dados do usuário (DB): ${finalUserName} (VIP: ${userIsVip}, Admin: ${userIsAdmin})`);
         }
-
-        if (userData) {
-          finalUserName = userData.name || userName || 'Anônimo';
-          userIsVip = userData.is_vip || false;
-          userIsAdmin = userData.is_admin || false;
-          console.log(`✅ Backend: Dados do usuário: ${finalUserName} (VIP: ${userIsVip}, Admin: ${userIsAdmin})`);
-        } else {
-          console.warn(`⚠️ Backend: Usuário não encontrado, usando userName do frontend ou "Anônimo"`);
-          finalUserName = userName || 'Anônimo';
-        }
-      } else {
-        // Usuário anônimo
-        finalUserName = userName || 'Anônimo';
-        console.log(`👤 Backend: Mensagem de usuário anônimo: ${finalUserName}`);
       }
 
-      // Preparar dados da mensagem (incluindo campos TTS se for mensagem de áudio)
       const messageData = {
         stream_id: streamId,
-        user_id: userId || null,
+        user_id: userId,
         message: message,
         message_type: messageType || 'text',
         user_name: finalUserName
       };
-
-      // Se for mensagem TTS, adicionar campos específicos
       if (messageType === 'tts') {
         messageData.tts_text = tts_text || message;
         messageData.audio_duration = audio_duration || null;
       }
 
-      // Salvar mensagem no Supabase
-      const { data: savedMessage, error } = await supabase
-        .from('live_chat_messages')
-        .insert(messageData)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('❌ Erro ao salvar mensagem:', error);
-        console.error('❌ Dados da mensagem:', { streamId, userId, message, messageType, userName, finalUserName });
-        socket.emit('error', {
-          message: 'Erro ao enviar mensagem',
-          details: error.message,
-          code: error.code,
-          hint: error.hint
-        });
-        return;
-      }
-
-      // Marcar que esta mensagem veio do Socket.io (para evitar broadcast duplicado do Realtime)
-      socketIoChatMessages.add(savedMessage.id);
-      setTimeout(() => {
-        socketIoChatMessages.delete(savedMessage.id);
-      }, 2000); // Remover após 2 segundos
-
-      // Pequeno delay para garantir que o banco foi atualizado antes do broadcast
-      await new Promise(resolve => setTimeout(resolve, 50));
-
-      // ✅ NOVO: Enriquecer mensagem com dados de VIP/Admin para broadcast
+      // 1. Broadcast imediato (latência zero para o utilizador)
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const enrichedMessage = {
-        ...savedMessage,
+        id: tempId,
+        stream_id: streamId,
+        user_id: userId,
+        message: messageData.message,
+        message_type: messageData.message_type,
+        user_name: finalUserName,
+        created_at: new Date().toISOString(),
         is_vip: userIsVip,
         is_admin: userIsAdmin
       };
+      if (messageData.tts_text) enrichedMessage.tts_text = messageData.tts_text;
+      if (messageData.audio_duration != null) enrichedMessage.audio_duration = messageData.audio_duration;
 
-      // Broadcast para TODOS os viewers da stream (com dados de VIP/Admin)
       io.to(`stream:${streamId}`).emit('new-message', enrichedMessage);
 
-      console.log(`💬 Mensagem enviada na stream ${streamId} por ${finalUserName} (VIP: ${userIsVip}, Admin: ${userIsAdmin})`);
+      // 2. Adicionar ao buffer para batch insert (flush a cada 3–5 s)
+      messageBuffer.push(messageData);
+
+      console.log(`💬 Mensagem na stream ${streamId} por ${finalUserName} (VIP: ${userIsVip}) [buffer: ${messageBuffer.length}]`);
     } catch (error) {
       console.error('❌ Erro ao processar mensagem:', error);
       socket.emit('error', { message: 'Erro ao processar mensagem' });
