@@ -170,8 +170,9 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
       });
 
       if (winnersError) {
-        console.error('Erro ao calcular ganhadores:', winnersError);
         const errMsg = (winnersError as { message?: string }).message || '';
+        const errCode = (winnersError as { code?: string }).code || '';
+        console.error('Erro ao calcular ganhadores:', { message: errMsg, code: errCode, full: winnersError });
         toast.custom(() => (
           <CustomToast
             type="error"
