@@ -239,28 +239,38 @@ CREATE INDEX IF NOT EXISTS idx_chat_stream_perf ON live_chat_messages(stream_id,
 
 ---
 
-## 🧪 Teste de carga com usuários reais (850 clientes)
+## 🧪 Teste de carga com usuários reais (1500 clientes + VIPs)
 
-Para um teste de carga real com login/cadastro e depois limpeza:
+Para stress test: 1500 viewers, mensagens normais e mensagens VIP no chat (até ver se a live aguenta ou cai).
 
-1. **Criar 850 usuários de teste** (Auth + `public.users`). Requer `SUPABASE_SERVICE_ROLE_KEY` no `.env`:
+1. **Criar 1500 usuários de teste** (Auth + `public.users`), sendo os primeiros 25 VIP. Requer `SUPABASE_SERVICE_ROLE_KEY` no `.env`:
    ```bash
    npm run create-load-test-users
-   # ou: node create-load-test-users.js 850
+   # ou: node create-load-test-users.js 1500 25
    ```
-   Gera o ficheiro `load-test-users.json` (não versionado).
+   Gera `load-test-users.json` (não versionado). Os primeiros 25 são VIP (enviam mensagens VIP no load test).
 
-2. **Rodar o load test** usando esses usuários (mensagens com `userId`/`userName` reais):
+2. **Rodar o load test** (1500 clientes, ~90 mensagens chat + ~22 mensagens VIP, 5 min):
    ```bash
-   node load-test.js 850 <streamId> https://api.zkoficial.com.br load-test-users.json
+   node load-test.js 1500 SEU_STREAM_ID https://api.zkoficial.com.br load-test-users.json
    ```
-   Se omitir o último argumento, o script procura `load-test-users.json` na mesma pasta.
+   Em PowerShell: substitua `SEU_STREAM_ID` pelo UUID da live (ex.: `b816b205-65e0-418e-8205-c3d56edd76c7`). Ou use só `node load-test.js 1500` para streamId/URL por defeito. Se omitir o último argumento, o script procura `load-test-users.json` na mesma pasta.
 
 3. **Apagar os cadastros de teste** (mensagens, `public.users`, Auth):
    ```bash
    npm run delete-load-test-users
    # ou: node delete-load-test-users.js [pathUsersJson]
    ```
+
+---
+
+## 📊 FPS e desempenho do vídeo (live)
+
+No frontend, ao assistir à live, podes ativar um overlay de **FPS** e **frames do vídeo** para ver se a transmissão está a cair (estresse de GPU/render):
+
+- **URL:** adiciona `?perf=1` (ex.: `https://www.zkoficial.com.br/live/cruzeiroxbetim?perf=1`).
+- **Overlay:** FPS (requestAnimationFrame), **Vídeo drops** (frames perdidos do `<video>`), **Estresse** (OK / Médio / Alto).
+- **Onde funciona:** página pública da live (mobile com HLS) e admin (LiveViewer com HLS). Em desktop com Agora (ZKViewer) o overlay não aparece (player diferente).
 
 ---
 

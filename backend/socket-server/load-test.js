@@ -1,9 +1,7 @@
 // =====================================================
-// LOAD TEST - Simula N viewers: entrar, sair, reentrar, mensagens
+// LOAD TEST - Simula N viewers + mensagens normais + mensagens VIP (stress até cair ou aguentar)
 // Uso: node load-test.js [numClientes] [streamId] [url] [pathUsersJson]
-// Local:  node load-test.js 850 ... http://localhost:3001
-// VPS:    node load-test.js 850 ... https://api.zkoficial.com.br  (ver logs: ssh root@VPS pm2 logs zkpremios-socket)
-// Com usuários reais: node load-test.js 850 ... https://api.zkoficial.com.br load-test-users.json
+// Ex.: node load-test.js 1500 ... https://api.zkoficial.com.br load-test-users.json
 // =====================================================
 
 const path = require('path');
@@ -13,7 +11,7 @@ const { io } = require('socket.io-client');
 // Fallback: UUID único quando não há ficheiro de usuários
 const LOAD_TEST_USER_ID = 'a0000000-0000-0000-0000-000000000001';
 
-const numClients = parseInt(process.argv[2] || '850', 10);
+const numClients = parseInt(process.argv[2] || '1500', 10);
 const streamId = process.argv[3] || 'b816b205-65e0-418e-8205-c3d56edd76c7';
 const serverUrl = process.argv[4] || process.env.SOCKET_SERVER_URL || 'https://api.zkoficial.com.br';
 const usersJsonPath = process.argv[5] || path.join(__dirname, 'load-test-users.json');
@@ -22,16 +20,18 @@ let testUsers = [];
 if (fs.existsSync(usersJsonPath)) {
   try {
     testUsers = JSON.parse(fs.readFileSync(usersJsonPath, 'utf8'));
-    console.log('Utilizando', testUsers.length, 'usuários de teste de', usersJsonPath);
+    const vips = testUsers.filter((u) => u.is_vip).length;
+    console.log('Utilizando', testUsers.length, 'usuários de teste de', usersJsonPath, vips ? `(${vips} VIPs)` : '');
   } catch (e) {
     console.warn('Aviso: não foi possível carregar', usersJsonPath, '- usando userId fixo.');
   }
 }
 
-const DURATION_MS = 3 * 60 * 1000; // 3 minutos para 850 clientes
-const MESSAGE_RATE = 0.05; // 5% enviam mensagem
+const DURATION_MS = 5 * 60 * 1000; // 5 minutos para stress com 1500
+const MESSAGE_RATE = 0.06; // 6% enviam mensagem (~90 senders para 1500)
+const VIP_SENDER_RATE = 0.25; // 25% dos senders enviam mensagem VIP (se houver VIPs)
 const BATCH_SIZE = 50;
-const BATCH_DELAY_MS = 150;
+const BATCH_DELAY_MS = 120;
 
 console.log('==========================================');
 console.log('LOAD TEST - Socket.io Live (entrar / sair / mensagens)');
@@ -43,10 +43,14 @@ console.log('Duração:', DURATION_MS / 1000, 'segundos');
 console.log('==========================================\n');
 
 const sockets = [];
+const recentMessageIds = []; // últimas mensagens para simular curtidas (max 100)
+const MAX_MESSAGE_IDS = 100;
 let connected = 0;
 let joined = 0;
 let errors = 0;
 let messagesSent = 0;
+let vipMessagesSent = 0;
+let likesSent = 0;
 let leavesSent = 0;
 let reJoinsSent = 0;
 
@@ -82,6 +86,12 @@ function createClient(index) {
 
   socket.on('joined-stream', () => {});
   socket.on('viewer-count-updated', () => {});
+  socket.on('new-message', (msg) => {
+    if (msg && msg.id) {
+      recentMessageIds.push(msg.id);
+      if (recentMessageIds.length > MAX_MESSAGE_IDS) recentMessageIds.shift();
+    }
+  });
   socket.on('error', () => { errors++; });
   socket.on('connect_error', () => { errors++; });
 
@@ -121,13 +131,29 @@ async function run() {
   await new Promise((r) => setTimeout(r, 8000));
 
   const numSenders = Math.max(1, Math.floor(numClients * MESSAGE_RATE));
+  const numVipSenders = testUsers.filter((u) => u.is_vip).length > 0
+    ? Math.max(1, Math.floor(numSenders * VIP_SENDER_RATE))
+    : 0;
   for (let i = 0; i < numSenders; i++) {
     const u = testUsers.length ? testUsers[i % testUsers.length] : null;
     const userId = u ? u.id : LOAD_TEST_USER_ID;
     const userName = u ? u.name : 'Viewer' + i;
+    const isVipSender = i < numVipSenders && u && u.is_vip;
     setTimeout(() => {
       const s = sockets[i];
-      if (s && s.connected && s._inRoom) {
+      if (!s || !s.connected || !s._inRoom) return;
+      if (isVipSender) {
+        s.emit('vip-message', {
+          streamId,
+          userId,
+          message: '[VIP] Stress #' + (i + 1) + ' - ' + new Date().toISOString(),
+          messageType: 'text',
+          userName,
+          isVip: true
+        });
+        vipMessagesSent++;
+        if (vipMessagesSent % 5 === 0) console.log('[VIP] Enviadas: ' + vipMessagesSent);
+      } else {
         s.emit('chat-message', {
           streamId,
           userId,
@@ -136,63 +162,39 @@ async function run() {
           userName
         });
         messagesSent++;
-        if (messagesSent % 20 === 0) {
-          console.log('[Mensagens] Enviadas: ' + messagesSent);
-        }
+        if (messagesSent % 20 === 0) console.log('[Chat] Enviadas: ' + messagesSent);
       }
-    }, 10000 + i * 200);
+    }, 10000 + i * 180);
   }
 
-  // Ciclos de sair / reentrar
-  const leave1 = Math.floor(numClients * 0.20);
-  const leave2 = Math.floor(numClients * 0.15);
-  const leave3 = Math.floor(numClients * 0.25);
-
+  // Curtidas: a partir de 15s, a cada 4s alguns clientes curtem mensagens aleatórias do chat
+  let likeIntervalId;
   setTimeout(() => {
-    console.log('[Ciclo 1] ' + leave1 + ' clientes saindo da live...');
-    for (let i = 0; i < leave1; i++) {
-      doLeave(sockets[i]);
-    }
-  }, 20000);
+    likeIntervalId = setInterval(() => {
+      if (recentMessageIds.length === 0) return;
+      const numLikers = Math.min(8, Math.floor(sockets.length * 0.005));
+      for (let k = 0; k < numLikers; k++) {
+        const s = sockets[Math.floor(Math.random() * sockets.length)];
+        if (!s || !s.connected || !s._inRoom) continue;
+        const msgId = recentMessageIds[Math.floor(Math.random() * recentMessageIds.length)];
+        const u = testUsers.length ? testUsers[Math.floor(Math.random() * testUsers.length)] : null;
+        s.emit('like-message', {
+          streamId,
+          messageId: msgId,
+          userId: u ? u.id : LOAD_TEST_USER_ID,
+          sessionId: u ? undefined : 'loadtest-' + s._clientIndex
+        });
+        likesSent++;
+        if (likesSent % 15 === 0) console.log('[Like] Curtidas enviadas: ' + likesSent);
+      }
+    }, 4000);
+  }, 15000);
 
-  setTimeout(() => {
-    console.log('[Ciclo 1] Reentrando na live...');
-    for (let i = 0; i < leave1; i++) {
-      doJoin(sockets[i]);
-    }
-  }, 35000);
-
-  setTimeout(() => {
-    console.log('[Ciclo 2] ' + leave2 + ' clientes saindo...');
-    for (let i = numClients - leave2; i < numClients; i++) {
-      doLeave(sockets[i]);
-    }
-  }, 55000);
-
-  setTimeout(() => {
-    console.log('[Ciclo 2] Reentrando...');
-    for (let i = numClients - leave2; i < numClients; i++) {
-      doJoin(sockets[i]);
-    }
-  }, 70000);
-
-  setTimeout(() => {
-    console.log('[Ciclo 3] ' + leave3 + ' clientes saindo...');
-    for (let i = Math.floor(numClients / 2) - Math.floor(leave3 / 2); i < Math.floor(numClients / 2) + Math.ceil(leave3 / 2); i++) {
-      if (sockets[i]) doLeave(sockets[i]);
-    }
-  }, 95000);
-
-  setTimeout(() => {
-    console.log('[Ciclo 3] Reentrando...');
-    for (let i = Math.floor(numClients / 2) - Math.floor(leave3 / 2); i < Math.floor(numClients / 2) + Math.ceil(leave3 / 2); i++) {
-      if (sockets[i]) doJoin(sockets[i]);
-    }
-  }, 110000);
-
+  // Viewers ficam na sala até o fim do teste (ou até o admin encerrar a live) — sem ciclos de sair/reentrar
   await new Promise((r) => setTimeout(r, DURATION_MS - 15000));
 
   console.log('\n--- Encerrando... ---');
+  if (likeIntervalId) clearInterval(likeIntervalId);
   sockets.forEach((s) => s.disconnect());
   await new Promise((r) => setTimeout(r, 3000));
 
@@ -205,7 +207,9 @@ async function run() {
   console.log('Entraram na sala:', joined);
   console.log('Saídas (leave-stream):', leavesSent);
   console.log('Reentradas (join-stream):', reJoinsSent);
-  console.log('Mensagens enviadas:', messagesSent);
+  console.log('Mensagens chat enviadas:', messagesSent);
+  console.log('Mensagens VIP enviadas:', vipMessagesSent);
+  console.log('Curtidas enviadas:', likesSent);
   console.log('Erros:', errors);
   console.log('==========================================\n');
   process.exit(0);

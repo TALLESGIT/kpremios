@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
+import { useFpsMonitor } from "../hooks/useFpsMonitor";
 
 type Status = "offline" | "loading" | "waiting_hls" | "playing" | "error" | "reconnecting";
 
@@ -7,9 +8,11 @@ interface LiveHlsPlayerProps {
   hlsUrl: string | null;
   isLive: boolean;
   className?: string;
+  /** Mostra overlay de FPS/GPU (vídeo) para analisar se a live está caindo. Ativar com ?perf=1 na URL. */
+  showPerf?: boolean;
 }
 
-export default function LiveHlsPlayer({ hlsUrl, isLive, className = "" }: LiveHlsPlayerProps) {
+export default function LiveHlsPlayer({ hlsUrl, isLive, className = "", showPerf = false }: LiveHlsPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -23,6 +26,8 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "" }: LiveHl
   const [status, setStatus] = useState<Status>("offline");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [needsInteraction, setNeedsInteraction] = useState(false);
+
+  const perf = useFpsMonitor(videoRef, showPerf && status === "playing");
 
   const cleanup = useCallback(() => {
     if (hlsRef.current) {
@@ -360,6 +365,37 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "" }: LiveHl
             <span className="text-xl font-bold tracking-wide">Toque para assistir</span>
             <small className="text-sm opacity-80 font-normal mt-1">Clique para ativar o áudio</small>
           </button>
+        </div>
+      )}
+
+      {showPerf && status === "playing" && (
+        <div className="absolute top-2 left-2 z-30 px-3 py-2 rounded-lg bg-black/80 text-xs font-mono text-white border border-white/20 space-y-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400">FPS:</span>
+            <span className={perf.fps >= 24 ? "text-green-400" : perf.fps >= 18 ? "text-amber-400" : "text-red-400"}>
+              {perf.fps}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400">Vídeo drops:</span>
+            <span className={perf.videoDroppedFrames === 0 ? "text-green-400" : "text-amber-400"}>
+              {perf.videoDroppedFrames}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400">Estresse:</span>
+            <span
+              className={
+                perf.stress === "ok"
+                  ? "text-green-400"
+                  : perf.stress === "medio"
+                    ? "text-amber-400"
+                    : "text-red-400"
+              }
+            >
+              {perf.stress === "ok" ? "OK" : perf.stress === "medio" ? "Médio" : "Alto"}
+            </span>
+          </div>
         </div>
       )}
 

@@ -35,13 +35,12 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
     autoConnect: !!streamId && isActive
   });
 
-  // ✅ Listener para atualizações de viewer count em tempo real
+  // ✅ Listener para atualizações de viewer count em tempo real (Ativos)
   useEffect(() => {
     if (!streamId || !socket || !isConnected) return;
 
     const handleViewerCountUpdate = (data: { streamId: string; count: number }) => {
       if (data.streamId === streamId) {
-        console.log('📊 Viewer count atualizado via Socket.io:', data.count);
         setViewerCount(data.count);
         setStats((prev) => ({
           ...prev,
@@ -54,6 +53,26 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
 
     return () => {
       off('viewer-count-updated', handleViewerCountUpdate);
+    };
+  }, [streamId, socket, isConnected, on, off]);
+
+  // ✅ Listener para novas mensagens em tempo real (Mensagens no Painel de Métricas)
+  useEffect(() => {
+    if (!streamId || !socket || !isConnected) return;
+
+    const handleNewMessage = () => {
+      setStats((prev) => ({
+        ...prev,
+        totalMessages: (prev.totalMessages || 0) + 1,
+      }));
+    };
+
+    on('new-message', handleNewMessage);
+    on('new-vip-message', handleNewMessage);
+
+    return () => {
+      off('new-message', handleNewMessage);
+      off('new-vip-message', handleNewMessage);
     };
   }, [streamId, socket, isConnected, on, off]);
 
@@ -177,7 +196,7 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
 
       setStats((prev) => ({
         ...prev,
-        totalMessages: count || 0,
+        totalMessages: Math.max(prev.totalMessages || 0, count || 0),
       }));
     } catch (error) {
       console.error('Erro ao carregar contagem de mensagens:', error);

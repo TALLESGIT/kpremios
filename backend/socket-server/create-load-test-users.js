@@ -1,6 +1,6 @@
 // =====================================================
 // CRIAR USUÁRIOS DE TESTE DE CARGA (Auth + public.users)
-// Uso: node create-load-test-users.js [quantidade]
+// Uso: node create-load-test-users.js [quantidade] [numVips]
 // Requer: .env com SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY
 // Gera: load-test-users.json (lista de id, email, name para o load-test.js)
 // =====================================================
@@ -10,7 +10,8 @@ const fs = require('fs');
 require('dotenv').config({ path: path.join(__dirname, '.env'), override: true });
 const { createClient } = require('@supabase/supabase-js');
 
-const COUNT = parseInt(process.argv[2] || '850', 10);
+const COUNT = parseInt(process.argv[2] || '1500', 10);
+const NUM_VIPS = parseInt(process.argv[3] || '25', 10); // primeiros N usuários são VIP (para stress de mensagens VIP)
 const BATCH_SIZE = 25;
 const DELAY_MS = 400;
 const PREFIX_EMAIL = 'loadtest';
@@ -48,9 +49,9 @@ async function createOneUser(index) {
 
   if (authError) {
     if (authError.message && authError.message.includes('already been registered')) {
-      const { data: existing } = await supabase.from('users').select('id, name, email').eq('email', email).single();
+      const { data: existing } = await supabase.from('users').select('id, name, email, is_vip').eq('email', email).single();
       if (existing) {
-        usersCreated.push({ id: existing.id, email: existing.email, name: existing.name || name });
+        usersCreated.push({ id: existing.id, email: existing.email, name: existing.name || name, is_vip: !!existing.is_vip });
         return null;
       }
     }
@@ -59,25 +60,28 @@ async function createOneUser(index) {
 
   const userId = authData.user.id;
 
+  const isVip = index <= NUM_VIPS;
   const { error: insertError } = await supabase.from('users').upsert(
     {
       id: userId,
       name,
       email,
       whatsapp: '(11) 00000-0000',
-      is_admin: false
+      is_admin: false,
+      is_vip: isVip
     },
     { onConflict: 'id' }
   );
 
   if (insertError) throw insertError;
 
-  usersCreated.push({ id: userId, email, name });
+  usersCreated.push({ id: userId, email, name, is_vip: isVip });
   return null;
 }
 
 async function run() {
   console.log('Criando', COUNT, 'usuários de teste (Auth + public.users)...');
+  console.log('VIPs (primeiros):', NUM_VIPS);
   console.log('E-mail exemplo:', `${PREFIX_EMAIL}-0001@${DOMAIN_EMAIL}\n`);
 
   for (let i = 0; i < COUNT; i += BATCH_SIZE) {

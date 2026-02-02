@@ -10,6 +10,7 @@ interface LivePlayerWithHeaderProps {
   streamId?: string;
   channelName?: string;
   className?: string;
+  showPerf?: boolean;
 }
 
 /**
@@ -23,6 +24,7 @@ export default function LivePlayerWithHeader({
   streamId,
   channelName,
   className = '',
+  showPerf = false,
 }: LivePlayerWithHeaderProps) {
   const [copied, setCopied] = useState(false);
 
@@ -80,7 +82,7 @@ export default function LivePlayerWithHeader({
 
       {/* Player HLS */}
       <div className="flex-1 min-h-0">
-        <LiveHlsPlayer hlsUrl={hlsUrl} isLive={isLive} />
+        <LiveHlsPlayer hlsUrl={hlsUrl} isLive={isLive} showPerf={showPerf} />
       </div>
     </div>
   );

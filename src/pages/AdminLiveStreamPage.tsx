@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -46,6 +47,8 @@ const generateSlugFromTitle = (title: string): string => {
 
 const AdminLiveStreamPage: React.FC = () => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const showPerf = searchParams.get('perf') === '1';
   const [streams, setStreams] = useState<LiveStream[]>([]);
   const [selectedStream, setSelectedStream] = useState<LiveStream | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -515,6 +518,7 @@ const AdminLiveStreamPage: React.FC = () => {
                     fitMode="contain"
                     showOfflineMessage={false}
                     isAdmin={true}
+                    showPerf={showPerf}
                   />
                   {!isStreaming && (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm pointer-events-none">

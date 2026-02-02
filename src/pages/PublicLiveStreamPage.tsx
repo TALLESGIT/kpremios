@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, Eye, Share2, X, Trophy, Calendar, ChevronRight, MessageCircle, Crown, Tv, Minimize2, Maximize2, MessageSquare } from 'lucide-react';
@@ -38,7 +38,9 @@ interface LiveStream {
 
 const PublicLiveStreamPage: React.FC = () => {
   const { channelName } = useParams<{ channelName: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const showPerf = searchParams.get('perf') === '1';
   const { user } = useAuth();
   const { currentUser } = useData();
   const [stream, setStream] = useState<LiveStream | null>(null);
@@ -818,7 +820,8 @@ const PublicLiveStreamPage: React.FC = () => {
             >
               <div className={`relative h-full ${isDockedChat ? 'flex-1' : 'w-full'}`}>
                 <LiveViewer
-                  channelName={channelName} // Dynamic channel from params
+                  channelName={channelName}
+                  showPerf={showPerf}
                 />
 
                 {/* Mensagem de Transmissão Encerrada */}

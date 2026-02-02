@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useFpsMonitor } from '../hooks/useFpsMonitor';
 
 interface HLSViewerProps {
   hlsUrl: string;
   className?: string;
   fitMode?: 'contain' | 'cover';
   initialInteracted?: boolean;
+  showPerf?: boolean;
 }
 
 /**
@@ -12,12 +14,14 @@ interface HLSViewerProps {
  * Usa video HTML5 nativo que suporta HLS
  * Respeita políticas de autoplay - vídeo inicia mutado, áudio só após interação
  */
-export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initialInteracted = false }: HLSViewerProps) {
+export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initialInteracted = false, showPerf = false }: HLSViewerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [needsInteraction, setNeedsInteraction] = useState(true);
   const [userInteracted, setUserInteracted] = useState(false);
   const [hasVideo, setHasVideo] = useState(false);
+
+  const perf = useFpsMonitor(videoRef, showPerf && hasVideo);
 
   // Handler de interação do usuário
   const handleUserInteraction = useCallback(async () => {
@@ -122,6 +126,37 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
           objectFit: fitMode,
         }}
       />
+
+      {showPerf && hasVideo && (
+        <div className="absolute top-2 left-2 z-20 px-3 py-2 rounded-lg bg-black/80 text-xs font-mono text-white border border-white/20 space-y-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400">FPS:</span>
+            <span className={perf.fps >= 24 ? 'text-green-400' : perf.fps >= 18 ? 'text-amber-400' : 'text-red-400'}>
+              {perf.fps}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400">Vídeo drops:</span>
+            <span className={perf.videoDroppedFrames === 0 ? 'text-green-400' : 'text-amber-400'}>
+              {perf.videoDroppedFrames}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400">Estresse:</span>
+            <span
+              className={
+                perf.stress === 'ok'
+                  ? 'text-green-400'
+                  : perf.stress === 'medio'
+                    ? 'text-amber-400'
+                    : 'text-red-400'
+              }
+            >
+              {perf.stress === 'ok' ? 'OK' : perf.stress === 'medio' ? 'Médio' : 'Alto'}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Overlay de interação - estilo profissional */}
       {needsInteraction && hasVideo && !initialInteracted && (

@@ -399,12 +399,13 @@ io.on('connection', (socket) => {
     }
   };
 
-  // Viewer se junta à sala da stream
-  socket.on('join-stream', async (data) => {
+  // Viewer se junta à sala da stream (ack para load-test e clientes que esperam confirmação)
+  socket.on('join-stream', async (data, ack) => {
     const { streamId } = data;
 
     if (!streamId) {
       socket.emit('error', { message: 'streamId é obrigatório' });
+      if (typeof ack === 'function') ack(new Error('streamId é obrigatório'));
       return;
     }
 
@@ -426,9 +427,11 @@ io.on('connection', (socket) => {
 
       socket.emit('joined-stream', { streamId });
       broadcastViewerCount(streamId);
+      if (typeof ack === 'function') ack(null);
     } catch (error) {
       console.error('❌ Erro ao entrar na stream:', error);
       socket.emit('error', { message: 'Erro ao entrar na stream' });
+      if (typeof ack === 'function') ack(error);
     }
   });
 

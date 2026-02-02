@@ -10,6 +10,8 @@ interface LiveViewerProps {
   showOfflineMessage?: boolean;
   isAdmin?: boolean;
   enabled?: boolean;
+  /** Mostra overlay FPS/GPU (vídeo) quando ?perf=1 na URL */
+  showPerf?: boolean;
 }
 
 /**
@@ -24,6 +26,7 @@ export function LiveViewer({
   showOfflineMessage = true,
   isAdmin = false,
   enabled = true,
+  showPerf = false,
 }: LiveViewerProps) {
 
 
@@ -112,7 +115,7 @@ export function LiveViewer({
     // Mobile + HLS disponível -> HLSViewer
     if (isMobile && hasHlsUrl) {
       console.log('📱 LiveViewer: Usando HLS para mobile');
-      return <HLSViewer hlsUrl={data.hls_url!} fitMode={fitMode} />;
+      return <HLSViewer hlsUrl={data.hls_url!} fitMode={fitMode} showPerf={showPerf} />;
     }
 
     // Tudo o resto -> ZKViewer (Agora.io)
