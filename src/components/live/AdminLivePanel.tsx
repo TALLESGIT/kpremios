@@ -18,6 +18,10 @@ interface StreamStats {
   uniqueSessions: number;
 }
 
+const isLiveDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
+const liveDebug = (...args: unknown[]) => { if (isLiveDebug()) console.log('[AdminLivePanel]', ...args); };
+const liveDebugWarn = (...args: unknown[]) => { if (isLiveDebug()) console.warn('[AdminLivePanel]', ...args); };
+
 const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, isActive }) => {
   const [stats, setStats] = useState<StreamStats>({
     totalViewers: 0,
@@ -108,7 +112,7 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
     // ✅ OTIMIZAÇÃO: Intervalo de 5s para atualizações mais rápidas
     // Socket.io já distribui a carga, então podemos atualizar com mais frequência
     const interval = setInterval(() => {
-      console.log('⏰ Atualizando estatísticas periodicamente...');
+      liveDebug('Atualizando estatísticas periodicamente...');
       loadStats();
     }, 5000); // A cada 5 segundos para tempo real
 
@@ -121,7 +125,7 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
 
   const loadStats = async () => {
     try {
-      console.log('📊 Carregando estatísticas para stream:', streamId, 'isActive:', isActive);
+      liveDebug('Carregando estatísticas para stream:', streamId, 'isActive:', isActive);
       
       // Sempre carregar estatísticas, independente do status
       const { data: viewerStats, error: viewerError } = await supabase.rpc(
@@ -134,7 +138,7 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
         throw viewerError;
       }
 
-      console.log('📈 Estatísticas recebidas:', viewerStats);
+      liveDebug('Estatísticas recebidas:', viewerStats);
 
       if (viewerStats && viewerStats.length > 0) {
         const statsData = viewerStats[0];
@@ -148,13 +152,13 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
           uniqueSessions: Number(statsData.unique_sessions) || 0,
         };
         
-        console.log('✅ Estatísticas atualizadas:', newStats);
+        liveDebug('Estatísticas atualizadas:', newStats);
         setStats((prev) => ({
           ...prev,
           ...newStats,
         }));
       } else {
-        console.warn('⚠️ Nenhuma estatística retornada');
+        liveDebugWarn('Nenhuma estatística retornada');
         // Se não houver dados mas houver stream, manter valores mínimos
         if (streamId) {
           setStats((prev) => ({
@@ -215,7 +219,7 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
         return;
       }
 
-      console.log('👥 Carregando contador de viewers ativos...');
+      liveDebug('Carregando contador de viewers ativos...');
 
       // Limpar sessões antigas primeiro
       await supabase.rpc('cleanup_inactive_viewer_sessions');
@@ -245,14 +249,14 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
         const uniqueSessions = new Set(sessions?.map(s => s.session_id) || []);
         const activeCount = uniqueSessions.size;
 
-        console.log('✅ Viewers ativos (fallback):', activeCount);
+        liveDebug('Viewers ativos (fallback):', activeCount);
 
         await supabase
           .from('live_streams')
           .update({ viewer_count: activeCount })
           .eq('id', streamId);
 
-        setViewerCount(activeCount);
+        if (activeCount > 0) setViewerCount(activeCount);
         setStats((prev) => ({
           ...prev,
           activeViewers: activeCount,
@@ -261,7 +265,7 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
       }
 
       const activeCount = Number(countData) || 0;
-      console.log('✅ Viewers ativos (RPC):', activeCount);
+      liveDebug('Viewers ativos (RPC):', activeCount);
 
       // Atualizar viewer_count na tabela live_streams
       await supabase
@@ -269,7 +273,8 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
         .update({ viewer_count: activeCount })
         .eq('id', streamId);
 
-      setViewerCount(activeCount);
+      // Quando a live está ativa, a UI usa viewerCount do Socket; não sobrescrever com 0 do RPC (ex.: load-test não usa viewer_sessions)
+      if (activeCount > 0) setViewerCount(activeCount);
       setStats((prev) => ({
         ...prev,
         activeViewers: activeCount,

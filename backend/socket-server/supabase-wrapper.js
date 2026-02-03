@@ -60,11 +60,12 @@ class SupabaseWrapper {
           .from('users')
           .select('id, name, is_vip, is_admin, vip_color')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
         
         if (error) throw error;
-        
-        const normalized = { ...data, name: data.name || data.username };
+        if (!data) return null;
+        // Tabela users tem 'name', não 'username' — evitar referência a coluna inexistente
+        const normalized = { ...data, name: data.name || 'Usuário' };
         cache.setUser(userId, normalized);
         return normalized;
       },
@@ -125,9 +126,9 @@ class SupabaseWrapper {
           .from('live_chat_messages')
           .insert(rows)
           .select();
-        
+
         if (error) throw error;
-        
+
         (data || []).forEach(m => {
           if (m.stream_id) cache.addMessage(m.stream_id, m);
         });

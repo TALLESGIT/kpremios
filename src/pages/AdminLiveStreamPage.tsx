@@ -45,6 +45,10 @@ const generateSlugFromTitle = (title: string): string => {
     .trim();
 };
 
+const isAdminLiveDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
+const adminLiveDebug = (...args: unknown[]) => { if (isAdminLiveDebug()) console.log('[AdminLiveStreamPage]', ...args); };
+const adminLiveDebugWarn = (...args: unknown[]) => { if (isAdminLiveDebug()) console.warn('[AdminLiveStreamPage]', ...args); };
+
 const AdminLiveStreamPage: React.FC = () => {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
@@ -76,7 +80,7 @@ const AdminLiveStreamPage: React.FC = () => {
     // ✅ Remover listener anterior se existir (evitar múltiplos listeners)
     const existingChannel = supabase.getChannels().find(ch => ch.topic === 'admin-live-updates');
     if (existingChannel) {
-      console.log('🧹 Removendo listener anterior do Realtime');
+      adminLiveDebug('Removendo listener anterior do Realtime');
       supabase.removeChannel(existingChannel);
     }
 
@@ -90,7 +94,7 @@ const AdminLiveStreamPage: React.FC = () => {
           table: 'live_streams',
         },
         (payload) => {
-          console.log('📡 AdminLiveStreamPage: Mudança detectada na live stream:', payload.eventType);
+          adminLiveDebug('Mudança detectada na live stream:', payload.eventType);
 
           if (payload.eventType === 'UPDATE' && payload.new) {
             const updatedStream = payload.new as LiveStream;
@@ -98,19 +102,19 @@ const AdminLiveStreamPage: React.FC = () => {
             const timeSinceLastUpdate = now - lastRealtimeUpdateRef.current;
 
             // ✅ THROTTLE: Ignorar UPDATEs frequentes (< 3s) para evitar lags
-            console.log(`⏱️ Throttle check: ${timeSinceLastUpdate}ms desde último UPDATE`);
+            adminLiveDebug('Throttle check:', timeSinceLastUpdate, 'ms desde último UPDATE');
             if (timeSinceLastUpdate < 3000) {
-              console.log(`⏭️ Ignorando UPDATE (throttle de 3s) - ${timeSinceLastUpdate}ms < 3000ms`);
+              adminLiveDebug('Ignorando UPDATE (throttle de 3s) -', timeSinceLastUpdate, 'ms < 3000ms');
               return;
             }
-            console.log(`✅ Throttle passou: ${timeSinceLastUpdate}ms >= 3000ms, processando UPDATE`);
+            adminLiveDebug('Throttle passou:', timeSinceLastUpdate, 'ms >= 3000ms, processando UPDATE');
             lastRealtimeUpdateRef.current = now;
 
             // Se for mudança no status de ativação, atualizamos na hora!
             const statusChanged = updatedStream.is_active !== (selectedStream?.is_active ?? false);
 
             if (statusChanged || updatedStream.title !== selectedStream?.title) {
-              console.log('✅ AdminLiveStreamPage: Status/Título mudou via Realtime, atualizando...');
+              adminLiveDebug('Status/Título mudou via Realtime, atualizando...');
               setSelectedStream(updatedStream);
               setIsStreaming(updatedStream.is_active);
 
@@ -135,7 +139,7 @@ const AdminLiveStreamPage: React.FC = () => {
                   selectedStream.title !== updatedStream.title;
 
                 if (criticalFieldsChanged) {
-                  console.log('🔄 Atualizando selectedStream por mudança crítica');
+                  adminLiveDebug('Atualizando selectedStream por mudança crítica');
                   setSelectedStream(updatedStream);
                 } else {
                   // Ignorar atualização no selectedStream para manter estabilidade do player
@@ -214,7 +218,7 @@ const AdminLiveStreamPage: React.FC = () => {
           duration: 8000,
         });
       } catch (err) {
-        console.warn('Não foi possível copiar link automaticamente');
+        adminLiveDebugWarn('Não foi possível copiar link automaticamente');
       }
 
       setIsCreating(false);
@@ -231,7 +235,7 @@ const AdminLiveStreamPage: React.FC = () => {
     if (!selectedStream) return;
     try {
       // Título é mantido como o admin definiu (não sobrescrever)
-      console.log(`Usando streamId: ${selectedStream.id}`);
+      adminLiveDebug('Usando streamId:', selectedStream.id);
 
       const { data, error } = await supabase
         .from('live_streams')
@@ -245,7 +249,7 @@ const AdminLiveStreamPage: React.FC = () => {
 
       if (error) throw error;
 
-      console.log('Supabase atualizado com sucesso');
+      adminLiveDebug('Supabase atualizado com sucesso');
       setIsStreaming(true);
       setSelectedStream(data);
 
@@ -262,7 +266,7 @@ const AdminLiveStreamPage: React.FC = () => {
         toast.success('Você está AO VIVO!', {
           duration: 5000,
         });
-        console.warn('Não foi possível copiar link automaticamente');
+        adminLiveDebugWarn('Não foi possível copiar link automaticamente');
       }
     } catch (err) {
       console.error('Erro ao iniciar:', err);

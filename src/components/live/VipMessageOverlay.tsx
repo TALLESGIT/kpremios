@@ -104,8 +104,12 @@ const MAX_VIP_MESSAGES_PER_MINUTE = 3; // Máximo 3 mensagens VIP por minuto (gl
 const MIN_INTERVAL_PER_USER = 60000; // 1 minuto entre mensagens do mesmo usuário VIP
 const RATE_LIMIT_WINDOW = 60000; // Janela de 1 minuto para rate limiting
 
+const isDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_VIP_OVERLAY === '1';
+const debug = (...args: unknown[]) => { if (isDebug()) console.log('[VipMessageOverlay]', ...args); };
+const debugWarn = (...args: unknown[]) => { if (isDebug()) console.warn('[VipMessageOverlay]', ...args); };
+
 const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActive }) => {
-  console.log('🎬 VipMessageOverlay: Componente renderizado', { streamId, isActive });
+  debug('Componente renderizado', { streamId, isActive });
 
   // ✅ MIGRAÇÃO: Usar Socket.io para escutar novas mensagens
   const { socket, isConnected, on, off, joinStream, leaveStream } = useSocket({
@@ -161,7 +165,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
       videoVolumeBeforeTTSRef.current = video.volume;
       // Reduzir volume para 20% durante TTS
       video.volume = 0.2;
-      console.log('🔉 Volume do vídeo reduzido para 20% durante TTS');
+      debug('Volume do vídeo reduzido para 20% durante TTS');
     }
   };
 
@@ -171,7 +175,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
     if (video && videoVolumeBeforeTTSRef.current !== null) {
       video.volume = videoVolumeBeforeTTSRef.current;
       videoVolumeBeforeTTSRef.current = null;
-      console.log('🔊 Volume do vídeo restaurado');
+      debug('Volume do vídeo restaurado');
     }
   };
 
@@ -205,7 +209,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
 
         // Event listeners
         audio.onended = () => {
-          console.log('✅ Áudio TTS finalizado');
+          debug('Áudio TTS finalizado');
           restoreVideoVolume();
           currentAudioRef.current = null;
           setIsPlayingAudio(false);
@@ -222,7 +226,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
 
         // Tentar reproduzir com tratamento de erro robusto
         try {
-          console.log('🔊 VipMessageOverlay: Tentando reproduzir áudio TTS...');
+          debug('Tentando reproduzir áudio TTS...');
 
           // Configurar áudio para melhor compatibilidade
           audio.preload = 'auto';
@@ -233,11 +237,11 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
 
           if (playPromise !== undefined) {
             await playPromise;
-            console.log('✅ VipMessageOverlay: Áudio TTS iniciado com sucesso');
+            debug('Áudio TTS iniciado com sucesso');
           }
         } catch (playError: any) {
           // Se falhar por autoplay policy, tentar múltiplas estratégias
-          console.warn('⚠️ VipMessageOverlay: Autoplay bloqueado, tentando estratégias alternativas...', playError);
+          debugWarn('Autoplay bloqueado, tentando estratégias alternativas...', playError);
 
           // Estratégia 1: Aguardar e tentar novamente
           await new Promise(resolve => setTimeout(resolve, 300));
@@ -246,10 +250,10 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
             const retryPromise = audio.play();
             if (retryPromise !== undefined) {
               await retryPromise;
-              console.log('✅ VipMessageOverlay: Áudio TTS iniciado (após retry 1)');
+              debug('Áudio TTS iniciado (após retry 1)');
             }
           } catch (retryError1: any) {
-            console.warn('⚠️ VipMessageOverlay: Retry 1 falhou, tentando estratégia 2...', retryError1);
+            debugWarn('Retry 1 falhou, tentando estratégia 2...', retryError1);
 
             // Estratégia 2: Aguardar mais tempo e tentar novamente
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -258,11 +262,11 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
               const finalPromise = audio.play();
               if (finalPromise !== undefined) {
                 await finalPromise;
-                console.log('✅ VipMessageOverlay: Áudio TTS iniciado (estratégia final)');
+                debug('Áudio TTS iniciado (estratégia final)');
               }
             } catch (finalError: any) {
               console.error('❌ VipMessageOverlay: Todas as estratégias falharam:', finalError);
-              console.warn('⚠️ VipMessageOverlay: Áudio não pôde ser reproduzido, mas a mensagem será exibida');
+              debugWarn('Áudio não pôde ser reproduzido, mas a mensagem será exibida');
               restoreVideoVolume();
               currentAudioRef.current = null;
               setIsPlayingAudio(false);
@@ -297,7 +301,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
     if (timeSinceLastMessage < MIN_INTERVAL_BETWEEN_MESSAGES) {
       const waitTime = MIN_INTERVAL_BETWEEN_MESSAGES - timeSinceLastMessage;
       const waitSeconds = Math.ceil(waitTime / 1000);
-      console.log(`⏳ Aguardando ${waitSeconds}s antes de processar próxima mensagem...`);
+      debug(`Aguardando ${waitSeconds}s antes de processar próxima mensagem...`);
 
       // Atualizar indicador visual de espera
       setQueueWaitTime(waitSeconds);
@@ -337,7 +341,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
     // Atualizar timestamp da última mensagem processada
     lastMessageProcessedAtRef.current = Date.now();
 
-    console.log(`📨 VipMessageOverlay: Processando mensagem da fila:`, {
+    debug('Processando mensagem da fila:', {
       id: message.id,
       message_type: message.message_type,
       user_name: message.user_name,
@@ -346,7 +350,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
     });
 
     // Exibir mensagem
-    console.log('🎬 VipMessageOverlay: Definindo currentMessage para exibição');
+    debug('Definindo currentMessage para exibição');
     setCurrentMessage(message);
 
     // Se for mensagem TTS, reproduzir áudio
@@ -378,7 +382,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
       ? MIN_INTERVAL_AFTER_TTS  // 3 segundos após TTS
       : MIN_INTERVAL_AFTER_TEXT; // 2 segundos após texto
 
-    console.log(`⏸️ Cooldown de ${cooldownInterval / 1000}s após mensagem ${message.message_type}`);
+    debug(`Cooldown de ${cooldownInterval / 1000}s após mensagem ${message.message_type}`);
 
     // Aguardar cooldown antes de processar próxima mensagem
     await new Promise(resolve => setTimeout(resolve, cooldownInterval));
@@ -394,7 +398,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
   const addMessageToQueue = (message: VipMessage) => {
     // Verificar se a mensagem já está na fila
     if (messageQueueRef.current.some(m => m.id === message.id)) {
-      console.log(`⚠️ VipMessageOverlay: Mensagem ${message.id} já está na fila, ignorando...`);
+      debug(`Mensagem ${message.id} já está na fila, ignorando...`);
       return;
     }
 
@@ -406,7 +410,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
       messageQueueRef.current.push(message); // Normal: final da fila
     }
 
-    console.log(`➕ VipMessageOverlay: Mensagem adicionada à fila. Total na fila: ${messageQueueRef.current.length}`, {
+    debug('Mensagem adicionada à fila. Total:', messageQueueRef.current.length, {
       message_id: message.id,
       user_name: message.user_name,
       message_type: message.message_type,
@@ -440,16 +444,16 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
 
   useEffect(() => {
     if (!isActive || !streamId) {
-      console.log('⚠️ VipMessageOverlay: Não ativo ou streamId ausente', { isActive, streamId });
+      debug('Não ativo ou streamId ausente', { isActive, streamId });
       return;
     }
 
-    console.log(`🔌 VipMessageOverlay: Iniciando conexão Socket.io para stream: ${streamId}`);
+    debug('Iniciando conexão Socket.io para stream:', streamId);
 
     // ✅ MIGRAÇÃO: Escutar novas mensagens via Socket.io (evento 'new-message')
     const handleNewMessage = async (newMsg: any) => {
 
-      console.log('📨 VipMessageOverlay: Nova mensagem recebida via Realtime (TODOS devem ver):', {
+      debug('Nova mensagem recebida via Socket:', {
         id: newMsg.id,
         user_id: newMsg.user_id,
         message_type: newMsg.message_type,
@@ -478,7 +482,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
 
             if (error) {
               // Fallback: tentar consulta direta (pode falhar para anônimos, mas tentamos)
-              console.warn('RPC public_get_vip_status falhou, tentando fallback...', error);
+              debugWarn('RPC public_get_vip_status falhou, tentando fallback...', error);
               try {
                 const { data: userData, error: userError } = await supabase
                   .from('users')
@@ -487,7 +491,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
                   .single();
 
                 if (userError) {
-                  console.warn('Consulta direta também falhou (pode ser usuário anônimo):', userError);
+                  debugWarn('Consulta direta também falhou (pode ser usuário anônimo):', userError);
                   isVip = false;
                 } else {
                   isVip = userData?.is_vip || false;
@@ -541,18 +545,18 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
               }));
             }
 
-            console.log(`✅ Status VIP verificado para ${newMsg.user_id}: ${isVip}`);
+            debug('Status VIP verificado para', newMsg.user_id, ':', isVip);
           } catch (err) {
             console.error('Erro ao verificar VIP:', err);
             // Fallback seguro: assumir false para evitar erros
             isVip = false;
           }
         } else {
-          console.log(`✅ VipMessageOverlay: Status VIP do cache para ${newMsg.user_id}: ${isVip}`);
+          debug('Status VIP do cache para', newMsg.user_id, ':', isVip);
         }
       }
 
-      console.log('🔍 VipMessageOverlay: Decisão de exibição:', {
+      debug('Decisão de exibição:', {
         isVip,
         isTtsMessage,
         shouldShow: isVip || isTtsMessage,
@@ -563,7 +567,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
       // Se for VIP OU se for mensagem TTS, processar para overlay
       // IMPORTANTE: Mensagens TTS devem aparecer para TODOS os usuários
       if (isVip || isTtsMessage) {
-        console.log('✅ VipMessageOverlay: Mensagem será exibida (VIP ou TTS)');
+        debug('Mensagem será exibida (VIP ou TTS)');
 
         // Verificar quantas mensagens VIP já apareceram na tela
         const { data: currentCount, error: countError } = await supabase.rpc('count_vip_overlay_messages', {
@@ -574,7 +578,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
 
         // Se já mostrou 10 mensagens, não mostrar mais
         if (messagesShown >= 10) {
-          console.log('⚠️ VipMessageOverlay: Limite de mensagens VIP na tela atingido (10/10)');
+          debug('Limite de mensagens VIP na tela atingido (10/10)');
           return;
         }
 
@@ -584,7 +588,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
 
         if (lastMessageFromUser && (now - lastMessageFromUser) < MIN_INTERVAL_PER_USER) {
           const waitTime = Math.ceil((MIN_INTERVAL_PER_USER - (now - lastMessageFromUser)) / 1000);
-          console.log(`⏳ VipMessageOverlay: Usuário ${newMsg.user_name} precisa aguardar ${waitTime}s antes de enviar outra mensagem VIP`);
+          debug(`Usuário ${newMsg.user_name} precisa aguardar ${waitTime}s antes de enviar outra mensagem VIP`);
           return; // Ignorar mensagem - usuário enviou muito recentemente
         }
 
@@ -599,7 +603,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
         if (messagesInLastMinuteRef.current.length >= MAX_VIP_MESSAGES_PER_MINUTE) {
           const oldestMessage = messagesInLastMinuteRef.current[0];
           const waitTime = Math.ceil((oldestMessage.timestamp + RATE_LIMIT_WINDOW - now) / 1000);
-          console.log(`⏳ VipMessageOverlay: Rate limit atingido (${MAX_VIP_MESSAGES_PER_MINUTE} mensagens/minuto). Aguarde ${waitTime}s`);
+          debug(`Rate limit atingido (${MAX_VIP_MESSAGES_PER_MINUTE} mensagens/minuto). Aguarde ${waitTime}s`);
           return; // Ignorar mensagem - limite global atingido
         }
 
@@ -624,7 +628,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
           vip_color: vipColor
         };
 
-        console.log('➕ VipMessageOverlay: Adicionando mensagem VIP à fila:', {
+        debug('Adicionando mensagem VIP à fila:', {
           id: messageData.id,
           user_name: messageData.user_name,
           message_type: messageData.message_type,
@@ -651,19 +655,19 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
 
         setOverlayMessagesCount(messagesShown + 1);
       } else {
-        console.log('❌ VipMessageOverlay: Usuário NÃO é VIP, ignorando mensagem para overlay');
+        debug('Usuário NÃO é VIP, ignorando mensagem para overlay');
       }
     };
 
     // ✅ Escutar evento 'new-message' do Socket.io
     if (socket && isConnected) {
       on('new-message', handleNewMessage);
-      console.log('✅ VipMessageOverlay: Conectado ao Socket.io e escutando mensagens VIP');
+      debug('Conectado ao Socket.io e escutando mensagens VIP');
     }
 
     return () => {
       if (socket) {
-        console.log(`🔌 VipMessageOverlay: Removendo listener Socket.io`, { streamId });
+        debug('Removendo listener Socket.io', { streamId });
         off('new-message', handleNewMessage);
       }
     };
@@ -672,22 +676,22 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
   // Log quando currentMessage muda
   useEffect(() => {
     if (currentMessage) {
-      console.log('🎬 VipMessageOverlay: currentMessage definido, overlay deve aparecer:', {
+      debug('currentMessage definido, overlay deve aparecer:', {
         id: currentMessage.id,
         user_name: currentMessage.user_name,
         message_type: currentMessage.message_type
       });
     } else {
-      console.log('🎬 VipMessageOverlay: currentMessage é null, overlay não será exibido');
+      debug('currentMessage é null, overlay não será exibido');
     }
   }, [currentMessage]);
 
   if (!currentMessage) {
-    console.log('🎬 VipMessageOverlay: Renderizando null (sem mensagem atual)');
+    debug('Renderizando null (sem mensagem atual)');
     return null;
   }
 
-  console.log('🎬 VipMessageOverlay: Renderizando overlay com mensagem:', {
+  debug('Renderizando overlay com mensagem:', {
     id: currentMessage.id,
     user_name: currentMessage.user_name
   });

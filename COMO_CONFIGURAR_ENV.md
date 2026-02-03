@@ -82,6 +82,22 @@ VITE_EVOLUTION_API_KEY=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6
 
 ---
 
+## Debug da live (frontend)
+
+Para diagnóstico em produção, você pode ativar logs detalhados da live no console do navegador. No `.env` da raiz do projeto (frontend):
+
+```env
+# Logs do painel admin, viewer count, throttle e ZKViewer (só use para debug)
+VITE_DEBUG_LIVE=1
+
+# Logs do overlay de mensagens VIP (muito verboso)
+VITE_DEBUG_VIP_OVERLAY=1
+```
+
+Em desenvolvimento (`npm run dev`) os logs de debug já aparecem. Em build de produção, só aparecem se essas variáveis estiverem definidas como `1`. Não deixe ativado em produção sem necessidade.
+
+---
+
 ## ✅ Checklist
 
 - [x] Connection string configurada

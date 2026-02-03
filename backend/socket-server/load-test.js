@@ -28,10 +28,10 @@ if (fs.existsSync(usersJsonPath)) {
 }
 
 const DURATION_MS = 5 * 60 * 1000; // 5 minutos para stress com 1500
-const MESSAGE_RATE = 0.06; // 6% enviam mensagem (~90 senders para 1500)
+const MESSAGE_RATE = 0.12; // 12% enviam mensagem (~180 senders para 1500) — mais ativo
 const VIP_SENDER_RATE = 0.25; // 25% dos senders enviam mensagem VIP (se houver VIPs)
 const BATCH_SIZE = 50;
-const BATCH_DELAY_MS = 120;
+const BATCH_DELAY_MS = 220; // maior intervalo entre lotes para reduzir picos e desconexões
 
 console.log('==========================================');
 console.log('LOAD TEST - Socket.io Live (entrar / sair / mensagens)');
@@ -43,11 +43,14 @@ console.log('Duração:', DURATION_MS / 1000, 'segundos');
 console.log('==========================================\n');
 
 const sockets = [];
-const recentMessageIds = []; // últimas mensagens para simular curtidas (max 100)
-const MAX_MESSAGE_IDS = 100;
+const recentMessageIds = []; // últimas mensagens (id real do backend; temp-/cache- não usados para like)
+const MAX_MESSAGE_IDS = 150;
 let connected = 0;
 let joined = 0;
 let errors = 0;
+let errorsConnect = 0;
+let errorsJoin = 0;
+let errorsOther = 0;
 let messagesSent = 0;
 let vipMessagesSent = 0;
 let likesSent = 0;
@@ -59,8 +62,8 @@ function createClient(index) {
     path: '/socket.io/',
     transports: ['websocket', 'polling'],
     reconnection: true,
-    reconnectionAttempts: 3,
-    timeout: 15000
+    reconnectionAttempts: 6,
+    timeout: 22000
   });
 
   socket._clientIndex = index;
@@ -74,6 +77,7 @@ function createClient(index) {
     socket.emit('join-stream', { streamId }, (err) => {
       if (err) {
         errors++;
+        errorsJoin++;
         return;
       }
       joined++;
@@ -92,8 +96,8 @@ function createClient(index) {
       if (recentMessageIds.length > MAX_MESSAGE_IDS) recentMessageIds.shift();
     }
   });
-  socket.on('error', () => { errors++; });
-  socket.on('connect_error', () => { errors++; });
+  socket.on('error', () => { errors++; errorsOther++; });
+  socket.on('connect_error', () => { errors++; errorsConnect++; });
 
   sockets.push(socket);
   return socket;
@@ -128,7 +132,7 @@ async function run() {
   }
 
   console.log('\n--- Clientes criados. Aguardando conexões... ---\n');
-  await new Promise((r) => setTimeout(r, 8000));
+  await new Promise((r) => setTimeout(r, 18000)); // mais tempo para todas as conexões estabilizarem
 
   const numSenders = Math.max(1, Math.floor(numClients * MESSAGE_RATE));
   const numVipSenders = testUsers.filter((u) => u.is_vip).length > 0
@@ -167,12 +171,12 @@ async function run() {
     }, 10000 + i * 180);
   }
 
-  // Curtidas: a partir de 15s, a cada 4s alguns clientes curtem mensagens aleatórias do chat
+  // Curtidas: a partir de 20s, a cada 3s vários clientes curtem apenas mensagens com ID real (UUID)
   let likeIntervalId;
   setTimeout(() => {
     likeIntervalId = setInterval(() => {
       if (recentMessageIds.length === 0) return;
-      const numLikers = Math.min(8, Math.floor(sockets.length * 0.005));
+      const numLikers = Math.min(25, Math.floor(sockets.length * 0.012));
       for (let k = 0; k < numLikers; k++) {
         const s = sockets[Math.floor(Math.random() * sockets.length)];
         if (!s || !s.connected || !s._inRoom) continue;
@@ -185,10 +189,10 @@ async function run() {
           sessionId: u ? undefined : 'loadtest-' + s._clientIndex
         });
         likesSent++;
-        if (likesSent % 15 === 0) console.log('[Like] Curtidas enviadas: ' + likesSent);
+        if (likesSent % 20 === 0) console.log('[Like] Curtidas enviadas: ' + likesSent);
       }
-    }, 4000);
-  }, 15000);
+    }, 3000);
+  }, 20000);
 
   // Viewers ficam na sala até o fim do teste (ou até o admin encerrar a live) — sem ciclos de sair/reentrar
   await new Promise((r) => setTimeout(r, DURATION_MS - 15000));
@@ -210,7 +214,12 @@ async function run() {
   console.log('Mensagens chat enviadas:', messagesSent);
   console.log('Mensagens VIP enviadas:', vipMessagesSent);
   console.log('Curtidas enviadas:', likesSent);
-  console.log('Erros:', errors);
+  console.log('Erros (total):', errors);
+  if (errors > 0) {
+    console.log('  - connect_error:', errorsConnect);
+    console.log('  - join-stream:', errorsJoin);
+    console.log('  - error (outros):', errorsOther);
+  }
   console.log('==========================================\n');
   process.exit(0);
 }

@@ -482,7 +482,7 @@ io.on('connection', (socket) => {
 
       const { data: userData, fromCache } = await supabaseWrapper.getUser(userId);
       if (userData) {
-        finalUserName = userData.name || userData.username || userName || 'Anônimo';
+        finalUserName = userData.name || userName || 'Anônimo';
         userIsVip = !!userData.is_vip;
         userIsAdmin = !!userData.is_admin;
         if (!fromCache) {
@@ -492,7 +492,7 @@ io.on('connection', (socket) => {
 
       const messageData = {
         stream_id: streamId,
-        user_id: userId,
+        user_id: userData ? userId : null,
         message: message,
         message_type: messageType || 'text',
         user_name: finalUserName
@@ -647,8 +647,9 @@ io.on('connection', (socket) => {
     const who = userId || sessionId;
 
     try {
-      // Mensagem com id temporário (ainda não gravada no banco) — like só em memória
-      if (String(messageId).startsWith('temp-')) {
+      // Mensagem com id temporário ou de cache (ainda não UUID no banco) — like só em memória
+      const idStr = String(messageId);
+      if (idStr.startsWith('temp-') || idStr.startsWith('cache-')) {
         const entry = tempMessageLikes.get(messageId) || { count: 0, likedBy: new Set() };
         if (entry.likedBy.has(who)) {
           entry.likedBy.delete(who);

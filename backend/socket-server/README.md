@@ -262,6 +262,26 @@ Para stress test: 1500 viewers, mensagens normais e mensagens VIP no chat (até 
    # ou: node delete-load-test-users.js [pathUsersJson]
    ```
 
+### **Para 1500+ viewers na live (ao vivo)**
+
+O servidor precisa aceitar 1500+ conexões WebSocket. Se o teste parar em ~700–800, o limite costuma ser o **Nginx** na VPS.
+
+1. **Configurar Nginx para 1500+ conexões** (na VPS):
+   - Editar `/etc/nginx/nginx.conf`.
+   - No bloco `events { }`, definir `worker_connections 4096;` (ou 8192).
+   - Ver: **`CONFIGURAR_NGINX_1500_VIEWERS.md`** na raiz do projeto.
+   - Depois: `nginx -t` e `systemctl reload nginx`.
+
+2. **Teste de carga distribuído** (vários processos, total 1500 clientes):
+   ```bash
+   node load-test-distributed.js 1500 SEU_STREAM_ID https://api.zkoficial.com.br load-test-users.json 3
+   ```
+   Isso abre **3 processos**, cada um com **500 clientes** (total 1500). Use depois de ajustar o Nginx para validar que todas as conexões entram.
+
+3. **Teste na VPS (localhost)** — para provar que o servidor aguenta 1500 sem limite do seu PC:
+   No seu PC (PowerShell): `.\enviar-e-rodar-load-test-vps.ps1` (ou passando o stream ID como argumento).  
+   O script envia os arquivos do load test para a VPS e roda o teste **na VPS** contra `http://127.0.0.1:3001` (conexão direta ao Node, sem passar pelo Nginx). Se der ~1500 conectados, o servidor aguenta.
+
 ---
 
 ## 📊 FPS e desempenho do vídeo (live)
