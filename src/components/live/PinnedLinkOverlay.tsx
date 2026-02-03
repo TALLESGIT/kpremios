@@ -13,6 +13,8 @@ interface PinnedLinkOverlayProps {
   canUnpin?: boolean;
 }
 
+const isPinnedDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
+
 const PinnedLinkOverlay: React.FC<PinnedLinkOverlayProps> = ({ streamId, canUnpin = false }) => {
   const [pinned, setPinned] = useState<PinnedLinkMessage | null>(null);
 
@@ -24,11 +26,11 @@ const PinnedLinkOverlay: React.FC<PinnedLinkOverlayProps> = ({ streamId, canUnpi
   useEffect(() => {
     if (!isConnected || !streamId) return;
 
-    console.log('🔗 PinnedLinkOverlay: Solicitando link fixado inicial via socket');
+    if (isPinnedDebug()) console.log('🔗 PinnedLinkOverlay: Solicitando link fixado inicial via socket');
     emit('chat-get-pinned-link', { streamId });
 
     const handlePinnedLinkActive = (data: any) => {
-      console.log('🔗 PinnedLinkOverlay: Link fixado ativo recebido:', data?.id);
+      if (isPinnedDebug()) console.log('🔗 PinnedLinkOverlay: Link fixado ativo recebido:', data?.id);
       if (data && data.is_pinned && data.pinned_link) {
         setPinned({
           id: data.id,
@@ -65,10 +67,10 @@ const PinnedLinkOverlay: React.FC<PinnedLinkOverlayProps> = ({ streamId, canUnpi
   const handleUnpin = async () => {
     if (!pinned || !canUnpin) return;
     try {
-      console.log('🔗 PinnedLinkOverlay: Desfixando link via socket');
+      if (isPinnedDebug()) console.log('🔗 PinnedLinkOverlay: Desfixando link via socket');
       emit('chat-unpin-link', { streamId, messageId: pinned.id });
     } catch (err) {
-      console.error('PinnedLinkOverlay: erro ao desfixar link', err);
+      if (isPinnedDebug()) console.error('PinnedLinkOverlay: erro ao desfixar link', err);
     }
   };
 

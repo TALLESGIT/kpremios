@@ -31,7 +31,10 @@ const getSocketServerUrl = (): string => {
 };
 
 const SOCKET_SERVER_URL = getSocketServerUrl();
-console.log('🔌 useSocket: URL do servidor Socket.IO:', SOCKET_SERVER_URL);
+const isSocketDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
+if (isSocketDebug()) {
+  console.log('🔌 useSocket: URL do servidor Socket.IO:', SOCKET_SERVER_URL);
+}
 
 // Singleton global para o socket
 let globalSocket: Socket | null = null;
@@ -79,7 +82,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
 
     // Reutilizar socket global se existir
     if (globalSocket && globalSocket.connected) {
-      console.log('🔌 useSocket: Reutilizando socket global existente');
+      if (isSocketDebug()) console.log('🔌 useSocket: Reutilizando socket global existente');
       socketRef.current = globalSocket;
       setSocket(globalSocket);
       setIsConnected(true);
@@ -107,8 +110,10 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
                            window.location.hostname !== '127.0.0.1' &&
                            !window.location.hostname.startsWith('192.168.');
       
-      console.log('🔌 useSocket: Criando novo socket global...', SOCKET_SERVER_URL);
-      console.log('🔌 useSocket: Ambiente:', isProduction ? 'PRODUÇÃO' : 'DESENVOLVIMENTO');
+      if (isSocketDebug()) {
+        console.log('🔌 useSocket: Criando novo socket global...', SOCKET_SERVER_URL);
+        console.log('🔌 useSocket: Ambiente:', isProduction ? 'PRODUÇÃO' : 'DESENVOLVIMENTO');
+      }
 
       const newSocket = io(SOCKET_SERVER_URL, {
         path: '/socket.io/', // Path explícito para Socket.IO
@@ -154,13 +159,13 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     // Event listeners (apenas uma vez por socket)
     if (!globalListenersAttached && globalSocket) {
       globalSocket.on('connect', () => {
-        console.log('✅ useSocket: Socket global conectado');
+        if (isSocketDebug()) console.log('✅ useSocket: Socket global conectado');
         // Notificar todos os componentes
         notifyConnectionChange(true);
       });
 
       globalSocket.on('disconnect', (reason) => {
-        console.log('❌ useSocket: Socket global desconectado, motivo:', reason);
+        if (isSocketDebug()) console.log('❌ useSocket: Socket global desconectado, motivo:', reason);
         // Notificar todos os componentes
         notifyConnectionChange(false);
       });
@@ -218,7 +223,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
       
       // Só desconectar se não houver mais componentes usando
       if (socketConnectionCount <= 0 && globalSocket) {
-        console.log('🔌 useSocket: Último componente, desconectando socket global');
+        if (isSocketDebug()) console.log('🔌 useSocket: Último componente, desconectando socket global');
         globalSocket.disconnect();
         globalSocket = null;
         globalListenersAttached = false;
@@ -241,7 +246,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     } else {
       // Se não estiver conectado, esperar conexão
       const handleConnect = () => {
-        console.log('👥 useSocket: Conectado, entrando na stream:', streamId);
+        if (isSocketDebug()) console.log('👥 useSocket: Conectado, entrando na stream:', streamId);
         socketRef.current?.emit('join-stream', { streamId });
       };
       
@@ -268,7 +273,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
   const leaveStream = useCallback((streamIdToLeave: string) => {
     if (!socketRef.current) return;
 
-    console.log('👋 useSocket: Saindo da stream:', streamIdToLeave);
+    if (isSocketDebug()) console.log('👋 useSocket: Saindo da stream:', streamIdToLeave);
     socketRef.current.emit('leave-stream', { streamId: streamIdToLeave });
   }, []);
 
@@ -285,7 +290,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
   // Escutar evento
   const on = useCallback((event: string, callback: (data: any) => void) => {
     if (!socketRef.current) {
-      console.warn('⚠️ useSocket: Socket não conectado, não foi possível escutar:', event);
+      if (isSocketDebug()) console.warn('⚠️ useSocket: Socket não conectado, não foi possível escutar:', event);
       return;
     }
 

@@ -70,11 +70,11 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
       codec: codec,
     });
 
-    // ✅ Buffer AUMENTADO para estabilidade (especialmente em redes variadas)
+    // ✅ Buffer aumentado para reduzir RECV_VIDEO_DECODE_FAILED (1005) e travamentos
     try {
-      (AgoraRTC as any).setParameter('VIDEO_BUFFER_DELAY', 200);
-      (AgoraRTC as any).setParameter('PLAYBACK_BUFFER_MAX', 400);
-      viewerDebug('Buffer configurado: 200-400ms');
+      (AgoraRTC as any).setParameter('VIDEO_BUFFER_DELAY', 300);
+      (AgoraRTC as any).setParameter('PLAYBACK_BUFFER_MAX', 600);
+      viewerDebug('Buffer configurado: 300-600ms');
     } catch (e) {
       viewerDebugWarn('Não foi possível configurar buffer', e);
     }

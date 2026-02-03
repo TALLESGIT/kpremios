@@ -54,9 +54,11 @@ interface QuickStats {
     topScorer: string;
 }
 
+const isZkTVDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
+
 const ZkTVPage: React.FC = () => {
     const { user } = useAuth();
-    
+
     // Estados principais
     const [settings, setSettings] = useState<CruzeiroSettings | null>(null);
     const [games, setGames] = useState<CruzeiroGame[]>([]);
@@ -380,7 +382,7 @@ const ZkTVPage: React.FC = () => {
         // ✅ NOVO: Handler para atualização de contagem de viewers em tempo real
         const handleViewerCountUpdate = (data: { streamId: string; count: number }) => {
             if (data.streamId === activeStream.id) {
-                console.log('👥 ZkTVPage: Viewer count atualizado via Socket.io:', data.count);
+                if (isZkTVDebug()) console.log('👥 ZkTVPage: Viewer count atualizado via Socket.io:', data.count);
                 setCurrentViewerCount(data.count);
             }
         };
@@ -495,15 +497,13 @@ const ZkTVPage: React.FC = () => {
 
     // Listener GLOBAL para atualizações na tabela live_streams (Início, Fim, Viewer Count)
     useEffect(() => {
-        const isZkTVDebug = (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
-
         const channel = supabase.channel('global-streams-changes')
             .on('postgres_changes', {
                 event: '*',
                 schema: 'public',
                 table: 'live_streams'
             }, (payload) => {
-                if (isZkTVDebug) {
+                if (isZkTVDebug()) {
                     console.log('📡 ZkTVPage: Mudança detectada na tabela live_streams:', payload);
                 }
 
@@ -513,7 +513,7 @@ const ZkTVPage: React.FC = () => {
                 // DETECÇÃO DE START DE LIVE (INSERT ou UPDATE para active=true)
                 if ((payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') && newVal?.is_active) {
                     if (!currentStream || !currentStream.is_active || currentStream.id !== newVal.id) {
-                        if (isZkTVDebug) console.log('⚡ Live iniciada/reativada! Conectando imediatamente...', newVal);
+                        if (isZkTVDebug()) console.log('⚡ Live iniciada/reativada! Conectando imediatamente...', newVal);
                         setActiveStream(newVal);
                     }
                 }
@@ -521,7 +521,7 @@ const ZkTVPage: React.FC = () => {
                 // DETECÇÃO DE MUDANÇA NO STREAM ATUAL (UPDATE ou DELETE)
                 if (payload.eventType === 'UPDATE' && currentStream && currentStream.id === payload.new.id) {
                     if (!newVal.is_active && currentStream.is_active) {
-                        if (isZkTVDebug) console.log('🛑 Live encerrada! Desconectando imediatamente...');
+                        if (isZkTVDebug()) console.log('🛑 Live encerrada! Desconectando imediatamente...');
                         setActiveStream(prev => prev ? { ...prev, is_active: false } : null);
                         setIsChatOpen(false);
                         toast.error('A transmissão foi encerrada.');
@@ -884,7 +884,7 @@ const ZkTVPage: React.FC = () => {
 
     // 🔍 DEBUG: Log para identificar qual chat está sendo renderizado
     useEffect(() => {
-        console.log('🔍 ZkTVPage Chat Rendering State:', {
+        if (isZkTVDebug()) console.log('🔍 ZkTVPage Chat Rendering State:', {
             isFullscreen,
             isMobile,
             isChatOpen,

@@ -36,6 +36,9 @@ interface LiveStream {
   hls_url?: string;
 }
 
+const isLivePageDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
+const VIEWER_COUNT_THROTTLE_MS = 2000;
+
 const PublicLiveStreamPage: React.FC = () => {
   const { channelName } = useParams<{ channelName: string }>();
   const [searchParams] = useSearchParams();
@@ -45,6 +48,7 @@ const PublicLiveStreamPage: React.FC = () => {
   const { currentUser } = useData();
   const [stream, setStream] = useState<LiveStream | null>(null);
   const streamId = stream?.id; // Alias estável para efeitos
+  const lastViewerCountUpdateRef = useRef<number>(0);
 
   // ✅ REGISTRAR STREAM ID GLOBALMENTE
   // Isso permite que o ChatHost global encontre o streamId desta página
@@ -166,18 +170,18 @@ const PublicLiveStreamPage: React.FC = () => {
   const trackViewer = useCallback(async () => {
     const currentStream = streamRef.current;
     if (!currentStream) {
-      console.warn('⚠️ trackViewer: stream não disponível');
+      if (isLivePageDebug()) console.warn('⚠️ trackViewer: stream não disponível');
       return;
     }
 
     if (!currentStream.is_active) {
-      console.log('ℹ️ trackViewer: stream não está ativa, pulando tracking');
+      if (isLivePageDebug()) console.log('ℹ️ trackViewer: stream não está ativa, pulando tracking');
       return;
     }
 
     try {
       const now = new Date().toISOString();
-      console.log('👤 trackViewer: Criando/atualizando sessão', {
+      if (isLivePageDebug()) console.log('👤 trackViewer: Criando/atualizando sessão', {
         stream_id: currentStream.id,
         session_id: sessionId,
         is_active: currentStream.is_active
@@ -244,7 +248,7 @@ const PublicLiveStreamPage: React.FC = () => {
       if (error) {
         // Tratar erros de constraint de duplicação como não-críticos (sessão já existe)
         if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
-          console.warn('⚠️ trackViewer: Sessão já existe (duplicada), ignorando...', error.message);
+          if (isLivePageDebug()) console.warn('⚠️ trackViewer: Sessão já existe (duplicada), ignorando...', error.message);
           // Tentar fazer update da sessão existente
           try {
             const { data: existingSession } = await supabase
@@ -273,21 +277,20 @@ const PublicLiveStreamPage: React.FC = () => {
 
         // Tratar timeouts e erros de conexão como não-críticos
         if (error.message?.includes('timeout') || error.message?.includes('failed to connect') || error.code === 'PGRST116') {
-          console.warn('⚠️ trackViewer: Erro de conexão/timeout, tentando novamente na próxima vez:', error.message);
+          if (isLivePageDebug()) console.warn('⚠️ trackViewer: Erro de conexão/timeout, tentando novamente na próxima vez:', error.message);
           return; // Não bloquear o fluxo
         }
 
         console.error('❌ Erro ao criar/atualizar viewer_session:', error);
         // Não lançar erro para não quebrar o fluxo da aplicação
       } else {
-        console.log('✅ trackViewer: Sessão criada/atualizada com sucesso', data);
+        if (isLivePageDebug()) console.log('✅ trackViewer: Sessão criada/atualizada com sucesso', data);
       }
     } catch (e: any) {
-      // Tratar todos os erros como não-críticos para não quebrar a aplicação
       if (e?.code === '23505' || e?.message?.includes('duplicate key') || e?.message?.includes('unique constraint')) {
-        console.warn('⚠️ trackViewer: Sessão duplicada, ignorando...', e.message);
+        if (isLivePageDebug()) console.warn('⚠️ trackViewer: Sessão duplicada, ignorando...', e.message);
       } else if (e?.message?.includes('timeout') || e?.message?.includes('failed to connect')) {
-        console.warn('⚠️ trackViewer: Erro de conexão, será tentado novamente:', e.message);
+        if (isLivePageDebug()) console.warn('⚠️ trackViewer: Erro de conexão, será tentado novamente:', e.message);
       } else {
         console.error('❌ Erro geral ao track viewer:', e);
       }
@@ -319,18 +322,17 @@ const PublicLiveStreamPage: React.FC = () => {
       if (error) {
         // ✅ CORREÇÃO: Ignorar erros de autenticação (400) para não quebrar a live
         if (error.message?.includes('Invalid login credentials') || error.message?.includes('JWT')) {
-          console.warn('⚠️ Heartbeat: Erro de autenticação ignorado (usuário anônimo)');
+          if (isLivePageDebug()) console.warn('⚠️ Heartbeat: Erro de autenticação ignorado (usuário anônimo)');
           heartbeatErrorCountRef.current++;
-          // Se muitos erros consecutivos, tentar recriar sessão
           if (heartbeatErrorCountRef.current > 5) {
-            console.log('🔄 Muitos erros de heartbeat, tentando recriar sessão...');
+            if (isLivePageDebug()) console.log('🔄 Muitos erros de heartbeat, tentando recriar sessão...');
             heartbeatInitializedRef.current = false;
             heartbeatErrorCountRef.current = 0;
           }
           return; // Não tentar recriar a cada erro
         }
         
-        console.warn('⚠️ Heartbeat RPC falhou, recriando sessão:', error.message);
+        if (isLivePageDebug()) console.warn('⚠️ Heartbeat RPC falhou, recriando sessão:', error.message);
         heartbeatInitializedRef.current = false;
         await trackViewer();
         heartbeatInitializedRef.current = true;
@@ -340,13 +342,11 @@ const PublicLiveStreamPage: React.FC = () => {
         heartbeatErrorCountRef.current = 0;
       }
     } catch (e: any) {
-      // ✅ CORREÇÃO: Não quebrar a live por erros de heartbeat
-      console.warn('⚠️ Erro no heartbeat (não crítico):', e?.message || e);
+      if (isLivePageDebug()) console.warn('⚠️ Erro no heartbeat (não crítico):', e?.message || e);
       heartbeatErrorCountRef.current++;
-      
-      // Apenas recriar sessão se muitos erros consecutivos
+
       if (heartbeatErrorCountRef.current > 5) {
-        console.log('🔄 Muitos erros de heartbeat, tentando recriar sessão...');
+        if (isLivePageDebug()) console.log('🔄 Muitos erros de heartbeat, tentando recriar sessão...');
         heartbeatInitializedRef.current = false;
         heartbeatErrorCountRef.current = 0;
         try {
@@ -374,7 +374,7 @@ const PublicLiveStreamPage: React.FC = () => {
   useEffect(() => {
     if (!streamId || !socket || !isConnected) return;
 
-    console.log(`🔌 Conectando Socket.io para stream: ${streamId}`);
+    if (isLivePageDebug()) console.log(`🔌 Conectando Socket.io para stream: ${streamId}`);
 
     // Entrar na sala da stream
     joinStream(streamId);
@@ -387,7 +387,7 @@ const PublicLiveStreamPage: React.FC = () => {
       const wasActive = current?.is_active;
       const updated = { ...current, ...data.updates } as LiveStream;
 
-      console.log('📡 Mudança na stream detectada via Socket.io:', updated.is_active ? 'AO VIVO' : 'OFFLINE');
+      if (isLivePageDebug()) console.log('📡 Mudança na stream detectada via Socket.io:', updated.is_active ? 'AO VIVO' : 'OFFLINE');
 
       // Atualizar estado
       setStream(updated);
@@ -397,7 +397,7 @@ const PublicLiveStreamPage: React.FC = () => {
 
       // Lógica de tracking de sessão baseada na mudança de estado
       if (!updated.is_active && wasActive) {
-        console.log('📡 PublicLiveStreamPage: Live encerrada detectada via Socket.io');
+        if (isLivePageDebug()) console.log('📡 PublicLiveStreamPage: Live encerrada detectada via Socket.io');
         setIsChatOpen(false);
         // Marcar sessão como inativa
         supabase.from('viewer_sessions')
@@ -409,23 +409,27 @@ const PublicLiveStreamPage: React.FC = () => {
         toast.error('A transmissão foi encerrada pelo administrador');
       } else if (updated.is_active) {
         // Se está ativa (seja mudança ou já estava ativa), registrar/atualizar sessão
-        console.log('✅ Socket.io: Stream ativa, chamando trackViewer');
+        if (isLivePageDebug()) console.log('✅ Socket.io: Stream ativa, chamando trackViewer');
         trackViewer();
       }
     };
 
-    // ✅ NOVO: Handler para atualização de contagem de viewers em tempo real
+    // ✅ Throttle viewer count para reduzir re-renders e travamentos
     const handleViewerCountUpdate = (data: { streamId: string; count: number }) => {
       if (data.streamId !== streamId) return;
-      console.log('👥 PublicLiveStreamPage: Viewer count atualizado via Socket.io:', data.count);
-      setCurrentViewerCount(data.count);
+      if (isLivePageDebug()) console.log('👥 PublicLiveStreamPage: Viewer count atualizado via Socket.io:', data.count);
+      const now = Date.now();
+      if (now - lastViewerCountUpdateRef.current >= VIEWER_COUNT_THROTTLE_MS) {
+        lastViewerCountUpdateRef.current = now;
+        setCurrentViewerCount(data.count);
+      }
     };
 
     on('stream-updated', handleStreamUpdate);
     on('viewer-count-updated', handleViewerCountUpdate);
 
     return () => {
-      console.log('🔌 Desconectando Socket.io stream');
+      if (isLivePageDebug()) console.log('🔌 Desconectando Socket.io stream');
       off('stream-updated', handleStreamUpdate);
       off('viewer-count-updated', handleViewerCountUpdate);
       if (streamId) {
@@ -436,23 +440,25 @@ const PublicLiveStreamPage: React.FC = () => {
 
   useEffect(() => {
     if (!stream) {
-      console.log('ℹ️ useEffect stream: stream não disponível');
+      if (isLivePageDebug()) console.log('ℹ️ useEffect stream: stream não disponível');
       return;
     }
 
-    console.log('🔄 useEffect stream: Stream carregada', {
-      id: stream.id,
-      is_active: stream.is_active,
-      channel_name: stream.channel_name
-    });
+    if (isLivePageDebug()) {
+      console.log('🔄 useEffect stream: Stream carregada', {
+        id: stream.id,
+        is_active: stream.is_active,
+        channel_name: stream.channel_name
+      });
+    }
 
     // Sempre rastrear quando a stream estiver ativa
     if (stream.is_active) {
-      console.log('✅ useEffect stream: Stream ativa, iniciando tracking');
+      if (isLivePageDebug()) console.log('✅ useEffect stream: Stream ativa, iniciando tracking');
       trackViewer();
       updateViewerCount(stream.id);
     } else {
-      console.log('ℹ️ useEffect stream: Stream inativa, pulando tracking');
+      if (isLivePageDebug()) console.log('ℹ️ useEffect stream: Stream inativa, pulando tracking');
     }
 
     setCurrentViewerCount(stream.viewer_count || 0);
@@ -506,26 +512,27 @@ const PublicLiveStreamPage: React.FC = () => {
 
   const loadStream = async () => {
     setLoading(true);
-    console.log('📥 loadStream: Carregando stream para channel:', channelName);
-    
+    if (isLivePageDebug()) console.log('📥 loadStream: Carregando stream para channel:', channelName);
+
     try {
-      // ✅ OTIMIZAÇÃO: Usar cache do backend Socket.IO (reduz 99% das requisições ao Supabase)
       const { getLiveStreamByChannel } = await import('../services/cachedLiveService');
       const data = await getLiveStreamByChannel(channelName || 'zktv');
 
       if (!data) {
-        console.warn('⚠️ loadStream: Stream não encontrada');
+        if (isLivePageDebug()) console.warn('⚠️ loadStream: Stream não encontrada');
         toast.error('Transmissão não encontrada');
         navigate('/');
         setLoading(false);
         return;
       }
 
-      console.log('✅ loadStream: Stream carregada', {
-        id: data.id,
-        is_active: data.is_active,
-        channel_name: data.channel_name
-      });
+      if (isLivePageDebug()) {
+        console.log('✅ loadStream: Stream carregada', {
+          id: data.id,
+          is_active: data.is_active,
+          channel_name: data.channel_name
+        });
+      }
 
       setStream(data);
       setLoading(false);
@@ -700,18 +707,18 @@ const PublicLiveStreamPage: React.FC = () => {
     };
   }, []);
 
-  // 🔍 DEBUG: Log para identificar qual chat está sendo renderizado
   useEffect(() => {
-    console.log('🔍 PublicLiveStreamPage Chat Rendering State:', {
-      isFullscreen,
-      isMobile,
-      isChatOpen,
-      isLandscape,
-      hasStream: !!stream,
-      // Condições de renderização
-      shouldRenderDesktopFullscreen: isFullscreen && !isMobile && isChatOpen && !!stream,
-      shouldRenderSidebarDesktop: !isFullscreen && !!stream,
-    });
+    if (isLivePageDebug()) {
+      console.log('🔍 PublicLiveStreamPage Chat Rendering State:', {
+        isFullscreen,
+        isMobile,
+        isChatOpen,
+        isLandscape,
+        hasStream: !!stream,
+        shouldRenderDesktopFullscreen: isFullscreen && !isMobile && isChatOpen && !!stream,
+        shouldRenderSidebarDesktop: !isFullscreen && !!stream,
+      });
+    }
   }, [isFullscreen, isMobile, isChatOpen, isLandscape, stream]);
 
 

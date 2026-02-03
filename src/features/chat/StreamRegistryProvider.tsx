@@ -6,6 +6,8 @@
 
 import React, { createContext, useContext, useState, useCallback, useMemo, useRef, ReactNode } from 'react';
 
+const isRegistryDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
+
 interface StreamRegistryContextValue {
   streamId: string | null;
   registerStreamId: (id: string) => void;
@@ -28,18 +30,17 @@ export function StreamRegistryProvider({ children }: StreamRegistryProviderProps
   // Registrar um streamId ativo (função estável - não recria)
   const registerStreamId = useCallback((id: string) => {
     if (id && id !== streamIdRef.current) {
-      console.log('📡 StreamRegistry: Registrando streamId:', id);
+      if (isRegistryDebug()) console.log('📡 StreamRegistry: Registrando streamId:', id);
       setStreamId(id);
     }
-  }, []); // Sem dependências - usa ref internamente
+  }, []);
 
-  // Desregistrar o streamId (quando a página desmonta)
   const unregisterStreamId = useCallback(() => {
     if (streamIdRef.current) {
-      console.log('📡 StreamRegistry: Desregistrando streamId');
+      if (isRegistryDebug()) console.log('📡 StreamRegistry: Desregistrando streamId');
       setStreamId(null);
     }
-  }, []); // Sem dependências
+  }, []);
 
   // Memoizar value para evitar re-renders desnecessários
   const value = useMemo<StreamRegistryContextValue>(() => ({

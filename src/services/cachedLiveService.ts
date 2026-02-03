@@ -6,6 +6,8 @@
 
 import { supabase } from '../lib/supabase';
 
+const isCacheDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
+
 const SOCKET_SERVER_URL = import.meta.env.VITE_SOCKET_SERVER_URL || 
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:3001'
@@ -44,8 +46,8 @@ export interface LiveStreamData {
  */
 export async function getActiveLiveStreams(): Promise<LiveStreamData[]> {
   try {
-    console.log('📦 Buscando live streams do CACHE (backend Socket.IO)');
-    
+    if (isCacheDebug()) console.log('📦 Buscando live streams do CACHE (backend Socket.IO)');
+
     const response = await fetch(`${SOCKET_SERVER_URL}/api/live-streams/active`, {
       method: 'GET',
       headers: {
@@ -62,14 +64,13 @@ export async function getActiveLiveStreams(): Promise<LiveStreamData[]> {
     const result = await response.json();
     
     if (result.success && result.data) {
-      console.log(`✅ Live streams do CACHE: ${result.data.length} streams, cached: ${result.cached}`);
+      if (isCacheDebug()) console.log(`✅ Live streams do CACHE: ${result.data.length} streams, cached: ${result.cached}`);
       return result.data;
     }
 
     throw new Error('Resposta inválida do backend');
   } catch (error) {
-    // Fallback para Supabase se backend estiver offline
-    console.warn('⚠️ Backend offline, usando fallback para Supabase:', error);
+    if (isCacheDebug()) console.warn('⚠️ Backend offline, usando fallback para Supabase:', error);
     return getActiveLiveStreamsFromSupabase();
   }
 }
@@ -80,8 +81,8 @@ export async function getActiveLiveStreams(): Promise<LiveStreamData[]> {
  */
 async function getActiveLiveStreamsFromSupabase(): Promise<LiveStreamData[]> {
   try {
-    console.log('🔄 Fallback: Buscando live streams diretamente do Supabase');
-    
+    if (isCacheDebug()) console.log('🔄 Fallback: Buscando live streams diretamente do Supabase');
+
     const { data, error } = await supabase
       .from('live_streams')
       .select('*')
@@ -93,7 +94,7 @@ async function getActiveLiveStreamsFromSupabase(): Promise<LiveStreamData[]> {
       throw error;
     }
 
-    console.log(`✅ Live streams do Supabase (fallback): ${data?.length || 0} streams`);
+    if (isCacheDebug()) console.log(`✅ Live streams do Supabase (fallback): ${data?.length || 0} streams`);
     return data || [];
   } catch (error) {
     console.error('❌ Erro crítico ao buscar live streams:', error);
@@ -114,13 +115,11 @@ export async function getLiveStreamByChannel(channelName: string): Promise<LiveS
     const stream = streams.find(s => s.channel_name === channelName);
     
     if (stream) {
-      console.log(`✅ Stream encontrada no cache: ${channelName}`);
+      if (isCacheDebug()) console.log(`✅ Stream encontrada no cache: ${channelName}`);
       return stream;
     }
 
-    // Se não encontrar no cache, buscar diretamente do Supabase
-    // (pode ser uma stream inativa)
-    console.log(`⚠️ Stream ${channelName} não encontrada no cache, buscando do Supabase`);
+    if (isCacheDebug()) console.log(`⚠️ Stream ${channelName} não encontrada no cache, buscando do Supabase`);
     const { data, error } = await supabase
       .from('live_streams')
       .select('*')
@@ -129,7 +128,7 @@ export async function getLiveStreamByChannel(channelName: string): Promise<LiveS
 
     if (error) {
       if (error.code === 'PGRST116') {
-        console.log(`⚠️ Stream ${channelName} não encontrada`);
+        if (isCacheDebug()) console.log(`⚠️ Stream ${channelName} não encontrada`);
         return null;
       }
       throw error;

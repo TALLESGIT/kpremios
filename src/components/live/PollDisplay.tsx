@@ -24,6 +24,8 @@ interface PollDisplayProps {
   compact?: boolean;
 }
 
+const isPollDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
+
 const PollDisplay: React.FC<PollDisplayProps> = ({ streamId, compact = false }) => {
   const { user } = useAuth();
   const [activePoll, setActivePoll] = useState<Poll | null>(null);
@@ -56,7 +58,7 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId, compact = false }) 
   useEffect(() => {
     if (!isConnected || !streamId) return;
 
-    console.log('🔍 PollDisplay: Buscando enquete ativa para stream:', streamId);
+    if (isPollDebug()) console.log('🔍 PollDisplay: Buscando enquete ativa para stream:', streamId);
     emit('poll-get-active', { streamId });
   }, [isConnected, streamId, emit]);
 
@@ -67,7 +69,7 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId, compact = false }) 
     const handlePollActive = (data: any) => {
       const poll = data.poll;
       if (poll) {
-        console.log('✅ PollDisplay: Enquete encontrada:', {
+        if (isPollDebug()) console.log('✅ PollDisplay: Enquete encontrada:', {
           id: poll.id,
           question: poll.question,
           is_active: poll.is_active,
@@ -83,7 +85,7 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId, compact = false }) 
           sessionId: user?.id ? null : sessionId
         });
       } else {
-        console.log('⚠️ PollDisplay: Nenhuma enquete ativa e fixada encontrada');
+        if (isPollDebug()) console.log('⚠️ PollDisplay: Nenhuma enquete ativa e fixada encontrada');
         setActivePoll(null);
         setResults([]);
         setTotalVotes(0);
@@ -103,14 +105,14 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId, compact = false }) 
     if (!isConnected || !streamId) return;
 
     const handlePollUpdated = (data: any) => {
-      console.log('🔄 PollDisplay: Enquete atualizada via Socket.io:', data.eventType, data.poll?.id, data.poll?.is_pinned);
+      if (isPollDebug()) console.log('🔄 PollDisplay: Enquete atualizada via Socket.io:', data.eventType, data.poll?.id, data.poll?.is_pinned);
 
       const updatedPoll = data.poll;
 
       // Se foi deletada, limpar enquete ativa
       if (data.eventType === 'DELETE') {
         const deletedId = data.pollId || data.poll?.id;
-        console.log('🗑️ PollDisplay: Enquete deletada, limpando exibição:', deletedId);
+        if (isPollDebug()) console.log('🗑️ PollDisplay: Enquete deletada, limpando exibição:', deletedId);
         if (deletedId === activePoll?.id || !deletedId) {
           setActivePoll(null);
           setResults([]);
@@ -122,7 +124,7 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId, compact = false }) 
 
       // Se a atualização é da mesma stream, buscar enquete ativa para garantir sincronização
       if (updatedPoll?.stream_id === streamId) {
-        console.log('🔄 PollDisplay: Atualização na stream detectada, buscando enquete ativa');
+        if (isPollDebug()) console.log('🔄 PollDisplay: Atualização na stream detectada, buscando enquete ativa');
         // Delay maior para garantir que o banco foi atualizado completamente
         setTimeout(() => {
           emit('poll-get-active', { streamId });
@@ -131,7 +133,7 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId, compact = false }) 
     };
 
     const handlePollVoteUpdated = (data: any) => {
-      console.log('🔄 PollDisplay: Voto atualizado via Socket.io:', data.pollId);
+      if (isPollDebug()) console.log('🔄 PollDisplay: Voto atualizado via Socket.io:', data.pollId);
       // Atualizar resultados se for da enquete ativa
       if (data.pollId === activePoll?.id) {
         setResults(data.results || []);
