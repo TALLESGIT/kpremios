@@ -114,22 +114,25 @@ export function LiveViewer({
     // REGRA HÍBRIDA:
     // Mobile + HLS disponível -> HLSViewer
     if (isMobile && hasHlsUrl) {
-      console.log('📱 LiveViewer: Usando HLS para mobile');
+      if (import.meta.env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1') {
+        console.log('📱 LiveViewer: Usando HLS para mobile');
+      }
       return <HLSViewer hlsUrl={data.hls_url!} fitMode={fitMode} showPerf={showPerf} />;
     }
 
     // Tudo o resto -> ZKViewer (Agora.io)
     // ✅ CORREÇÃO: Forçar conexão no canal "ZkPremios" onde o ZK Studio transmite
-    // O channelName (prop) continua sendo usado para buscar status no Supabase (useLiveStatus)
     const agoraChannel = 'ZkPremios';
 
-    console.log('🖥️ LiveViewer: Usando Agora.io (ZKViewer)', {
-      dbChannel: data.channel_name || channelName,
-      agoraChannel: agoraChannel,
-      isMobile,
-      hasHlsUrl,
-      isAdmin
-    });
+    if (import.meta.env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1') {
+      console.log('🖥️ LiveViewer: Usando Agora.io (ZKViewer)', {
+        dbChannel: data.channel_name || channelName,
+        agoraChannel,
+        isMobile,
+        hasHlsUrl,
+        isAdmin
+      });
+    }
 
     return (
       <ZKViewer
