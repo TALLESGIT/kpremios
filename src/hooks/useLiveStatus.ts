@@ -32,6 +32,8 @@ export function useLiveStatus(channelName = 'zktv'): UseLiveStatusReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const dataRef = useRef<LiveStreamData | null>(null);
+  const lastViewerOnlyUpdateRef = useRef<number>(0);
+  const VIEWER_ONLY_THROTTLE_MS = 3000;
 
   useEffect(() => {
     let mounted = true;
