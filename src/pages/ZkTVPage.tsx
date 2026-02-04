@@ -247,18 +247,20 @@ const ZkTVPage: React.FC = () => {
 
     // Log quando VipMessageOverlay deve ser renderizado
     useEffect(() => {
-        if (activeStream?.is_active && activeStream?.id) {
-            console.log('🎬 ZkTVPage: Condições para renderizar VipMessageOverlay:', {
-                streamId: activeStream.id,
-                isActive: activeStream.is_active,
-                channel: activeStream.channel_name
-            });
-        } else {
-            console.log('⚠️ ZkTVPage: VipMessageOverlay NÃO será renderizado:', {
-                hasActiveStream: !!activeStream,
-                isActive: activeStream?.is_active,
-                hasId: !!activeStream?.id
-            });
+        if (isZkTVDebug()) {
+            if (activeStream?.is_active && activeStream?.id) {
+                console.log('🎬 ZkTVPage: Condições para renderizar VipMessageOverlay:', {
+                    streamId: activeStream.id,
+                    isActive: activeStream.is_active,
+                    channel: activeStream.channel_name
+                });
+            } else {
+                console.log('⚠️ ZkTVPage: VipMessageOverlay NÃO será renderizado:', {
+                    hasActiveStream: !!activeStream,
+                    isActive: activeStream?.is_active,
+                    hasId: !!activeStream?.id
+                });
+            }
         }
     }, [activeStream]);
 
@@ -338,7 +340,7 @@ const ZkTVPage: React.FC = () => {
                     schema: 'public',
                     table: 'match_pools'
                 }, (payload) => {
-                    console.log('📡 ZkTVPage: Mudança detectada em match_pools (Realtime fallback):', payload.eventType);
+                    if (isZkTVDebug()) console.log('📡 ZkTVPage: Mudança detectada em match_pools (Realtime fallback):', payload.eventType);
                     checkActivePool();
                     loadLastPoolResult();
                 })
@@ -353,7 +355,7 @@ const ZkTVPage: React.FC = () => {
         joinStream(activeStream.id);
 
         const handlePoolUpdate = (data: { eventType: string; pool: any; oldPool: any }) => {
-            console.log('📡 ZkTVPage: Mudança em match_pools via Socket.io:', data.eventType, data.pool?.id);
+            if (isZkTVDebug()) console.log('📡 ZkTVPage: Mudança em match_pools via Socket.io:', data.eventType, data.pool?.id);
 
             // Atualizar estado quando bolão muda
             if (data.eventType === 'INSERT' || data.eventType === 'UPDATE') {
@@ -439,18 +441,18 @@ const ZkTVPage: React.FC = () => {
                         if (error) {
                             // ✅ CORREÇÃO: Ignorar erros de autenticação (400) para não quebrar a live
                             if (error.message?.includes('Invalid login credentials') || error.message?.includes('JWT')) {
-                                console.warn('⚠️ Heartbeat: Erro de autenticação ignorado (usuário anônimo)');
+                                if (isZkTVDebug()) console.warn('⚠️ Heartbeat: Erro de autenticação ignorado (usuário anônimo)');
                                 heartbeatErrorCountRef.current++;
                                 // Se muitos erros consecutivos, tentar recriar sessão
                                 if (heartbeatErrorCountRef.current > 5) {
-                                    console.log('🔄 Muitos erros de heartbeat, tentando recriar sessão...');
+                                    if (isZkTVDebug()) console.log('🔄 Muitos erros de heartbeat, tentando recriar sessão...');
                                     heartbeatInitializedRef.current = false;
                                     heartbeatErrorCountRef.current = 0;
                                 }
                                 return; // Não tentar recriar a cada erro
                             }
                             
-                            console.warn('⚠️ Heartbeat RPC falhou, recriando sessão:', error.message);
+                            if (isZkTVDebug()) console.warn('⚠️ Heartbeat RPC falhou, recriando sessão:', error.message);
                             heartbeatInitializedRef.current = false;
                             await trackViewer(activeStream.id);
                             heartbeatInitializedRef.current = true;
@@ -468,12 +470,12 @@ const ZkTVPage: React.FC = () => {
                 }
             } catch (error: any) {
                 // ✅ CORREÇÃO: Não quebrar a live por erros de heartbeat
-                console.warn('⚠️ Erro no heartbeat (não crítico):', error?.message || error);
+                if (isZkTVDebug()) console.warn('⚠️ Erro no heartbeat (não crítico):', error?.message || error);
                 heartbeatErrorCountRef.current++;
                 
                 // Apenas recriar sessão se muitos erros consecutivos
                 if (heartbeatErrorCountRef.current > 5) {
-                    console.log('🔄 Muitos erros de heartbeat, tentando recriar sessão...');
+                    if (isZkTVDebug()) console.log('🔄 Muitos erros de heartbeat, tentando recriar sessão...');
                     heartbeatInitializedRef.current = false;
                     heartbeatErrorCountRef.current = 0;
                 }
@@ -618,10 +620,10 @@ const ZkTVPage: React.FC = () => {
 
             // Se não encontrar stream ativa, buscar a stream zktv (mesmo que inativa)
             if (!data) {
-                console.log('⚠️ Nenhuma stream ativa encontrada, buscando stream zktv...');
+                if (isZkTVDebug()) console.log('⚠️ Nenhuma stream ativa encontrada, buscando stream zktv...');
                 data = await getLiveStreamByChannel('zktv');
                 
-                if (data) {
+                if (data && isZkTVDebug()) {
                     console.log('✅ Stream zktv encontrada:', data);
                 }
             }
@@ -769,10 +771,10 @@ const ZkTVPage: React.FC = () => {
                 console.error('❌ Erro ao carregar jogos:', gamesRes.error);
             }
             if (gamesRes.data) {
-                console.log('🎮 Jogos carregados do banco:', gamesRes.data.length, gamesRes.data);
+                if (isZkTVDebug()) console.log('🎮 Jogos carregados do banco:', gamesRes.data.length, gamesRes.data);
                 setGames(gamesRes.data);
             } else {
-                console.warn('⚠️ Nenhum jogo retornado do banco de dados');
+                if (isZkTVDebug()) console.warn('⚠️ Nenhum jogo retornado do banco de dados');
             }
 
             if (standingsRes.error) {
@@ -817,7 +819,7 @@ const ZkTVPage: React.FC = () => {
             const shouldShow = isNotFinished;
 
             // Log apenas se houver jogos mas nenhum passar no filtro
-            if (games.length > 0) {
+            if (games.length > 0 && isZkTVDebug()) {
                 console.log('🔍 Jogo:', g.opponent, '| Data:', g.date, '| É futuro?', isFuture, '| Status:', g.status, '| Mostrar?', shouldShow);
             }
 
@@ -843,6 +845,7 @@ const ZkTVPage: React.FC = () => {
 
     // Debug: Log dos jogos futuros
     useEffect(() => {
+        if (!isZkTVDebug()) return;
         console.log('📅 Próximos jogos filtrados:', upcomingGames.length, upcomingGames);
         console.log('📅 Todos os jogos:', games.length, games);
         if (games.length > 0 && upcomingGames.length === 0) {

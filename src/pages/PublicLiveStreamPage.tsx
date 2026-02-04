@@ -224,7 +224,7 @@ const PublicLiveStreamPage: React.FC = () => {
               p_user_id: user.id
             });
             if (vipGranted && !vipError) {
-              console.log('✅ VIP grátis concedido ao acessar live!');
+              if (isLivePageDebug()) console.log('✅ VIP grátis concedido ao acessar live!');
               toast.success('🎉 Parabéns! Você recebeu VIP gratuito!', {
                 duration: 5000,
                 icon: '💎'
@@ -270,7 +270,7 @@ const PublicLiveStreamPage: React.FC = () => {
                 .eq('id', existingSession.id);
             }
           } catch (updateError) {
-            console.warn('⚠️ Erro ao atualizar sessão existente:', updateError);
+            if (isLivePageDebug()) console.warn('⚠️ Erro ao atualizar sessão existente:', updateError);
           }
           return; // Não bloquear o fluxo
         }
@@ -601,7 +601,7 @@ const PublicLiveStreamPage: React.FC = () => {
           if (el.requestFullscreen) el.requestFullscreen();
           else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
         } catch (e) {
-          console.warn('Auto-fullscreen bloqueado pelo navegador:', e);
+          if (isLivePageDebug()) console.warn('Auto-fullscreen bloqueado pelo navegador:', e);
         }
       }
     };

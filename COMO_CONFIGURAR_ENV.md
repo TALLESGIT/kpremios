@@ -94,7 +94,7 @@ VITE_DEBUG_LIVE=1
 VITE_DEBUG_VIP_OVERLAY=1
 ```
 
-Em desenvolvimento (`npm run dev`) os logs de debug já aparecem. Em build de produção, só aparecem se essas variáveis estiverem definidas como `1`. Não deixe ativado em produção sem necessidade.
+Em desenvolvimento (`npm run dev`) os logs de debug já aparecem. Em build de produção, só aparecem se essas variáveis estiverem definidas como `1`. **Em produção, não defina VITE_DEBUG_LIVE=1 (ou deixe sem definir / use 0) para evitar logs no console.**
 
 ---
 

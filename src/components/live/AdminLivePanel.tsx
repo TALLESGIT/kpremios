@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Users, MessageSquare, Eye, TrendingUp, Clock, Copy, Share2 } from 'lucide-react';
 import { useSocket } from '../../hooks/useSocket';
@@ -32,7 +32,10 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
   });
   const [viewerCount, setViewerCount] = useState(0);
   const [streamLink, setStreamLink] = useState('');
-  
+  // ✅ Throttle: escrever viewer_count no DB no máx. a cada 15s (reduz Realtime UPDATEs e travamentos)
+  const lastViewerCountWriteRef = useRef<number>(0);
+  const VIEWER_COUNT_WRITE_INTERVAL_MS = 15000;
+
   // ✅ Socket.io para atualizações em tempo real
   const { socket, isConnected, on, off } = useSocket({
     streamId: streamId,
@@ -251,10 +254,14 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
 
         liveDebug('Viewers ativos (fallback):', activeCount);
 
-        await supabase
-          .from('live_streams')
-          .update({ viewer_count: activeCount })
-          .eq('id', streamId);
+        const now = Date.now();
+        if (now - lastViewerCountWriteRef.current >= VIEWER_COUNT_WRITE_INTERVAL_MS) {
+          lastViewerCountWriteRef.current = now;
+          await supabase
+            .from('live_streams')
+            .update({ viewer_count: activeCount })
+            .eq('id', streamId);
+        }
 
         if (activeCount > 0) setViewerCount(activeCount);
         setStats((prev) => ({
@@ -267,11 +274,15 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
       const activeCount = Number(countData) || 0;
       liveDebug('Viewers ativos (RPC):', activeCount);
 
-      // Atualizar viewer_count na tabela live_streams
-      await supabase
-        .from('live_streams')
-        .update({ viewer_count: activeCount })
-        .eq('id', streamId);
+      // Atualizar viewer_count na tabela live_streams no máx. a cada 15s (reduz travamentos nos viewers)
+      const now = Date.now();
+      if (now - lastViewerCountWriteRef.current >= VIEWER_COUNT_WRITE_INTERVAL_MS) {
+        lastViewerCountWriteRef.current = now;
+        await supabase
+          .from('live_streams')
+          .update({ viewer_count: activeCount })
+          .eq('id', streamId);
+      }
 
       // Quando a live está ativa, a UI usa viewerCount do Socket; não sobrescrever com 0 do RPC (ex.: load-test não usa viewer_sessions)
       if (activeCount > 0) setViewerCount(activeCount);

@@ -3,6 +3,8 @@ import { useLiveStatus } from '../hooks/useLiveStatus';
 import { HLSViewer } from './HLSViewer';
 import ZKViewer from './ZKViewer';
 
+const isLiveViewerDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
+
 interface LiveViewerProps {
   channelName?: string;
   fitMode?: 'contain' | 'cover';
@@ -114,9 +116,7 @@ export function LiveViewer({
     // REGRA HÍBRIDA:
     // Mobile + HLS disponível -> HLSViewer
     if (isMobile && hasHlsUrl) {
-      if (import.meta.env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1') {
-        console.log('📱 LiveViewer: Usando HLS para mobile');
-      }
+      if (isLiveViewerDebug()) console.log('📱 LiveViewer: Usando HLS para mobile');
       return <HLSViewer hlsUrl={data.hls_url!} fitMode={fitMode} showPerf={showPerf} />;
     }
 
@@ -124,15 +124,13 @@ export function LiveViewer({
     // ✅ CORREÇÃO: Forçar conexão no canal "ZkPremios" onde o ZK Studio transmite
     const agoraChannel = 'ZkPremios';
 
-    if (import.meta.env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1') {
-      console.log('🖥️ LiveViewer: Usando Agora.io (ZKViewer)', {
-        dbChannel: data.channel_name || channelName,
-        agoraChannel,
-        isMobile,
-        hasHlsUrl,
-        isAdmin
-      });
-    }
+    if (isLiveViewerDebug()) console.log('🖥️ LiveViewer: Usando Agora.io (ZKViewer)', {
+      dbChannel: data.channel_name || channelName,
+      agoraChannel,
+      isMobile,
+      hasHlsUrl,
+      isAdmin
+    });
 
     return (
       <ZKViewer

@@ -72,9 +72,9 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
 
     // ✅ Buffer aumentado para reduzir RECV_VIDEO_DECODE_FAILED (1005) e travamentos
     try {
-      (AgoraRTC as any).setParameter('VIDEO_BUFFER_DELAY', 300);
-      (AgoraRTC as any).setParameter('PLAYBACK_BUFFER_MAX', 600);
-      viewerDebug('Buffer configurado: 300-600ms');
+      (AgoraRTC as any).setParameter('VIDEO_BUFFER_DELAY', 400);
+      (AgoraRTC as any).setParameter('PLAYBACK_BUFFER_MAX', 800);
+      viewerDebug('Buffer configurado: 400-800ms');
     } catch (e) {
       viewerDebugWarn('Não foi possível configurar buffer', e);
     }
@@ -182,7 +182,7 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
             setDecodeErrorCount(prev => {
               const newCount = prev + 1;
               if (newCount >= 2 || (newCount >= 3 && !useVP8Fallback)) {
-                console.warn(`RECV_VIDEO_DECODE_FAILED (${newCount}x)`);
+                viewerDebugWarn(`RECV_VIDEO_DECODE_FAILED (${newCount}x)`);
               }
 
               if (newCount >= 3 && !useVP8Fallback) {
@@ -413,7 +413,11 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
       videoObserver.disconnect();
       videoTrackRef.current?.stop();
       audioTrackRef.current?.stop();
-      if (clientRef.current) { clientRef.current.removeAllListeners(); clientRef.current.leave(); clientRef.current = null; }
+      if (clientRef.current) {
+        clientRef.current.removeAllListeners();
+        clientRef.current.leave().catch(() => {});
+        clientRef.current = null;
+      }
       if (bgTrackRef.current) { try { bgTrackRef.current.stop(); } catch { } bgTrackRef.current = null; }
       if (bgVideoElRef.current) { try { bgVideoElRef.current.pause?.(); (bgVideoElRef.current as any).srcObject = null; } catch { } bgVideoElRef.current.remove(); bgVideoElRef.current = null; }
     };

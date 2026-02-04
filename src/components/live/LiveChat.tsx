@@ -52,6 +52,8 @@ const VIP_COLOR_PRESETS = [
   { name: 'Prata', value: 'silver', hex: '#94a3b8' },
 ];
 
+const isLiveChatDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
+
 const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, className, showHeader = true }) => {
   const { user } = useAuth();
   const userRef = useRef(user);
@@ -90,7 +92,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
   // ✅ Sempre habilitar para admin, mesmo se isActive for false
   // ✅ DEBUG: Log para verificar se isActive está correto
   useEffect(() => {
-    console.log('🔍 LiveChat: isActive =', isActive, 'isAdmin =', isAdmin, 'streamId =', streamId);
+    if (isLiveChatDebug()) console.log('🔍 LiveChat: isActive =', isActive, 'isAdmin =', isAdmin, 'streamId =', streamId);
   }, [isActive, isAdmin, streamId]);
 
   const {
@@ -876,7 +878,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
     }
 
     try {
-      console.log('📌 LiveChat: Fixando link via Socket.io:', validLink);
+      if (isLiveChatDebug()) console.log('📌 LiveChat: Fixando link via Socket.io:', validLink);
 
       socketEmit('chat-pin-link', {
         streamId,
@@ -901,7 +903,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
   const handleUnpinLink = async () => {
     if (!confirm('Desfixar este link?')) return;
     try {
-      console.log('📌 LiveChat: Desfixando link via Socket.io');
+      if (isLiveChatDebug()) console.log('📌 LiveChat: Desfixando link via Socket.io');
       socketEmit('chat-unpin-link', { streamId });
       toast.success('Solicitação de desfixação enviada');
     } catch (err) {

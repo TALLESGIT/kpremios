@@ -83,6 +83,9 @@ export function useLiveStatus(channelName = 'zktv'): UseLiveStatusReturn {
               payload.eventType === 'UPDATE' &&
               onlyViewerCountChanged(dataRef.current, newData)
             ) {
+              const now = Date.now();
+              if (now - lastViewerOnlyUpdateRef.current < VIEWER_ONLY_THROTTLE_MS) return;
+              lastViewerOnlyUpdateRef.current = now;
               dataRef.current = { ...dataRef.current!, viewer_count: newData.viewer_count };
               return;
             }

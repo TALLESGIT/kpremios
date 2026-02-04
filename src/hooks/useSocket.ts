@@ -97,7 +97,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
         socketConnectionCount--;
         // Só desconectar se não houver mais componentes usando
         if (socketConnectionCount <= 0 && globalSocket) {
-          console.log('🔌 useSocket: Último componente, desconectando socket global');
+          if (isSocketDebug()) console.log('🔌 useSocket: Último componente, desconectando socket global');
           globalSocket.disconnect();
           globalSocket = null;
         }
@@ -207,7 +207,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
       clearInterval(connectionCheckInterval);
       
       socketConnectionCount--;
-      console.log(`🔌 useSocket: Cleanup - componentes restantes: ${socketConnectionCount}`);
+      if (isSocketDebug()) console.log(`🔌 useSocket: Cleanup - componentes restantes: ${socketConnectionCount}`);
       
       // Remover callbacks de conexão
       connectionCallbacks.delete(handleConnect);
@@ -241,7 +241,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     if (!socketRef.current || !streamId) return;
     
     if (socketRef.current.connected) {
-      console.log('👥 useSocket: Entrando na stream:', streamId);
+      if (isSocketDebug()) console.log('👥 useSocket: Entrando na stream:', streamId);
       socketRef.current.emit('join-stream', { streamId });
     } else {
       // Se não estiver conectado, esperar conexão
@@ -261,11 +261,11 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
   // Entrar na sala da stream
   const joinStream = useCallback((streamIdToJoin: string) => {
     if (!socketRef.current) {
-      console.warn('⚠️ useSocket: Socket não conectado, tentando conectar...');
+      if (isSocketDebug()) console.warn('⚠️ useSocket: Socket não conectado, tentando conectar...');
       return;
     }
 
-    console.log('👥 useSocket: Entrando na stream:', streamIdToJoin);
+    if (isSocketDebug()) console.log('👥 useSocket: Entrando na stream:', streamIdToJoin);
     socketRef.current.emit('join-stream', { streamId: streamIdToJoin });
   }, []);
 
@@ -280,7 +280,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
   // Emitir evento
   const emit = useCallback((event: string, data: any) => {
     if (!socketRef.current || !isConnected) {
-      console.warn('⚠️ useSocket: Socket não conectado, não foi possível emitir:', event);
+      if (isSocketDebug()) console.warn('⚠️ useSocket: Socket não conectado, não foi possível emitir:', event);
       return;
     }
 

@@ -43,7 +43,7 @@ const PinnedLinkOverlay: React.FC<PinnedLinkOverlayProps> = ({ streamId, canUnpi
     };
 
     const handlePinnedLinkUpdated = (data: any | null) => {
-      console.log('🔗 PinnedLinkOverlay: Link fixado atualizado:', data?.id);
+      if (isPinnedDebug()) console.log('🔗 PinnedLinkOverlay: Link fixado atualizado:', data?.id);
       if (data && data.is_pinned && data.pinned_link) {
         setPinned({
           id: data.id,
