@@ -1,10 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 
-const isViewerDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
-const viewerDebug = (...args: unknown[]) => { if (isViewerDebug()) console.log('[ZKViewer]', ...args); };
-const viewerDebugWarn = (...args: unknown[]) => { if (isViewerDebug()) console.warn('[ZKViewer]', ...args); };
-
 interface ZKViewerProps {
   appId?: string;
   channel: string;
@@ -63,20 +59,20 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
 
     // ✅ Codec configurável - VP8 como fallback para PCs com problemas de H.264
     const codec = forceVP8 ? 'vp8' : 'h264';
-    viewerDebug('Criando cliente com codec:', codec);
+    console.log(`🎬 ZKViewer: Criando cliente com codec: ${codec}`);
 
     const client = AgoraRTC.createClient({
       mode: 'live',
       codec: codec,
     });
 
-    // ✅ Buffer aumentado para reduzir RECV_VIDEO_DECODE_FAILED (1005) e travamentos
+    // ✅ Buffer AUMENTADO para estabilidade (especialmente em redes variadas)
     try {
-      (AgoraRTC as any).setParameter('VIDEO_BUFFER_DELAY', 400);
-      (AgoraRTC as any).setParameter('PLAYBACK_BUFFER_MAX', 800);
-      viewerDebug('Buffer configurado: 400-800ms');
+      (AgoraRTC as any).setParameter('VIDEO_BUFFER_DELAY', 200);
+      (AgoraRTC as any).setParameter('PLAYBACK_BUFFER_MAX', 400);
+      console.log('📊 ZKViewer: Buffer configurado: 200-400ms');
     } catch (e) {
-      viewerDebugWarn('Não foi possível configurar buffer', e);
+      console.warn('⚠️ ZKViewer: Não foi possível configurar buffer', e);
     }
 
     return { client, agoraAppId, agoraToken };
@@ -121,7 +117,7 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
     const init = async () => {
       try {
         if (!enabled) {
-          viewerDebug('enabled=false');
+          console.log('⏸️ ZKViewer: enabled=false');
           return;
         }
         if (clientRef.current) return;
@@ -134,11 +130,11 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
 
         client.on('connection-state-change', (state: string) => {
           if (!mounted) return;
-          viewerDebug('connection-state-change', state);
+          console.log('🔌 ZKViewer: connection-state-change', state);
           
           // ✅ CORREÇÃO: Limpar timeout quando conectado
           if (state === 'CONNECTED' && connectionTimeoutRef.current) {
-            viewerDebug('Conexão estabelecida, aguardando stream...');
+            console.log('✅ ZKViewer: Conexão estabelecida, aguardando stream...');
             clearTimeout(connectionTimeoutRef.current);
             connectionTimeoutRef.current = null;
             setConnectionTimeout(null);
@@ -157,7 +153,7 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
         });
 
         client.on('token-privilege-will-expire', () => {
-          viewerDebugWarn('Token vai expirar!');
+          console.warn('⚠️ ZKViewer: Token vai expirar!');
         });
 
         client.on('token-privilege-did-expire', () => {
@@ -166,12 +162,7 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
 
         // ✅ NOVO: Detectar erros de decodificação e fazer fallback para VP8
         client.on('exception', (event: any) => {
-          // 3005 = RECV_VIDEO_DECODE_FAILED_RECOVER (recuperação); não logar como erro
-          if (event.code === 3005) {
-            viewerDebug('Decode recuperado (3005)');
-            return;
-          }
-          if (isViewerDebug()) console.warn('[ZKViewer] Exception', event);
+          console.warn('⚠️ ZKViewer: Exception', event);
 
           // Monitorar erro ICE 701
           if (event.code === 701) {
@@ -181,13 +172,12 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
           if (event.code === 1005 || event.msg === 'RECV_VIDEO_DECODE_FAILED') {
             setDecodeErrorCount(prev => {
               const newCount = prev + 1;
-              if (newCount >= 2 || (newCount >= 3 && !useVP8Fallback)) {
-                viewerDebugWarn(`RECV_VIDEO_DECODE_FAILED (${newCount}x)`);
-              }
+              console.error(`❌ RECV_VIDEO_DECODE_FAILED (${newCount}x)`);
 
               if (newCount >= 3 && !useVP8Fallback) {
-                viewerDebug('Tentando VP8...');
+                console.log('🔄 Tentando VP8...');
                 setUseVP8Fallback(true);
+                // Trigger retry via state
                 setReconnectCount(prev => prev + 1);
               }
               return newCount;
@@ -198,7 +188,7 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
         client.on('user-published', async (user: any, mediaType: 'video' | 'audio') => {
           if (!mounted) return;
 
-          viewerDebug('user-published', { uid: user.uid, mediaType });
+          console.log('🎬 user-published', { uid: user.uid, mediaType });
 
           try {
             await client.subscribe(user, mediaType);
@@ -217,7 +207,7 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
 
               if (connectionStartTime) {
                 const totalTime = Date.now() - connectionStartTime;
-                viewerDebug('isLive = TRUE', { connectionTime: `${totalTime}ms`, codec: useVP8Fallback ? 'VP8' : 'H.264' });
+                console.log('🔴 isLive = TRUE', { connectionTime: `${totalTime}ms`, codec: useVP8Fallback ? 'VP8' : 'H.264' });
                 setConnectionStartTime(null);
               }
 
@@ -229,13 +219,13 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
                   await client.setRemoteVideoStreamType?.(user.uid, 1);
                   // Fallback option: 1 = Disable (não fazer fallback automático, manter qualidade alta)
                   client.setStreamFallbackOption?.(user.uid, 1);
-                  viewerDebug('Qualidade de vídeo configurada para ALTA');
+                  console.log('✅ ZKViewer: Qualidade de vídeo configurada para ALTA');
                 } catch (err) {
-                  viewerDebugWarn('Erro ao configurar qualidade:', err);
+                  console.warn('⚠️ ZKViewer: Erro ao configurar qualidade:', err);
                 }
 
                 await user.videoTrack.play(fgRef.current!);
-                viewerDebug('Vídeo reproduzindo!');
+                console.log('✅ Vídeo reproduzindo!');
 
                 // Background blur (apenas desktop)
                 const attachBgFromFg = () => {
@@ -321,7 +311,7 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
 
         await client.setClientRole('audience', { level: 1 });
 
-        viewerDebug('Conectando...', { channel, codec: useVP8Fallback ? 'VP8' : 'H.264', attempt: reconnectCount + 1 });
+        console.log('🔌 Conectando...', { channel, codec: useVP8Fallback ? 'VP8' : 'H.264', attempt: reconnectCount + 1 });
 
         const startTime = Date.now();
         setConnectionStartTime(startTime);
@@ -333,7 +323,7 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
           const isConnected = connectionState === 'CONNECTED' || connectionState === 'CONNECTING';
           
           if (!isLive && !isConnected && mounted) {
-            viewerDebugWarn('Timeout de conexão - tentando reconectar...');
+            console.warn('⚠️ ZKViewer: Timeout de conexão - tentando reconectar...');
             setError('Conexão demorou muito...');
             // Retry automático após timeout
             setTimeout(() => {
@@ -344,7 +334,7 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
             }, 2000);
           } else if (isConnected && !isLive) {
             // Se está conectado mas ainda não recebeu stream, aguardar mais
-            viewerDebug('Conectado, aguardando stream...');
+            console.log('⏳ ZKViewer: Conectado, aguardando stream...');
             // Não mostrar erro, apenas aguardar
           }
         }, 30000) as unknown as NodeJS.Timeout; // ✅ Aumentado para 30 segundos
@@ -354,7 +344,7 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
 
         try {
           await client.join(agoraAppId, channel, agoraToken, null);
-          viewerDebug('Conectado!', { channel, connectionTime: `${Date.now() - startTime}ms` });
+          console.log('✅ Conectado!', { channel, connectionTime: `${Date.now() - startTime}ms` });
           
           // ✅ CORREÇÃO: Limpar timeout quando join é bem-sucedido
           // O timeout só deve disparar se realmente não conseguir conectar
@@ -384,7 +374,7 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
           }
 
           if (!useVP8Fallback && reconnectCount < 2) {
-            viewerDebug('Tentando VP8 após falha...');
+            console.log('🔄 Tentando VP8 após falha...');
             setUseVP8Fallback(true);
             // O setUseVP8Fallback já vai triggerar o effect? Não, ele está na dependência? Sim.
             // Mas incrementamos reconnectCount para garantir reset
@@ -393,7 +383,7 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
             }, 1000);
 
           } else if (reconnectCount < 10) { // Aumentei tentativas
-            viewerDebug('Tentando novamente em 3s (Tentativa', reconnectCount + 1, ')...');
+            console.log(`🔄 Tentando novamente em 3s (Tentativa ${reconnectCount + 1})...`);
             setTimeout(() => {
               if (mounted && enabled) {
                 setError(null);
@@ -413,11 +403,7 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
       videoObserver.disconnect();
       videoTrackRef.current?.stop();
       audioTrackRef.current?.stop();
-      if (clientRef.current) {
-        clientRef.current.removeAllListeners();
-        clientRef.current.leave().catch(() => {});
-        clientRef.current = null;
-      }
+      if (clientRef.current) { clientRef.current.removeAllListeners(); clientRef.current.leave(); clientRef.current = null; }
       if (bgTrackRef.current) { try { bgTrackRef.current.stop(); } catch { } bgTrackRef.current = null; }
       if (bgVideoElRef.current) { try { bgVideoElRef.current.pause?.(); (bgVideoElRef.current as any).srcObject = null; } catch { } bgVideoElRef.current.remove(); bgVideoElRef.current = null; }
     };

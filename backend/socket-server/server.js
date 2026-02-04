@@ -245,10 +245,54 @@ app.get('/api/live-streams/active', async (req, res) => {
 // ✅ NOVA ROTA: Iniciar transmissão (Chamada pelo ZK Studio)
 app.post('/api/live/start', async (req, res) => {
   try {
-    const { streamId, hlsUrl } = req.body;
+    let { streamId, channelName, hlsUrl } = req.body;
+
+    // Se não veio streamId, mas veio channelName (comum no ZK Studio), tentar resolver
+    if (!streamId && channelName) {
+      console.log(`🔍 Resolvendo streamId para o canal: ${channelName}`);
+      const { data: existingStream } = await supabase
+        .from('live_streams')
+        .select('id')
+        .eq('channel_name', channelName)
+        .maybeSingle();
+
+      if (existingStream) {
+        streamId = existingStream.id;
+        console.log(`✅ Canal encontrado! ID: ${streamId}`);
+      } else {
+        // Se o canal não existe (ex: primeira vez rodando com ZkPremios), criar automaticamente
+        console.log(`✨ Canal "${channelName}" não existe. Criando novo registro...`);
+        const { data: newStream, error: createError } = await supabase
+          .from('live_streams')
+          .insert({
+            channel_name: channelName,
+            title: channelName, // Título inicial igual ao nome do canal
+            is_active: true,
+            started_at: new Date().toISOString(),
+            hls_url: hlsUrl || null
+          })
+          .select('id')
+          .single();
+
+        if (createError) {
+          console.error('❌ Erro ao criar canal automático:', createError);
+          return res.status(500).json({ success: false, error: 'Erro ao criar canal: ' + createError.message });
+        }
+
+        streamId = newStream.id;
+        console.log(`✅ Novo canal criado com ID: ${streamId}`);
+
+        // Em caso de criação, já retornamos sucesso pois is_active já foi setado
+        res.json({ success: true, message: 'Canal criado e transmissão iniciada', streamId });
+
+        // Broadcast via Socket.io
+        io.emit('live-start', { streamId, hlsUrl, channelName });
+        return;
+      }
+    }
 
     if (!streamId) {
-      return res.status(400).json({ success: false, error: 'streamId é obrigatório' });
+      return res.status(400).json({ success: false, error: 'streamId ou channelName é obrigatório' });
     }
 
     console.log(`📺 Iniciando transmissão: ${streamId}, HLS: ${hlsUrl}`);
@@ -273,14 +317,14 @@ app.post('/api/live/start', async (req, res) => {
     liveStreamsCacheTime = 0;
 
     // Broadcast via Socket.io
-    io.emit('live-start', { streamId, hlsUrl });
+    io.emit('live-start', { streamId, hlsUrl, channelName });
     io.to(`stream:${streamId}`).emit('stream-updated', {
       streamId,
       updates: { is_active: true, hls_url: hlsUrl },
       eventType: 'UPDATE'
     });
 
-    res.json({ success: true, message: 'Transmissão iniciada com sucesso' });
+    res.json({ success: true, message: 'Transmissão iniciada com sucesso', streamId });
   } catch (error) {
     console.error('❌ Erro ao processar /api/live/start:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -290,10 +334,24 @@ app.post('/api/live/start', async (req, res) => {
 // ✅ NOVA ROTA: Parar transmissão (Chamada pelo ZK Studio)
 app.post('/api/live/stop', async (req, res) => {
   try {
-    const { streamId } = req.body;
+    let { streamId, channelName } = req.body;
+
+    // Se não veio streamId, resolver via channelName
+    if (!streamId && channelName) {
+      const { data: existingStream } = await supabase
+        .from('live_streams')
+        .select('id')
+        .eq('channel_name', channelName)
+        .maybeSingle();
+
+      if (existingStream) {
+        streamId = existingStream.id;
+      }
+    }
 
     if (!streamId) {
-      return res.status(400).json({ success: false, error: 'streamId é obrigatório' });
+      // Se não encontramos o streamId, apenas retornamos sucesso pois não há o que parar
+      return res.json({ success: true, message: 'Nada para parar (stream não encontrado)' });
     }
 
     console.log(`🛑 Parando transmissão: ${streamId}`);
@@ -317,7 +375,7 @@ app.post('/api/live/stop', async (req, res) => {
     liveStreamsCacheTime = 0;
 
     // Broadcast via Socket.io
-    io.emit('live-stop', { streamId });
+    io.emit('live-stop', { streamId, channelName });
     io.to(`stream:${streamId}`).emit('stream-ended', {
       streamId,
       message: 'A transmissão foi encerrada'
