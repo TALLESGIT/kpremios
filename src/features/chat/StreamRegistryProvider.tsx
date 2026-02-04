@@ -4,7 +4,7 @@
 // Páginas registram seu streamId quando têm uma stream carregada
 // Isso garante que o chat funcione em todas as rotas (/zk-tv, /live/:slug)
 
-import React, { createContext, useContext, useState, useCallback, useMemo, useRef, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, useRef, ReactNode } from 'react';
 
 const isRegistryDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
 

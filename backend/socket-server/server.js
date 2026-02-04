@@ -86,7 +86,7 @@ const corsOrigin = (origin, callback) => {
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const path = req.path;
-  
+
   // Log detalhado para requisições Socket.IO
   if (path && path.includes('socket.io')) {
     console.log(`📡 Requisição Socket.IO recebida:`, {
@@ -192,7 +192,7 @@ app.get('/health', (req, res) => {
   const connectedClients = io.sockets.sockets.size;
   const rooms = Array.from(io.sockets.adapter.rooms.keys());
   const streamRoomsCount = rooms.filter(room => room.startsWith('stream:')).length;
-  
+
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -239,6 +239,94 @@ app.get('/api/live-streams/active', async (req, res) => {
       error: 'Erro ao buscar live streams',
       message: error.message
     });
+  }
+});
+
+// ✅ NOVA ROTA: Iniciar transmissão (Chamada pelo ZK Studio)
+app.post('/api/live/start', async (req, res) => {
+  try {
+    const { streamId, hlsUrl } = req.body;
+
+    if (!streamId) {
+      return res.status(400).json({ success: false, error: 'streamId é obrigatório' });
+    }
+
+    console.log(`📺 Iniciando transmissão: ${streamId}, HLS: ${hlsUrl}`);
+
+    // Atualizar no Supabase
+    const { error } = await supabase
+      .from('live_streams')
+      .update({
+        is_active: true,
+        hls_url: hlsUrl || null,
+        started_at: new Date().toISOString()
+      })
+      .eq('id', streamId);
+
+    if (error) {
+      console.error('❌ Erro ao iniciar live no Supabase:', error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    // Invalidar cache
+    liveStreamsCache = null;
+    liveStreamsCacheTime = 0;
+
+    // Broadcast via Socket.io
+    io.emit('live-start', { streamId, hlsUrl });
+    io.to(`stream:${streamId}`).emit('stream-updated', {
+      streamId,
+      updates: { is_active: true, hls_url: hlsUrl },
+      eventType: 'UPDATE'
+    });
+
+    res.json({ success: true, message: 'Transmissão iniciada com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao processar /api/live/start:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ✅ NOVA ROTA: Parar transmissão (Chamada pelo ZK Studio)
+app.post('/api/live/stop', async (req, res) => {
+  try {
+    const { streamId } = req.body;
+
+    if (!streamId) {
+      return res.status(400).json({ success: false, error: 'streamId é obrigatório' });
+    }
+
+    console.log(`🛑 Parando transmissão: ${streamId}`);
+
+    // Atualizar no Supabase
+    const { error } = await supabase
+      .from('live_streams')
+      .update({
+        is_active: false,
+        ended_at: new Date().toISOString()
+      })
+      .eq('id', streamId);
+
+    if (error) {
+      console.error('❌ Erro ao parar live no Supabase:', error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    // Invalidar cache
+    liveStreamsCache = null;
+    liveStreamsCacheTime = 0;
+
+    // Broadcast via Socket.io
+    io.emit('live-stop', { streamId });
+    io.to(`stream:${streamId}`).emit('stream-ended', {
+      streamId,
+      message: 'A transmissão foi encerrada'
+    });
+
+    res.json({ success: true, message: 'Transmissão encerrada com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao processar /api/live/stop:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -293,13 +381,13 @@ const LIVE_STREAMS_CACHE_TTL = 10000; // 10 segundos (atualiza a cada 10s em vez
 
 async function getActiveLiveStreams() {
   const now = Date.now();
-  
+
   // Se cache ainda é válido, retornar do cache
   if (liveStreamsCache && (now - liveStreamsCacheTime) < LIVE_STREAMS_CACHE_TTL) {
     console.log('📦 Retornando live_streams do CACHE (reduz carga no Supabase)');
     return liveStreamsCache;
   }
-  
+
   // Cache expirou, buscar do Supabase
   try {
     console.log('🔄 Buscando live_streams do Supabase (cache expirado)');
@@ -308,7 +396,7 @@ async function getActiveLiveStreams() {
       .select('*')
       .eq('is_active', true)
       .order('created_at', { ascending: false });
-    
+
     if (error) {
       console.error('❌ Erro ao buscar live_streams:', error);
       // Se houver erro mas temos cache antigo, retornar cache antigo
@@ -318,12 +406,12 @@ async function getActiveLiveStreams() {
       }
       throw error;
     }
-    
+
     // Atualizar cache
     liveStreamsCache = data;
     liveStreamsCacheTime = now;
     console.log(`✅ Cache de live_streams atualizado: ${data?.length || 0} streams ativas`);
-    
+
     return data;
   } catch (error) {
     console.error('❌ Erro crítico ao buscar live_streams:', error);
@@ -339,7 +427,7 @@ io.engine.on('connection_error', (err) => {
   const host = err.req?.headers?.host || 'unknown';
   const upgrade = err.req?.headers?.upgrade || 'none';
   const connection = err.req?.headers?.connection || 'none';
-  
+
   console.error('❌ Socket.IO: Erro de conexão:', origin);
   console.error('❌ Mensagem:', err.message);
   console.error('❌ Detalhes completos:', {
@@ -368,14 +456,14 @@ io.on('connection', (socket) => {
     origin: socket.handshake.headers.origin || 'unknown',
     userAgent: socket.handshake.headers['user-agent'] || 'unknown'
   };
-  
+
   console.log(`✅ Viewer conectado:`, clientInfo);
-  
+
   // Log de upgrade de transporte (polling -> websocket)
   socket.conn.on('upgrade', () => {
     console.log(`🔄 Socket ${socket.id} fez upgrade para: ${socket.conn.transport.name}`);
   });
-  
+
   // Log de erro no socket
   socket.on('error', (error) => {
     console.error(`❌ Erro no socket ${socket.id}:`, error);
@@ -1347,16 +1435,16 @@ io.on('connection', (socket) => {
     for (const [streamId, sockets] of streamRooms.entries()) {
       const wasInRoom = sockets.has(socket.id);
       sockets.delete(socket.id);
-      
+
       if (sockets.size === 0) {
         streamRooms.delete(streamId);
       }
-      
+
       // ✅ RESILIENTE: Remover do cache
       if (wasInRoom) {
         cache.removeViewer(streamId, socket.id);
       }
-      
+
       // ✅ NOVO: Se o viewer estava nesta sala, broadcast contagem atualizada
       if (wasInRoom) {
         broadcastViewerCount(streamId);
@@ -1572,38 +1660,38 @@ const liveStreamsChannel = supabase
   }, async (payload) => {
     const stream = payload.new || payload.old;
     const streamId = stream?.id;
-    
+
     console.log('📺 Mudança detectada em live_streams:', payload.eventType, streamId);
-    
+
     if (!streamId) return;
-    
+
     // ✅ INVALIDAR CACHE quando houver mudança em live_streams
     console.log('🔄 Invalidando cache de live_streams devido a mudança');
     liveStreamsCache = null;
     liveStreamsCacheTime = 0;
-    
+
     // Buscar dados atualizados imediatamente
     const updatedStreams = await getActiveLiveStreams();
-    
+
     // Broadcast para TODOS os clientes conectados (não apenas da stream específica)
     io.emit('live-streams-updated', {
       streams: updatedStreams,
       timestamp: Date.now()
     });
-    
+
     // Broadcast para todos os viewers da stream específica
     io.to(`stream:${streamId}`).emit('stream-updated', {
       streamId: streamId,
       updates: payload.new || {},
       eventType: payload.eventType
     });
-    
+
     // Se a live foi encerrada (is_active mudou de true para false)
-    if (payload.eventType === 'UPDATE' && 
-        payload.old?.is_active === true && 
-        payload.new?.is_active === false) {
+    if (payload.eventType === 'UPDATE' &&
+      payload.old?.is_active === true &&
+      payload.new?.is_active === false) {
       console.log('🛑 Live encerrada! Notificando todos os viewers da stream:', streamId);
-      
+
       // Emitir evento especifico de encerramento
       io.to(`stream:${streamId}`).emit('stream-ended', {
         streamId: streamId,
@@ -1645,7 +1733,7 @@ server.listen(PORT, () => {
   console.log(`🔧 Ambiente: ${NODE_ENV}`);
   console.log(`✅ Pronto para receber conexões WebSocket`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-  
+
   if (isProduction) {
     console.log('⚠️  PRODUÇÃO: Certifique-se de que o Nginx está configurado para proxy WebSocket');
     console.log('⚠️  PRODUÇÃO: Verifique se o certificado SSL está válido');
