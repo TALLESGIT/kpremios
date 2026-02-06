@@ -360,8 +360,7 @@ app.post('/api/live/stop', async (req, res) => {
     const { error } = await supabase
       .from('live_streams')
       .update({
-        is_active: false,
-        ended_at: new Date().toISOString()
+        is_active: false
       })
       .eq('id', streamId);
 
