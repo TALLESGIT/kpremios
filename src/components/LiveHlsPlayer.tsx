@@ -26,6 +26,10 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "", showPerf
   const [status, setStatus] = useState<Status>("offline");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [needsInteraction, setNeedsInteraction] = useState(false);
+  /** Níveis HLS disponíveis (após MANIFEST_PARSED). currentLevel -1 = Automático */
+  const [levels, setLevels] = useState<Array<{ index: number; label: string; height?: number }>>([]);
+  const [currentLevel, setCurrentLevel] = useState<number>(-1);
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
 
   const perf = useFpsMonitor(videoRef, showPerf && status === "playing");
 
@@ -101,6 +105,8 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "", showPerf
       cleanup();
       setStatus("loading");
       setErrorMessage(null);
+      setLevels([]);
+      setCurrentLevel(-1);
       reconnectAttempts.current = 0;
 
       video.muted = false; // ✅ Não mutar por padrão para ter áudio
@@ -174,6 +180,12 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "", showPerf
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          const levelList = (hls.levels || []).map((lev: { height?: number; width?: number; bitrate?: number }, idx: number) => ({
+            index: idx,
+            label: lev.height ? `${lev.height}p` : `Nível ${idx + 1}`,
+            height: lev.height,
+          }));
+          setLevels(levelList);
           video
             .play()
             .then(() => {
@@ -400,20 +412,74 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "", showPerf
       )}
 
       {status === "playing" && (
-        <button
-          onClick={handleFullscreen}
-          className="absolute bottom-4 right-4 z-30 p-3 bg-black/70 hover:bg-black/90 rounded-lg text-white transition-colors"
-          aria-label="Tela cheia"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
-            />
-          </svg>
-        </button>
+        <div className="absolute bottom-4 right-4 z-30 flex items-center gap-2">
+          {/* Seletor de qualidade (HLS) - recomendado para internet ruim */}
+          {levels.length > 0 && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowQualityMenu((v) => !v)}
+                className="p-3 bg-black/70 hover:bg-black/90 rounded-lg text-white transition-colors flex items-center gap-2 text-sm"
+                aria-label="Qualidade"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                </svg>
+                <span>{currentLevel === -1 ? "Automático" : levels.find((l) => l.index === currentLevel)?.label ?? "Automático"}</span>
+              </button>
+              {showQualityMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" aria-hidden onClick={() => setShowQualityMenu(false)} />
+                  <div className="absolute right-0 bottom-full mb-1 py-1 min-w-[140px] bg-black/95 rounded-lg border border-white/20 shadow-xl z-50">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (hlsRef.current) {
+                          hlsRef.current.currentLevel = -1;
+                          setCurrentLevel(-1);
+                        }
+                        setShowQualityMenu(false);
+                      }}
+                      className={`w-full px-4 py-2 text-left text-sm ${currentLevel === -1 ? "bg-white/20 text-white" : "text-slate-300 hover:bg-white/10"}`}
+                    >
+                      Automático
+                    </button>
+                    {levels.map((lev) => (
+                      <button
+                        key={lev.index}
+                        type="button"
+                        onClick={() => {
+                          if (hlsRef.current) {
+                            hlsRef.current.currentLevel = lev.index;
+                            setCurrentLevel(lev.index);
+                          }
+                          setShowQualityMenu(false);
+                        }}
+                        className={`w-full px-4 py-2 text-left text-sm ${currentLevel === lev.index ? "bg-white/20 text-white" : "text-slate-300 hover:bg-white/10"}`}
+                      >
+                        {lev.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          <button
+            onClick={handleFullscreen}
+            className="p-3 bg-black/70 hover:bg-black/90 rounded-lg text-white transition-colors"
+            aria-label="Tela cheia"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+              />
+            </svg>
+          </button>
+        </div>
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import Hls from 'hls.js';
 import { useFpsMonitor } from '../hooks/useFpsMonitor';
 
 interface HLSViewerProps {
@@ -11,33 +12,34 @@ interface HLSViewerProps {
 
 /**
  * Player HLS para mobile (Android/iOS)
- * Usa video HTML5 nativo que suporta HLS
- * Respeita políticas de autoplay - vídeo inicia mutado, áudio só após interação
+ * Se hls.js estiver disponível (ex.: Android): usa hls.js e mostra seletor de qualidade.
+ * Caso contrário (ex.: iOS Safari): usa video nativo (sem seletor de qualidade).
+ * Respeita políticas de autoplay - vídeo inicia mutado, áudio só após interação.
  */
 export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initialInteracted = false, showPerf = false }: HLSViewerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const [needsInteraction, setNeedsInteraction] = useState(true);
   const [userInteracted, setUserInteracted] = useState(false);
   const [hasVideo, setHasVideo] = useState(false);
+  const [levels, setLevels] = useState<Array<{ index: number; label: string }>>([]);
+  const [currentLevel, setCurrentLevel] = useState<number>(-1);
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const useHlsJs = Hls.isSupported();
 
   const perf = useFpsMonitor(videoRef, showPerf && hasVideo);
 
-  // Handler de interação do usuário
   const handleUserInteraction = useCallback(async () => {
     const video = videoRef.current;
     if (!video) return;
-
-    console.log('👆 HLSViewer: Usuário interagiu - ativando áudio');
 
     setUserInteracted(true);
     setNeedsInteraction(false);
 
     try {
-      // Desmutar vídeo e tentar play
       video.muted = false;
       await video.play();
-      console.log('✅ HLSViewer: Áudio ativado após interação');
     } catch (err) {
       console.error('❌ HLSViewer: Erro ao ativar áudio:', err);
     }
@@ -47,45 +49,60 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     const video = videoRef.current;
     if (!video || !hlsUrl) return;
 
-    // Vídeo SEMPRE inicia MUTADO
     video.muted = true;
     video.playsInline = true;
 
-    // Tentar carregar o vídeo
+    if (useHlsJs) {
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+        startLevel: -1,
+        maxBufferLength: 10,
+        maxMaxBufferLength: 20,
+      });
+      hlsRef.current = hls;
+      hls.loadSource(hlsUrl);
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        const levelList = (hls.levels || []).map((lev: { height?: number }, idx: number) => ({
+          index: idx,
+          label: lev.height ? `${lev.height}p` : `Nível ${idx + 1}`,
+        }));
+        setLevels(levelList);
+        video.play().then(() => setHasVideo(true)).catch(() => setNeedsInteraction(true));
+      });
+
+      hls.on(Hls.Events.FRAG_LOADED, () => setHasVideo(true));
+
+      const onCanPlay = () => setHasVideo(true);
+      video.addEventListener('canplay', onCanPlay);
+
+      return () => {
+        video.removeEventListener('canplay', onCanPlay);
+        try {
+          hls.destroy();
+        } catch {}
+        hlsRef.current = null;
+      };
+    }
+
+    // Caminho nativo (iOS Safari, etc.)
     video.src = hlsUrl;
     video.load();
 
-    // Tratamento de erros
-    const handleError = (e: Event) => {
-      console.error('❌ Erro ao carregar HLS:', e);
-    };
-
-    const handleLoadStart = () => {
-      console.log('🔄 HLS: Iniciando carregamento...');
-    };
-
+    const handleError = () => {};
+    const handleLoadStart = () => {};
     const handleCanPlay = async () => {
-      console.log('✅ HLS: Vídeo pronto para reproduzir');
       setHasVideo(true);
-
-      // Tentar play mutado (sempre permitido)
       try {
         await video.play();
-        console.log('✅ HLS: Vídeo reproduzindo (mutado)');
-        // Se autoplay foi bloqueado, mostrar botão
-        if (video.paused) {
-          setNeedsInteraction(true);
-        }
-      } catch (err: any) {
-        console.warn('⚠️ HLS: Autoplay bloqueado:', err);
+        if (video.paused) setNeedsInteraction(true);
+      } catch {
         setNeedsInteraction(true);
       }
     };
-
-    const handlePlay = () => {
-      console.log('▶️ HLS: Vídeo começou a reproduzir');
-      setHasVideo(true);
-    };
+    const handlePlay = () => setHasVideo(true);
 
     video.addEventListener('error', handleError);
     video.addEventListener('loadstart', handleLoadStart);
@@ -98,7 +115,7 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
       video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('play', handlePlay);
     };
-  }, [hlsUrl]);
+  }, [hlsUrl, useHlsJs]);
 
   // Unmute if initial interaction detected
   useEffect(() => {
@@ -154,6 +171,58 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
             >
               {perf.stress === 'ok' ? 'OK' : perf.stress === 'medio' ? 'Médio' : 'Alto'}
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* Seletor de qualidade (quando hls.js está em uso, ex.: Android) */}
+      {hasVideo && levels.length > 0 && (
+        <div className="absolute bottom-4 right-4 z-30">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowQualityMenu((v) => !v)}
+              className="p-3 bg-black/70 hover:bg-black/90 rounded-lg text-white transition-colors flex items-center gap-2 text-sm"
+              aria-label="Qualidade"
+            >
+              <span>{currentLevel === -1 ? 'Automático' : levels.find((l) => l.index === currentLevel)?.label ?? 'Automático'}</span>
+            </button>
+            {showQualityMenu && (
+              <>
+                <div className="fixed inset-0 z-40" aria-hidden onClick={() => setShowQualityMenu(false)} />
+                <div className="absolute right-0 bottom-full mb-1 py-1 min-w-[120px] bg-black/95 rounded-lg border border-white/20 shadow-xl z-50">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (hlsRef.current) {
+                        hlsRef.current.currentLevel = -1;
+                        setCurrentLevel(-1);
+                      }
+                      setShowQualityMenu(false);
+                    }}
+                    className={`w-full px-4 py-2 text-left text-sm ${currentLevel === -1 ? 'bg-white/20 text-white' : 'text-slate-300 hover:bg-white/10'}`}
+                  >
+                    Automático
+                  </button>
+                  {levels.map((lev) => (
+                    <button
+                      key={lev.index}
+                      type="button"
+                      onClick={() => {
+                        if (hlsRef.current) {
+                          hlsRef.current.currentLevel = lev.index;
+                          setCurrentLevel(lev.index);
+                        }
+                        setShowQualityMenu(false);
+                      }}
+                      className={`w-full px-4 py-2 text-left text-sm ${currentLevel === lev.index ? 'bg-white/20 text-white' : 'text-slate-300 hover:bg-white/10'}`}
+                    >
+                      {lev.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -33,6 +33,13 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
   const [useVP8Fallback, setUseVP8Fallback] = useState(false);
   const [decodeErrorCount, setDecodeErrorCount] = useState(0);
 
+  // ✅ Seletor de qualidade (Agora: Automático / Alta / Baixa) - ajuda em 4G/Wi‑Fi ruim
+  const [qualityPreference, setQualityPreference] = useState<'auto' | 'high' | 'low'>('auto');
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const remoteVideoUidRef = useRef<number | string | null>(null);
+  const qualityPreferenceRef = useRef<'auto' | 'high' | 'low'>('auto');
+  qualityPreferenceRef.current = qualityPreference;
+
 
 
   useEffect(() => {
@@ -213,13 +220,15 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
 
               if (user.videoTrack) {
                 videoTrackRef.current = user.videoTrack;
+                remoteVideoUidRef.current = user.uid;
 
-                // ✅ CORREÇÃO: Usar qualidade ALTA (1) e desabilitar fallback para manter qualidade
+                // ✅ Aplicar preferência de qualidade (Automático / Alta / Baixa)
                 try {
-                  await client.setRemoteVideoStreamType?.(user.uid, 1);
-                  // Fallback option: 1 = Disable (não fazer fallback automático, manter qualidade alta)
-                  client.setStreamFallbackOption?.(user.uid, 1);
-                  console.log('✅ ZKViewer: Qualidade de vídeo configurada para ALTA');
+                  const q = qualityPreferenceRef.current;
+                  const streamType = q === 'low' ? 0 : 1; // 0 = baixa, 1 = alta
+                  const fallbackOption = q === 'auto' ? 0 : 1; // 0 = permitir fallback, 1 = desabilitar
+                  await client.setRemoteVideoStreamType?.(user.uid, streamType);
+                  client.setStreamFallbackOption?.(user.uid, fallbackOption);
                 } catch (err) {
                   console.warn('⚠️ ZKViewer: Erro ao configurar qualidade:', err);
                 }
@@ -298,6 +307,7 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
           if (mediaType === 'video') {
             setIsLive(false);
             setReconnectCount(prev => prev + 1);
+            remoteVideoUidRef.current = null;
 
             if (videoTrackRef.current) { videoTrackRef.current.stop(); videoTrackRef.current = null; }
             if (bgTrackRef.current) { try { bgTrackRef.current.stop(); } catch { } bgTrackRef.current = null; }
@@ -444,6 +454,54 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
     <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%', backgroundColor: 'black', overflow: 'hidden' }}>
       <div ref={bgRef} className="zk-video-bg" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 0, backgroundColor: 'black' }} />
       <div ref={fgRef} className="zk-video-fg" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 1, backgroundColor: 'transparent' }} />
+      {isLive && (
+        <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowQualityMenu((v) => !v)}
+              className="p-3 bg-black/70 hover:bg-black/90 rounded-lg text-white transition-colors flex items-center gap-2 text-sm"
+              aria-label="Qualidade do vídeo"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+              </svg>
+              <span>
+                {qualityPreference === 'auto' ? 'Automático' : qualityPreference === 'high' ? 'Alta' : 'Baixa'}
+              </span>
+            </button>
+            {showQualityMenu && (
+              <>
+                <div className="fixed inset-0 z-40" aria-hidden onClick={() => setShowQualityMenu(false)} />
+                <div className="absolute right-0 bottom-full mb-1 py-1 min-w-[140px] bg-black/95 rounded-lg border border-white/20 shadow-xl z-50">
+                  {(['auto', 'high', 'low'] as const).map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => {
+                        setQualityPreference(q);
+                        setShowQualityMenu(false);
+                        const uid = remoteVideoUidRef.current;
+                        const client = clientRef.current;
+                        if (uid != null && client?.setRemoteVideoStreamType) {
+                          const streamType = q === 'low' ? 0 : 1;
+                          const fallbackOption = q === 'auto' ? 0 : 1;
+                          client.setRemoteVideoStreamType(uid, streamType).catch(() => {});
+                          client.setStreamFallbackOption?.(uid, fallbackOption);
+                        }
+                      }}
+                      className={`w-full px-4 py-2 text-left text-sm ${qualityPreference === q ? 'bg-white/20 text-white' : 'text-slate-300 hover:bg-white/10'}`}
+                    >
+                      {q === 'auto' ? 'Automático' : q === 'high' ? 'Alta' : 'Baixa'}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {!isLive && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zinc-950">
           <div className="flex flex-col items-center space-y-6 animate-in fade-in duration-700">
