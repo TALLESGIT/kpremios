@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import Hls from 'hls.js';
 import { useFpsMonitor } from '../hooks/useFpsMonitor';
 
 interface HLSViewerProps {
@@ -12,21 +11,15 @@ interface HLSViewerProps {
 
 /**
  * Player HLS para mobile (Android/iOS)
- * Se hls.js estiver disponível (ex.: Android): usa hls.js e mostra seletor de qualidade.
- * Caso contrário (ex.: iOS Safari): usa video nativo (sem seletor de qualidade).
- * Respeita políticas de autoplay - vídeo inicia mutado, áudio só após interação.
+ * Usa video HTML5 nativo que suporta HLS
+ * Respeita políticas de autoplay - vídeo inicia mutado, áudio só após interação
  */
 export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initialInteracted = false, showPerf = false }: HLSViewerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const hlsRef = useRef<Hls | null>(null);
   const [needsInteraction, setNeedsInteraction] = useState(true);
   const [userInteracted, setUserInteracted] = useState(false);
   const [hasVideo, setHasVideo] = useState(false);
-  const [levels, setLevels] = useState<Array<{ index: number; label: string }>>([]);
-  const [currentLevel, setCurrentLevel] = useState<number>(-1);
-  const [showQualityMenu, setShowQualityMenu] = useState(false);
-  const useHlsJs = Hls.isSupported();
 
   const perf = useFpsMonitor(videoRef, showPerf && hasVideo);
 
@@ -52,42 +45,6 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     video.muted = true;
     video.playsInline = true;
 
-    if (useHlsJs) {
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: true,
-        startLevel: -1,
-        maxBufferLength: 10,
-        maxMaxBufferLength: 20,
-      });
-      hlsRef.current = hls;
-      hls.loadSource(hlsUrl);
-      hls.attachMedia(video);
-
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        const levelList = (hls.levels || []).map((lev: { height?: number }, idx: number) => ({
-          index: idx,
-          label: lev.height ? `${lev.height}p` : `Nível ${idx + 1}`,
-        }));
-        setLevels(levelList);
-        video.play().then(() => setHasVideo(true)).catch(() => setNeedsInteraction(true));
-      });
-
-      hls.on(Hls.Events.FRAG_LOADED, () => setHasVideo(true));
-
-      const onCanPlay = () => setHasVideo(true);
-      video.addEventListener('canplay', onCanPlay);
-
-      return () => {
-        video.removeEventListener('canplay', onCanPlay);
-        try {
-          hls.destroy();
-        } catch {}
-        hlsRef.current = null;
-      };
-    }
-
-    // Caminho nativo (iOS Safari, etc.)
     video.src = hlsUrl;
     video.load();
 
@@ -115,12 +72,10 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
       video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('play', handlePlay);
     };
-  }, [hlsUrl, useHlsJs]);
+  }, [hlsUrl]);
 
-  // Unmute if initial interaction detected
   useEffect(() => {
     if (initialInteracted && hasVideo && !userInteracted) {
-      console.log('⚡ HLSViewer: Interaction from parent, unmuting');
       handleUserInteraction();
     }
   }, [initialInteracted, hasVideo, userInteracted, handleUserInteraction]);
@@ -175,59 +130,6 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         </div>
       )}
 
-      {/* Seletor de qualidade (quando hls.js está em uso, ex.: Android) */}
-      {hasVideo && levels.length > 0 && (
-        <div className="absolute bottom-4 right-4 z-30">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowQualityMenu((v) => !v)}
-              className="p-3 bg-black/70 hover:bg-black/90 rounded-lg text-white transition-colors flex items-center gap-2 text-sm"
-              aria-label="Qualidade"
-            >
-              <span>{currentLevel === -1 ? 'Automático' : levels.find((l) => l.index === currentLevel)?.label ?? 'Automático'}</span>
-            </button>
-            {showQualityMenu && (
-              <>
-                <div className="fixed inset-0 z-40" aria-hidden onClick={() => setShowQualityMenu(false)} />
-                <div className="absolute right-0 bottom-full mb-1 py-1 min-w-[120px] bg-black/95 rounded-lg border border-white/20 shadow-xl z-50">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (hlsRef.current) {
-                        hlsRef.current.currentLevel = -1;
-                        setCurrentLevel(-1);
-                      }
-                      setShowQualityMenu(false);
-                    }}
-                    className={`w-full px-4 py-2 text-left text-sm ${currentLevel === -1 ? 'bg-white/20 text-white' : 'text-slate-300 hover:bg-white/10'}`}
-                  >
-                    Automático
-                  </button>
-                  {levels.map((lev) => (
-                    <button
-                      key={lev.index}
-                      type="button"
-                      onClick={() => {
-                        if (hlsRef.current) {
-                          hlsRef.current.currentLevel = lev.index;
-                          setCurrentLevel(lev.index);
-                        }
-                        setShowQualityMenu(false);
-                      }}
-                      className={`w-full px-4 py-2 text-left text-sm ${currentLevel === lev.index ? 'bg-white/20 text-white' : 'text-slate-300 hover:bg-white/10'}`}
-                    >
-                      {lev.label}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Overlay de interação - estilo profissional */}
       {needsInteraction && hasVideo && !initialInteracted && (
         <div
           className="absolute inset-0 flex items-center justify-center bg-black/85 backdrop-blur-sm z-10"
@@ -247,4 +149,3 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     </div>
   );
 }
-
