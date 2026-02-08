@@ -722,10 +722,10 @@ const PublicLiveStreamPage: React.FC = () => {
   }, [isFullscreen, isMobile, isChatOpen, isLandscape, stream]);
 
 
+  // Sempre usar 'contain' para não cortar o conteúdo do vídeo (object-fit: cover corta as bordas)
   useEffect(() => {
-    if (isMobile && isFullscreen && isLandscape) setVideoFitMode(isChatOpen ? 'contain' : 'cover');
-    else if (!isFullscreen) setVideoFitMode('contain');
-  }, [isMobile, isFullscreen, isLandscape, isChatOpen]);
+    setVideoFitMode('contain');
+  }, []);
 
   if (loading || !stream) {
     return (
