@@ -72,6 +72,41 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
 
     try {
       setLoading(true);
+
+      // 🔁 Regra de ACÚMULO:
+      // Quando criar um novo bolão:
+      // - Se o bolão anterior teve GANHADOR → acumulado começa em 0
+      // - Se NÃO teve ganhador → acumulado começa com o valor acumulado anterior + 70% do valor total do bolão anterior
+      let accumulated_amount = 0;
+      try {
+        // 🔁 Regra de acúmulo global:
+        // Considera SEMPRE o ÚLTIMO bolão criado (independente da live),
+        // pois o jackpot é único/geral no sistema.
+        const { data: lastPool, error: lastPoolError } = await supabase
+          .from('match_pools')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!lastPoolError && lastPool) {
+          const hasResult =
+            lastPool.result_home_score !== null &&
+            lastPool.result_away_score !== null;
+
+          // Se o anterior tem resultado definido e NÃO teve ganhador (winners_count = 0),
+          // o novo bolão herda o acumulado + o valor do bolão anterior.
+          // IMPORTANTE: total_pool_amount já está em 70% (parte do prêmio), então NÃO multiplicar por 0.7 aqui.
+          if (hasResult && (!lastPool.winners_count || lastPool.winners_count === 0)) {
+            const previousAccumulated = lastPool.accumulated_amount || 0;
+            const previousBasePrize = lastPool.total_pool_amount || 0;
+            accumulated_amount = previousAccumulated + previousBasePrize;
+          }
+        }
+      } catch (e) {
+        console.warn('PoolManager: não foi possível calcular acumulado do bolão anterior:', e);
+      }
+
       const { data, error } = await supabase
         .from('match_pools')
         .insert({
@@ -79,7 +114,8 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
           match_title: formData.match_title,
           home_team: formData.home_team,
           away_team: formData.away_team,
-          is_active: false
+          is_active: false,
+          accumulated_amount
         })
         .select()
         .single();

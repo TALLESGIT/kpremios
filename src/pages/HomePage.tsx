@@ -592,7 +592,7 @@ function HomePage() {
 
                 {/* Informações do Bolão */}
                 <div className="space-y-3 mb-4">
-                  {/* Valor do Prêmio (70%) - DESTAQUE PRINCIPAL */}
+                  {/* Valor do Prêmio - DESTAQUE PRINCIPAL (somente o prêmio disponível para o usuário final) */}
                   <div className="bg-gradient-to-br from-emerald-500/15 via-emerald-600/10 to-emerald-700/15 border-2 border-emerald-500/40 rounded-xl p-4 relative overflow-hidden">
                     <div className="relative">
                       <div className="flex items-center justify-center gap-2 mb-1">
@@ -602,36 +602,10 @@ function HomePage() {
                       <p className="text-3xl sm:text-4xl font-black text-emerald-300 mb-1 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]">
                         R$ {((activePool.total_pool_amount || 0) * 0.70 + (activePool.accumulated_amount || 0)).toFixed(2).replace('.', ',')}
                       </p>
-                      {/* Mostrar apenas para admins */}
-                      {isAdmin && (
-                        <p className="text-[9px] text-emerald-400/60 font-medium">
-                          Base: R$ {((activePool.total_pool_amount || 0) * 0.70).toFixed(2).replace('.', ',')} + Acumulado: R$ {(activePool.accumulated_amount || 0).toFixed(2).replace('.', ',')} | 30% ({((activePool.total_pool_amount || 0) * 0.30).toFixed(2).replace('.', ',')}) plataforma
-                        </p>
-                      )}
                     </div>
                   </div>
 
-                  {/* Número de Participantes e Total Arrecadado - Apenas para Admins */}
-                  {isAdmin && (
-                    <div className="grid gap-2 text-xs grid-cols-2">
-                      <div className="bg-slate-900/50 rounded-lg p-2.5 border border-emerald-500/10">
-                        <div className="flex items-center justify-center gap-1 mb-1">
-                          <Users className="w-3.5 h-3.5 text-emerald-400" />
-                        </div>
-                        <p className="text-lg font-black text-white">{activePool.total_participants || 0}</p>
-                        <p className="text-[9px] text-slate-400 font-medium">Participantes</p>
-                      </div>
-                      <div className="bg-slate-900/50 rounded-lg p-2.5 border border-emerald-500/10">
-                        <div className="flex items-center justify-center gap-1 mb-1">
-                          <DollarSign className="w-3.5 h-3.5 text-slate-400" />
-                        </div>
-                        <p className="text-lg font-black text-slate-300">
-                          R$ {(activePool.total_pool_amount || 0).toFixed(2).replace('.', ',')}
-                        </p>
-                        <p className="text-[9px] text-slate-400 font-medium">Total Arrecadado</p>
-                      </div>
-                    </div>
-                  )}
+                  {/* (Ocultado no card público) Participantes/Total arrecadado removidos para deixar só o prêmio disponível */}
 
                   {/* Mostrar Resultado e Ganhadores se houver */}
                   {(activePool.result_home_score !== null && activePool.result_away_score !== null) && (
