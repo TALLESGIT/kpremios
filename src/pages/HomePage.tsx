@@ -605,8 +605,6 @@ function HomePage() {
                     </div>
                   </div>
 
-                  {/* (Ocultado no card público) Participantes/Total arrecadado removidos para deixar só o prêmio disponível */}
-
                   {/* Mostrar Resultado e Ganhadores se houver */}
                   {(activePool.result_home_score !== null && activePool.result_away_score !== null) && (
                     <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 mt-3">
