@@ -454,10 +454,10 @@ export function ZKViewer({ appId, channel, token, fitMode = 'contain', muteAudio
 
             <div className="text-center space-y-2">
               <h3 className="text-white font-bold tracking-widest uppercase text-sm">
-                {connectionStartTime ? 'Sincronizando Sinal' : 'Aguardando Transmissão'}
+                {connectionStartTime ? '📡 Conectando à Live...' : '⏰ Aguardando Início...'}
               </h3>
               <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider">
-                {connectionStartTime ? 'Estabelecendo conexão segura...' : 'O evento começará em breve'}
+                {connectionStartTime ? 'Preparando a melhor qualidade para você... 🚀' : 'Pegue a pipoca! O show já vai começar 🍿✨'}
               </p>
             </div>
           </div>

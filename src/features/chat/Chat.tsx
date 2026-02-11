@@ -656,7 +656,7 @@ export function Chat({ streamId, isActive = true, className, showHeader = true }
     }
   };
 
-  const rootClassName = ['flex flex-col h-full bg-slate-900', className].filter(Boolean).join(' ');
+  const rootClassName = ['flex flex-col h-full', className].filter(Boolean).join(' '); // Removed default bg-slate-900 to allow overrides
 
   return (
     <div className={rootClassName}>

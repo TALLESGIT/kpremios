@@ -1,8 +1,9 @@
+// Unified Public Live Stream Page v2
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Eye, Share2, X, Trophy, Calendar, ChevronRight, MessageCircle, Crown, Tv, Minimize2, Maximize2, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Eye, Share2, X, Trophy, Calendar, ChevronRight, MessageCircle, Crown, Tv, Minimize2, Maximize2, MessageSquare, Shield, Activity, Clock, MapPin, Zap, Target, Bell } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useSocket } from '../hooks/useSocket';
@@ -10,13 +11,9 @@ import { LiveViewer } from '../components/LiveViewer';
 import { ChatSlot } from '../features/chat/ChatSlot';
 import { FloatingChatButton } from '../features/chat/FloatingChatButton';
 import { ChatDrawer } from '../features/chat/ChatDrawer';
-import BottomOverlay from '../components/live/BottomOverlay';
-import SideOverlay from '../components/live/SideOverlay';
-import PinnedLinkOverlay from '../components/live/PinnedLinkOverlay';
 import PollDisplay from '../components/live/PollDisplay';
+import PinnedLinkOverlay from '../components/live/PinnedLinkOverlay';
 import MobileLiveControls from '../components/live/MobileLiveControls';
-import { useOrientation } from '../hooks/useOrientation';
-import { useFullscreen } from '../hooks/useFullscreen';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import VipSubscriptionModal from '../components/vip/VipSubscriptionModal';
 import Header from '../components/shared/Header';
@@ -24,16 +21,17 @@ import Footer from '../components/shared/Footer';
 import { CastButton } from '../components/CastButton';
 import { CruzeiroGame, CruzeiroStanding } from '../types';
 import { useRegisterStreamId } from '../features/chat/useRegisterStreamId';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface LiveStream {
   id: string;
   title: string;
-  description: string;
+  description?: string | null;
   channel_name: string;
   is_active: boolean;
-  viewer_count: number;
-  created_at: string;
-  hls_url?: string;
+  viewer_count?: number;
+  created_at?: string;
+  hls_url?: string | null;
 }
 
 const isLivePageDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
@@ -47,14 +45,13 @@ const PublicLiveStreamPage: React.FC = () => {
   const { user } = useAuth();
   const { currentUser } = useData();
   const [stream, setStream] = useState<LiveStream | null>(null);
-  const streamId = stream?.id; // Alias estável para efeitos
+  const streamId = stream?.id;
   const lastViewerCountUpdateRef = useRef<number>(0);
 
   // ✅ REGISTRAR STREAM ID GLOBALMENTE
-  // Isso permite que o ChatHost global encontre o streamId desta página
   useRegisterStreamId(streamId);
 
-  // ✅ MIGRAÇÃO: Usar Socket.io para escutar atualizações da stream
+  // ✅ Socket.io
   const { socket, isConnected, on, off, joinStream, leaveStream } = useSocket({
     streamId: streamId || undefined,
     autoConnect: !!streamId
@@ -74,8 +71,9 @@ const PublicLiveStreamPage: React.FC = () => {
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const { isLandscape } = useOrientation();
-  const { isFullscreen } = useFullscreen();
+  const [isLandscape, setIsLandscape] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isDockedChat, setIsDockedChat] = useState(false); // State driven like ZkTVPage
   const [videoFitMode, setVideoFitMode] = useState<'contain' | 'cover'>('contain');
   const [showControls, setShowControls] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
@@ -92,104 +90,48 @@ const PublicLiveStreamPage: React.FC = () => {
     }
   }, [user, currentUser]);
 
-  // Handler para duplo clique - tela cheia (com suporte melhorado para mobile)
+  // Handler para duplo clique
   const handleDoubleClick = () => {
     if (!videoContainerRef.current) return;
-
-    try {
-      if (isFullscreen) {
-        // Sair do fullscreen
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-        } else if ((document as any).webkitExitFullscreen) {
-          (document as any).webkitExitFullscreen();
-        } else if ((document as any).mozCancelFullScreen) {
-          (document as any).mozCancelFullScreen();
-        } else if ((document as any).msExitFullscreen) {
-          (document as any).msExitFullscreen();
-        }
-      } else {
-        // Entrar no fullscreen
-        const el = videoContainerRef.current;
-        if (el.requestFullscreen) {
-          el.requestFullscreen();
-        } else if ((el as any).webkitRequestFullscreen) {
-          (el as any).webkitRequestFullscreen();
-        } else if ((el as any).mozRequestFullScreen) {
-          (el as any).mozRequestFullScreen();
-        } else if ((el as any).msRequestFullscreen) {
-          (el as any).msRequestFullscreen();
-        }
-      }
-    } catch (error: any) {
-      console.error('Erro ao alternar fullscreen (duplo clique):', error);
+    if (isFullscreen) {
+      if (document.exitFullscreen) document.exitFullscreen();
+    } else {
+      if (videoContainerRef.current.requestFullscreen) videoContainerRef.current.requestFullscreen();
     }
   };
 
-  // Função para atualizar contador de viewers (Apenas Local)
+  // Handler para fullscreen
+  const handleFullscreen = () => {
+    if (!videoContainerRef.current) return;
+    if (isFullscreen) {
+      if (document.exitFullscreen) document.exitFullscreen();
+    } else {
+      if (videoContainerRef.current.requestFullscreen) videoContainerRef.current.requestFullscreen();
+    }
+  };
+
   const updateViewerCount = useCallback(async (streamId: string) => {
     try {
       const { data: countData, error } = await supabase.rpc(
         'count_active_unique_viewers',
         { p_stream_id: streamId }
       );
-
-      if (error) {
-        // Fallback: usar 2 minutos para ser consistente com as funções RPC
-        const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-        const { data: sessions } = await supabase
-          .from('viewer_sessions')
-          .select('session_id')
-          .eq('stream_id', streamId)
-          .eq('is_active', true)
-          .gte('last_heartbeat', twoMinutesAgo);
-
-        const uniqueSessions = new Set(sessions?.map(s => s.session_id) || []);
-        const activeCount = uniqueSessions.size;
-
-        setCurrentViewerCount(activeCount);
-        setStream(prev => prev ? { ...prev, viewer_count: activeCount } : null);
-        return;
-      }
-
-      if (countData !== null) {
-        const activeCount = Number(countData) || 0;
-        setCurrentViewerCount(activeCount);
-        setStream(prev => prev ? { ...prev, viewer_count: activeCount } : null);
-      }
-    } catch (e) {
-      // Silencioso
-    }
+      if (error) return;
+      const activeCount = Number(countData) || 0;
+      setCurrentViewerCount(activeCount);
+    } catch (e) { }
   }, []);
 
-  // Ref para acompanhar o estado atual da stream sem disparar efeitos
   const streamRef = useRef<LiveStream | null>(null);
   useEffect(() => { streamRef.current = stream; }, [stream]);
 
-  // Função para criar/atualizar viewer session - Tornada estável usando refs
   const trackViewer = useCallback(async () => {
     const currentStream = streamRef.current;
-    if (!currentStream) {
-      if (isLivePageDebug()) console.warn('⚠️ trackViewer: stream não disponível');
-      return;
-    }
-
-    if (!currentStream.is_active) {
-      if (isLivePageDebug()) console.log('ℹ️ trackViewer: stream não está ativa, pulando tracking');
-      return;
-    }
+    if (!currentStream || !currentStream.is_active) return;
 
     try {
       const now = new Date().toISOString();
-      if (isLivePageDebug()) console.log('👤 trackViewer: Criando/atualizando sessão', {
-        stream_id: currentStream.id,
-        session_id: sessionId,
-        is_active: currentStream.is_active
-      });
-
-      // Usar upsert para evitar race conditions e duplicações
-      // O upsert é atômico e evita o problema de verificar se existe antes de inserir
-      const result = await supabase
+      await supabase
         .from('viewer_sessions')
         .upsert(
           {
@@ -199,348 +141,124 @@ const PublicLiveStreamPage: React.FC = () => {
             is_active: currentStream.is_active,
             user_agent: navigator.userAgent,
             last_heartbeat: now,
-            // started_at só será usado na criação, não no update
             started_at: now
           },
-          {
-            onConflict: 'session_id,stream_id'
-          }
-        )
-        .select();
-
-      let data = result.data;
-      let error = result.error;
-
-      // Verificar se é uma nova sessão comparando started_at com now (margem de 2 segundos)
-      if (!error && data && data.length > 0) {
-        const session = data[0];
-        const sessionStartedAt = new Date(session.started_at).getTime();
-        const isNewSession = Math.abs(sessionStartedAt - Date.now()) < 2000;
-
-        // Se criou nova sessão e usuário está logado, tentar conceder VIP
-        if (isNewSession && user?.id) {
-          try {
-            const { data: vipGranted, error: vipError } = await supabase.rpc('grant_free_vip_if_eligible', {
-              p_user_id: user.id
-            });
-            if (vipGranted && !vipError) {
-              if (isLivePageDebug()) console.log('✅ VIP grátis concedido ao acessar live!');
-              toast.success('🎉 Parabéns! Você recebeu VIP gratuito!', {
-                duration: 5000,
-                icon: '💎'
-              });
-            }
-          } catch (vipError) {
-            console.error('Erro ao verificar VIP grátis:', vipError);
-            // Não bloquear se houver erro
-          }
-        }
-
-        // Se estava inativa e agora está ativa, limpar ended_at
-        if (!session.is_active && currentStream.is_active && session.ended_at) {
-          await supabase
-            .from('viewer_sessions')
-            .update({ ended_at: null })
-            .eq('id', session.id);
-        }
-      }
-
-      if (error) {
-        // Tratar erros de constraint de duplicação como não-críticos (sessão já existe)
-        if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
-          if (isLivePageDebug()) console.warn('⚠️ trackViewer: Sessão já existe (duplicada), ignorando...', error.message);
-          // Tentar fazer update da sessão existente
-          try {
-            const { data: existingSession } = await supabase
-              .from('viewer_sessions')
-              .select('id')
-              .eq('session_id', sessionId)
-              .eq('stream_id', currentStream.id)
-              .maybeSingle();
-
-            if (existingSession) {
-              await supabase
-                .from('viewer_sessions')
-                .update({
-                  is_active: currentStream.is_active,
-                  last_heartbeat: now,
-                  user_id: user?.id || null,
-                  user_agent: navigator.userAgent
-                })
-                .eq('id', existingSession.id);
-            }
-          } catch (updateError) {
-            if (isLivePageDebug()) console.warn('⚠️ Erro ao atualizar sessão existente:', updateError);
-          }
-          return; // Não bloquear o fluxo
-        }
-
-        // Tratar timeouts e erros de conexão como não-críticos
-        if (error.message?.includes('timeout') || error.message?.includes('failed to connect') || error.code === 'PGRST116') {
-          if (isLivePageDebug()) console.warn('⚠️ trackViewer: Erro de conexão/timeout, tentando novamente na próxima vez:', error.message);
-          return; // Não bloquear o fluxo
-        }
-
-        console.error('❌ Erro ao criar/atualizar viewer_session:', error);
-        // Não lançar erro para não quebrar o fluxo da aplicação
-      } else {
-        if (isLivePageDebug()) console.log('✅ trackViewer: Sessão criada/atualizada com sucesso', data);
-      }
-    } catch (e: any) {
-      if (e?.code === '23505' || e?.message?.includes('duplicate key') || e?.message?.includes('unique constraint')) {
-        if (isLivePageDebug()) console.warn('⚠️ trackViewer: Sessão duplicada, ignorando...', e.message);
-      } else if (e?.message?.includes('timeout') || e?.message?.includes('failed to connect')) {
-        if (isLivePageDebug()) console.warn('⚠️ trackViewer: Erro de conexão, será tentado novamente:', e.message);
-      } else {
-        console.error('❌ Erro geral ao track viewer:', e);
-      }
+          { onConflict: 'session_id,stream_id' }
+        );
+    } catch (e) {
+      console.error('Error tracking viewer', e);
     }
-  }, [sessionId, user?.id]); // Removido stream e updateViewerCount das dependências
+  }, [sessionId, user?.id]);
 
-  // ✅ OTIMIZAÇÃO: Heartbeat otimizado - evita chamar trackViewer toda vez
-  // Com 400 viewers, cada heartbeat duplicado = 800 queries/min extras desnecessárias
+  // Heartbeat logic
   const heartbeatInitializedRef = useRef(false);
-  const heartbeatErrorCountRef = useRef(0);
   const updateHeartbeat = useCallback(async () => {
     const currentStream = streamRef.current;
     if (!currentStream || !currentStream.is_active) return;
 
     try {
-      // ✅ Primeira vez: criar sessão com trackViewer (faz upsert completo)
       if (!heartbeatInitializedRef.current) {
         await trackViewer();
         heartbeatInitializedRef.current = true;
-        heartbeatErrorCountRef.current = 0; // Reset contador de erros
-        return; // Sair - trackViewer já atualiza last_heartbeat
+        return;
       }
-
-      // ✅ Depois: usar apenas RPC leve (muito mais rápido)
-      // RPC update_viewer_heartbeat só faz UPDATE (sem SELECT/INSERT)
       const { error } = await supabase.rpc('update_viewer_heartbeat', { p_session_id: sessionId });
-
-      // Se RPC falhar (sessão não existe), recriar com trackViewer
       if (error) {
-        // ✅ CORREÇÃO: Ignorar erros de autenticação (400) para não quebrar a live
-        if (error.message?.includes('Invalid login credentials') || error.message?.includes('JWT')) {
-          if (isLivePageDebug()) console.warn('⚠️ Heartbeat: Erro de autenticação ignorado (usuário anônimo)');
-          heartbeatErrorCountRef.current++;
-          if (heartbeatErrorCountRef.current > 5) {
-            if (isLivePageDebug()) console.log('🔄 Muitos erros de heartbeat, tentando recriar sessão...');
-            heartbeatInitializedRef.current = false;
-            heartbeatErrorCountRef.current = 0;
-          }
-          return; // Não tentar recriar a cada erro
-        }
-        
-        if (isLivePageDebug()) console.warn('⚠️ Heartbeat RPC falhou, recriando sessão:', error.message);
-        heartbeatInitializedRef.current = false;
-        await trackViewer();
-        heartbeatInitializedRef.current = true;
-        heartbeatErrorCountRef.current = 0;
-      } else {
-        // Sucesso - reset contador de erros
-        heartbeatErrorCountRef.current = 0;
+         heartbeatInitializedRef.current = false;
+         await trackViewer();
+         heartbeatInitializedRef.current = true;
       }
-    } catch (e: any) {
-      if (isLivePageDebug()) console.warn('⚠️ Erro no heartbeat (não crítico):', e?.message || e);
-      heartbeatErrorCountRef.current++;
-
-      if (heartbeatErrorCountRef.current > 5) {
-        if (isLivePageDebug()) console.log('🔄 Muitos erros de heartbeat, tentando recriar sessão...');
-        heartbeatInitializedRef.current = false;
-        heartbeatErrorCountRef.current = 0;
-        try {
-          await trackViewer();
-          heartbeatInitializedRef.current = true;
-        } catch (trackError) {
-          console.error('❌ Erro ao recriar sessão:', trackError);
-        }
-      }
+    } catch (e) {
+      heartbeatInitializedRef.current = false;
     }
   }, [sessionId, trackViewer]);
 
   useEffect(() => {
+    if (isLivePageDebug()) console.log('🚀 PublicLiveStreamPage carregada (Versão Unificada v2)');
     if (channelName) { loadStream(); loadZkTVData(); }
   }, [channelName]);
 
-  // Garantir que a página fique no topo ao carregar
   useEffect(() => {
     window.scrollTo(0, 0);
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
   }, []);
 
-  // ✅ MIGRAÇÃO: Listener para todas as mudanças na stream via Socket.io
   useEffect(() => {
     if (!streamId || !socket || !isConnected) return;
-
-    if (isLivePageDebug()) console.log(`🔌 Conectando Socket.io para stream: ${streamId}`);
-
-    // Entrar na sala da stream
     joinStream(streamId);
 
-    // Escutar evento 'stream-updated' do Socket.io
     const handleStreamUpdate = (data: { streamId: string; updates: Partial<LiveStream> }) => {
       if (data.streamId !== streamId) return;
-
-      const current = streamRef.current;
-      const wasActive = current?.is_active;
-      const updated = { ...current, ...data.updates } as LiveStream;
-
-      if (isLivePageDebug()) console.log('📡 Mudança na stream detectada via Socket.io:', updated.is_active ? 'AO VIVO' : 'OFFLINE');
-
-      // Atualizar estado
+      const updated = { ...streamRef.current, ...data.updates } as LiveStream;
       setStream(updated);
-      if (data.updates.viewer_count !== undefined) {
-        setCurrentViewerCount(data.updates.viewer_count);
-      }
-
-      // Lógica de tracking de sessão baseada na mudança de estado
-      if (!updated.is_active && wasActive) {
-        if (isLivePageDebug()) console.log('📡 PublicLiveStreamPage: Live encerrada detectada via Socket.io');
+      if (data.updates.viewer_count !== undefined) setCurrentViewerCount(data.updates.viewer_count);
+      
+      if (!updated.is_active && streamRef.current?.is_active) {
         setIsChatOpen(false);
-        // Marcar sessão como inativa
-        supabase.from('viewer_sessions')
-          .update({ is_active: false, ended_at: new Date().toISOString() })
-          .eq('session_id', sessionId)
-          .eq('stream_id', streamId);
-
-        // Mostrar notificação
-        toast.error('A transmissão foi encerrada pelo administrador');
-      } else if (updated.is_active) {
-        // Se está ativa (seja mudança ou já estava ativa), registrar/atualizar sessão
-        if (isLivePageDebug()) console.log('✅ Socket.io: Stream ativa, chamando trackViewer');
-        trackViewer();
+        toast.error('A transmissão foi encerrada.');
       }
     };
 
-    // ✅ Throttle viewer count para reduzir re-renders e travamentos
     const handleViewerCountUpdate = (data: { streamId: string; count: number }) => {
-      if (data.streamId !== streamId) return;
-      if (isLivePageDebug()) console.log('👥 PublicLiveStreamPage: Viewer count atualizado via Socket.io:', data.count);
-      const now = Date.now();
-      if (now - lastViewerCountUpdateRef.current >= VIEWER_COUNT_THROTTLE_MS) {
-        lastViewerCountUpdateRef.current = now;
-        setCurrentViewerCount(data.count);
-      }
+        if (data.streamId !== streamId) return;
+        const now = Date.now();
+        if (now - lastViewerCountUpdateRef.current >= VIEWER_COUNT_THROTTLE_MS) {
+          lastViewerCountUpdateRef.current = now;
+          setCurrentViewerCount(data.count);
+        }
     };
 
     on('stream-updated', handleStreamUpdate);
     on('viewer-count-updated', handleViewerCountUpdate);
 
     return () => {
-      if (isLivePageDebug()) console.log('🔌 Desconectando Socket.io stream');
       off('stream-updated', handleStreamUpdate);
       off('viewer-count-updated', handleViewerCountUpdate);
-      if (streamId) {
-        leaveStream(streamId);
-      }
+      leaveStream(streamId);
     };
-  }, [streamId, sessionId, trackViewer, socket, isConnected, on, off, joinStream, leaveStream]); // Dependências estáveis
+  }, [streamId, socket, isConnected, joinStream, leaveStream, on, off]);
 
   useEffect(() => {
-    if (!stream) {
-      if (isLivePageDebug()) console.log('ℹ️ useEffect stream: stream não disponível');
-      return;
-    }
-
-    if (isLivePageDebug()) {
-      console.log('🔄 useEffect stream: Stream carregada', {
-        id: stream.id,
-        is_active: stream.is_active,
-        channel_name: stream.channel_name
-      });
-    }
-
-    // Sempre rastrear quando a stream estiver ativa
-    if (stream.is_active) {
-      if (isLivePageDebug()) console.log('✅ useEffect stream: Stream ativa, iniciando tracking');
-      trackViewer();
-      updateViewerCount(stream.id);
-    } else {
-      if (isLivePageDebug()) console.log('ℹ️ useEffect stream: Stream inativa, pulando tracking');
-    }
-
-    setCurrentViewerCount(stream.viewer_count || 0);
-
-    // Marcar como executado apenas uma vez por stream.id
-    if (!trackViewerExecutedRef.current) {
-      trackViewerExecutedRef.current = true;
-    }
-
-    return () => {
-      // Reset apenas quando mudar de stream
-      if (stream.id !== streamRef.current?.id) {
-        trackViewerExecutedRef.current = false;
+      if (!stream) return;
+      if (stream.is_active) {
+          trackViewer();
+          updateViewerCount(stream.id);
       }
-    };
+      setCurrentViewerCount(stream.viewer_count || 0);
   }, [stream?.id, stream?.is_active, trackViewer, updateViewerCount]);
 
-  // ✅ OTIMIZAÇÃO: Heartbeat randomizado para evitar thundering herd com 70+ viewers
-  // Randomiza timing para distribuir carga ao longo do tempo
   useEffect(() => {
     const currentStream = streamRef.current;
     if (!currentStream || !currentStream.is_active) return;
-
-    // ✅ Randomizar primeiro heartbeat (0-5s) para distribuir carga inicial
-    const initialDelay = Math.floor(Math.random() * 5000); // 0-5 segundos
-
-    const initialTimeout = setTimeout(() => {
-      updateHeartbeat();
-      // Não atualizar viewer_count aqui - o admin já faz isso periodicamente
-    }, initialDelay);
-
-    // ✅ Randomizar intervalo (8-12s) para heartbeats mais frequentes
-    const baseInterval = 10000; // 10 segundos base
-    const randomOffset = Math.floor(Math.random() * 4000) - 2000; // -2 a +2 segundos
-    const interval = baseInterval + randomOffset;
-
+    const initialDelay = Math.floor(Math.random() * 5000);
+    const initialTimeout = setTimeout(() => updateHeartbeat(), initialDelay);
+    const baseInterval = 10000;
+    const randomOffset = Math.floor(Math.random() * 4000) - 2000;
     const intervalId = setInterval(() => {
-      const st = streamRef.current;
-      if (st && st.is_active) {
-        updateHeartbeat();
-        // ✅ Não chamar updateViewerCount aqui - deixa o admin fazer isso
-        // Com 70+ viewers, cada um chamando updateViewerCount a cada 30s = ~140 queries/min
-      }
-    }, interval);
+        if (streamRef.current?.is_active) updateHeartbeat();
+    }, baseInterval + randomOffset);
 
     return () => {
-      clearTimeout(initialTimeout);
-      clearInterval(intervalId);
+        clearTimeout(initialTimeout);
+        clearInterval(intervalId);
     };
-  }, [updateHeartbeat]); // Removido updateViewerCount para reduzir queries
+  }, [updateHeartbeat]);
 
   const loadStream = async () => {
     setLoading(true);
-    if (isLivePageDebug()) console.log('📥 loadStream: Carregando stream para channel:', channelName);
-
     try {
       const { getLiveStreamByChannel } = await import('../services/cachedLiveService');
       const data = await getLiveStreamByChannel(channelName || 'zktv');
-
       if (!data) {
-        if (isLivePageDebug()) console.warn('⚠️ loadStream: Stream não encontrada');
         toast.error('Transmissão não encontrada');
         navigate('/');
-        setLoading(false);
         return;
       }
-
-      if (isLivePageDebug()) {
-        console.log('✅ loadStream: Stream carregada', {
-          id: data.id,
-          is_active: data.is_active,
-          channel_name: data.channel_name
-        });
-      }
-
       setStream(data);
-      setLoading(false);
     } catch (error) {
-      console.error('❌ loadStream: Erro ao carregar stream:', error);
       toast.error('Erro ao carregar transmissão');
       navigate('/');
-      setLoading(false);
+    } finally {
+        setLoading(false);
     }
   };
 
@@ -551,181 +269,66 @@ const PublicLiveStreamPage: React.FC = () => {
     if (table) setStandings(table);
   };
 
-  // Função para compartilhar a live
   const handleShare = async () => {
     const shareUrl = window.location.href;
     const shareTitle = stream?.title || 'Transmissão ao Vivo';
     const shareText = `Assista à transmissão ao vivo: ${shareTitle}`;
-
-    try {
-      // Tentar usar Web Share API (disponível em dispositivos móveis e alguns navegadores)
-      if (navigator.share) {
-        await navigator.share({
-          title: shareTitle,
-          text: shareText,
-          url: shareUrl,
-        });
-        toast.success('Compartilhado com sucesso!');
-      } else {
-        // Fallback: copiar link para área de transferência
-        await navigator.clipboard.writeText(shareUrl);
-        toast.success('Link copiado para a área de transferência!');
-      }
-    } catch (error: any) {
-      // Se o usuário cancelar o compartilhamento, não mostrar erro
-      if (error.name !== 'AbortError') {
-        // Se falhar, tentar copiar para área de transferência
-        try {
-          await navigator.clipboard.writeText(shareUrl);
-          toast.success('Link copiado para a área de transferência!');
-        } catch (clipboardError) {
-          console.error('Erro ao compartilhar:', clipboardError);
-          toast.error('Erro ao compartilhar. Tente copiar o link manualmente.');
-        }
-      }
+    if (navigator.share) {
+      try { await navigator.share({ title: shareTitle, text: shareText, url: shareUrl }); } catch (e) {}
+    } else {
+      try { await navigator.clipboard.writeText(shareUrl); toast.success('Link copiado!'); } catch (e) { toast.error('Erro ao copiar link'); }
     }
   };
 
+  // Mobile & Orientation Logic
   useEffect(() => {
     const checkMobile = () => {
-      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768;
-      setIsMobile(mobile);
+      setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768);
     };
-
-    const handleRotation = () => {
-      if (!isMobile) return;
-
-      if (isLandscape && !isFullscreen && videoContainerRef.current) {
-        const el = videoContainerRef.current;
-        try {
-          if (el.requestFullscreen) el.requestFullscreen();
-          else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
-        } catch (e) {
-          if (isLivePageDebug()) console.warn('Auto-fullscreen bloqueado pelo navegador:', e);
-        }
-      }
+    const checkOrientation = () => {
+        const landscape = window.innerWidth > window.innerHeight;
+        setIsLandscape(landscape);
+        if (isMobile && isFullscreen && landscape) setIsDockedChat(true);
+        else if (!isFullscreen || !landscape) setIsDockedChat(false);
+    };
+    
+    const handleFullscreenChange = () => {
+        const isFs = !!document.fullscreenElement;
+        setIsFullscreen(isFs);
+        if (isMobile && isFs && window.innerWidth > window.innerHeight) setIsDockedChat(true);
+        else if (!isFs) setIsDockedChat(false);
     };
 
     checkMobile();
+    checkOrientation();
     window.addEventListener('resize', checkMobile);
-    window.addEventListener('orientationchange', () => {
-      setTimeout(handleRotation, 200);
-    });
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
 
     return () => {
       window.removeEventListener('resize', checkMobile);
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
-  }, [isMobile, isFullscreen, isLandscape]);
+  }, [isMobile, isFullscreen]);
 
-  // ✅ Handler para rotação (apenas mobile)
-  const handleRotate = () => {
-    if (!isMobile) return;
-    try {
-      if (screen.orientation && (screen.orientation as any).lock) {
-        const target = isLandscape ? 'portrait' : 'landscape';
-        (screen.orientation as any).lock(target).catch(() => { });
-      } else {
-        toast.error('Rotação manual não suportada');
-      }
-    } catch (e) {
-      console.error('Erro ao rotacionar:', e);
-    }
-  };
-
-  // ✅ Handler para fullscreen (com suporte melhorado para mobile)
-  const handleFullscreen = () => {
-    if (!videoContainerRef.current) return;
-
-    try {
-      if (isFullscreen) {
-        // Sair do fullscreen
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-        } else if ((document as any).webkitExitFullscreen) {
-          (document as any).webkitExitFullscreen();
-        } else if ((document as any).mozCancelFullScreen) {
-          (document as any).mozCancelFullScreen();
-        } else if ((document as any).msExitFullscreen) {
-          (document as any).msExitFullscreen();
-        }
-      } else {
-        // Entrar no fullscreen
-        const el = videoContainerRef.current;
-        if (el.requestFullscreen) {
-          el.requestFullscreen();
-        } else if ((el as any).webkitRequestFullscreen) {
-          (el as any).webkitRequestFullscreen();
-        } else if ((el as any).mozRequestFullScreen) {
-          (el as any).mozRequestFullScreen();
-        } else if ((el as any).msRequestFullscreen) {
-          (el as any).msRequestFullscreen();
-        } else {
-          toast.error('Fullscreen não suportado neste navegador');
-        }
-      }
-    } catch (error: any) {
-      console.error('Erro ao alternar fullscreen:', error);
-      toast.error('Erro ao alternar tela cheia');
-    }
-  };
-
-  // Função para mostrar controles temporariamente
   const showControlsTemporarily = () => {
     setShowControls(true);
-    if (controlsTimeoutRef.current) {
-      clearTimeout(controlsTimeoutRef.current);
-    }
-    // Esconder controles após 3 segundos de inatividade
-    controlsTimeoutRef.current = setTimeout(() => {
-      setShowControls(false);
-    }, 3000);
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000);
   };
 
-  // ✅ Handler para Picture-in-Picture
   const togglePiP = async () => {
     const video = videoContainerRef.current?.querySelector('video');
     if (video && document.pictureInPictureEnabled) {
-      try {
-        if (document.pictureInPictureElement) {
-          await document.exitPictureInPicture();
-        } else {
-          await video.requestPictureInPicture();
-        }
-      } catch (err) {
-        console.error('Erro ao alternar PiP:', err);
-        toast.error('Recurso não suportado neste navegador');
-      }
+      if (document.pictureInPictureElement) await document.exitPictureInPicture();
+      else await video.requestPictureInPicture();
     } else {
-      toast('Para transmitir, use o menu do seu navegador (Cast/Transmitir).', { icon: '📺' });
+      toast('Use o menu do navegador para PiP.', { icon: '📺' });
     }
   };
-
-  useEffect(() => {
-    window.addEventListener('toggle-chat', () => setIsChatOpen(p => !p));
-    return () => {
-      window.removeEventListener('toggle-chat', () => setIsChatOpen(p => !p));
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isLivePageDebug()) {
-      console.log('🔍 PublicLiveStreamPage Chat Rendering State:', {
-        isFullscreen,
-        isMobile,
-        isChatOpen,
-        isLandscape,
-        hasStream: !!stream,
-        shouldRenderDesktopFullscreen: isFullscreen && !isMobile && isChatOpen && !!stream,
-        shouldRenderSidebarDesktop: !isFullscreen && !!stream,
-      });
-    }
-  }, [isFullscreen, isMobile, isChatOpen, isLandscape, stream]);
-
-
-  // Sempre usar 'contain' para não cortar o conteúdo do vídeo (object-fit: cover corta as bordas)
-  useEffect(() => {
-    setVideoFitMode('contain');
-  }, []);
 
   if (loading || !stream) {
     return (
@@ -745,273 +348,207 @@ const PublicLiveStreamPage: React.FC = () => {
     );
   }
 
-  const isDockedChat = isMobile && isFullscreen && isLandscape && isChatOpen;
-
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col">
+    <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-blue-500/30">
       <Header />
-      <main className="flex-1 max-w-5xl mx-auto w-full p-0 sm:p-4 lg:p-12 space-y-8 sm:space-y-12">
-        <div className="flex flex-col md:flex-row justify-between items-start gap-4 sm:gap-8 px-4 sm:px-0 pt-4 sm:pt-0">
-          <div className="space-y-4">
-            <button onClick={() => navigate('/')} className="flex items-center gap-2 text-slate-500 font-bold uppercase text-[10px] tracking-widest hover:text-white transition-colors">
-              <ArrowLeft className="w-4 h-4" /> Voltar
-            </button>
-            <div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white italic uppercase tracking-tighter">{stream.title}</h1>
-              <p className="text-blue-400 font-bold text-xs uppercase tracking-[0.3em]">{stream.channel_name}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="px-6 py-3 bg-slate-800/40 rounded-2xl border border-white/5 flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                {/* Indicador visual apenas - texto "Ao Vivo" removido para usuários */}
-                <div className={`w-2 h-2 rounded-full animate-pulse ${stream.is_active ? 'bg-rose-500' : 'bg-slate-500'}`} />
-              </div>
-              <div className="w-[1px] h-4 bg-white/10" />
-              <div className="flex items-center gap-2">
-                <Eye className="w-4 h-4 text-slate-500" />
-                <span className="text-white font-black">
-                  {stream.is_active
-                    ? (currentViewerCount || stream.viewer_count || 0)
-                    : 0
-                  }
-                </span>
-              </div>
-            </div>
-            <button
-              onClick={handleShare}
-              className="p-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl shadow-xl shadow-blue-600/20 transition-all active:scale-95"
-              title="Compartilhar transmissão"
-            >
-              <Share2 className="w-5 h-5" />
-            </button>
-            {/* Botão Assinar VIP - Apenas para não-VIPs (fora da tela do jogo) */}
-            {stream.is_active && !isVip && user && (
-              <button
-                onClick={() => setShowVipModal(true)}
-                className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-2xl font-black uppercase text-xs shadow-lg shadow-purple-600/30 transition-all hover:scale-105"
-              >
-                <Crown className="w-5 h-5" />
-                <span className="hidden sm:inline">Assinar VIP</span>
-              </button>
-            )}
-            {/* Botão Grupo VIP WhatsApp - Apenas para VIPs (fora da tela do jogo) */}
-            {stream.is_active && isVip && (
-              <a
-                href={import.meta.env.VITE_VIP_WHATSAPP_GROUP || 'https://chat.whatsapp.com/SEU_GRUPO_AQUI'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white rounded-2xl font-black uppercase text-xs shadow-lg shadow-green-600/30 transition-all hover:scale-105"
-              >
-                <MessageCircle className="w-5 h-5" />
-                <span className="hidden sm:inline">Grupo VIP</span>
-              </a>
-            )}
-          </div>
-        </div>
+      
+      <main className="flex-1 w-full p-0">
+        <section className="relative pt-20 sm:pt-24 pb-12 sm:pb-16 lg:pb-20 overflow-visible">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-full bg-blue-600/10 blur-[120px] rounded-full pointer-events-none -z-10" />
 
-        <div className="space-y-10">
-          <div className="space-y-10">
-            <div
-              ref={videoContainerRef}
-              onDoubleClick={handleDoubleClick}
-              onMouseEnter={() => !isMobile && showControlsTemporarily()}
-              onMouseMove={() => !isMobile && showControlsTemporarily()}
-              onMouseLeave={() => !isMobile && setShowControls(false)}
-              onClick={() => showControlsTemporarily()}
-              onTouchStart={() => isMobile && showControlsTemporarily()}
-              className={`relative bg-black shadow-2xl overflow-hidden isolate cursor-pointer group
-                ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : 'sm:rounded-3xl border-y sm:border border-white/10 aspect-video min-h-[220px] sm:min-h-[300px]'}
-                ${isDockedChat ? 'flex' : ''}`}
-              title="Duplo clique para tela cheia"
-            >
-              <div className={`relative h-full ${isDockedChat ? 'flex-1' : 'w-full'}`}>
-                <LiveViewer
-                  channelName={channelName}
-                  showPerf={showPerf}
-                />
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex flex-col lg:flex-row items-center gap-6 sm:gap-8 lg:gap-12">
+                    <div className="flex-1 text-center lg:text-left">
+                        <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mb-6">
+                            <button onClick={() => navigate('/')} className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800/50 border border-white/10 rounded-full text-slate-400 text-sm font-bold hover:bg-slate-800 transition-colors">
+                                <ArrowLeft className="w-4 h-4" /> Voltar
+                            </button>
 
-                {/* Mensagem de Transmissão Encerrada */}
-                {!stream.is_active && (
-                  <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center z-30">
-                    <div className="text-center px-6 max-w-2xl animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                      {/* Icon */}
-                      <div className="mb-8 relative">
-                        <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full"></div>
-                        <div className="relative text-8xl animate-pulse">📺</div>
-                      </div>
+                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-400 text-sm font-bold">
+                                <Tv className="w-4 h-4" />
+                                AO VIVO
+                            </div>
 
-                      {/* Title */}
-                      <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-4 tracking-tight">
-                        Transmissão Encerrada
-                      </h2>
+                            {stream.is_active && !isVip && user && (
+                                <button
+                                    onClick={() => setShowVipModal(true)}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600/20 border border-purple-500/30 hover:bg-purple-600/40 rounded-full text-purple-300 text-sm font-bold transition-all hover:scale-105 active:scale-95"
+                                >
+                                    <Crown className="w-4 h-4" />
+                                    ASSINAR VIP
+                                </button>
+                            )}
 
-                      {/* Message */}
-                      <p className="text-lg sm:text-xl text-blue-200 mb-8 leading-relaxed">
-                        A transmissão ao vivo foi finalizada. 🎬<br />
-                        Obrigado por assistir! ⚽✨
-                      </p>
+                             <button
+                                onClick={handleShare}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800/50 border border-white/10 hover:bg-slate-700/50 rounded-full text-slate-300 text-sm font-bold transition-all"
+                            >
+                                <Share2 className="w-4 h-4" />
+                                Compartilhar
+                            </button>
+                        </div>
 
-                      {/* CTA */}
-                      <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                        <button
-                          onClick={() => window.location.reload()}
-                          className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl transition-all shadow-xl shadow-blue-600/30 hover:scale-105"
-                        >
-                          🔄 Recarregar Página
-                        </button>
-                        <a
-                          href="/"
-                          className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl transition-all border border-white/20"
-                        >
-                          🏠 Voltar ao Início
-                        </a>
-                      </div>
+                        <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-6 uppercase italic">
+                            {stream.is_active ? stream.title : <span className="text-slate-500">{stream.title}</span>}
+                        </h1>
 
-                      {/* Footer */}
-                      <p className="mt-8 text-sm text-slate-400">
-                        Fique ligado nas próximas transmissões! 🔔
-                      </p>
+                        <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto lg:mx-0 mb-8 leading-relaxed">
+                            {stream.is_active
+                                ? `Assista agora: ${stream.description || stream.title}.`
+                                : 'A transmissão começará em breve. Fique ligado.'
+                            }
+                        </p>
                     </div>
-                  </div>
-                )}
 
-                {/* Overlay de mensagens VIP na tela */}
-                {stream.is_active && (
-                  <VipMessageOverlay streamId={stream.id} isActive={stream.is_active} />
-                )}
-
-                {/* Overlays para Fullscreen (MODO NATIVO E FIXO) */}
-                {/* Mobile Portrait Fullscreen */}
-                {isFullscreen && !isLandscape && isMobile && (
-                  <BottomOverlay streamId={stream.id}>
-                    <PinnedLinkOverlay streamId={stream.id} />
-                  </BottomOverlay>
-                )}
-                {/* Mobile Landscape Fullscreen */}
-                {isFullscreen && isLandscape && isChatOpen && isMobile && (
-                  <SideOverlay
-                    streamId={stream.id}
-                    isActive={stream.is_active}
-                    pinnedLinkSlot={<PinnedLinkOverlay streamId={stream.id} />}
-                  />
-                )}
-                {/* Mobile Portrait Fullscreen - ChatDrawer será renderizado via ChatHost se isChatOpen */}
-                {/* Desktop Fullscreen - ChatSlot para sidebar lateral */}
-                {isFullscreen && !isMobile && isChatOpen && stream && (
-                  <div className="absolute right-4 top-4 bottom-4 z-50 w-[320px] flex flex-col gap-3 pointer-events-auto">
-                    <div className="flex-[3] min-h-0 bg-black/80 backdrop-blur-md rounded-xl p-2 border border-white/10 overflow-hidden">
-                      <ChatSlot id="desktop-fullscreen-chat" priority={100} className="h-full" />
-                    </div>
-                    <div className="flex-[1] min-h-0 pointer-events-auto bg-black/80 backdrop-blur-md rounded-xl p-3 space-y-2 overflow-y-auto border border-white/10 custom-scrollbar">
-                      <PollDisplay streamId={stream.id} compact={true} />
-                      <PinnedLinkOverlay streamId={stream.id} />
-                    </div>
-                  </div>
-                )}
-
-
-
-                {/* Overlay quando live encerrada */}
-                {!stream.is_active && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-20">
-                    <div className="text-center space-y-4 px-8">
-                      <div className="text-6xl">📡</div>
-                      <h2 className="text-3xl font-black text-white uppercase italic">Live Encerrada</h2>
-                      <p className="text-slate-400 text-sm font-bold">A transmissão foi finalizada</p>
-                      <div className="w-16 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent mx-auto"></div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Botão Chat Desktop - Sempre visível em fullscreen */}
-                {stream.is_active && !isMobile && (
-                  <button
-                    onClick={() => setIsChatOpen(!isChatOpen)}
-                    className={`absolute bottom-4 left-4 p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all z-10 group ${isFullscreen ? 'opacity-100' : (showControls ? 'opacity-100' : 'opacity-0')
-                      }`}
-                    title={isChatOpen ? "Fechar chat" : "Abrir chat"}
-                  >
-                    <MessageSquare className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
-                  </button>
-                )}
-
-                {/* Botão Fullscreen Desktop */}
-                {stream.is_active && !isMobile && (
-                  <div className={`absolute bottom-4 right-4 flex gap-2 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'
-                    }`}>
-                    {/* Botão Cast (Chromecast/AirPlay) - Aparece automaticamente quando disponível */}
-                    <CastButton
-                      hlsUrl={stream.hls_url}
-                      channelName={channelName || 'zktv'}
-                    />
-
-                    {/* Botão Picture-in-Picture / Cast Hint */}
-                    {document.pictureInPictureEnabled && (
-                      <button
-                        onClick={togglePiP}
-                        className="p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all group"
-                        title="Mini Player / Transmitir"
-                      >
-                        <Tv className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
-                      </button>
-                    )}
-
-                    <button
-                      onClick={handleFullscreen}
-                      className="p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all group"
-                      title={isFullscreen ? "Sair da tela cheia" : "Tela cheia"}
+                    <div
+                        ref={videoContainerRef}
+                        onDoubleClick={handleDoubleClick}
+                        onMouseEnter={() => !isMobile && showControlsTemporarily()}
+                        onMouseMove={() => !isMobile && showControlsTemporarily()}
+                        onMouseLeave={() => !isMobile && setShowControls(false)}
+                        onClick={() => showControlsTemporarily()}
+                        onTouchStart={() => isMobile && showControlsTemporarily()}
+                        className={`w-full lg:w-[600px] aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative cursor-pointer group ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : ''
+                            } ${isDockedChat ? 'mobile-video-container docked-chat-active' : ''}`}
+                        title={isMobile ? "Toque duas vezes para tela cheia" : "Duplo clique para tela cheia"}
                     >
-                      {isFullscreen ? (
-                        <Minimize2 className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
-                      ) : (
-                        <Maximize2 className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
-                      )}
-                    </button>
-                  </div>
-                )}
+                        <div className="relative w-full h-full flex">
+                            {stream.is_active ? (
+                                <>
+                                    <LiveViewer
+                                        channelName={channelName}
+                                        fitMode={videoFitMode}
+                                        showOfflineMessage={false}
+                                        showPerf={showPerf}
+                                    />
+                                    <VipMessageOverlay streamId={stream.id} isActive={stream.is_active} />
+                                </>
+                            ) : (
+                                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center z-30">
+                                    <div className="text-center px-6 max-w-2xl animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                                        <div className="mb-8 relative">
+                                            <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full"></div>
+                                            <div className="relative text-8xl animate-pulse">📺</div>
+                                        </div>
+                                        <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-4 tracking-tight">
+                                            Aguardando Transmissão
+                                        </h2>
+                                        <p className="text-lg sm:text-xl text-blue-200 mb-8 leading-relaxed">
+                                            O sinal ainda não foi iniciado. 📡<br />
+                                            Aguarde alguns instantes! ⏳✨
+                                        </p>
+                                        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                                            <button
+                                                onClick={() => window.location.reload()}
+                                                className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl transition-all shadow-xl shadow-blue-600/30 hover:scale-105"
+                                            >
+                                                🔄 Recarregar Página
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
-                {/* Controles Mobile */}
-                {stream.is_active && isMobile && (
-                  <>
-                    <MobileLiveControls
-                      isActive={stream.is_active}
-                      isFullscreen={isFullscreen}
-                      onFullscreen={handleFullscreen}
-                      onRotate={handleRotate}
-                      onToggleFit={() => setVideoFitMode(p => p === 'contain' ? 'cover' : 'contain')}
-                      fitMode={videoFitMode}
-                      isDocked={isDockedChat}
-                      onPictureInPicture={togglePiP}
-                      isPictureInPicture={!!document.pictureInPictureElement}
-                      containerRef={videoContainerRef}
-                      onChatToggle={() => {
-                        setIsChatOpen(!isChatOpen);
-                      }}
-                    />
-                    {/* Botão Cast para Mobile - Aparece automaticamente quando há TV disponível */}
-                    <div className={`absolute top-4 right-4 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'
-                      }`}>
-                      <CastButton
-                        hlsUrl={stream.hls_url}
-                        channelName={channelName || 'zktv'}
-                      />
+                            {stream.is_active && isFullscreen && !isMobile && (
+                                <div className="absolute top-4 left-4 z-20">
+                                    <div className="px-6 py-3 bg-slate-800/80 backdrop-blur-md rounded-2xl border border-white/10 flex items-center gap-4">
+                                        <div className="flex items-center gap-2">
+                                            <Eye className="w-4 h-4 text-slate-400" />
+                                            <span className="text-white font-black">{currentViewerCount || stream.viewer_count || 0}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {isFullscreen && !isMobile && isChatOpen && stream.is_active && (
+                                <div className="absolute right-4 top-4 bottom-4 z-50 w-[400px] flex flex-col gap-3 pointer-events-auto">
+                                    <div className="flex-[4] min-h-0 bg-black/80 backdrop-blur-md rounded-2xl p-2 border border-white/10 overflow-hidden shadow-2xl">
+                                        <ChatSlot id="public-desktop-fullscreen-chat" priority={100} className="h-full" />
+                                    </div>
+                                    <div className="flex-[1] min-h-0 pointer-events-auto bg-black/80 backdrop-blur-md rounded-2xl p-3 space-y-2 overflow-y-auto border border-white/10 custom-scrollbar shadow-2xl">
+                                        <PollDisplay streamId={stream.id} compact={true} />
+                                        <PinnedLinkOverlay streamId={stream.id} />
+                                    </div>
+                                </div>
+                            )}
+
+                            {stream.is_active && (
+                                <>
+                                    {!isMobile && (
+                                        <>
+                                            <button
+                                                onClick={() => setIsChatOpen(!isChatOpen)}
+                                                className={`absolute bottom-4 left-4 p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all z-10 group ${isFullscreen ? 'opacity-100' : (showControls ? 'opacity-100' : 'opacity-0')}`}
+                                                title={isChatOpen ? "Fechar chat" : "Abrir chat"}
+                                            >
+                                                <MessageSquare className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+                                            </button>
+
+                                            <div className={`absolute bottom-4 right-4 flex gap-2 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+                                                <CastButton hlsUrl={stream.hls_url ? stream.hls_url : undefined} channelName={stream.channel_name} />
+                                                <button onClick={togglePiP} className="p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all group">
+                                                    <Tv className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+                                                </button>
+                                                <button onClick={handleFullscreen} className="p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all group">
+                                                    {isFullscreen ? <Minimize2 className="w-5 h-5 text-white" /> : <Maximize2 className="w-5 h-5 text-white" />}
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {isMobile && (
+                                        <>
+                                            <MobileLiveControls
+                                                isActive={stream.is_active}
+                                                isFullscreen={isFullscreen}
+                                                onFullscreen={handleFullscreen}
+                                                onRotate={() => setIsLandscape(!isLandscape)}
+                                                onToggleFit={() => setVideoFitMode(p => p === 'contain' ? 'cover' : 'contain')}
+                                                fitMode={videoFitMode}
+                                                isDocked={isDockedChat}
+                                                onPictureInPicture={togglePiP}
+                                                isPictureInPicture={!!document.pictureInPictureElement}
+                                                containerRef={videoContainerRef}
+                                                onChatToggle={() => {
+                                                    if (isFullscreen && isLandscape) setIsDockedChat(!isDockedChat);
+                                                    else setIsChatOpen(!isChatOpen);
+                                                }}
+                                            />
+                                            <div className={`absolute top-4 right-4 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+                                                <CastButton hlsUrl={stream.hls_url ? stream.hls_url : undefined} channelName={stream.channel_name} />
+                                            </div>
+                                        </>
+                                    )}
+                                </>
+                            )}
+                        </div>
+
+                        {isMobile && isFullscreen && isLandscape && isDockedChat && stream.is_active && (
+                            <div className="w-[400px] min-w-[350px] max-w-[45vw] h-full bg-black/90 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl">
+                                <div className="p-3 border-b border-white/10 flex items-center justify-between shrink-0">
+                                    <span className="text-xs font-black text-white uppercase italic tracking-wider">Chat</span>
+                                    <button onClick={() => setIsDockedChat(false)} className="p-1.5 hover:bg-white/10 rounded-lg transition-all">
+                                        <X className="w-4 h-4 text-white" />
+                                    </button>
+                                </div>
+                                <div className="flex-1 overflow-hidden flex flex-col">
+                                    <div className="flex-1 overflow-hidden">
+                                        <ChatSlot id="public-mobile-landscape-docked-chat" priority={90} className="h-full" />
+                                    </div>
+                                    <div className="px-3 py-2 border-t border-white/10 bg-black/40">
+                                        <PollDisplay streamId={stream.id} compact={true} />
+                                        <PinnedLinkOverlay streamId={stream.id} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                  </>
-                )}
-              </div>
-              {/* Mobile Landscape Fullscreen - Chat Docked */}
-              {isDockedChat && stream && (
-                <div className={`h-full bg-black/40 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl animate-in slide-in-from-right duration-300 ${isMobile ? 'w-[400px] min-w-[350px] max-w-[45vw]' : 'w-[300px]'
-                  }`}>
-                  <div className="flex-1 overflow-hidden">
-                    <ChatSlot id="mobile-landscape-docked-chat" priority={90} className="h-full" />
-                  </div>
                 </div>
-              )}
             </div>
+        </section>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+        <section className="py-6 sm:py-8 lg:py-12 relative pb-12 sm:pb-16 lg:pb-24 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
               {upcomingGames.length > 0 && (
                 <div className="bg-slate-800/20 p-8 rounded-[2rem] border border-white/5 space-y-6">
                   <div className="flex items-center gap-3"><Calendar className="w-5 h-5 text-blue-400" /><h3 className="text-white font-black uppercase text-xs italic tracking-widest">Próximos Jogos</h3></div>
@@ -1037,42 +574,48 @@ const PublicLiveStreamPage: React.FC = () => {
                 </div>
               )}
             </div>
+        </section>
 
-            {/* Chat Fixo - Abaixo de Próximos Jogos (não fullscreen e quando overlay não está aberto) */}
-            {!isFullscreen && !isChatOpen && stream && (
-              <div className="space-y-4 mt-8">
-                <PollDisplay streamId={stream.id} />
-                <PinnedLinkOverlay streamId={stream.id} />
-                <div className="h-[600px] bg-slate-900 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl">
-                  <ChatSlot id="fixed-chat" priority={50} className="h-full" />
+        {isChatOpen && stream.is_active && !isDockedChat && !isFullscreen && (
+            <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[500px] bg-black/95 backdrop-blur-md border-l border-white/10 z-[9999] flex flex-col shadow-2xl">
+                <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                    <span className="text-sm font-black text-white uppercase italic tracking-widest">Chat da Transmissão</span>
+                    <button onClick={() => setIsChatOpen(false)}>
+                        <X className="w-5 h-5 text-white" />
+                    </button>
                 </div>
-              </div>
-            )}
-          </div>
+                <div className="flex-1 overflow-hidden flex flex-col">
+                    <div className="flex-1 min-h-0 h-full">
+                        <ChatSlot id="public-overlay-chat" priority={80} className="h-full" />
+                    </div>
+                </div>
+            </div>
+        )}
 
-        </div>
+        {isMobile && isFullscreen && stream && stream.is_active && (
+            <>
+                {isLandscape && !isDockedChat && (
+                    <FloatingChatButton onClick={() => setIsDockedChat(true)} />
+                )}
+                {!isLandscape && !isChatOpen && (
+                    <FloatingChatButton onClick={() => setIsChatOpen(true)} />
+                )}
+            </>
+        )}
+
+        {isMobile && isFullscreen && !isLandscape && stream && stream.is_active && (
+            <ChatDrawer
+                isOpen={isChatOpen}
+                onClose={() => setIsChatOpen(false)}
+                streamId={stream.id}
+                isActive={stream.is_active}
+            />
+        )}
+
       </main>
-
-      {/* ChatDrawer (Mobile Fullscreen) */}
-      {isMobile && isFullscreen && stream && (
-        <>
-          {/* Floating Chat Button - só aparece se chat não estiver aberto */}
-          {!isChatOpen && stream.is_active && (
-            <FloatingChatButton onClick={() => setIsChatOpen(true)} />
-          )}
-          {/* ChatDrawer para mobile fullscreen */}
-          <ChatDrawer
-            isOpen={isChatOpen}
-            onClose={() => setIsChatOpen(false)}
-            streamId={stream.id}
-            isActive={stream.is_active}
-          />
-        </>
-      )}
 
       <Footer />
 
-      {/* Modal de Assinatura VIP */}
       <VipSubscriptionModal
         isOpen={showVipModal}
         onClose={() => setShowVipModal(false)}

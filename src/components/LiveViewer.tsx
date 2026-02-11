@@ -44,7 +44,7 @@ export function LiveViewer({
       <div className={`flex items-center justify-center h-full bg-black ${className}`}>
         <div className="text-center space-y-3">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
-          <p className="text-white text-sm font-medium">Carregando live...</p>
+          <p className="text-white text-sm font-medium">🚀 Preparando transmissão...</p>
         </div>
       </div>
     );
@@ -56,7 +56,7 @@ export function LiveViewer({
       <div className={`flex items-center justify-center h-full bg-black ${className}`}>
         <div className="text-center space-y-2 px-4">
           <div className="text-4xl">⚠️</div>
-          <p className="text-white text-sm font-medium">Erro ao carregar live</p>
+          <p className="text-white text-sm font-medium">Ops! Algo deu errado.</p>
           <p className="text-slate-400 text-xs">{error}</p>
         </div>
       </div>
@@ -70,9 +70,9 @@ export function LiveViewer({
     return (
       <div className={`flex items-center justify-center h-full bg-black ${className}`}>
         <div className="text-center space-y-4 px-8">
-          <div className="text-6xl">📡</div>
-          <h2 className="text-2xl font-black text-white uppercase italic">Live Offline</h2>
-          <p className="text-slate-400 text-sm font-bold">A transmissão não está disponível no momento</p>
+          <div className="text-6xl animate-pulse">📡</div>
+          <h2 className="text-2xl font-black text-white uppercase italic">Sinal Offline</h2>
+          <p className="text-slate-400 text-sm font-bold">Aguardando início da transmissão... ⏳</p>
           <div className="w-16 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent mx-auto"></div>
         </div>
       </div>
