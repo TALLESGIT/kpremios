@@ -237,12 +237,19 @@ const AdminLiveStreamPage: React.FC = () => {
       // Título é mantido como o admin definiu (não sobrescrever)
       adminLiveDebug('Usando streamId:', selectedStream.id);
 
+      // Se MediaMTX estiver configurado, definir hls_url automaticamente para o site
+      const mediaMtxBase = (import.meta.env.VITE_MEDIAMTX_HLS_BASE_URL as string | undefined)?.trim();
+      const updatePayload: Record<string, unknown> = {
+        is_active: true,
+        started_at: new Date().toISOString(),
+      };
+      if (mediaMtxBase) {
+        updatePayload.hls_url = `${mediaMtxBase.replace(/\/$/, '')}/live/${selectedStream.channel_name}/index.m3u8`;
+      }
+
       const { data, error } = await supabase
         .from('live_streams')
-        .update({
-          is_active: true,
-          started_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq('id', selectedStream.id)
         .select()
         .single();
@@ -512,13 +519,13 @@ const AdminLiveStreamPage: React.FC = () => {
                   title="Duplo clique para tela cheia (Live)"
                 >
                   <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-                    <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">Canal Principal: ZkPremios</span>
+                    <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">Canal Principal: ZkOficial</span>
                   </div>
 
                   {/* ✅ SEMPRE mostrar preview (mesmo quando não está transmitindo) */}
                   {/* Admin pode ver preview do ZK Studio mesmo com is_active=false */}
                   <MemoizedLiveViewer
-                    channelName={selectedStream.channel_name || 'ZkPremios'}
+                    channelName={selectedStream.channel_name || 'ZkOficial'}
                     fitMode="contain"
                     showOfflineMessage={false}
                     isAdmin={true}

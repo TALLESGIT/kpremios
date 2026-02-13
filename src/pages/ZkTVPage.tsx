@@ -618,13 +618,13 @@ const ZkTVPage: React.FC = () => {
             const activeStreams = await getActiveLiveStreams();
             let data = activeStreams.length > 0 ? activeStreams[0] : null;
 
-            // Se não encontrar stream ativa, buscar a stream zktv (mesmo que inativa)
+            // Se não encontrar stream ativa, buscar a stream padrão ZkOficial (mesmo que inativa)
             if (!data) {
-                if (isZkTVDebug()) console.log('⚠️ Nenhuma stream ativa encontrada, buscando stream zktv...');
-                data = await getLiveStreamByChannel('zktv');
+                if (isZkTVDebug()) console.log('⚠️ Nenhuma stream ativa encontrada, buscando stream ZkOficial...');
+                data = await getLiveStreamByChannel('ZkOficial');
                 
                 if (data && isZkTVDebug()) {
-                    console.log('✅ Stream zktv encontrada:', data);
+                    console.log('✅ Stream ZkOficial encontrada:', data);
                 }
             }
 
@@ -860,9 +860,9 @@ const ZkTVPage: React.FC = () => {
         }
     }, [upcomingGames, games]);
 
-    // Na página ZK TV, sempre mostrar a live se houver stream zktv
+    // Na página ZK TV, sempre mostrar a live se houver stream ZkOficial
     // Mesmo que is_active = false, tenta mostrar (pode estar transmitindo mas status não sincronizado)
-    const isLiveActive = activeStream ? (activeStream.is_active || activeStream.channel_name === 'zktv') : !!settings?.is_live;
+    const isLiveActive = activeStream ? (activeStream.is_active || activeStream.channel_name === 'ZkOficial') : !!settings?.is_live;
 
     // Função para mostrar controles temporariamente
     const showControlsTemporarily = () => {
@@ -1066,7 +1066,7 @@ const ZkTVPage: React.FC = () => {
                                 ) : (
                                     settings?.live_url && settings.live_url.includes('/live/') ? (
                                         <LiveViewer
-                                            channelName="ZkPremios"
+                                            channelName="ZkOficial"
                                             showOfflineMessage={false}
                                         />
                                     ) : settings?.live_url ? (
@@ -1182,7 +1182,7 @@ const ZkTVPage: React.FC = () => {
                                                 <CastButton
                                                     hlsUrl={activeStream?.hls_url}
                                                     videoUrl={settings?.live_url}
-                                                    channelName={activeStream?.channel_name || 'zktv'}
+                                                    channelName={activeStream?.channel_name || 'ZkOficial'}
                                                 />
 
                                                 {/* Botão Picture-in-Picture / Cast Hint */}
@@ -1235,7 +1235,7 @@ const ZkTVPage: React.FC = () => {
                                                     <CastButton
                                                         hlsUrl={activeStream?.hls_url}
                                                         videoUrl={settings?.live_url}
-                                                        channelName={activeStream?.channel_name || 'zktv'}
+                                                        channelName={activeStream?.channel_name || 'ZkOficial'}
                                                     />
                                                 </div>
                                             </>

@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useLiveStatus } from '../hooks/useLiveStatus';
+import { DEFAULT_LIVE_CHANNEL } from '../config/constants';
 import { HLSViewer } from './HLSViewer';
+import LiveHlsPlayer from './LiveHlsPlayer';
 import ZKViewer from './ZKViewer';
 
 const isLiveViewerDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
@@ -22,7 +24,7 @@ interface LiveViewerProps {
  * - Desktop ou sem HLS → ZKViewer (Agora.io)
  */
 export function LiveViewer({
-  channelName = 'zktv',
+  channelName = DEFAULT_LIVE_CHANNEL,
   fitMode = 'contain',
   className = '',
   showOfflineMessage = true,
@@ -114,13 +116,24 @@ export function LiveViewer({
     }
 
     // REGRA HÍBRIDA:
-    // Mobile + HLS disponível -> HLSViewer
-    if (isMobile && hasHlsUrl) {
-      if (isLiveViewerDebug()) console.log('📱 LiveViewer: Usando HLS para mobile');
-      return <HLSViewer hlsUrl={data.hls_url!} fitMode={fitMode} showPerf={showPerf} />;
+    // HLS disponível (MediaMTX) -> usar HLS em todos os dispositivos
+    if (hasHlsUrl) {
+      if (isMobile) {
+        if (isLiveViewerDebug()) console.log('📱 LiveViewer: Usando HLS para mobile');
+        return <HLSViewer hlsUrl={data.hls_url!} fitMode={fitMode} showPerf={showPerf} />;
+      }
+      if (isLiveViewerDebug()) console.log('🖥️ LiveViewer: Usando HLS para desktop (MediaMTX)');
+      return (
+        <LiveHlsPlayer
+          hlsUrl={data.hls_url!}
+          isLive={isActuallyLive}
+          className="w-full h-full"
+          showPerf={showPerf}
+        />
+      );
     }
 
-    // Tudo o resto -> ZKViewer (Agora.io)
+    // Sem HLS -> ZKViewer (Agora.io)
     // ✅ CORREÇÃO: Forçar conexão no canal "ZkPremios" onde o ZK Studio transmite
     const agoraChannel = 'ZkPremios';
 

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { DEFAULT_LIVE_CHANNEL } from '../config/constants';
 
 export type LiveStatus = 'LIVE' | 'OFFLINE';
 
@@ -15,10 +16,10 @@ export interface LiveStreamData {
 /**
  * Busca informações da live stream usando cache do backend Socket.IO
  * Reduz 99% das requisições ao Supabase
- * @param channelName Nome do canal (padrão: 'zktv')
+ * @param channelName Nome do canal (padrão: ZkOficial)
  * @returns Dados da live stream
  */
-export async function getLiveStream(channelName = 'zktv'): Promise<LiveStreamData | null> {
+export async function getLiveStream(channelName = DEFAULT_LIVE_CHANNEL): Promise<LiveStreamData | null> {
   try {
     // ✅ OTIMIZAÇÃO: Usar cache do backend Socket.IO
     const { getLiveStreamByChannel } = await import('./cachedLiveService');

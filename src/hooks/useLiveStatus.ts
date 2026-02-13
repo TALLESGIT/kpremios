@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { getLiveStream, LiveStreamData, getLiveStatus, LiveStatus } from '../services/liveService';
+import { DEFAULT_LIVE_CHANNEL } from '../config/constants';
 
 const isLiveStatusDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
 
@@ -25,9 +26,9 @@ function onlyViewerCountChanged(prev: LiveStreamData | null, next: LiveStreamDat
 /**
  * Hook para gerenciar o status da live stream com Realtime Otimizado
  * Evita re-renders do player quando só viewer_count é atualizado (reduz travamentos).
- * @param channelName Nome do canal (padrão: 'zktv')
+ * @param channelName Nome do canal (padrão: ZkOficial)
  */
-export function useLiveStatus(channelName = 'zktv'): UseLiveStatusReturn {
+export function useLiveStatus(channelName = DEFAULT_LIVE_CHANNEL): UseLiveStatusReturn {
   const [data, setData] = useState<LiveStreamData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

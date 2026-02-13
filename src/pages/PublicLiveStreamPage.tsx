@@ -22,6 +22,7 @@ import { CastButton } from '../components/CastButton';
 import { CruzeiroGame, CruzeiroStanding } from '../types';
 import { useRegisterStreamId } from '../features/chat/useRegisterStreamId';
 import { motion, AnimatePresence } from 'framer-motion';
+import { DEFAULT_LIVE_CHANNEL } from '../config/constants';
 
 interface LiveStream {
   id: string;
@@ -247,7 +248,7 @@ const PublicLiveStreamPage: React.FC = () => {
     setLoading(true);
     try {
       const { getLiveStreamByChannel } = await import('../services/cachedLiveService');
-      const data = await getLiveStreamByChannel(channelName || 'zktv');
+      const data = await getLiveStreamByChannel(channelName || DEFAULT_LIVE_CHANNEL);
       if (!data) {
         toast.error('Transmissão não encontrada');
         navigate('/');

@@ -3,6 +3,7 @@ import { Cast, Airplay, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useLiveStatus } from '../hooks/useLiveStatus';
 import { supabase } from '../lib/supabase';
+import { DEFAULT_LIVE_CHANNEL } from '../config/constants';
 
 interface CastButtonProps {
   videoUrl?: string; // URL HLS ou do stream
@@ -19,7 +20,7 @@ interface CastButtonProps {
 export const CastButton: React.FC<CastButtonProps> = ({
   videoUrl,
   hlsUrl,
-  channelName = 'zktv',
+  channelName = DEFAULT_LIVE_CHANNEL,
   className = ''
 }) => {
   const [isCastAvailable, setIsCastAvailable] = useState(false);
