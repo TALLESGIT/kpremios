@@ -21,6 +21,7 @@ import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import PoolManager from '../components/pool/PoolManager';
+import { DEFAULT_LIVE_CHANNEL } from '../config/constants';
 
 interface LiveStream {
   is_active: boolean;
@@ -243,8 +244,9 @@ const AdminLiveStreamPage: React.FC = () => {
         is_active: true,
         started_at: new Date().toISOString(),
       };
+      // Canal fixo ZkOficial: ZK Studio sempre transmite para o mesmo canal, independente do jogo
       if (mediaMtxBase) {
-        updatePayload.hls_url = `${mediaMtxBase.replace(/\/$/, '')}/live/${selectedStream.channel_name}/index.m3u8`;
+        updatePayload.hls_url = `${mediaMtxBase.replace(/\/$/, '')}/live/${DEFAULT_LIVE_CHANNEL}/index.m3u8`;
       }
 
       const { data, error } = await supabase

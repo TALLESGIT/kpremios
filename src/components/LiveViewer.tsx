@@ -81,7 +81,15 @@ export function LiveViewer({
     );
   }
 
-  const hasHlsUrl = data.hls_url && data.hls_url.trim() !== '';
+  // hls_url do banco OU fallback: canal fixo ZkOficial (ZK Studio transmite sempre para o mesmo canal)
+  const mediaMtxBase = (import.meta.env.VITE_MEDIAMTX_HLS_BASE_URL as string | undefined)?.trim();
+  const effectiveHlsUrl =
+    (data.hls_url && data.hls_url.trim() !== '')
+      ? data.hls_url
+      : mediaMtxBase
+        ? `${mediaMtxBase.replace(/\/$/, '')}/live/${DEFAULT_LIVE_CHANNEL}/index.m3u8`
+        : null;
+  const hasHlsUrl = !!effectiveHlsUrl;
   const isActuallyLive = data.is_active;
 
   const renderContent = () => {
@@ -117,15 +125,15 @@ export function LiveViewer({
 
     // REGRA HÍBRIDA:
     // HLS disponível (MediaMTX) -> usar HLS em todos os dispositivos
-    if (hasHlsUrl) {
+    if (hasHlsUrl && effectiveHlsUrl) {
       if (isMobile) {
-        if (isLiveViewerDebug()) console.log('📱 LiveViewer: Usando HLS para mobile');
-        return <HLSViewer hlsUrl={data.hls_url!} fitMode={fitMode} showPerf={showPerf} />;
+        if (isLiveViewerDebug()) console.log('📱 LiveViewer: Usando HLS para mobile', { hlsUrl: effectiveHlsUrl });
+        return <HLSViewer hlsUrl={effectiveHlsUrl} fitMode={fitMode} showPerf={showPerf} />;
       }
-      if (isLiveViewerDebug()) console.log('🖥️ LiveViewer: Usando HLS para desktop (MediaMTX)');
+      if (isLiveViewerDebug()) console.log('🖥️ LiveViewer: Usando HLS para desktop (MediaMTX)', { hlsUrl: effectiveHlsUrl });
       return (
         <LiveHlsPlayer
-          hlsUrl={data.hls_url!}
+          hlsUrl={effectiveHlsUrl}
           isLive={isActuallyLive}
           className="w-full h-full"
           showPerf={showPerf}
