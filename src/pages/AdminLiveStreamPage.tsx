@@ -522,6 +522,11 @@ const AdminLiveStreamPage: React.FC = () => {
                 >
                   <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
                     <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">Canal Principal: ZkOficial</span>
+                    {isStreaming && (import.meta.env.VITE_MEDIAMTX_WEBRTC_BASE_URL as string | undefined)?.trim() && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/90 text-white">
+                        Low Latency
+                      </span>
+                    )}
                   </div>
 
                   {/* ✅ SEMPRE mostrar preview (mesmo quando não está transmitindo) */}

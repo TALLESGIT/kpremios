@@ -3,6 +3,7 @@ import { useLiveStatus } from '../hooks/useLiveStatus';
 import { DEFAULT_LIVE_CHANNEL } from '../config/constants';
 import { HLSViewer } from './HLSViewer';
 import LiveHlsPlayer from './LiveHlsPlayer';
+import { WebRTCViewer } from './WebRTCViewer';
 import ZKViewer from './ZKViewer';
 
 const isLiveViewerDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
@@ -83,13 +84,19 @@ export function LiveViewer({
 
   // hls_url do banco OU fallback: canal fixo ZkOficial (ZK Studio transmite sempre para o mesmo canal)
   const mediaMtxBase = (import.meta.env.VITE_MEDIAMTX_HLS_BASE_URL as string | undefined)?.trim();
+  const mediaMtxWebRtcBase = (import.meta.env.VITE_MEDIAMTX_WEBRTC_BASE_URL as string | undefined)?.trim();
+  const effectiveChannel = data.channel_name || channelName || DEFAULT_LIVE_CHANNEL;
   const effectiveHlsUrl =
     (data.hls_url && data.hls_url.trim() !== '')
       ? data.hls_url
       : mediaMtxBase
-        ? `${mediaMtxBase.replace(/\/$/, '')}/live/${DEFAULT_LIVE_CHANNEL}/index.m3u8`
+        ? `${mediaMtxBase.replace(/\/$/, '')}/live/${effectiveChannel}/index.m3u8`
         : null;
+  const effectiveWebRtcUrl = mediaMtxWebRtcBase
+    ? `${mediaMtxWebRtcBase.replace(/\/$/, '')}/live/${effectiveChannel}/whep`
+    : null;
   const hasHlsUrl = !!effectiveHlsUrl;
+  const hasWebRtcUrl = !!effectiveWebRtcUrl;
   const isActuallyLive = data.is_active;
 
   const renderContent = () => {
@@ -120,6 +127,19 @@ export function LiveViewer({
             <div className="w-12 h-1 bg-zinc-900 rounded-full" />
           </div>
         </div>
+      );
+    }
+
+    // Admin + WebRTC disponível -> usar WebRTC (low latency ~300–800ms)
+    if (isAdmin && hasWebRtcUrl && effectiveWebRtcUrl) {
+      if (isLiveViewerDebug()) console.log('🎬 LiveViewer: Usando WebRTC para Admin', { whepUrl: effectiveWebRtcUrl });
+      return (
+        <WebRTCViewer
+          whepUrl={effectiveWebRtcUrl}
+          fitMode={fitMode}
+          className="w-full h-full"
+          showPerf={showPerf}
+        />
       );
     }
 

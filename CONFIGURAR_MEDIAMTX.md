@@ -8,9 +8,13 @@ No arquivo `.env` na raiz do projeto, adicione:
 
 ```
 VITE_MEDIAMTX_HLS_BASE_URL=http://76.13.82.48:8888
+VITE_MEDIAMTX_WEBRTC_BASE_URL=https://stream.zkoficial.com.br/webrtc
 ```
 
-(Substitua pelo IP da sua VPS se for diferente.)
+- **HLS:** usuários assistem via HLS (6–10s de delay).
+- **WebRTC:** Admin assiste com low latency (~300–800ms). Use HTTPS em produção.
+
+(Substitua pelo IP/domínio da sua VPS se for diferente.)
 
 ## 2. Configurar o ZK Studio
 
@@ -33,3 +37,4 @@ No ZK Studio (Windows):
 |-----|-----|
 | ZK Studio publica | `rtmp://76.13.82.48:1935/live/ZkOficial` |
 | Site assiste (HLS) | `http://76.13.82.48:8888/live/ZkOficial/index.m3u8` |
+| Admin (WebRTC low latency) | `https://stream.zkoficial.com.br/webrtc/live/ZkOficial/whep` |
