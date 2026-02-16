@@ -1,12 +1,6 @@
-import { useEffect } from 'react';
 import { useLiveStatus } from '../hooks/useLiveStatus';
 import { DEFAULT_LIVE_CHANNEL } from '../config/constants';
-import { HLSViewer } from './HLSViewer';
-import LiveHlsPlayer from './LiveHlsPlayer';
-import { WebRTCViewer } from './WebRTCViewer';
-import ZKViewer from './ZKViewer';
-
-const isLiveViewerDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
+import WebRTCViewer from './WebRTCViewer';
 
 interface LiveViewerProps {
   channelName?: string;
@@ -36,10 +30,6 @@ export function LiveViewer({
 
 
   const { data, loading, error } = useLiveStatus(channelName);
-
-  const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-    navigator.userAgent
-  );
 
   // Loading state
   if (loading) {
@@ -82,22 +72,8 @@ export function LiveViewer({
     );
   }
 
-  // hls_url do banco OU fallback: canal fixo ZkOficial (ZK Studio transmite sempre para o mesmo canal)
-  const mediaMtxBase = (import.meta.env.VITE_MEDIAMTX_HLS_BASE_URL as string | undefined)?.trim();
-  const mediaMtxWebRtcBase = (import.meta.env.VITE_MEDIAMTX_WEBRTC_BASE_URL as string | undefined)?.trim();
-  const effectiveChannel = data.channel_name || channelName || DEFAULT_LIVE_CHANNEL;
-  const effectiveHlsUrl =
-    (data.hls_url && data.hls_url.trim() !== '')
-      ? data.hls_url
-      : mediaMtxBase
-        ? `${mediaMtxBase.replace(/\/$/, '')}/live/${effectiveChannel}/index.m3u8`
-        : null;
-  const effectiveWebRtcUrl = mediaMtxWebRtcBase
-    ? `${mediaMtxWebRtcBase.replace(/\/$/, '')}/live/${effectiveChannel}/whep`
-    : null;
-  const hasHlsUrl = !!effectiveHlsUrl;
-  const hasWebRtcUrl = !!effectiveWebRtcUrl;
   const isActuallyLive = data.is_active;
+  const effectiveStreamName = DEFAULT_LIVE_CHANNEL || 'ZkOficial';
 
   const renderContent = () => {
     // Se a live estiver offline e showOfflineMessage=true
@@ -130,55 +106,9 @@ export function LiveViewer({
       );
     }
 
-    // Admin + WebRTC disponível -> usar WebRTC (low latency ~300–800ms)
-    if (isAdmin && hasWebRtcUrl && effectiveWebRtcUrl) {
-      if (isLiveViewerDebug()) console.log('🎬 LiveViewer: Usando WebRTC para Admin', { whepUrl: effectiveWebRtcUrl });
-      return (
-        <WebRTCViewer
-          whepUrl={effectiveWebRtcUrl}
-          fitMode={fitMode}
-          className="w-full h-full"
-          showPerf={showPerf}
-        />
-      );
-    }
-
-    // REGRA HÍBRIDA:
-    // HLS disponível (MediaMTX) -> usar HLS em todos os dispositivos
-    if (hasHlsUrl && effectiveHlsUrl) {
-      if (isMobile) {
-        if (isLiveViewerDebug()) console.log('📱 LiveViewer: Usando HLS para mobile', { hlsUrl: effectiveHlsUrl });
-        return <HLSViewer hlsUrl={effectiveHlsUrl} fitMode={fitMode} showPerf={showPerf} />;
-      }
-      if (isLiveViewerDebug()) console.log('🖥️ LiveViewer: Usando HLS para desktop (MediaMTX)', { hlsUrl: effectiveHlsUrl });
-      return (
-        <LiveHlsPlayer
-          hlsUrl={effectiveHlsUrl}
-          isLive={isActuallyLive}
-          className="w-full h-full"
-          showPerf={showPerf}
-        />
-      );
-    }
-
-    // Sem HLS -> ZKViewer (Agora.io)
-    // ✅ CORREÇÃO: Forçar conexão no canal "ZkPremios" onde o ZK Studio transmite
-    const agoraChannel = 'ZkPremios';
-
-    if (isLiveViewerDebug()) console.log('🖥️ LiveViewer: Usando Agora.io (ZKViewer)', {
-      dbChannel: data.channel_name || channelName,
-      agoraChannel,
-      isMobile,
-      hasHlsUrl,
-      isAdmin
-    });
-
     return (
-      <ZKViewer
-        channel={agoraChannel}
-        fitMode={fitMode}
-        muteAudio={isAdmin}
-        enabled={enabled && (isActuallyLive || isAdmin)}
+      <WebRTCViewer
+        streamName={effectiveStreamName}
       />
     );
   };

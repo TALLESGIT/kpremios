@@ -1,218 +1,192 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useFpsMonitor } from '../hooks/useFpsMonitor';
 
-interface WebRTCViewerProps {
-  whepUrl: string;
-  fitMode?: 'contain' | 'cover';
-  className?: string;
-  showPerf?: boolean;
+interface Props {
+  streamName?: string;
 }
 
-type Status = 'loading' | 'playing' | 'error' | 'offline';
+type Status =
+  | 'idle'
+  | 'connecting'
+  | 'live'
+  | 'offline'
+  | 'reconnecting'
+  | 'error';
 
 /**
- * Player WebRTC via WHEP para baixa latência (Admin).
- * Usa RTCPeerConnection + fetch POST do SDP no endpoint WHEP do MediaMTX.
+ * Player WebRTC (WHEP) de baixa latência para o viewer principal.
+ * Usa RTCPeerConnection + POST SDP no endpoint WHEP do MediaMTX.
+ * Endpoint base: VITE_WHEP_BASE_URL (sem IP hardcoded).
  */
-export function WebRTCViewer({
-  whepUrl,
-  fitMode = 'contain',
-  className = '',
-  showPerf = false,
-}: WebRTCViewerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+function WebRTCViewer({ streamName = 'live' }: Props) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
+  const [status, setStatus] = useState<Status>('idle');
 
-  const [status, setStatus] = useState<Status>('loading');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [hasVideo, setHasVideo] = useState(false);
-
-  const perf = useFpsMonitor(videoRef, showPerf && hasVideo);
+  const baseUrl = (import.meta.env.VITE_WHEP_BASE_URL as string | undefined)?.trim();
 
   const cleanup = useCallback(() => {
-    const pc = pcRef.current;
-    if (pc) {
+    if (pcRef.current) {
       try {
-        pc.close();
+        pcRef.current.close();
       } catch (e) {
-        console.warn('WebRTCViewer: Erro ao fechar RTCPeerConnection:', e);
+        console.warn('WebRTCViewer: erro ao fechar RTCPeerConnection:', e);
       }
       pcRef.current = null;
     }
-    const video = videoRef.current;
-    if (video) {
-      video.srcObject = null;
+    const videoEl = videoRef.current;
+    if (videoEl) {
+      videoEl.srcObject = null;
     }
   }, []);
 
-  useEffect(() => {
-    if (!whepUrl || !whepUrl.trim()) {
+  const startConnection = useCallback(async () => {
+    if (!baseUrl) {
+      console.error('VITE_WHEP_BASE_URL não configurado.');
       setStatus('error');
-      setErrorMessage('URL WHEP inválida');
       return;
     }
 
-    const video = videoRef.current;
-    if (!video) return;
-
-    let cancelled = false;
-    setStatus('loading');
-    setErrorMessage(null);
-    setHasVideo(false);
+    setStatus('connecting');
 
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
     });
+
     pcRef.current = pc;
 
     pc.ontrack = (event) => {
-      if (cancelled) return;
-      if (event.streams && event.streams[0]) {
-        video.srcObject = event.streams[0];
-        setHasVideo(true);
-        video
-          .play()
-          .then(() => setStatus('playing'))
-          .catch(() => setStatus('playing'));
-      }
+      if (!videoRef.current) return;
+      const [stream] = event.streams;
+      if (!stream) return;
+
+      videoRef.current.srcObject = stream;
     };
 
     pc.onconnectionstatechange = () => {
-      if (cancelled) return;
-      if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-        setStatus('error');
-        setErrorMessage('Conexão WebRTC falhou');
-      } else if (pc.connectionState === 'closed') {
-        setStatus('offline');
+      if (!pcRef.current) return;
+
+      switch (pc.connectionState) {
+        case 'connected':
+          setStatus('live');
+          break;
+        case 'disconnected':
+        case 'failed':
+          setStatus('reconnecting');
+          reconnect();
+          break;
+        case 'closed':
+          setStatus('offline');
+          break;
       }
     };
 
-    pc.oniceconnectionstatechange = () => {
-      if (cancelled) return;
-      if (pc.iceConnectionState === 'failed') {
-        setStatus('error');
-        setErrorMessage('Conexão WebRTC falhou (ICE)');
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      if (!offer.sdp) {
+        throw new Error('SDP vazio');
       }
-    };
 
-    (async () => {
-      try {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        const sdp = offer.sdp;
-        if (!sdp) throw new Error('SDP vazio');
+      // Timeout simples para evitar fetch pendurado
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, 8000);
 
-        const res = await fetch(whepUrl, {
+      const response = await fetch(
+        `${baseUrl.replace(/\/$/, '')}/${streamName}/whep`,
+        {
           method: 'POST',
           headers: { 'Content-Type': 'application/sdp' },
-          body: sdp,
-        });
-
-        if (cancelled) return;
-
-        if (!res.ok) {
-          if (res.status === 404 || res.status === 502) {
-            setStatus('offline');
-            setErrorMessage('Transmissão não disponível no momento');
-          } else {
-            setStatus('error');
-            setErrorMessage(`Erro ${res.status}: ${res.statusText}`);
-          }
-          cleanup();
-          return;
+          body: offer.sdp,
+          signal: controller.signal,
         }
+      ).finally(() => clearTimeout(timeoutId));
 
-        const answerSdp = await res.text();
-        await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
-      } catch (err) {
-        if (cancelled) return;
-        console.error('WebRTCViewer: Erro WHEP:', err);
-        setStatus('error');
-        setErrorMessage(err instanceof Error ? err.message : 'Erro ao conectar WebRTC');
+      if (!response.ok) {
+        // 404/502: stream offline → não ficar em loop infinito
+        if (response.status === 404 || response.status === 502) {
+          setStatus('offline');
+        } else {
+          setStatus('error');
+        }
         cleanup();
+        return;
       }
-    })();
 
-    return () => {
-      cancelled = true;
+      const answer = await response.text();
+
+      await pc.setRemoteDescription({
+        type: 'answer',
+        sdp: answer,
+      });
+    } catch (err) {
+      if ((err as any)?.name === 'AbortError') {
+        // Timeout/abort → tratar como offline, sem flood
+        setStatus('offline');
+      } else {
+        console.error('WebRTCViewer: erro WHEP:', err);
+        setStatus('error');
+      }
       cleanup();
-    };
-  }, [whepUrl, cleanup]);
+    }
+  }, [baseUrl, cleanup, streamName]);
+
+  const reconnect = useCallback(() => {
+    cleanup();
+    // Pequeno delay para não floodar servidor / cliente
+    setTimeout(() => {
+      startConnection();
+    }, 1500);
+  }, [cleanup, startConnection]);
 
   useEffect(() => {
-    return cleanup;
-  }, [cleanup]);
+    let mounted = true;
+
+    const run = async () => {
+      if (!mounted) return;
+      await startConnection();
+    };
+
+    run();
+
+    return () => {
+      mounted = false;
+      cleanup();
+    };
+  }, [startConnection, cleanup]);
+
+  const renderStatus = () => {
+    switch (status) {
+      case 'connecting':
+        return 'Conectando...';
+      case 'live':
+        return 'Ao vivo 🔴';
+      case 'offline':
+        return 'Aguardando transmissão...';
+      case 'reconnecting':
+        return 'Reconectando...';
+      case 'error':
+        return 'Erro de conexão';
+      default:
+        return '';
+    }
+  };
 
   return (
-    <div
-      ref={containerRef}
-      className={`relative w-full h-full ${className}`}
-      style={{ background: '#000' }}
-    >
+    <div>
       <video
         ref={videoRef}
         autoPlay
         playsInline
-        muted={false}
         controls
-        preload="auto"
-        style={{
-          width: '100%',
-          height: '100%',
-          background: '#000',
-          objectFit: fitMode,
-        }}
+        style={{ width: '100%', backgroundColor: 'black' }}
       />
-
-      {status !== 'playing' && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-10">
-          {status === 'loading' && (
-            <div className="text-center space-y-3">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto" />
-              <p className="text-white text-sm font-medium">Conectando WebRTC (low latency)...</p>
-            </div>
-          )}
-          {(status === 'error' || status === 'offline') && (
-            <div className="text-center space-y-4 px-8">
-              <div className="text-6xl">{status === 'offline' ? '📡' : '⚠️'}</div>
-              <h2 className="text-xl font-bold text-white">
-                {status === 'offline' ? 'Transmissão offline' : 'Erro de conexão'}
-              </h2>
-              <p className="text-slate-400 text-sm">{errorMessage || 'Tente novamente'}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {showPerf && hasVideo && status === 'playing' && (
-        <div className="absolute top-2 left-2 z-20 px-3 py-2 rounded-lg bg-black/80 text-xs font-mono text-white border border-white/20 space-y-0.5">
-          <div className="flex items-center gap-2">
-            <span className="text-slate-400">FPS:</span>
-            <span
-              className={
-                perf.fps >= 24 ? 'text-green-400' : perf.fps >= 18 ? 'text-amber-400' : 'text-red-400'
-              }
-            >
-              {perf.fps}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-slate-400">Vídeo drops:</span>
-            <span
-              className={
-                perf.videoDroppedFrames === 0 ? 'text-green-400' : 'text-amber-400'
-              }
-            >
-              {perf.videoDroppedFrames}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-slate-400">WebRTC</span>
-            <span className="text-emerald-400">Low Latency</span>
-          </div>
-        </div>
-      )}
+      <p style={{ color: 'white' }}>{renderStatus()}</p>
     </div>
   );
 }
+
+export default WebRTCViewer;
+export { WebRTCViewer };
