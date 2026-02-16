@@ -181,11 +181,14 @@ export const CastButton: React.FC<CastButtonProps> = ({
         }
       }
 
-      // Se ainda não tiver, tentar construir URL HLS padrão do Agora
+      // Se ainda não tiver, tentar construir URL HLS padrão do MediaMTX
       if (!url) {
-        const agoraChannel = channelName || 'zkpremios';
-        url = `https://zkoficial-6xokn1hv.livekit.cloud/hls/${agoraChannel}/index.m3u8`; // TODO: Atualizar se o HLS do Agora tiver URL diferente
-        console.log('⚠️ Usando URL HLS padrão:', url);
+        const mediaMtxBase = (import.meta.env.VITE_MEDIAMTX_HLS_BASE_URL as string | undefined)?.trim();
+        if (mediaMtxBase) {
+          const channel = channelName || 'ZkOficial';
+          url = `${mediaMtxBase.replace(/\/$/, '')}/live/${channel}/index.m3u8`;
+          console.log('⚠️ Usando URL HLS padrão (MediaMTX):', url);
+        }
       }
 
       if (!url) {

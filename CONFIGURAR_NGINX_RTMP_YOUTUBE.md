@@ -6,7 +6,7 @@
   - Proxy reverso do backend (Socket.IO em `api.zkoficial.com.br`)
   - SSL e upgrade WebSocket
 - **Não há Nginx-RTMP** instalado nem configurado neste projeto.
-- A **live do site** usa **LiveKit** (e Agora no viewer), não RTMP na VPS.
+- A **live do site** usa **MediaMTX** (HLS/WebRTC) e Agora no viewer, não RTMP na VPS.
 
 Ou seja: **sua VPS própria não usa Nginx-RTMP** no fluxo atual.
 

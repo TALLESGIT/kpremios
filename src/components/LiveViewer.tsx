@@ -1,6 +1,8 @@
 import { useLiveStatus } from '../hooks/useLiveStatus';
 import { DEFAULT_LIVE_CHANNEL } from '../config/constants';
 import WebRTCViewer from './WebRTCViewer';
+import { HLSViewer } from './HLSViewer';
+import { ZKViewer } from './ZKViewer';
 
 interface LiveViewerProps {
   channelName?: string;
@@ -15,8 +17,9 @@ interface LiveViewerProps {
 
 /**
  * Componente inteligente que decide qual player usar:
- * - Mobile + HLS URL disponível → HLSViewer
- * - Desktop ou sem HLS → ZKViewer (Agora.io)
+ * - VITE_WHEP_BASE_URL configurado → WebRTCViewer (baixa latência)
+ * - hls_url disponível → HLSViewer
+ * - Fallback → ZKViewer (Agora.io)
  */
 export function LiveViewer({
   channelName = DEFAULT_LIVE_CHANNEL,
@@ -73,7 +76,8 @@ export function LiveViewer({
   }
 
   const isActuallyLive = data.is_active;
-  const effectiveStreamName = DEFAULT_LIVE_CHANNEL || 'ZkOficial';
+  const effectiveStreamName = data.channel_name || DEFAULT_LIVE_CHANNEL || 'ZkOficial';
+  const whepBaseUrl = (import.meta.env.VITE_WHEP_BASE_URL as string | undefined)?.trim();
 
   const renderContent = () => {
     // Se a live estiver offline e showOfflineMessage=true
@@ -106,9 +110,24 @@ export function LiveViewer({
       );
     }
 
+    // Prioridade: WebRTC (WHEP) se configurado → HLS se hls_url disponível → Agora (ZKViewer)
+    if (whepBaseUrl) {
+      return <WebRTCViewer streamName={effectiveStreamName} />;
+    }
+    if (data.hls_url) {
+      return (
+        <HLSViewer
+          hlsUrl={data.hls_url}
+          fitMode={fitMode}
+          className="w-full h-full"
+        />
+      );
+    }
     return (
-      <WebRTCViewer
-        streamName={effectiveStreamName}
+      <ZKViewer
+        channel={effectiveStreamName}
+        fitMode={fitMode}
+        muteAudio={isAdmin}
       />
     );
   };

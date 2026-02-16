@@ -41,7 +41,6 @@ function WebRTCViewer({ streamName = 'live' }: Props) {
 
   const startConnection = useCallback(async () => {
     if (!baseUrl) {
-      console.error('VITE_WHEP_BASE_URL não configurado.');
       setStatus('error');
       return;
     }
