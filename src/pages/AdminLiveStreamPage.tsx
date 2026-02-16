@@ -61,7 +61,7 @@ const AdminLiveStreamPage: React.FC = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [loading, setLoading] = useState(true);
   
-  // ✅ THROTTLE: useRef para persistir entre re-renders
+  // ✅ THROTTLE: useRef para persistir entre re-renders (0 = primeiro UPDATE, sempre processa)
   const lastRealtimeUpdateRef = useRef<number>(0);
 
   // Handler para duplo clique - tela cheia
@@ -103,7 +103,11 @@ const AdminLiveStreamPage: React.FC = () => {
             const timeSinceLastUpdate = now - lastRealtimeUpdateRef.current;
 
             // ✅ THROTTLE: Ignorar UPDATEs frequentes (< 3s) para evitar lags
-            adminLiveDebug('Throttle check:', timeSinceLastUpdate, 'ms desde último UPDATE');
+            adminLiveDebug(
+              'Throttle check:',
+              lastRealtimeUpdateRef.current === 0 ? 'primeiro UPDATE' : `${timeSinceLastUpdate} ms`,
+              'desde último UPDATE'
+            );
             if (timeSinceLastUpdate < 3000) {
               adminLiveDebug('Ignorando UPDATE (throttle de 3s) -', timeSinceLastUpdate, 'ms < 3000ms');
               return;
