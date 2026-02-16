@@ -10,6 +10,9 @@ const CONFIG = {
   RECONNECT_BASE_DELAY_MS: 1_500,
   RECONNECT_MAX_DELAY_MS: 30_000,
   MAX_INITIAL_ATTEMPTS: 3,
+  /** Backoff para 404: primeiros retries rápidos, depois mais espaçados (reduz spam no console) */
+  OFFLINE_RETRY_BASE_MS: 1_500,
+  OFFLINE_RETRY_MAX_MS: 8_000,
 } as const;
 
 // =============================================================================
@@ -23,7 +26,8 @@ export type WhepPlayerStatus =
   | 'offline'
   | 'reconnecting'
   | 'error'
-  | 'disconnected';
+  | 'disconnected'
+  | 'ended';
 
 interface WhepPlayerProps {
   channelName: string;
@@ -87,8 +91,10 @@ function WhepPlayer({
   const wasLiveRef = useRef(false);
   const reconnectAttemptRef = useRef(0);
   const initialAttemptRef = useRef(0);
+  const offline404CountRef = useRef(0);
 
   const [status, setStatus] = useState<WhepPlayerStatus>('idle');
+  const [isUserMuted, setIsUserMuted] = useState(muted);
 
   const baseUrl = normalizeWhepBaseUrl(
     import.meta.env.VITE_WHEP_BASE_URL as string | undefined
@@ -162,6 +168,7 @@ function WhepPlayer({
           case 'connected':
             wasLiveRef.current = true;
             reconnectAttemptRef.current = 0;
+            offline404CountRef.current = 0;
             setStatusSafe('connected');
             break;
 
@@ -170,7 +177,7 @@ function WhepPlayer({
             if (wasLiveRef.current) {
               const attempt = reconnectAttemptRef.current;
               if (attempt >= CONFIG.MAX_RECONNECT_ATTEMPTS) {
-                setStatusSafe('error');
+                setStatusSafe('ended');
                 cleanup();
                 return;
               }
@@ -230,14 +237,26 @@ function WhepPlayer({
           return;
         }
 
-        // 404/502 = stream ainda não começou ou temporariamente indisponível → retry contínuo
+        // 404/502 = stream indisponível
         if (response.status === 404 || response.status === 502) {
+          if (wasLiveRef.current) {
+            // Estava assistindo e o stream sumiu → ZK Studio encerrou (não usa Supabase)
+            setStatusSafe('ended');
+            cleanup();
+            return;
+          }
+          const count = offline404CountRef.current;
+          offline404CountRef.current = count + 1;
+          const delay = Math.min(
+            CONFIG.OFFLINE_RETRY_BASE_MS * Math.pow(1.4, Math.min(count, 12)),
+            CONFIG.OFFLINE_RETRY_MAX_MS
+          );
           setStatusSafe('offline');
           cleanup();
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectTimeoutRef.current = null;
             if (mountedRef.current) startConnection(false);
-          }, 1500);
+          }, delay);
           return;
         }
 
@@ -284,7 +303,7 @@ function WhepPlayer({
                 if (mountedRef.current) startConnection(true);
               }, delay);
             } else {
-              setStatusSafe('error');
+              setStatusSafe('ended');
               cleanup();
             }
           } else {
@@ -318,6 +337,7 @@ function WhepPlayer({
     wasLiveRef.current = false;
     reconnectAttemptRef.current = 0;
     initialAttemptRef.current = 0;
+    offline404CountRef.current = 0;
 
     if (!baseUrl) {
       setStatus('error');
@@ -334,30 +354,97 @@ function WhepPlayer({
 
   const statusLabel: Record<WhepPlayerStatus, string> = {
     idle: '',
-    connecting: 'Conectando...',
+    connecting: 'Estabelecendo conexão...',
     connected: 'Ao vivo',
-    offline: 'Aguardando transmissão...',
+    offline: 'A transmissão começará em breve',
     reconnecting: 'Reconectando...',
     error: 'Erro de conexão',
     disconnected: 'Desconectado',
+    ended: '',
   };
 
+  const handleVideoClick = useCallback(() => {
+    if (videoRef.current && status === 'connected' && isUserMuted) {
+      videoRef.current.muted = false;
+      setIsUserMuted(false);
+    }
+  }, [status, isUserMuted]);
+
   return (
-    <div className={`relative w-full h-full bg-black ${className}`}>
+    <div
+      className={`relative w-full h-full bg-black cursor-pointer ${className}`}
+      onClick={handleVideoClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === 'Enter' && handleVideoClick()}
+      aria-label={isUserMuted && status === 'connected' ? 'Clique para ativar o áudio' : undefined}
+    >
       <video
         ref={videoRef}
         autoPlay={autoPlay}
-        muted={muted}
+        muted={isUserMuted}
         playsInline
-        controls
-        className="w-full h-full"
+        className="w-full h-full pointer-events-none"
         style={{
           objectFit: fitMode,
           backgroundColor: '#000',
         }}
       />
+      {status === 'ended' && (
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/95 backdrop-blur-sm z-20"
+          aria-hidden
+        >
+          <div className="flex flex-col items-center space-y-6 animate-in fade-in duration-500">
+            <div className="w-20 h-20 rounded-full border-2 border-white/10 flex items-center justify-center bg-white/5">
+              <svg className="w-8 h-8 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div className="text-center space-y-3 px-8 max-w-sm">
+              <h3 className="text-white font-semibold text-lg tracking-tight">Transmissão encerrada</h3>
+              <p className="text-white/60 text-sm leading-relaxed">
+                Obrigado por assistir! A transmissão chegou ao fim.
+                <br />
+                Fique atento para as próximas lives.
+              </p>
+            </div>
+            <div className="w-16 h-0.5 bg-white/10 rounded-full" />
+          </div>
+        </div>
+      )}
+      {status === 'connected' && isUserMuted && (
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 transition-opacity hover:bg-black/20"
+          aria-hidden
+        >
+          <div className="flex flex-col items-center gap-2 text-white/90">
+            <svg
+              className="w-14 h-14"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"
+              />
+            </svg>
+            <span className="text-sm font-medium tracking-wide">Clique para ativar o áudio</span>
+          </div>
+        </div>
+      )}
       <div
-        className="absolute bottom-2 left-2 px-2 py-1 rounded text-xs font-medium bg-black/60 text-white"
+        className="absolute bottom-2 left-2 px-2 py-1 rounded text-xs font-medium bg-black/60 text-white pointer-events-none"
         aria-live="polite"
       >
         {statusLabel[status]}
