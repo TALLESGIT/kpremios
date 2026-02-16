@@ -460,7 +460,15 @@ const AdminLiveStreamPage: React.FC = () => {
             <div className="bg-slate-800 p-8 rounded-[2.5rem] border border-white/10 w-full max-w-md shadow-2xl">
               <h3 className="text-2xl font-black text-white uppercase italic mb-8">Configurar Live</h3>
               <div className="space-y-4">
-                <input type="text" value={newStreamTitle} onChange={(e) => setNewStreamTitle(e.target.value)} placeholder="Título da Transmissão" className="w-full px-6 py-4 bg-slate-900 border border-white/5 rounded-2xl text-white font-bold" />
+                <input
+                  id="new-stream-title"
+                  name="newStreamTitle"
+                  type="text"
+                  value={newStreamTitle}
+                  onChange={(e) => setNewStreamTitle(e.target.value)}
+                  placeholder="Título da Transmissão"
+                  className="w-full px-6 py-4 bg-slate-900 border border-white/5 rounded-2xl text-white font-bold"
+                />
                 <div className="grid grid-cols-2 gap-4">
                   <button onClick={() => setIsCreating(false)} className="py-4 bg-slate-700 text-white rounded-2xl font-black uppercase text-xs">Cancelar</button>
                   <button onClick={() => createStream(true)} className="py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs italic">Criar</button>
