@@ -6,6 +6,7 @@ srtAddress: :8890
 webrtc: yes
 webrtcAddress: :8889
 webrtcLocalUDPAddress: :8189
+webrtcAllowOrigins: ['*']
 
 # ICE Servers (STUN + TURN) — use webrtcICEServers2 (formato YAML)
 webrtcICEServers2:

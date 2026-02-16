@@ -30,6 +30,7 @@ type WebRTCViewerStatus =
   | 'error';
 
 interface WebRTCViewerProps {
+  /** Path completo MediaMTX (ex: live/ZkOficial). SRT publica em live/ZkOficial */
   streamName?: string;
   fitMode?: 'contain' | 'cover';
   className?: string;
@@ -42,13 +43,12 @@ interface WebRTCViewerProps {
 function normalizeWhepBaseUrl(url: string | undefined): string | null {
   const trimmed = url?.trim();
   if (!trimmed) return null;
-  // Garante que não termina com /
   return trimmed.replace(/\/+$/, '');
 }
 
 function buildWhepUrl(baseUrl: string, streamName: string): string {
   const base = baseUrl.replace(/\/+$/, '');
-  const path = streamName.replace(/^\/+|\/+$/g, '') || 'live';
+  const path = streamName.replace(/^\/+|\/+$/g, '') || 'live/ZkOficial';
   return `${base}/${path}/whep`;
 }
 
@@ -68,7 +68,7 @@ function buildWhepUrl(baseUrl: string, streamName: string): string {
  * - Estados claros: connecting | live | offline | reconnecting | error
  */
 function WebRTCViewer({
-  streamName = 'ZkOficial',
+  streamName = 'live/ZkOficial',
   fitMode = 'contain',
   className = '',
 }: WebRTCViewerProps) {
