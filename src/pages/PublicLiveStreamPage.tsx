@@ -354,13 +354,13 @@ const PublicLiveStreamPage: React.FC = () => {
       <Header />
       
       <main className="flex-1 w-full p-0">
-        <section className="relative pt-20 sm:pt-24 pb-12 sm:pb-16 lg:pb-20 overflow-visible">
+        <section className="relative pt-24 sm:pt-28 lg:pt-32 pb-12 sm:pb-16 lg:pb-20 overflow-visible">
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-full bg-blue-600/10 blur-[120px] rounded-full pointer-events-none -z-10" />
 
-            <div className="max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex flex-col lg:flex-row items-center gap-6 sm:gap-8 lg:gap-12">
-                    <div className="flex-1 text-center lg:text-left">
-                        <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mb-6">
+            <div className="max-w-6xl xl:max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex flex-col items-center gap-8 sm:gap-10 lg:gap-12">
+                    <div className="w-full text-center min-w-0 px-2 sm:px-0 overflow-hidden">
+                        <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
                             <button onClick={() => navigate('/')} className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800/50 border border-white/10 rounded-full text-slate-400 text-sm font-bold hover:bg-slate-800 transition-colors">
                                 <ArrowLeft className="w-4 h-4" /> Voltar
                             </button>
@@ -389,16 +389,54 @@ const PublicLiveStreamPage: React.FC = () => {
                             </button>
                         </div>
 
-                        <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-6 uppercase italic">
+                        <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black tracking-tight mb-6 uppercase italic break-words max-w-full">
                             {stream.is_active ? stream.title : <span className="text-slate-500">{stream.title}</span>}
                         </h1>
 
-                        <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto lg:mx-0 mb-8 leading-relaxed">
+                        <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-8 leading-relaxed">
                             {stream.is_active
                                 ? `Assista agora: ${stream.description || stream.title}.`
                                 : 'A transmissão começará em breve. Fique ligado.'
                             }
                         </p>
+
+                        {upcomingGames.length > 0 && (
+                            <div className="inline-block bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-4 sm:p-6 rounded-2xl mb-6">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Calendar className="w-4 h-4 text-blue-400" />
+                                    <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Próximo Jogo</span>
+                                </div>
+                                <div className="flex items-center justify-center gap-4 sm:gap-6">
+                                    <div className="text-center">
+                                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-1 font-black text-white text-xs">CRU</div>
+                                        <span className="text-xs font-bold text-slate-300">Cruzeiro</span>
+                                    </div>
+                                    <div className="text-slate-600 font-black text-sm">VS</div>
+                                    <div className="text-center">
+                                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-800 border border-slate-700 rounded-xl flex items-center justify-center mx-auto mb-1 font-black text-slate-400 text-xs">
+                                            {upcomingGames[0].opponent.substring(0, 3).toUpperCase()}
+                                        </div>
+                                        <span className="text-xs font-bold text-slate-300 truncate max-w-[80px] block mx-auto">{upcomingGames[0].opponent}</span>
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mt-3 pt-3 border-t border-slate-700/50 text-xs text-slate-400">
+                                    <span className="flex items-center gap-1.5">
+                                        <Calendar className="w-3 h-3 text-blue-500" />
+                                        {new Date(upcomingGames[0].date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                                    </span>
+                                    <span className="flex items-center gap-1.5">
+                                        <Clock className="w-3 h-3 text-blue-500" />
+                                        {new Date(upcomingGames[0].date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
+                                    </span>
+                                    {upcomingGames[0].venue && (
+                                        <span className="flex items-center gap-1.5 truncate max-w-[120px]">
+                                            <MapPin className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                                            {upcomingGames[0].venue}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div
@@ -409,7 +447,7 @@ const PublicLiveStreamPage: React.FC = () => {
                         onMouseLeave={() => !isMobile && setShowControls(false)}
                         onClick={() => showControlsTemporarily()}
                         onTouchStart={() => isMobile && showControlsTemporarily()}
-                        className={`w-full lg:w-[720px] xl:w-[900px] aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative cursor-pointer group ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : ''
+                        className={`w-full max-w-[680px] lg:max-w-[760px] mx-auto shrink-0 aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative cursor-pointer group ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : ''
                             } ${isDockedChat ? 'mobile-video-container docked-chat-active' : ''}`}
                         title={isMobile ? "Toque duas vezes para tela cheia" : "Duplo clique para tela cheia"}
                     >

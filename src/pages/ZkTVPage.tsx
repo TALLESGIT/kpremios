@@ -907,17 +907,17 @@ const ZkTVPage: React.FC = () => {
             <Header />
 
             {/* Hero Section / Live Stream */}
-            <section className="relative pt-20 sm:pt-24 pb-12 sm:pb-16 lg:pb-20 overflow-visible">
+            <section className="relative pt-24 sm:pt-28 lg:pt-32 pb-12 sm:pb-16 lg:pb-20 overflow-visible">
                 {/* Background Glow */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-full bg-blue-600/10 blur-[120px] rounded-full pointer-events-none -z-10" />
 
-                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex flex-col lg:flex-row items-center gap-6 sm:gap-8 lg:gap-12">
-                        <div className="flex-1 text-center lg:text-left">
+                <div className="max-w-6xl xl:max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex flex-col items-center gap-8 sm:gap-10 lg:gap-12">
+                        <div className="w-full text-center min-w-0 px-2 sm:px-0 overflow-hidden">
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mb-6"
+                                className="flex flex-wrap items-center justify-center gap-3 mb-6"
                             >
                                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-400 text-sm font-bold">
                                     <Tv className="w-4 h-4" />
@@ -961,7 +961,7 @@ const ZkTVPage: React.FC = () => {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.1 }}
-                                className="text-5xl md:text-7xl font-black tracking-tight mb-6 uppercase italic"
+                                className="text-2xl sm:text-3xl md:text-5xl lg:text-7xl font-black tracking-tight mb-6 uppercase italic break-words max-w-full"
                             >
                                 {activeStream?.is_active ? (
                                     <>
@@ -979,7 +979,7 @@ const ZkTVPage: React.FC = () => {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.2 }}
-                                className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto lg:mx-0 mb-8 leading-relaxed"
+                                className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-8 leading-relaxed"
                             >
                                 {activeStream?.is_active
                                     ? `Assista agora: ${activeStream.title}. Acompanhe ao vivo com a melhor qualidade e interatividade.`
@@ -987,6 +987,48 @@ const ZkTVPage: React.FC = () => {
                                 }
                             </motion.p>
 
+                            {nextGame && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.25 }}
+                                    className="inline-block bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-4 sm:p-6 rounded-2xl mb-6"
+                                >
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Calendar className="w-4 h-4 text-blue-400" />
+                                        <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Próximo Jogo</span>
+                                    </div>
+                                    <div className="flex items-center justify-center gap-4 sm:gap-6">
+                                        <div className="text-center">
+                                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-1 font-black text-white text-xs">CRU</div>
+                                            <span className="text-xs font-bold text-slate-300">Cruzeiro</span>
+                                        </div>
+                                        <div className="text-slate-600 font-black text-sm">VS</div>
+                                        <div className="text-center">
+                                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-800 border border-slate-700 rounded-xl flex items-center justify-center mx-auto mb-1 font-black text-slate-400 text-xs">
+                                                {nextGame.opponent.substring(0, 3).toUpperCase()}
+                                            </div>
+                                            <span className="text-xs font-bold text-slate-300 truncate max-w-[80px] block mx-auto">{nextGame.opponent}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mt-3 pt-3 border-t border-slate-700/50 text-xs text-slate-400">
+                                        <span className="flex items-center gap-1.5">
+                                            <Calendar className="w-3 h-3 text-blue-500" />
+                                            {new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                                        </span>
+                                        <span className="flex items-center gap-1.5">
+                                            <Clock className="w-3 h-3 text-blue-500" />
+                                            {new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
+                                        </span>
+                                        {nextGame.venue && (
+                                            <span className="flex items-center gap-1.5 truncate max-w-[120px]">
+                                                <MapPin className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                                                {nextGame.venue}
+                                            </span>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
 
                         </div>
 
@@ -998,23 +1040,26 @@ const ZkTVPage: React.FC = () => {
                             onMouseLeave={() => !isMobile && setShowControls(false)}
                             onClick={() => showControlsTemporarily()}
                             onTouchStart={() => isMobile && showControlsTemporarily()}
-                            className={`w-full lg:w-[600px] aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative cursor-pointer group ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : ''
+                            className={`w-full max-w-[680px] lg:max-w-[760px] mx-auto shrink-0 aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative cursor-pointer group ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : ''
                                 } ${isDockedChat ? 'mobile-video-container docked-chat-active' : ''}`}
                             title={isMobile ? "Toque duas vezes para tela cheia" : "Duplo clique para tela cheia"}
                         >
                             <div className="relative w-full h-full flex">
-                                {activeStream ? (
+                                {activeStream?.is_active ? (
                                     <>
-                                        {/* LiveViewer inteligente: escolhe HLS (mobile) ou RTC (desktop) automaticamente */}
-                                        {/* showOfflineMessage=false para sempre tentar mostrar o player, mesmo se is_active=false */}
+                                        {/* Só renderiza o player quando a transmissão estiver ativa (ZK Studio) */}
                                         <LiveViewer
                                             channelName={activeStream.channel_name}
                                             fitMode={videoFitMode}
                                             showOfflineMessage={false}
                                         />
-
-                                        {/* Mensagem de Transmissão Encerrada */}
-                                        {!activeStream.is_active && (
+                                        {activeStream.id && (
+                                            <VipMessageOverlay streamId={activeStream.id} isActive={activeStream.is_active} />
+                                        )}
+                                    </>
+                                ) : activeStream && !activeStream.is_active ? (
+                                    <>
+                                        {/* Transmissão encerrada - placeholder sem carregar o player */}
                                             <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center z-30">
                                                 <div className="text-center px-6 max-w-2xl animate-in fade-in slide-in-from-bottom-8 duration-1000">
                                                     {/* Icon */}
@@ -1056,12 +1101,6 @@ const ZkTVPage: React.FC = () => {
                                                     </p>
                                                 </div>
                                             </div>
-                                        )}
-
-                                        {/* Overlay de mensagens VIP na tela - só mostra se realmente ativa */}
-                                        {activeStream.is_active && activeStream.id && (
-                                            <VipMessageOverlay streamId={activeStream.id} isActive={activeStream.is_active} />
-                                        )}
                                     </>
                                 ) : (
                                     settings?.live_url && settings.live_url.includes('/live/') ? (
@@ -1318,7 +1357,7 @@ const ZkTVPage: React.FC = () => {
 
             {/* Content Section */}
             <section className="py-6 sm:py-8 lg:py-12 relative pb-12 sm:pb-16 lg:pb-24">
-                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                     {/* Main Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
 
