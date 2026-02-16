@@ -1,6 +1,6 @@
 import { useLiveStatus } from '../hooks/useLiveStatus';
 import { DEFAULT_LIVE_CHANNEL } from '../config/constants';
-import WebRTCViewer from './WebRTCViewer';
+import WhepPlayer from './WhepPlayer';
 import { HLSViewer } from './HLSViewer';
 import { ZKViewer } from './ZKViewer';
 
@@ -17,7 +17,7 @@ interface LiveViewerProps {
 
 /**
  * Componente inteligente que decide qual player usar:
- * - VITE_WHEP_BASE_URL configurado → WebRTCViewer (baixa latência)
+ * - VITE_WHEP_BASE_URL configurado → WhepPlayer (baixa latência)
  * - hls_url disponível → HLSViewer
  * - Fallback → ZKViewer (Agora.io)
  */
@@ -111,8 +111,15 @@ export function LiveViewer({
     }
 
     // Prioridade: WebRTC (WHEP) se configurado → HLS se hls_url disponível → Agora (ZKViewer)
+    // MediaMTX sempre recebe em live/ZkOficial (Stream Key do ZK Studio), independente do channel_name no DB
     if (whepBaseUrl) {
-      return <WebRTCViewer streamName={effectiveStreamName} />;
+      return (
+        <WhepPlayer
+          channelName={DEFAULT_LIVE_CHANNEL}
+          fitMode={fitMode}
+          pathPrefix="live"
+        />
+      );
     }
     if (data.hls_url) {
       return (

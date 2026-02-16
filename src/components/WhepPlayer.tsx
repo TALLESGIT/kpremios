@@ -5,15 +5,10 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 // =============================================================================
 
 const CONFIG = {
-  /** Timeout do fetch WHEP (ms) */
   FETCH_TIMEOUT_MS: 10_000,
-  /** Máximo de tentativas de reconexão após ter estado "live" */
   MAX_RECONNECT_ATTEMPTS: 5,
-  /** Delay base para backoff exponencial (ms) */
   RECONNECT_BASE_DELAY_MS: 1_500,
-  /** Máximo delay entre tentativas (ms) */
   RECONNECT_MAX_DELAY_MS: 30_000,
-  /** Tentativas iniciais (antes de conectar) para timeout/erro de rede */
   MAX_INITIAL_ATTEMPTS: 3,
 } as const;
 
@@ -21,18 +16,23 @@ const CONFIG = {
 // TIPOS
 // =============================================================================
 
-export type WebRTCViewerStatus =
+export type WhepPlayerStatus =
   | 'idle'
   | 'connecting'
-  | 'live'
+  | 'connected'
   | 'offline'
   | 'reconnecting'
-  | 'error';
+  | 'error'
+  | 'disconnected';
 
-interface WebRTCViewerProps {
-  streamName?: string;
+interface WhepPlayerProps {
+  channelName: string;
+  autoPlay?: boolean;
+  muted?: boolean;
   fitMode?: 'contain' | 'cover';
   className?: string;
+  /** Prefixo do path MediaMTX. Default "live" → URL = {base}/live/{channel}/whep */
+  pathPrefix?: string;
 }
 
 // =============================================================================
@@ -42,13 +42,19 @@ interface WebRTCViewerProps {
 function normalizeWhepBaseUrl(url: string | undefined): string | null {
   const trimmed = url?.trim();
   if (!trimmed) return null;
-  // Garante que não termina com /
   return trimmed.replace(/\/+$/, '');
 }
 
-function buildWhepUrl(baseUrl: string, streamName: string): string {
+function buildWhepUrl(
+  baseUrl: string,
+  channelName: string,
+  pathPrefix: string
+): string {
   const base = baseUrl.replace(/\/+$/, '');
-  const path = streamName.replace(/^\/+|\/+$/g, '') || 'live';
+  const channel = channelName.replace(/^\/+|\/+$/g, '') || 'ZkOficial';
+  const path = pathPrefix
+    ? `${pathPrefix.replace(/^\/+|\/+$/g, '')}/${channel}`
+    : channel;
   return `${base}/${path}/whep`;
 }
 
@@ -57,21 +63,22 @@ function buildWhepUrl(baseUrl: string, streamName: string): string {
 // =============================================================================
 
 /**
- * Player WebRTC (WHEP) de baixa latência para produção.
+ * Player WHEP robusto para produção.
  * Fluxo: ZK Studio → SRT → MediaMTX → WebRTC (WHEP) → React
  *
- * - RTCPeerConnection com ICE config adequado
- * - Cleanup completo (PeerConnection, srcObject, listeners)
- * - Reconexão com backoff exponencial (sem loop infinito)
- * - 404/502 = stream offline (não reconecta)
- * - AbortController para fetch e unmount
- * - Estados claros: connecting | live | offline | reconnecting | error
+ * - addTransceiver recvonly explícito (vídeo + áudio)
+ * - VITE_WHEP_BASE_URL
+ * - pathPrefix para MediaMTX (default "live")
+ * - AbortController, cleanup, reconexão com backoff
  */
-function WebRTCViewer({
-  streamName = 'ZkOficial',
+function WhepPlayer({
+  channelName = 'ZkOficial',
+  autoPlay = true,
+  muted = false,
   fitMode = 'contain',
   className = '',
-}: WebRTCViewerProps) {
+  pathPrefix = 'live',
+}: WhepPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -81,59 +88,42 @@ function WebRTCViewer({
   const reconnectAttemptRef = useRef(0);
   const initialAttemptRef = useRef(0);
 
-  const [status, setStatus] = useState<WebRTCViewerStatus>('idle');
+  const [status, setStatus] = useState<WhepPlayerStatus>('idle');
 
   const baseUrl = normalizeWhepBaseUrl(
     import.meta.env.VITE_WHEP_BASE_URL as string | undefined
   );
 
-  // ---------------------------------------------------------------------------
-  // Safe setState (evita setState após unmount)
-  // ---------------------------------------------------------------------------
-  const setStatusSafe = useCallback((next: WebRTCViewerStatus) => {
-    if (mountedRef.current) {
-      setStatus(next);
-    }
+  const setStatusSafe = useCallback((next: WhepPlayerStatus) => {
+    if (mountedRef.current) setStatus(next);
   }, []);
 
-  // ---------------------------------------------------------------------------
-  // Cleanup completo
-  // ---------------------------------------------------------------------------
   const cleanup = useCallback(() => {
-    // Cancelar fetch em andamento
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
 
-    // Cancelar timeout de reconexão
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
 
-    // Fechar RTCPeerConnection e remover referências
     const pc = pcRef.current;
     if (pc) {
       try {
         pc.ontrack = null;
         pc.onconnectionstatechange = null;
-        pc.oniceconnectionstatechange = null;
         pc.close();
-      } catch (e) {
-        // Ignorar erros ao fechar (pode já estar closed)
+      } catch {
+        // ignore
       }
       pcRef.current = null;
     }
 
-    // Limpar vídeo
-    const video = videoRef.current;
-    if (video) {
-      video.srcObject = null;
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
   }, []);
 
-  // ---------------------------------------------------------------------------
-  // Iniciar conexão WHEP
-  // ---------------------------------------------------------------------------
   const startConnection = useCallback(
     async (isReconnect = false) => {
       if (!baseUrl) {
@@ -143,12 +133,15 @@ function WebRTCViewer({
 
       setStatusSafe(isReconnect ? 'reconnecting' : 'connecting');
 
-      const whepUrl = buildWhepUrl(baseUrl, streamName);
+      const whepUrl = buildWhepUrl(baseUrl, channelName, pathPrefix);
       const pc = new RTCPeerConnection({
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
         bundlePolicy: 'max-bundle',
         iceTransportPolicy: 'all',
       });
+
+      pc.addTransceiver('video', { direction: 'recvonly' });
+      pc.addTransceiver('audio', { direction: 'recvonly' });
 
       pcRef.current = pc;
 
@@ -167,7 +160,7 @@ function WebRTCViewer({
           case 'connected':
             wasLiveRef.current = true;
             reconnectAttemptRef.current = 0;
-            setStatusSafe('live');
+            setStatusSafe('connected');
             break;
 
           case 'disconnected':
@@ -197,7 +190,7 @@ function WebRTCViewer({
             break;
 
           case 'closed':
-            setStatusSafe('offline');
+            setStatusSafe('disconnected');
             break;
 
           default:
@@ -216,7 +209,10 @@ function WebRTCViewer({
           throw new Error('SDP vazio');
         }
 
-        const timeoutId = setTimeout(() => controller.abort(), CONFIG.FETCH_TIMEOUT_MS);
+        const timeoutId = setTimeout(
+          () => controller.abort(),
+          CONFIG.FETCH_TIMEOUT_MS
+        );
 
         const response = await fetch(whepUrl, {
           method: 'POST',
@@ -232,7 +228,6 @@ function WebRTCViewer({
           return;
         }
 
-        // 404/502 = stream offline, não reconectar
         if (response.status === 404 || response.status === 502) {
           setStatusSafe('offline');
           cleanup();
@@ -258,9 +253,7 @@ function WebRTCViewer({
         const isAbort = (err as Error)?.name === 'AbortError';
 
         if (isAbort) {
-          // Timeout ou unmount
           if (wasLiveRef.current) {
-            // Já estava live - tratar como desconexão, reconectar
             const attempt = reconnectAttemptRef.current;
             if (attempt < CONFIG.MAX_RECONNECT_ATTEMPTS) {
               reconnectAttemptRef.current = attempt + 1;
@@ -279,7 +272,6 @@ function WebRTCViewer({
               cleanup();
             }
           } else {
-            // Tentativa inicial - retry com backoff
             const attempt = initialAttemptRef.current;
             if (attempt < CONFIG.MAX_INITIAL_ATTEMPTS - 1) {
               initialAttemptRef.current = attempt + 1;
@@ -298,17 +290,13 @@ function WebRTCViewer({
           return;
         }
 
-        // Outros erros (rede, etc.)
         setStatusSafe('error');
         cleanup();
       }
     },
-    [baseUrl, streamName, cleanup, setStatusSafe]
+    [baseUrl, channelName, pathPrefix, cleanup, setStatusSafe]
   );
 
-  // ---------------------------------------------------------------------------
-  // Effect principal
-  // ---------------------------------------------------------------------------
   useEffect(() => {
     mountedRef.current = true;
     wasLiveRef.current = false;
@@ -326,27 +314,25 @@ function WebRTCViewer({
       mountedRef.current = false;
       cleanup();
     };
-  }, [baseUrl, streamName]); // eslint-disable-line react-hooks/exhaustive-deps -- cleanup é estável
+  }, [baseUrl, channelName, pathPrefix]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
-  const statusLabel: Record<WebRTCViewerStatus, string> = {
+  const statusLabel: Record<WhepPlayerStatus, string> = {
     idle: '',
     connecting: 'Conectando...',
-    live: 'Ao vivo',
+    connected: 'Ao vivo',
     offline: 'Aguardando transmissão...',
     reconnecting: 'Reconectando...',
     error: 'Erro de conexão',
+    disconnected: 'Desconectado',
   };
 
   return (
     <div className={`relative w-full h-full bg-black ${className}`}>
       <video
         ref={videoRef}
-        autoPlay
+        autoPlay={autoPlay}
+        muted={muted}
         playsInline
-        muted={false}
         controls
         className="w-full h-full"
         style={{
@@ -359,12 +345,12 @@ function WebRTCViewer({
         aria-live="polite"
       >
         {statusLabel[status]}
-        {status === 'live' && <span className="ml-1 text-red-500">●</span>}
+        {status === 'connected' && <span className="ml-1 text-red-500">●</span>}
       </div>
     </div>
   );
 }
 
-export default WebRTCViewer;
-export { WebRTCViewer };
-export type { WebRTCViewerProps, WebRTCViewerStatus };
+export default WhepPlayer;
+export { WhepPlayer };
+export type { WhepPlayerProps };
