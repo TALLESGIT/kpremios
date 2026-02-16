@@ -357,7 +357,7 @@ const PublicLiveStreamPage: React.FC = () => {
         <section className="relative pt-20 sm:pt-24 pb-12 sm:pb-16 lg:pb-20 overflow-visible">
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-full bg-blue-600/10 blur-[120px] rounded-full pointer-events-none -z-10" />
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex flex-col lg:flex-row items-center gap-6 sm:gap-8 lg:gap-12">
                     <div className="flex-1 text-center lg:text-left">
                         <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mb-6">
@@ -409,7 +409,7 @@ const PublicLiveStreamPage: React.FC = () => {
                         onMouseLeave={() => !isMobile && setShowControls(false)}
                         onClick={() => showControlsTemporarily()}
                         onTouchStart={() => isMobile && showControlsTemporarily()}
-                        className={`w-full lg:w-[600px] aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative cursor-pointer group ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : ''
+                        className={`w-full lg:w-[720px] xl:w-[900px] aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative cursor-pointer group ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : ''
                             } ${isDockedChat ? 'mobile-video-container docked-chat-active' : ''}`}
                         title={isMobile ? "Toque duas vezes para tela cheia" : "Duplo clique para tela cheia"}
                     >
@@ -548,7 +548,7 @@ const PublicLiveStreamPage: React.FC = () => {
             </div>
         </section>
 
-        <section className="py-6 sm:py-8 lg:py-12 relative pb-12 sm:pb-16 lg:pb-24 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
+        <section className="py-6 sm:py-8 lg:py-12 relative pb-12 sm:pb-16 lg:pb-24 px-4 sm:px-6 lg:px-8 max-w-5xl xl:max-w-6xl mx-auto">
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
               {upcomingGames.length > 0 && (
                 <div className="bg-slate-800/20 p-8 rounded-[2rem] border border-white/5 space-y-6">
