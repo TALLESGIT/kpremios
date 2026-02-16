@@ -228,9 +228,14 @@ function WhepPlayer({
           return;
         }
 
+        // 404/502 = stream ainda não começou ou temporariamente indisponível → retry contínuo
         if (response.status === 404 || response.status === 502) {
           setStatusSafe('offline');
           cleanup();
+          reconnectTimeoutRef.current = setTimeout(() => {
+            reconnectTimeoutRef.current = null;
+            if (mountedRef.current) startConnection(false);
+          }, 2000);
           return;
         }
 

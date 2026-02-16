@@ -21,7 +21,7 @@ const CONFIG = {
 // TIPOS
 // =============================================================================
 
-export type WebRTCViewerStatus =
+type WebRTCViewerStatus =
   | 'idle'
   | 'connecting'
   | 'live'
@@ -232,10 +232,14 @@ function WebRTCViewer({
           return;
         }
 
-        // 404/502 = stream offline, não reconectar
+        // 404/502 = stream ainda não começou → retry contínuo até entrar online
         if (response.status === 404 || response.status === 502) {
           setStatusSafe('offline');
           cleanup();
+          reconnectTimeoutRef.current = setTimeout(() => {
+            reconnectTimeoutRef.current = null;
+            if (mountedRef.current) startConnection(false);
+          }, 2000);
           return;
         }
 
