@@ -74,7 +74,7 @@ function buildWhepUrl(
 function WhepPlayer({
   channelName = 'ZkOficial',
   autoPlay = true,
-  muted = false,
+  muted = true,
   fitMode = 'contain',
   className = '',
   pathPrefix = 'live',
@@ -139,6 +139,7 @@ function WhepPlayer({
         bundlePolicy: 'max-bundle',
         iceTransportPolicy: 'all',
       });
+      pc.getConfiguration();
 
       pc.addTransceiver('video', { direction: 'recvonly' });
       pc.addTransceiver('audio', { direction: 'recvonly' });
@@ -146,6 +147,7 @@ function WhepPlayer({
       pcRef.current = pc;
 
       pc.ontrack = (event) => {
+        console.log('TRACK:', event.track.kind);
         const stream = event.streams[0];
         if (stream && videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -235,7 +237,7 @@ function WhepPlayer({
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectTimeoutRef.current = null;
             if (mountedRef.current) startConnection(false);
-          }, 2000);
+          }, 1500);
           return;
         }
 
@@ -247,6 +249,15 @@ function WhepPlayer({
 
         const answer = await response.text();
         await pc.setRemoteDescription({ type: 'answer', sdp: answer });
+
+        pc.getReceivers().forEach((receiver) => {
+          if (
+            'playoutDelayHint' in receiver &&
+            receiver.track?.kind === 'video'
+          ) {
+            (receiver as any).playoutDelayHint = 0;
+          }
+        });
       } catch (err) {
         abortControllerRef.current = null;
 
