@@ -37,6 +37,8 @@ interface WhepPlayerProps {
   className?: string;
   /** Prefixo do path MediaMTX. Default "live" → URL = {base}/live/{channel}/whep */
   pathPrefix?: string;
+  /** Admin NUNCA deve ouvir WebRTC — evita eco (já escuta áudio local do ZK Studio) */
+  isAdmin?: boolean;
 }
 
 // =============================================================================
@@ -82,6 +84,7 @@ function WhepPlayer({
   fitMode = 'contain',
   className = '',
   pathPrefix = 'live',
+  isAdmin = false,
 }: WhepPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -382,7 +385,7 @@ function WhepPlayer({
       <video
         ref={videoRef}
         autoPlay={autoPlay}
-        muted={isUserMuted}
+        muted={isAdmin ? true : isUserMuted}
         playsInline
         className="w-full h-full pointer-events-none"
         style={{
@@ -413,7 +416,7 @@ function WhepPlayer({
           </div>
         </div>
       )}
-      {status === 'connected' && isUserMuted && (
+      {status === 'connected' && isUserMuted && !isAdmin && (
         <div
           className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 transition-opacity hover:bg-black/20"
           aria-hidden

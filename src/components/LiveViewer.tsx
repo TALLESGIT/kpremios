@@ -123,6 +123,7 @@ export function LiveViewer({
           channelName={DEFAULT_LIVE_CHANNEL}
           fitMode={fitMode}
           pathPrefix="live"
+          isAdmin={isAdmin}
         />
       );
     }
@@ -132,6 +133,7 @@ export function LiveViewer({
           hlsUrl={data.hls_url}
           fitMode={fitMode}
           className="w-full h-full"
+          isAdmin={isAdmin}
         />
       );
     }

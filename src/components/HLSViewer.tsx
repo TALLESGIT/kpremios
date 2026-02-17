@@ -7,6 +7,8 @@ interface HLSViewerProps {
   fitMode?: 'contain' | 'cover';
   initialInteracted?: boolean;
   showPerf?: boolean;
+  /** Admin NUNCA deve ouvir — evita eco (já escuta áudio local do ZK Studio) */
+  isAdmin?: boolean;
 }
 
 /**
@@ -14,7 +16,7 @@ interface HLSViewerProps {
  * Usa video HTML5 nativo que suporta HLS
  * Respeita políticas de autoplay - vídeo inicia mutado, áudio só após interação
  */
-export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initialInteracted = false, showPerf = false }: HLSViewerProps) {
+export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initialInteracted = false, showPerf = false, isAdmin = false }: HLSViewerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [needsInteraction, setNeedsInteraction] = useState(true);
@@ -25,7 +27,7 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
 
   const handleUserInteraction = useCallback(async () => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || isAdmin) return;
 
     setUserInteracted(true);
     setNeedsInteraction(false);
@@ -36,7 +38,7 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     } catch (err) {
       console.error('❌ HLSViewer: Erro ao ativar áudio:', err);
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -85,7 +87,7 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
       <video
         ref={videoRef}
         autoPlay
-        muted
+        muted={isAdmin ? true : !userInteracted}
         playsInline
         webkit-playsinline
         x-webkit-airplay="allow"

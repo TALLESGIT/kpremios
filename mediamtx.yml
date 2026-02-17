@@ -7,6 +7,9 @@ webrtc: yes
 webrtcAddress: :8889
 webrtcLocalUDPAddress: :8189
 webrtcAllowOrigins: ['*']
+# Forçar IPv4 público — evita "deadline exceeded" e delays de ICE (troque pelo IP da sua VPS)
+webrtcIPsFromInterfaces: no
+webrtcAdditionalHosts: ['76.13.82.48']
 
 # ICE Servers (STUN + TURN) — use webrtcICEServers2 (formato YAML)
 webrtcICEServers2:
