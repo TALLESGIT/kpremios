@@ -5,14 +5,18 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 // =============================================================================
 
 const CONFIG = {
-  FETCH_TIMEOUT_MS: 10_000,
+  /** Timeout do fetch WHEP — reduzir para falhar mais rápido e retentar */
+  FETCH_TIMEOUT_MS: 6_000,
   MAX_RECONNECT_ATTEMPTS: 5,
   RECONNECT_BASE_DELAY_MS: 1_500,
   RECONNECT_MAX_DELAY_MS: 30_000,
   MAX_INITIAL_ATTEMPTS: 3,
-  /** Backoff para 404: primeiros retries rápidos, depois mais espaçados (reduz spam no console) */
+  /** Backoff para 404 quando expectLive=false (usuário só navegando) */
   OFFLINE_RETRY_BASE_MS: 1_500,
   OFFLINE_RETRY_MAX_MS: 8_000,
+  /** Retries mais rápidos quando live está ativa no DB (expectLive=true) — reduz ~15s para ~5s */
+  OFFLINE_RETRY_BASE_MS_EXPECT_LIVE: 500,
+  OFFLINE_RETRY_MAX_MS_EXPECT_LIVE: 2_000,
 } as const;
 
 // =============================================================================
@@ -254,10 +258,13 @@ function WhepPlayer({
           }
           const count = offline404CountRef.current;
           offline404CountRef.current = count + 1;
-          const maxRetry = expectLiveRef.current ? 4000 : CONFIG.OFFLINE_RETRY_MAX_MS;
+          const expectLive = expectLiveRef.current;
+          const baseMs = expectLive ? CONFIG.OFFLINE_RETRY_BASE_MS_EXPECT_LIVE : CONFIG.OFFLINE_RETRY_BASE_MS;
+          const maxMs = expectLive ? CONFIG.OFFLINE_RETRY_MAX_MS_EXPECT_LIVE : CONFIG.OFFLINE_RETRY_MAX_MS;
+          const exponent = expectLive ? 1.25 : 1.4;
           const delay = Math.min(
-            CONFIG.OFFLINE_RETRY_BASE_MS * Math.pow(1.4, Math.min(count, 12)),
-            maxRetry
+            baseMs * Math.pow(exponent, Math.min(count, 12)),
+            maxMs
           );
           setStatusSafe('offline');
           cleanup();
@@ -315,7 +322,8 @@ function WhepPlayer({
             const attempt = initialAttemptRef.current;
             if (attempt < CONFIG.MAX_INITIAL_ATTEMPTS - 1) {
               initialAttemptRef.current = attempt + 1;
-              const delay = CONFIG.RECONNECT_BASE_DELAY_MS * (attempt + 1);
+              const baseMs = expectLiveRef.current ? CONFIG.OFFLINE_RETRY_BASE_MS_EXPECT_LIVE : CONFIG.RECONNECT_BASE_DELAY_MS;
+              const delay = baseMs * (attempt + 1);
               setStatusSafe('connecting');
               cleanup();
               reconnectTimeoutRef.current = setTimeout(() => {
@@ -368,7 +376,11 @@ function WhepPlayer({
       reconnectTimeoutRef.current = null;
     }
     offline404CountRef.current = 0;
-    if (status === 'offline' && mountedRef.current) {
+    // Reconectar quando expectLive vira true: tanto em 'offline' (aguardando) quanto em 'ended' (nova live após encerrar)
+    if ((status === 'offline' || status === 'ended') && mountedRef.current) {
+      wasLiveRef.current = false;
+      reconnectAttemptRef.current = 0;
+      initialAttemptRef.current = 0;
       startConnection(false);
     }
   }, [expectLive, baseUrl, status, startConnection]);
