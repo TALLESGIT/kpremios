@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast';
 import { Trash2, Play, Square, Radio } from 'lucide-react';
 import LiveChat from '../components/live/LiveChat';
 import AdminLivePanel from '../components/live/AdminLivePanel';
+import AudioEchoTips from '../components/live/AudioEchoTips';
 import ModeratorManager from '../components/live/ModeratorManager';
 import ChatModerationControls from '../components/live/ChatModerationControls';
 import PollManager from '../components/live/PollManager';
@@ -568,6 +569,8 @@ const AdminLiveStreamPage: React.FC = () => {
                     </>
                   )}
                 </div>
+
+                <AudioEchoTips />
 
                 <AdminLivePanel streamId={selectedStream.id} channelName={selectedStream.channel_name} isActive={selectedStream.is_active} />
                 <PoolManager streamId={selectedStream.id} />
