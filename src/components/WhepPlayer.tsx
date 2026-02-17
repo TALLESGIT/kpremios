@@ -376,11 +376,8 @@ function WhepPlayer({
       reconnectTimeoutRef.current = null;
     }
     offline404CountRef.current = 0;
-    // Reconectar quando expectLive vira true: tanto em 'offline' (aguardando) quanto em 'ended' (nova live após encerrar)
-    if ((status === 'offline' || status === 'ended') && mountedRef.current) {
-      wasLiveRef.current = false;
-      reconnectAttemptRef.current = 0;
-      initialAttemptRef.current = 0;
+    // Só reconectar em 'offline' (aguardando stream). Em 'ended' NÃO retentar — evita spam de 404 no console
+    if (status === 'offline' && mountedRef.current) {
       startConnection(false);
     }
   }, [expectLive, baseUrl, status, startConnection]);
