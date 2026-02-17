@@ -193,10 +193,14 @@ function WhepPlayer({
                 return;
               }
               reconnectAttemptRef.current = attempt + 1;
-              const delay = Math.min(
-                CONFIG.RECONNECT_BASE_DELAY_MS * Math.pow(2, attempt),
-                CONFIG.RECONNECT_MAX_DELAY_MS
-              );
+              // Primeira tentativa: delay 0 — detecta fim da transmissão (404) imediatamente
+              const delay =
+                attempt === 0
+                  ? 0
+                  : Math.min(
+                      CONFIG.RECONNECT_BASE_DELAY_MS * Math.pow(2, attempt),
+                      CONFIG.RECONNECT_MAX_DELAY_MS
+                    );
               setStatusSafe('reconnecting');
               cleanup();
               reconnectTimeoutRef.current = setTimeout(() => {
@@ -304,10 +308,14 @@ function WhepPlayer({
             const attempt = reconnectAttemptRef.current;
             if (attempt < CONFIG.MAX_RECONNECT_ATTEMPTS) {
               reconnectAttemptRef.current = attempt + 1;
-              const delay = Math.min(
-                CONFIG.RECONNECT_BASE_DELAY_MS * Math.pow(2, attempt),
-                CONFIG.RECONNECT_MAX_DELAY_MS
-              );
+              // Primeira tentativa: delay 0 — detecta fim da transmissão (404) imediatamente
+              const delay =
+                attempt === 0
+                  ? 0
+                  : Math.min(
+                      CONFIG.RECONNECT_BASE_DELAY_MS * Math.pow(2, attempt),
+                      CONFIG.RECONNECT_MAX_DELAY_MS
+                    );
               setStatusSafe('reconnecting');
               cleanup();
               reconnectTimeoutRef.current = setTimeout(() => {
