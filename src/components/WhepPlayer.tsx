@@ -97,6 +97,8 @@ function WhepPlayer({
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const liveEdgeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
   const wasLiveRef = useRef(false);
   const reconnectAttemptRef = useRef(0);
@@ -122,6 +124,16 @@ function WhepPlayer({
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
+    }
+
+    if (disconnectTimerRef.current) {
+      clearTimeout(disconnectTimerRef.current);
+      disconnectTimerRef.current = null;
+    }
+
+    if (liveEdgeIntervalRef.current) {
+      clearInterval(liveEdgeIntervalRef.current);
+      liveEdgeIntervalRef.current = null;
     }
 
     const pc = pcRef.current;
@@ -152,7 +164,10 @@ function WhepPlayer({
 
       const whepUrl = buildWhepUrl(baseUrl, channelName, pathPrefix);
       const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+        ],
         bundlePolicy: 'max-bundle',
         iceTransportPolicy: 'all',
       });
@@ -180,37 +195,32 @@ function WhepPlayer({
             wasLiveRef.current = true;
             reconnectAttemptRef.current = 0;
             offline404CountRef.current = 0;
+            // Limpar timer de disconnected se houver
+            if (disconnectTimerRef.current) {
+              clearTimeout(disconnectTimerRef.current);
+              disconnectTimerRef.current = null;
+            }
             setStatusSafe('connected');
+            // Iniciar live edge sync para manter o player no tempo real
+            startLiveEdgeSync();
             break;
 
           case 'disconnected':
-          case 'failed':
-            if (wasLiveRef.current) {
-              const attempt = reconnectAttemptRef.current;
-              if (attempt >= CONFIG.MAX_RECONNECT_ATTEMPTS) {
-                setStatusSafe('ended');
-                cleanup();
-                return;
+            // "disconnected" é temporário no WebRTC — dar 5s para se recuperar
+            console.log('[whep] Disconnected, aguardando 5s para recuperar...');
+            if (disconnectTimerRef.current) clearTimeout(disconnectTimerRef.current);
+            disconnectTimerRef.current = setTimeout(() => {
+              disconnectTimerRef.current = null;
+              if (!pcRef.current || pcRef.current !== pc || !mountedRef.current) return;
+              if (pc.connectionState === 'disconnected') {
+                console.log('[whep] Não recuperou, reconectando...');
+                handleReconnect();
               }
-              reconnectAttemptRef.current = attempt + 1;
-              // Primeira tentativa: delay 0 — detecta fim da transmissão (404) imediatamente
-              const delay =
-                attempt === 0
-                  ? 0
-                  : Math.min(
-                      CONFIG.RECONNECT_BASE_DELAY_MS * Math.pow(2, attempt),
-                      CONFIG.RECONNECT_MAX_DELAY_MS
-                    );
-              setStatusSafe('reconnecting');
-              cleanup();
-              reconnectTimeoutRef.current = setTimeout(() => {
-                reconnectTimeoutRef.current = null;
-                if (mountedRef.current) startConnection(true);
-              }, delay);
-            } else {
-              setStatusSafe('offline');
-              cleanup();
-            }
+            }, 5000);
+            break;
+
+          case 'failed':
+            handleReconnect();
             break;
 
           case 'closed':
@@ -221,6 +231,34 @@ function WhepPlayer({
             break;
         }
       };
+
+      function handleReconnect() {
+        if (wasLiveRef.current) {
+          const attempt = reconnectAttemptRef.current;
+          if (attempt >= CONFIG.MAX_RECONNECT_ATTEMPTS) {
+            setStatusSafe('ended');
+            cleanup();
+            return;
+          }
+          reconnectAttemptRef.current = attempt + 1;
+          const delay =
+            attempt === 0
+              ? 0
+              : Math.min(
+                  CONFIG.RECONNECT_BASE_DELAY_MS * Math.pow(2, attempt),
+                  CONFIG.RECONNECT_MAX_DELAY_MS
+                );
+          setStatusSafe('reconnecting');
+          cleanup();
+          reconnectTimeoutRef.current = setTimeout(() => {
+            reconnectTimeoutRef.current = null;
+            if (mountedRef.current) startConnection(true);
+          }, delay);
+        } else {
+          setStatusSafe('offline');
+          cleanup();
+        }
+      }
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -233,6 +271,9 @@ function WhepPlayer({
           throw new Error('SDP vazio');
         }
 
+        // ⚡ Aguardar ICE gathering completar antes de enviar
+        const localSDP = await waitForICEGathering(pc, 3000);
+
         const timeoutId = setTimeout(
           () => controller.abort(),
           CONFIG.FETCH_TIMEOUT_MS
@@ -241,7 +282,7 @@ function WhepPlayer({
         const response = await fetch(whepUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/sdp' },
-          body: offer.sdp,
+          body: localSDP,
           signal: controller.signal,
         }).finally(() => clearTimeout(timeoutId));
 
@@ -350,8 +391,46 @@ function WhepPlayer({
         cleanup();
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [baseUrl, channelName, pathPrefix, cleanup, setStatusSafe]
   );
+
+  // Aguarda ICE gathering completar ou timeout
+  function waitForICEGathering(pc: RTCPeerConnection, timeoutMs: number): Promise<string> {
+    return new Promise((resolve) => {
+      if (pc.iceGatheringState === 'complete') {
+        resolve(pc.localDescription!.sdp);
+        return;
+      }
+      const timer = setTimeout(() => {
+        console.log('[ice] Gathering timeout, sending partial candidates');
+        resolve(pc.localDescription!.sdp);
+      }, timeoutMs);
+
+      pc.onicegatheringstatechange = () => {
+        if (pc.iceGatheringState === 'complete') {
+          clearTimeout(timer);
+          console.log('[ice] Gathering complete');
+          resolve(pc.localDescription!.sdp);
+        }
+      };
+    });
+  }
+
+  // Live edge sync — mantém o player no tempo real
+  function startLiveEdgeSync() {
+    if (liveEdgeIntervalRef.current) clearInterval(liveEdgeIntervalRef.current);
+    liveEdgeIntervalRef.current = setInterval(() => {
+      const vid = videoRef.current;
+      if (!vid || !vid.srcObject || vid.paused || !vid.buffered.length) return;
+      const liveEdge = vid.buffered.end(vid.buffered.length - 1);
+      const behind = liveEdge - vid.currentTime;
+      if (behind > 0.5) {
+        console.log(`[sync] ${behind.toFixed(1)}s atrás, pulando para live edge`);
+        vid.currentTime = liveEdge - 0.05;
+      }
+    }, 3000);
+  }
 
   expectLiveRef.current = expectLive;
 
