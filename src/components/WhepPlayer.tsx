@@ -39,6 +39,8 @@ interface WhepPlayerProps {
   pathPrefix?: string;
   /** Admin NUNCA deve ouvir WebRTC — evita eco (já escuta áudio local do ZK Studio) */
   isAdmin?: boolean;
+  /** Quando true (live ativa no DB), retry mais agressivo para conectar assim que SRT subir */
+  expectLive?: boolean;
 }
 
 // =============================================================================
@@ -85,6 +87,7 @@ function WhepPlayer({
   className = '',
   pathPrefix = 'live',
   isAdmin = false,
+  expectLive = false,
 }: WhepPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -95,6 +98,7 @@ function WhepPlayer({
   const reconnectAttemptRef = useRef(0);
   const initialAttemptRef = useRef(0);
   const offline404CountRef = useRef(0);
+  const expectLiveRef = useRef(expectLive);
 
   const [status, setStatus] = useState<WhepPlayerStatus>('idle');
   const [isUserMuted, setIsUserMuted] = useState(muted);
@@ -250,9 +254,10 @@ function WhepPlayer({
           }
           const count = offline404CountRef.current;
           offline404CountRef.current = count + 1;
+          const maxRetry = expectLiveRef.current ? 4000 : CONFIG.OFFLINE_RETRY_MAX_MS;
           const delay = Math.min(
             CONFIG.OFFLINE_RETRY_BASE_MS * Math.pow(1.4, Math.min(count, 12)),
-            CONFIG.OFFLINE_RETRY_MAX_MS
+            maxRetry
           );
           setStatusSafe('offline');
           cleanup();
@@ -273,10 +278,7 @@ function WhepPlayer({
         await pc.setRemoteDescription({ type: 'answer', sdp: answer });
 
         pc.getReceivers().forEach((receiver) => {
-          if (
-            'playoutDelayHint' in receiver &&
-            receiver.track?.kind === 'video'
-          ) {
+          if ('playoutDelayHint' in receiver) {
             (receiver as any).playoutDelayHint = 0;
           }
         });
@@ -335,12 +337,15 @@ function WhepPlayer({
     [baseUrl, channelName, pathPrefix, cleanup, setStatusSafe]
   );
 
+  expectLiveRef.current = expectLive;
+
   useEffect(() => {
     mountedRef.current = true;
     wasLiveRef.current = false;
     reconnectAttemptRef.current = 0;
     initialAttemptRef.current = 0;
     offline404CountRef.current = 0;
+    expectLiveRef.current = expectLive;
 
     if (!baseUrl) {
       setStatus('error');
@@ -354,6 +359,19 @@ function WhepPlayer({
       cleanup();
     };
   }, [baseUrl, channelName, pathPrefix]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    expectLiveRef.current = expectLive;
+    if (!expectLive || !baseUrl) return;
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    offline404CountRef.current = 0;
+    if (status === 'offline' && mountedRef.current) {
+      startConnection(false);
+    }
+  }, [expectLive, baseUrl, status, startConnection]);
 
   const statusLabel: Record<WhepPlayerStatus, string> = {
     idle: '',
@@ -385,8 +403,9 @@ function WhepPlayer({
       <video
         ref={videoRef}
         autoPlay={autoPlay}
-        muted={isAdmin ? true : isUserMuted}
         playsInline
+        muted={isAdmin ? true : isUserMuted}
+        controls
         className="w-full h-full pointer-events-none"
         style={{
           objectFit: fitMode,

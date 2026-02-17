@@ -278,10 +278,7 @@ function WebRTCViewer({
         await pc.setRemoteDescription({ type: 'answer', sdp: answer });
 
         pc.getReceivers().forEach((receiver) => {
-          if (
-            'playoutDelayHint' in receiver &&
-            receiver.track?.kind === 'video'
-          ) {
+          if ('playoutDelayHint' in receiver) {
             (receiver as any).playoutDelayHint = 0;
           }
         });

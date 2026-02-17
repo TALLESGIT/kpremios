@@ -124,6 +124,7 @@ export function LiveViewer({
           fitMode={fitMode}
           pathPrefix="live"
           isAdmin={isAdmin}
+          expectLive={isActuallyLive}
         />
       );
     }

@@ -7,7 +7,9 @@ webrtc: yes
 webrtcAddress: :8889
 webrtcLocalUDPAddress: :8189
 webrtcAllowOrigins: ['*']
-# Forçar IPv4 público — evita "deadline exceeded" e delays de ICE (troque pelo IP da sua VPS)
+# Forçar IPv4 público — evita "deadline exceeded" e delays de ICE
+# Valide o IP da VPS com: curl -4 ifconfig.me
+# Se o servidor anunciar IPv6 e causar deadline exceeded, inclua apenas o IPv4 aqui
 webrtcIPsFromInterfaces: no
 webrtcAdditionalHosts: ['76.13.82.48']
 
@@ -23,6 +25,8 @@ api: yes
 apiAddress: :9997
 
 # Regex path: aceita live, live/ZkOficial, live/qualquercoisa
+# writeQueueSize: reduz packet loss quando readers estão lentos (evita "reader is too slow")
 paths:
   ~^live(/.*)?$:
     source: publisher
+    writeQueueSize: 384
