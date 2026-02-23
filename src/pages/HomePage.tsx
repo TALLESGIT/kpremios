@@ -312,14 +312,14 @@ function HomePage() {
                 href="https://wa.me/message/K7PI44C5HL7FG1"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-full font-bold uppercase tracking-widest text-sm shadow-lg shadow-green-600/30 transition-all hover:scale-105"
+                className="hidden sm:inline-flex items-center justify-center gap-2 px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-full font-bold uppercase tracking-widest text-sm shadow-lg shadow-green-600/30 transition-all hover:scale-105"
               >
                 <MessageCircle className="w-5 h-5" />
                 CENTRAL DE SUPORTE
               </a>
               <button
                 onClick={() => setShowSocialModal(true)}
-                className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-full font-bold uppercase tracking-widest text-sm backdrop-blur-md transition-all hover:scale-105"
+                className="hidden sm:inline-flex items-center justify-center gap-2 px-8 py-3 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-full font-bold uppercase tracking-widest text-sm backdrop-blur-md transition-all hover:scale-105"
               >
                 <Instagram className="w-5 h-5" />
                 SIGA-NOS NAS REDES

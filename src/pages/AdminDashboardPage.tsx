@@ -342,7 +342,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="glass-panel rounded-[2.5rem] group relative overflow-hidden border border-white/5 bg-slate-800/40 p-8 hover:border-red-500/30 transition-all duration-500">
                   <div className="flex items-start justify-between mb-6">
                     <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center border border-red-500/20 group-hover:scale-110 transition-transform">
@@ -370,6 +370,21 @@ export default function AdminDashboardPage() {
                     className="inline-flex items-center px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-blue-600/20 uppercase italic text-xs tracking-wider"
                   >
                     Gerenciar ZK TV
+                  </Link>
+                </div>
+
+                <div className="glass-panel rounded-[2.5rem] group relative overflow-hidden border border-white/5 bg-slate-800/40 p-8 hover:border-emerald-500/30 transition-all duration-500">
+                  <div className="flex items-start justify-between mb-6">
+                    <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20 group-hover:scale-110 transition-transform">
+                      <ImageIcon className="h-8 w-8 text-emerald-500" />
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-black text-white mb-3 italic uppercase">Banners</h3>
+                  <Link
+                    to="/admin/banners"
+                    className="inline-flex items-center px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-emerald-600/20 uppercase italic text-xs tracking-wider"
+                  >
+                    Patrocinadores
                   </Link>
                 </div>
               </div>
