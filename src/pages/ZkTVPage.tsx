@@ -984,48 +984,7 @@ const ZkTVPage: React.FC = () => {
                                 }
                             </motion.p>
 
-                            {nextGame && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.25 }}
-                                    className="inline-block bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-4 sm:p-6 rounded-2xl mb-6"
-                                >
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <Calendar className="w-4 h-4 text-blue-400" />
-                                        <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Próximo Jogo</span>
-                                    </div>
-                                    <div className="flex items-center justify-center gap-4 sm:gap-6">
-                                        <div className="text-center">
-                                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-1 font-black text-white text-xs">CRU</div>
-                                            <span className="text-xs font-bold text-slate-300">Cruzeiro</span>
-                                        </div>
-                                        <div className="text-slate-600 font-black text-sm">VS</div>
-                                        <div className="text-center">
-                                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-800 border border-slate-700 rounded-xl flex items-center justify-center mx-auto mb-1 font-black text-slate-400 text-xs">
-                                                {nextGame.opponent.substring(0, 3).toUpperCase()}
-                                            </div>
-                                            <span className="text-xs font-bold text-slate-300 truncate max-w-[80px] block mx-auto">{nextGame.opponent}</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mt-3 pt-3 border-t border-slate-700/50 text-xs text-slate-400">
-                                        <span className="flex items-center gap-1.5">
-                                            <Calendar className="w-3 h-3 text-blue-500" />
-                                            {new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-                                        </span>
-                                        <span className="flex items-center gap-1.5">
-                                            <Clock className="w-3 h-3 text-blue-500" />
-                                            {new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
-                                        </span>
-                                        {nextGame.venue && (
-                                            <span className="flex items-center gap-1.5 truncate max-w-[120px]">
-                                                <MapPin className="w-3 h-3 text-blue-500 flex-shrink-0" />
-                                                {nextGame.venue}
-                                            </span>
-                                        )}
-                                    </div>
-                                </motion.div>
-                            )}
+                            {/* Removido card duplicado daqui para manter apenas o que está no placeholder do vídeo */}
 
                         </div>
 

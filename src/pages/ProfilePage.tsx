@@ -8,7 +8,7 @@ import {
   User, Lock, Bell, HelpCircle, Info, LogOut,
   ChevronRight, Ticket, Gamepad2, Edit3, Fingerprint,
   Instagram, Youtube, MessageCircle, ExternalLink, Star,
-  Globe, Music
+  Globe, Music, Trophy
 } from 'lucide-react';
 import { BiometricService } from '../services/BiometricService';
 import SocialModal from '../components/SocialModal';
@@ -148,49 +148,54 @@ const ProfilePage: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-20 bg-[#0a1529]">
-      {/* Header / Profile Info */}
-      <div className="relative pt-12 pb-8 px-6 overflow-hidden">
-        {/* Background Glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-blue-600/10 blur-[100px] -z-10"></div>
+      {/* Premium Header */}
+      <div className="relative pt-12 pb-12 px-6 overflow-hidden">
+        {/* Background Patterns */}
+        <div className="absolute inset-0 bg-gradient-to-b from-blue-600/10 to-transparent"></div>
+        <div className="absolute inset-0 opacity-5 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
 
-        <div className="flex items-center gap-6">
+        <div className="relative flex items-center gap-6">
           <div className="relative">
-            <div className={`w-24 h-24 rounded-3xl bg-gradient-to-br ${currentUser?.is_vip ? 'from-yellow-400 to-yellow-600 shadow-[0_0_20px_rgba(234,179,8,0.3)]' : 'from-blue-600 to-blue-500'} flex items-center justify-center text-3xl font-black text-white shadow-xl`}>
+            <div className={`w-24 h-24 rounded-[2rem] bg-gradient-to-br ${currentUser?.is_vip ? 'from-yellow-400 to-yellow-600 shadow-[0_0_20px_rgba(234,179,8,0.3)]' : 'from-blue-600 to-blue-500'} flex items-center justify-center text-3xl font-black text-white shadow-xl border border-white/10`}>
               {getInitials()}
             </div>
             <button
               onClick={() => navigate('/dashboard')}
-              className="absolute -bottom-1 -right-1 w-8 h-8 rounded-xl bg-white text-slate-900 flex items-center justify-center shadow-lg border-4 border-[#0a1529] hover:scale-110 transition-transform">
+              className="absolute -bottom-1 -right-1 w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg border-4 border-[#0a1529] hover:scale-110 transition-transform">
               <Edit3 className="w-4 h-4" />
             </button>
           </div>
 
           <div className="flex-1">
-            <h2 className="text-2xl font-black text-white italic uppercase tracking-tight">{currentUser?.name || 'Carregando...'}</h2>
-            <p className="text-white/40 text-sm font-medium">{currentUser?.email}</p>
+            <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter leading-tight">
+              {currentUser?.name || 'Carregando...'}
+            </h2>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-blue-400 text-[10px] font-black uppercase tracking-widest">{currentUser?.email}</span>
+            </div>
           </div>
         </div>
 
-        {/* Stats Grid */}
+        {/* Stats Grid Overlay */}
         <div className="grid grid-cols-3 gap-3 mt-8">
-          <div className="glass-panel bg-white/5 border border-white/10 rounded-3xl p-4 text-center">
-            <Ticket className="w-5 h-5 text-yellow-500 mx-auto mb-2" />
+          <div className="glass-panel-dark bg-slate-900/60 border border-white/5 rounded-[1.5rem] p-4 text-center group">
+            <Ticket className="w-5 h-5 text-blue-500/40 mx-auto mb-2 group-hover:scale-110 transition-transform" />
             <p className="text-xl font-black text-white italic">{currentUser?.total_bets || 0}</p>
-            <p className="text-[10px] uppercase font-black text-white/40 tracking-widest">Palpites</p>
+            <p className="text-[9px] uppercase font-black text-white/20 tracking-widest">Palpites</p>
           </div>
 
-          <div className={`glass-panel border rounded-3xl p-4 text-center transition-all ${currentUser?.is_vip ? 'bg-gradient-to-br from-yellow-500/20 to-yellow-600/10 border-yellow-500/30' : 'bg-white/5 border-white/10'}`}>
-            <Star className={`w-5 h-5 mx-auto mb-2 ${currentUser?.is_vip ? 'text-yellow-400' : 'text-blue-400'}`} />
+          <div className={`glass-panel-dark border rounded-[1.5rem] p-4 text-center transition-all group ${currentUser?.is_vip ? 'bg-gradient-to-br from-yellow-500/20 to-yellow-600/10 border-yellow-500/30' : 'bg-slate-900/60 border-white/5'}`}>
+            <Star className={`w-5 h-5 mx-auto mb-2 group-hover:scale-110 transition-transform ${currentUser?.is_vip ? 'text-yellow-400' : 'text-blue-400'}`} />
             <p className={`text-xl font-black italic ${currentUser?.is_vip ? 'text-yellow-400' : 'text-white'}`}>
               {currentUser?.is_vip ? 'VIP' : 'FREE'}
             </p>
-            <p className="text-[10px] uppercase font-black text-white/40 tracking-widest">Plano</p>
+            <p className="text-[9px] uppercase font-black text-white/20 tracking-widest">Plano</p>
           </div>
 
-          <div className="glass-panel bg-white/5 border border-white/10 rounded-3xl p-4 text-center">
-            <Gamepad2 className="w-5 h-5 text-emerald-500 mx-auto mb-2" />
+          <div className="glass-panel-dark bg-slate-900/60 border border-white/5 rounded-[1.5rem] p-4 text-center group">
+            <Trophy className="w-5 h-5 text-yellow-500/40 mx-auto mb-2 group-hover:scale-110 transition-transform" />
             <p className="text-xl font-black text-white italic">{currentUser?.total_wins || 0}</p>
-            <p className="text-[10px] uppercase font-black text-white/40 tracking-widest">Acertos</p>
+            <p className="text-[9px] uppercase font-black text-white/20 tracking-widest">Acertos</p>
           </div>
         </div>
       </div>
