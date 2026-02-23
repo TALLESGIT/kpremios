@@ -1,0 +1,325 @@
+/* Estilos específicos para vídeo mobile */
+
+/* Container de vídeo mobile */
+.mobile-video-container {
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Fullscreen mobile - SEM CORTAR O VÍDEO - FORÇAR CONTAIN EM TUDO */
+@media (max-width: 1280px) {
+  .mobile-video-container:fullscreen {
+    display: block !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    height: 100dvh !important;
+  }
+
+  /* Quando o chat está aberto em paisagem, usar flexbox */
+  .mobile-video-container:fullscreen:has(.chat-overlay-mobile) {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: stretch !important;
+  }
+
+  /*
+    IMPORTANTE:
+    - Em fullscreen, NÃO podemos forçar object-fit em tudo, senão quebramos a camada de fundo desfocada.
+    - O player (`ZKViewer`) vai renderizar 2 camadas:
+      - `.zk-video-bg video` = cover (preenche a tela com blur)
+      - `.zk-video-fg video` = contain (não corta o conteúdo)
+  */
+
+  .mobile-video-container:fullscreen .zk-video-fg video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    object-position: center !important;
+    background: black !important;
+  }
+
+  .mobile-video-container:fullscreen .zk-video-bg video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center !important;
+  }
+
+  /* Forçar contain em TODOS os elementos de vídeo do Agora SDK */
+  .mobile-video-container:fullscreen [class*="agora"],
+  .mobile-video-container:fullscreen [id*="agora"],
+  .mobile-video-container:fullscreen [class*="video"],
+  .mobile-video-container:fullscreen [id*="video"] {
+    object-fit: contain !important;
+    object-position: center !important;
+  }
+
+  /* FORÇAR contain apenas no FOREGROUND (não mexer no background desfocado) */
+  .mobile-video-container:fullscreen .zk-video-fg video[style*="object-fit"],
+  .mobile-video-container:fullscreen .zk-video-fg div[style*="object-fit"] {
+    object-fit: contain !important;
+  }
+
+  /* Remover transform apenas no FOREGROUND (background precisa do scale p/ preencher) */
+  .mobile-video-container:fullscreen .zk-video-fg video,
+  .mobile-video-container:fullscreen .zk-video-fg video * {
+    transform: none !important;
+    transform-origin: center !important;
+  }
+}
+
+/* Orientação paisagem em mobile - CHAT VISÍVEL - VÍDEO DIMINUI */
+@media (orientation: landscape) and (max-width: 1280px) {
+
+  /* Quando o chat está DOCKED (aberto), usar flexbox */
+  .mobile-video-container:fullscreen.docked-chat-active {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: stretch !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  /* Vídeo ocupa espaço restante quando chat está aberto */
+  .mobile-video-container:fullscreen.docked-chat-active .zk-video-stage {
+    flex: 1 !important;
+    min-width: 0 !important;
+    width: auto !important;
+    height: 100% !important;
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: black !important;
+    transition: flex 0.3s ease !important;
+  }
+
+  .mobile-video-container:fullscreen.docked-chat-active .zk-video-fg,
+  .mobile-video-container:fullscreen.docked-chat-active .zk-video-bg {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Chat docked - lado a lado com o vídeo - AUMENTADO para melhor visualização */
+  .mobile-video-container:fullscreen.docked-chat-active .chat-overlay-mobile {
+    position: relative !important;
+    width: clamp(350px, 45vw, 450px) !important;
+    min-width: 350px !important;
+    max-width: 45vw !important;
+    height: 100% !important;
+    flex-shrink: 0 !important;
+    z-index: 1 !important;
+    background: rgba(15, 23, 42, 0.98) !important;
+    backdrop-filter: blur(10px) !important;
+    border-left: 1px solid rgba(148, 163, 184, 0.25) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    transition: width 0.3s ease !important;
+  }
+
+  /* Quando chat NÃO está aberto, vídeo ocupa 100% */
+  .mobile-video-container:fullscreen:not(.docked-chat-active) {
+    display: block !important;
+  }
+
+  .mobile-video-container:fullscreen:not(.docked-chat-active) .zk-video-stage {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Garantir que o chat seja visível em fullscreen paisagem (fallback para overlay) */
+  .mobile-video-container:fullscreen .chat-overlay {
+    position: fixed !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 320px !important;
+    max-width: 40vw !important;
+    z-index: 9999 !important;
+    background: rgba(0, 0, 0, 0.9) !important;
+    backdrop-filter: blur(10px) !important;
+    pointer-events: auto !important;
+  }
+
+  /* Botão de chat em fullscreen paisagem */
+  .mobile-video-container:fullscreen .chat-button {
+    position: fixed !important;
+    bottom: 20px !important;
+    right: 20px !important;
+    z-index: 9998 !important;
+    pointer-events: auto !important;
+  }
+}
+
+/* Orientação retrato em mobile */
+@media (orientation: portrait) and (max-width: 1280px) {
+  .mobile-video-container:fullscreen .zk-video-fg video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+  }
+}
+
+/* Botão de chat transparente - SEMPRE VISÍVEL */
+.mobile-chat-button {
+  background: rgba(0, 0, 0, 0.3) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  transition: all 0.2s ease !important;
+  position: fixed !important;
+  z-index: 9997 !important;
+  pointer-events: auto !important;
+}
+
+.mobile-chat-button:hover {
+  background: rgba(0, 0, 0, 0.5) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Chat overlay em fullscreen - SEMPRE POR CIMA */
+body:fullscreen .fixed,
+body:-webkit-full-screen .fixed,
+body:-moz-full-screen .fixed,
+body:-ms-fullscreen .fixed {
+  position: fixed !important;
+  z-index: 9999 !important;
+}
+
+/* Garantir que backdrop e chat panel funcionem em fullscreen */
+.mobile-video-container:fullscreen~div[style*="z-index: 9998"],
+.mobile-video-container:fullscreen~div[style*="z-index: 9999"] {
+  position: fixed !important;
+  z-index: 99999 !important;
+}
+
+/* Chat overlay mobile - SEMPRE VISÍVEL EM FULLSCREEN */
+/* EXCEÇÃO: quando está dentro de .docked-chat-active, usa position relative */
+.mobile-video-container:fullscreen.docked-chat-active .chat-overlay-mobile,
+.mobile-video-container:fullscreen.docked-chat-active .bg-slate-900.flex.flex-col {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  height: 100% !important;
+  z-index: 1 !important;
+}
+
+.chat-overlay-mobile {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  /* Dynamic viewport height para mobile */
+  z-index: 2147483647 !important;
+  pointer-events: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Garantir que o chat funcione em fullscreen - TODAS AS VARIAÇÕES */
+*:fullscreen~.chat-overlay-mobile,
+*:fullscreen~div .chat-overlay-mobile,
+*:-webkit-full-screen~.chat-overlay-mobile,
+*:-webkit-full-screen~div .chat-overlay-mobile,
+*:-moz-full-screen~.chat-overlay-mobile,
+*:-moz-full-screen~div .chat-overlay-mobile,
+*:-ms-fullscreen~.chat-overlay-mobile,
+*:-ms-fullscreen~div .chat-overlay-mobile {
+  position: fixed !important;
+  z-index: 2147483647 !important;
+  pointer-events: auto !important;
+  display: flex !important;
+}
+
+/* Backdrop do chat em fullscreen */
+body:has(*:fullscreen) div[style*="2147483646"],
+body:has(*:-webkit-full-screen) div[style*="2147483646"],
+body:has(*:-moz-full-screen) div[style*="2147483646"] {
+  position: fixed !important;
+  z-index: 2147483646 !important;
+  pointer-events: auto !important;
+  display: block !important;
+}
+
+/* Botão de chat em fullscreen - SEMPRE VISÍVEL */
+*:fullscreen~* .mobile-chat-button,
+*:-webkit-full-screen~* .mobile-chat-button,
+*:-moz-full-screen~* .mobile-chat-button,
+*:-ms-fullscreen~* .mobile-chat-button,
+body:has(*:fullscreen) .mobile-chat-button,
+body:has(*:-webkit-full-screen) .mobile-chat-button {
+  position: fixed !important;
+  z-index: 2147483646 !important;
+  pointer-events: auto !important;
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 0.7 !important;
+}
+
+/* Animações suaves para transições */
+.video-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Garantir que elementos não interfiram com o vídeo */
+.mobile-video-container:fullscreen .video-overlay {
+  pointer-events: none;
+}
+
+.mobile-video-container:fullscreen .video-overlay button {
+  pointer-events: auto;
+}
+
+/* Prevenir zoom indesejado em iOS */
+@media (max-width: 768px) {
+  .mobile-video-container {
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+}
+
+/* Garantir que o vídeo seja sempre visível */
+.mobile-video-container video {
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: block !important;
+}
+
+/* Melhorar performance em mobile */
+.mobile-video-container {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Indicador de swipe */
+.swipe-indicator {
+  animation: swipe-pulse 2s ease-in-out infinite;
+}
+
+@keyframes swipe-pulse {
+
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: translateY(0);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: translateY(-2px);
+  }
+}
