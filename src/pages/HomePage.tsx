@@ -326,10 +326,6 @@ function HomePage() {
               </button>
             </div>
 
-            {/* Banner de Anúncios (Hero) */}
-            <div className="mt-12 w-full max-w-4xl mx-auto px-4 z-20">
-              <AdvertisementCarousel position="homepage" autoPlay={true} autoPlayInterval={5000} />
-            </div>
           </motion.div>
         </div>
 
