@@ -10,8 +10,7 @@ Para que as notificações do K-Premios funcionem corretamente, você precisa co
 5. Um arquivo `.json` será baixado. Abra ele e **copie todo o conteúdo**.
 
 ### 2. Adicionar o Segredo (Secret) no Supabase
-1. Vá para o [Dashboard do Supabase](https://supabase.com/dashboard).
-2. Selecione seu projeto (`bukigyhhgrtgryklabjg`).
+1. Vá para o [Dashboard do Supabase](https://supabase.com/dashboard). Selecione seu projeto (`bukigyhhgrtgryklabjg`).
 3. Vá em **Edge Functions** (no menu lateral).
 4. Clique no botão **Add Secret** (ou vá em Settings -> API -> Secrets).
 5. Adicione um novo segredo:

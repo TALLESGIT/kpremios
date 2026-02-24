@@ -137,7 +137,7 @@ function Header() {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link to="/" className="flex-shrink-0 flex items-center group" onClick={closeMenu}>
-              <span className="text-2xl mr-2">⚽</span>
+              <img src="/zk-logo.svg" alt="ZK Oficial" className="h-10 w-10 mr-2 transition-transform duration-300 group-hover:scale-110" />
               <span className="ml-1 text-2xl font-display font-black text-white tracking-tight group-hover:text-accent transition-colors">
                 ZK Oficial
               </span>
@@ -312,7 +312,7 @@ function Header() {
               {/* Menu Header */}
               <div className="flex items-center justify-between p-6 border-b border-white/10 bg-primary">
                 <div className="flex items-center">
-                  <span className="text-2xl mr-2">⚽</span>
+                  <img src="/zk-logo.svg" alt="ZK Oficial" className="h-8 w-8 mr-2" />
                   <span className="text-xl font-display font-black text-white">
                     ZK Oficial
                   </span>
