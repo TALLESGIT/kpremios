@@ -16,6 +16,19 @@ export class PushNotificationService {
       if (permission.receive === 'granted') {
         // [RESOLVIDO] google-services.json configurado.
         try {
+          // Criar canal de notificação (Importante para Android 8+)
+          if (Capacitor.getPlatform() === 'android') {
+            await PushNotifications.createChannel({
+              id: 'default',
+              name: 'Notificações Geral',
+              description: 'Alertas de lives e novidades',
+              importance: 5, // High importance
+              visibility: 1, // Public
+              vibration: true,
+            });
+            console.log('Push channel created');
+          }
+
           await PushNotifications.register();
           console.log('Push registration successful');
         } catch (regError) {

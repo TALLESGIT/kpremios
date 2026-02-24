@@ -90,9 +90,9 @@ const ProfilePage: React.FC = () => {
     }
 
     try {
-      toast.loading('Solicitando teste de notificação...');
+      toast.loading('Solicitando teste de servidor...', { id: 'push-test' });
 
-      // Chamar Edge Function de teste ou simplesmente verificar token
+      // 1. Verificar se existe token localmente
       const { data: tokens } = await supabase
         .from('user_push_tokens')
         .select('*')
@@ -100,21 +100,35 @@ const ProfilePage: React.FC = () => {
         .limit(1);
 
       if (!tokens || tokens.length === 0) {
-        toast.dismiss();
-        toast.error('Token push não encontrado. Certifique-se de permitir notificações no app.');
+        toast.error('Token push não encontrado no banco de dados. Tente fechar e abrir o app novamente.', { id: 'push-test' });
         return;
       }
 
-      toast.dismiss();
-      toast.success('Token de push validado com sucesso!');
+      const userToken = tokens[0].token;
 
-      if (isNative) {
-        toast.success('O dispositivo está pronto para receber notificações de live!');
+      // 2. Chamar Edge Function para enviar notificação real de teste
+      const { data, error } = await supabase.functions.invoke('notify-live-start', {
+        body: {
+          type: 'TEST',
+          testToken: userToken
+        }
+      });
+
+      if (error) {
+        console.error('Erro ao invocar function:', error);
+        toast.error(`Erro no Servidor: ${error.message || 'Falha na Edge Function'}`, { id: 'push-test', duration: 5000 });
+        return;
       }
-    } catch (err) {
-      toast.dismiss();
+
+      if (data?.success) {
+        toast.success('Requisição enviada! Aguarde alguns segundos pelo push.', { id: 'push-test', duration: 4000 });
+      } else {
+        toast.error('O servidor não retornou sucesso no envio.', { id: 'push-test' });
+      }
+
+    } catch (err: any) {
       console.error(err);
-      toast.error('Erro ao testar notificações.');
+      toast.error(`Erro: ${err.message || 'Erro ao testar notificações.'}`, { id: 'push-test' });
     }
   };
 

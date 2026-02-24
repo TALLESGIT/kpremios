@@ -20,28 +20,38 @@ serve(async (req) => {
     )
 
     const payload = await req.json()
-    const { record, type } = payload
+    const { record, type, testToken } = payload
 
-    // Apenas disparar se for um UPDATE e o status mudou para true (Live Iniciada)
-    if (type !== 'UPDATE' || !record.is_active || payload.old_record?.is_active) {
+    const isTest = type === 'TEST'
+
+    // Apenas disparar se for um UPDATE e o status mudou para true (Live Iniciada) OU for um TESTE
+    if (!isTest && (type !== 'UPDATE' || !record?.is_active || payload.old_record?.is_active)) {
       return new Response(JSON.stringify({ message: 'No action needed' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       })
     }
 
-    const streamTitle = record.title || 'Nova Live'
-    const channelName = record.channel_name || 'ZkOficial'
+    const streamTitle = isTest ? 'Live de Teste' : (record.title || 'Nova Live')
+    const channelName = isTest ? 'ZkOficial' : (record.channel_name || 'ZkOficial')
 
-    console.log(`📡 Disparando notificações para a live: ${streamTitle}`)
+    console.log(`📡 Disparando notificações. Tipo: ${type}`)
 
-    // 1. Obter todos os tokens de push
-    const { data: pushTokens, error: tokensError } = await supabase
-      .from('user_push_tokens')
-      .select('token')
+    // 1. Obter os tokens de push
+    let pushTokens: string[] = []
 
-    if (tokensError) throw tokensError
-    if (!pushTokens || pushTokens.length === 0) {
+    if (isTest && testToken) {
+      pushTokens = [testToken]
+    } else {
+      const { data, error: tokensError } = await supabase
+        .from('user_push_tokens')
+        .select('token')
+
+      if (tokensError) throw tokensError
+      pushTokens = (data || []).map(t => t.token)
+    }
+
+    if (pushTokens.length === 0) {
       return new Response(JSON.stringify({ message: 'No tokens found' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -49,15 +59,20 @@ serve(async (req) => {
     }
 
     // 2. Obter Access Token do Google (FCM V1)
-    const serviceAccount = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT') || '{}')
+    const serviceAccountVar = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
+    if (!serviceAccountVar) {
+      throw new Error('Configuração ausente: FIREBASE_SERVICE_ACCOUNT não encontrado no Supabase Secrets.')
+    }
+
+    const serviceAccount = JSON.parse(serviceAccountVar)
     const accessToken = await getAccessToken(serviceAccount)
 
     const projectId = serviceAccount.project_id
     const fcmUrl = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`
 
-    // 3. Enviar notificações em lote (um a um por simplicidade no Edge Function ou usar batch se muitos)
+    // 3. Enviar notificações
     const results = await Promise.all(
-      pushTokens.map(async (t) => {
+      pushTokens.map(async (token) => {
         try {
           const res = await fetch(fcmUrl, {
             method: 'POST',
@@ -67,14 +82,16 @@ serve(async (req) => {
             },
             body: JSON.stringify({
               message: {
-                token: t.token,
+                token: token,
                 notification: {
-                  title: '🔴 ESTAMOS AO VIVO!',
-                  body: `O ZK está online agora: ${streamTitle}. Clique para assistir!`,
+                  title: isTest ? '🔔 TESTE DE NOTIFICAÇÃO' : '🔴 ESTAMOS AO VIVO!',
+                  body: isTest
+                    ? 'Este é um teste do sistema de notificações do K-Premios.'
+                    : `O ZK está online agora: ${streamTitle}. Clique para assistir!`,
                 },
                 data: {
-                  type: 'live_start',
-                  streamId: record.id,
+                  type: isTest ? 'test' : 'live_start',
+                  streamId: isTest ? 'test' : record.id,
                   channelName: channelName,
                   url: `https://www.zkoficial.com.br/live/${channelName}`
                 },
@@ -88,9 +105,11 @@ serve(async (req) => {
               },
             }),
           })
+          const data = await res.json()
+          if (!res.ok) console.error(`Erro FCM para token ${token.substring(0, 10)}...:`, data)
           return res.ok
         } catch (e) {
-          console.error(`Erro ao enviar para token: ${t.token}`, e)
+          console.error(`Erro ao enviar para token: ${token}`, e)
           return false
         }
       })
