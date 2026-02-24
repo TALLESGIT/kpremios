@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useData } from '../context/DataContext';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
+import { toast } from 'react-hot-toast';
 import {
   User, Lock, Bell, HelpCircle, Info, LogOut,
   ChevronRight, Ticket, Gamepad2, Edit3, Fingerprint,
@@ -79,6 +80,41 @@ const ProfilePage: React.FC = () => {
       if (success) {
         setBiometricEnabled(true);
       }
+    }
+  };
+
+  const handleTestNotification = async () => {
+    if (!isNative) {
+      toast.success('⚠️ No navegador, as notificações funcionam via Web Push. Testando...');
+      return;
+    }
+
+    try {
+      toast.loading('Solicitando teste de notificação...');
+
+      // Chamar Edge Function de teste ou simplesmente verificar token
+      const { data: tokens } = await supabase
+        .from('user_push_tokens')
+        .select('*')
+        .eq('user_id', user?.id)
+        .limit(1);
+
+      if (!tokens || tokens.length === 0) {
+        toast.dismiss();
+        toast.error('Token push não encontrado. Certifique-se de permitir notificações no app.');
+        return;
+      }
+
+      toast.dismiss();
+      toast.success('Token de push validado com sucesso!');
+
+      if (isNative) {
+        toast.success('O dispositivo está pronto para receber notificações de live!');
+      }
+    } catch (err) {
+      toast.dismiss();
+      console.error(err);
+      toast.error('Erro ao testar notificações.');
     }
   };
 
@@ -222,7 +258,15 @@ const ProfilePage: React.FC = () => {
 
         {/* Notificações */}
         <section>
-          <h3 className="text-xs font-bold uppercase text-white/40 tracking-wider px-2 mb-3">Notificações</h3>
+          <div className="flex items-center justify-between px-2 mb-3">
+            <h3 className="text-xs font-bold uppercase text-white/40 tracking-wider">Notificações</h3>
+            <button
+              onClick={handleTestNotification}
+              className="text-[10px] font-black text-accent hover:text-white transition-colors uppercase tracking-widest bg-accent/10 px-2 py-1 rounded-lg border border-accent/20"
+            >
+              Testar Recebimento
+            </button>
+          </div>
           <div className="space-y-2">
             <MenuItem
               icon={Bell}

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, LogOut, Music } from 'lucide-react';
+import { Menu, X, LogOut, Music, Bell } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
@@ -16,6 +16,15 @@ function Header() {
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => setIsMenuOpen(false);
+
+  const handleNotificationClick = () => {
+    if (hasActiveLive) {
+      navigate('/zk-tv');
+    } else {
+      // Opcional: mostrar mensagem que não há live ou ir para notificações
+      navigate('/profile');
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -255,19 +264,35 @@ function Header() {
               )}
             </nav>
 
-            {/* Mobile menu button */}
-            <button
-              onClick={toggleMenu}
-              className="md:hidden inline-flex items-center justify-center p-2 rounded-xl text-white hover:bg-white/10 transition-all duration-300"
-              aria-expanded="false"
-            >
-              <span className="sr-only">Abrir menu</span>
-              {isMenuOpen ? (
-                <X className="block h-6 w-6" aria-hidden="true" />
-              ) : (
-                <Menu className="block h-6 w-6" aria-hidden="true" />
-              )}
-            </button>
+            {/* Mobile menu and Notification Bell */}
+            <div className="md:hidden flex items-center gap-2">
+              <button
+                onClick={handleNotificationClick}
+                className="p-2 rounded-xl text-white hover:bg-white/10 transition-all duration-300 relative"
+                aria-label="Notificações"
+              >
+                <Bell className={`h-6 w-6 ${hasActiveLive ? 'text-accent animate-pulse' : 'text-white/70'}`} />
+                {hasActiveLive && (
+                  <span className="absolute top-2 right-2 flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={toggleMenu}
+                className="inline-flex items-center justify-center p-2 rounded-xl text-white hover:bg-white/10 transition-all duration-300"
+                aria-expanded="false"
+              >
+                <span className="sr-only">Abrir menu</span>
+                {isMenuOpen ? (
+                  <X className="block h-6 w-6" aria-hidden="true" />
+                ) : (
+                  <Menu className="block h-6 w-6" aria-hidden="true" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
 

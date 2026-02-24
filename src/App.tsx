@@ -39,6 +39,7 @@ import ProfilePage from './pages/ProfilePage';
 // ZK TV
 import ZkTVPage from './pages/ZkTVPage';
 import AdminZkTVPage from './pages/admin/AdminZkTVPage';
+import PublicLiveStreamPage from './pages/PublicLiveStreamPage';
 
 // Spotify
 import SpotifyPage from './pages/SpotifyPage';
@@ -312,16 +313,17 @@ function AppContentInner() {
         toastOptions={{
           duration: 4000,
           style: {
-            background: '#005BAA',
+            background: '#0a1529', // Mais escuro para combinar com o app
             color: '#FFFFFF',
-            borderRadius: '12px',
-            border: '2px solid #FFFFFF',
-            padding: '16px 20px',
-            fontSize: '14px',
-            fontWeight: '800',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)',
+            borderRadius: '12px', // Reduced border-radius
+            border: '1px solid rgba(255,255,255,0.1)',
+            padding: '8px 12px', // Reduced padding
+            fontSize: '11px', // Reduced font size
+            fontWeight: '600', // Slightly reduced font weight
+            boxShadow: '0 8px 12px -3px rgba(0, 0, 0, 0.3)', // Slightly reduced shadow
             textTransform: 'uppercase',
-            letterSpacing: '0.05em',
+            letterSpacing: '0.08em', // Slightly reduced letter spacing
+            maxWidth: '80vw', // Reduced max width
           },
           success: {
             icon: <ZKToastIcon />,
@@ -381,6 +383,7 @@ function AppContentInner() {
             } />
 
             <Route path="/zk-tv" element={<ZkTVPage />} />
+            <Route path="/live/:channelName" element={<PublicLiveStreamPage />} />
             <Route path="/spotify" element={<SpotifyPage />} />
 
             {/* Competições e Tabelas */}
@@ -485,7 +488,7 @@ function AppContentInner() {
           <Route path="/diagnostico-agora" element={<DiagnosticoAgoraPage />} />
           <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
         </Routes>
-        {/* ChatHost e PollOverlay - renderizados dentro do StreamRegistryProvider e Router */}
+        <GlobalChatAndPollOverlay />
       </StreamRegistryProvider>
     </DataProvider>
   );

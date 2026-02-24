@@ -976,7 +976,7 @@ const ZkTVPage: React.FC = () => {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.2 }}
-                                className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-8 leading-relaxed"
+                                className="text-sm sm:text-base md:text-xl text-slate-400 max-w-2xl mx-auto mb-8 leading-relaxed px-4"
                             >
                                 {activeStream?.is_active
                                     ? `Assista agora: ${activeStream.title}. Acompanhe ao vivo com a melhor qualidade e interatividade.`
@@ -1025,12 +1025,12 @@ const ZkTVPage: React.FC = () => {
                                                 </div>
 
                                                 {/* Title */}
-                                                <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-4 tracking-tight">
+                                                <h2 className="text-2xl sm:text-4xl lg:text-6xl font-black text-white mb-4 tracking-tight">
                                                     Transmissão Encerrada
                                                 </h2>
 
                                                 {/* Message */}
-                                                <p className="text-lg sm:text-xl text-blue-200 mb-8 leading-relaxed">
+                                                <p className="text-xs sm:text-lg lg:text-xl text-blue-200 mb-8 leading-relaxed">
                                                     A transmissão ao vivo foi finalizada. 🎬<br />
                                                     Obrigado por assistir! ⚽✨
                                                 </p>
