@@ -18,19 +18,18 @@ Para que as notificações do K-Premios funcionem corretamente, você precisa co
    - **Value**: Estique o conteúdo do arquivo `.json` que você copiou (cole o texto todo).
 6. Clique em **Save**.
 
-### 3. Fazer Deploy da Edge Function (Obrigatório)
-Como alterei o código da função, você precisa atualizar no Supabase:
-1. No terminal do seu computador (na pasta do projeto), rode:
-   ```bash
-   supabase functions deploy notify-live-start
-   ```
+### 3. Fazer Deploy da Edge Function
+**[STATUS: CONCLUÍDO]** Eu já fiz o deploy da função diretamente para o seu projeto para facilitar! Você não precisa instalar o Supabase CLI no seu computador.
 
 ### 4. Atualizar o Trigger do Banco de Dados
-1. No Dashboard do Supabase, vá em **SQL Editor**.
-2. Abra o arquivo `fix_notification_trigger.sql` que eu criei na raiz do projeto.
-3. Copie o conteúdo e cole no SQL Editor.
-4. **IMPORTANTE**: No código SQL, substitua `'SUA_SERVICE_ROLE_KEY_AQUI'` pela sua chave real (você a encontra em *Settings -> API -> service_role*).
-5. Clique em **Run**.
+Como você não tem o CLI, faça isso pelo painel do Supabase:
+1. No [Dashboard do Supabase](https://supabase.com/dashboard), vá em **SQL Editor** (no menu lateral).
+2. Clique em **New Query**.
+3. Abra o arquivo `supabase/fix_notification_trigger.sql` que eu criei na raiz do seu projeto.
+4. Copie todo o conteúdo e cole no SQL Editor.
+5. **MUITO IMPORTANTE**: No código SQL, encontre a linha `service_role_key TEXT := 'SUA_SERVICE_ROLE_KEY_AQUI';` e substitua pelo valor real da sua chave.
+   - Você encontra ela em: *Settings -> API -> Project API Keys -> service_role*.
+6. Clique em **Run**.
 
 ### 5. Testar no App
 1. Abra o app no seu celular (Android).
