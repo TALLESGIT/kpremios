@@ -7,7 +7,7 @@ CREATE OR REPLACE FUNCTION public.trigger_notify_live_start()
 RETURNS TRIGGER AS $$
 DECLARE
   -- Pegue sua service_role_key em: Settings -> API -> service_role
-  service_role_key TEXT := 'SUA_SERVICE_ROLE_KEY_AQUI'; 
+  service_role_key TEXT := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1a2lneWhoZ3J0Z3J5a2xhYmpnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzM0OTk1NywiZXhwIjoyMDcyOTI1OTU3fQ.G41qsBF6Spd5-ZkHqhtAtkzrds5EcORtpgwz1-8PoZQ'; 
   project_id TEXT := 'bukigyhhgrtgryklabjg'; -- Seu ID de projeto
 BEGIN
   -- Dispara apenas quando is_active muda de FALSE para TRUE
