@@ -123,7 +123,8 @@ const ProfilePage: React.FC = () => {
       if (data?.success) {
         toast.success('Requisição enviada! Aguarde alguns segundos pelo push.', { id: 'push-test', duration: 4000 });
       } else {
-        toast.error('O servidor não retornou sucesso no envio.', { id: 'push-test' });
+        const errorMsg = data?.error || 'O servidor não retornou sucesso no envio.';
+        toast.error(`Erro: ${errorMsg}`, { id: 'push-test', duration: 6000 });
       }
 
     } catch (err: any) {
