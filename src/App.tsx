@@ -204,7 +204,8 @@ function AppContentInner() {
     '/zk-tv',
     '/winners',
     '/competicoes',
-    '/live-games'
+    '/live-games',
+    '/zk-clips'
   ];
 
   // Verificar rota atual usando window.location

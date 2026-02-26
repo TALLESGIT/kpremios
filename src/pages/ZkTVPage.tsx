@@ -34,6 +34,7 @@ import VipSubscriptionModal from '../components/vip/VipSubscriptionModal';
 import PoolBetModal from '../components/pool/PoolBetModal';
 import { CastButton } from '../components/CastButton';
 import TeamLogo from '../components/TeamLogo';
+import VipAlertOverlay from '../components/live/VipAlertOverlay';
 import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding, YouTubeClip } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useRegisterStreamId } from '../features/chat/useRegisterStreamId';
@@ -1037,7 +1038,10 @@ const ZkTVPage: React.FC = () => {
                                             showOfflineMessage={false}
                                         />
                                         {activeStream.id && (
-                                            <VipMessageOverlay streamId={activeStream.id} isActive={activeStream.is_active} />
+                                            <>
+                                                <VipMessageOverlay streamId={activeStream.id} isActive={activeStream.is_active} />
+                                                <VipAlertOverlay />
+                                            </>
                                         )}
                                     </>
                                 ) : activeStream && !activeStream.is_active ? (

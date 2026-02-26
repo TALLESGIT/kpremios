@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, LogOut, Music, Bell } from 'lucide-react';
+import { Menu, X, LogOut, Music, Bell, Tv } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
@@ -184,6 +184,16 @@ function Header() {
                 Músicas
               </Link>
 
+              <Link
+                to="/zk-clips"
+                className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/zk-clips'
+                  ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
+                  : 'text-white/90 hover:text-white hover:bg-white/10'
+                  }`}
+              >
+                Clipes
+              </Link>
+
               {/* Bolão e outros links para usuários */}
               {currentAppUser && !currentAppUser.is_admin && (
                 <div className="flex items-center gap-2">
@@ -213,15 +223,6 @@ function Header() {
                     className="ml-2 px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 bg-white text-primary hover:bg-gray-100 shadow-lg"
                   >
                     Transmitir
-                  </Link>
-                  <Link
-                    to="/admin/spotify"
-                    className={`ml-2 px-3 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 relative ${location.pathname.startsWith('/admin/spotify')
-                      ? 'bg-white/10 text-white shadow-sm border border-white/20'
-                      : 'text-white/80 hover:text-white hover:bg-white/5'
-                      }`}
-                  >
-                    Spotify
                   </Link>
                 </>
               )}
@@ -379,6 +380,20 @@ function Header() {
                   Músicas
                 </Link>
 
+                <Link
+                  to="/zk-clips"
+                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all duration-300 ${location.pathname === '/zk-clips'
+                    ? 'bg-white text-primary shadow-lg'
+                    : 'text-white hover:bg-white/10'
+                    }`}
+                  onClick={closeMenu}
+                >
+                  <span className="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-current/10">
+                    <Tv className="w-5 h-5" />
+                  </span>
+                  Clipes
+                </Link>
+
                 {/* Links para usuários no mobile */}
                 {currentAppUser && !currentAppUser.is_admin && (
                   <>
@@ -406,9 +421,6 @@ function Header() {
                     <p className="px-4 text-xs font-bold uppercase text-white/50 tracking-wider mb-2">Administração</p>
                     <Link to="/admin/live-stream" onClick={closeMenu} className="flex items-center px-4 py-2 text-white/80 hover:text-white hover:bg-white/5 rounded-lg">
                       <span className="mr-3">📡</span> Transmitir
-                    </Link>
-                    <Link to="/admin/spotify" onClick={closeMenu} className="flex items-center px-4 py-2 text-white/80 hover:text-white hover:bg-white/5 rounded-lg">
-                      <span className="mr-3">🎵</span> Spotify
                     </Link>
                   </div>
                 )}
