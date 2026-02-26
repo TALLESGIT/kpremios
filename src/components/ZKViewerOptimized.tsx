@@ -108,7 +108,9 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
                       activeUserRef.current?.videoTrack?.play(containerRef.current!);
 
                       // Tentar aumentar qualidade novamente
-                      client.setRemoteVideoStreamType?.(activeUserRef.current.uid, 1).catch(() => { });
+                      if (activeUserRef.current) {
+                        client.setRemoteVideoStreamType?.(activeUserRef.current?.uid, 1).catch(() => { });
+                      }
                       console.log('🔄 Tentativa de recuperação de vídeo após erro');
                     } catch (replayErr) {
                       console.error('Erro ao recuperar vídeo:', replayErr);
@@ -205,13 +207,17 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
       if (code === 1005 || msg === 'RECV_VIDEO_DECODE_FAILED') {
         console.log('🔄 Tentando reconectar vídeo devido a erro de decodificação...');
         if (activeUserRef.current && containerRef.current) {
+          const activeUser = activeUserRef.current;
+          const container = containerRef.current;
           setTimeout(() => {
             try {
-              containerRef.current!.innerHTML = "";
-              activeUserRef.current?.videoTrack?.play(containerRef.current!);
+              container.innerHTML = "";
+              activeUser?.videoTrack?.play(container);
 
               // Tentar aumentar qualidade novamente
-              client.setRemoteVideoStreamType?.(activeUserRef.current.uid, 1).catch(() => { });
+              if (activeUser) {
+                client.setRemoteVideoStreamType?.(activeUser.uid, 1).catch(() => { });
+              }
             } catch (reconnectErr) {
               console.error('Erro ao reconectar vídeo:', reconnectErr);
             }

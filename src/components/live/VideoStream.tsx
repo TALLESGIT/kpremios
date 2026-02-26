@@ -231,7 +231,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           frameRate: 30,
           bitrateMax: 1500,
           degradationPreference: 'maintain-framerate'
-        },
+        } as any,
       });
 
       setPreviewTrack(track);
@@ -1331,14 +1331,14 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             // Criar o track de vídeo
             const videoTrack = await AgoraRTC.createCameraVideoTrack({
               cameraId: selectedCamera,
+              optimizationMode: 'motion',
               encoderConfig: {
                 width: 1280,
                 height: 720,
                 frameRate: 30,
                 bitrateMax: 2000,
-                optimizationMode: 'motion',
                 degradationPreference: 'maintain-framerate'
-              },
+              } as any,
             });
 
             console.log('Track de vídeo criado com sucesso:', {
