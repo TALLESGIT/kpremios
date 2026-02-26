@@ -403,10 +403,11 @@ const socketIoChatMessages = new Set(); // messageId -> timestamp
 
 // ✅ Write-Behind: buffer de mensagens para batch insert (reduz 90% das escritas)
 const messageBuffer = [];
-const MESSAGE_FLUSH_INTERVAL_MS = 4000; // 3 a 5 segundos
+const MESSAGE_FLUSH_INTERVAL_MS = 10000; // Aumentado para 10s para reduzir CPU/IO
 
 // Likes em mensagens com id temporário (antes do batch insert) — só em memória
 const tempMessageLikes = new Map(); // messageId -> { count, likedBy: Set }
+const MAX_TEMP_LIKES = 500; // Limite de mensagens pendentes de like
 
 // Flush do buffer de mensagens a cada 3–5 s (uma única escrita em lote)
 setInterval(async () => {
@@ -428,6 +429,35 @@ setInterval(async () => {
     messageBuffer.push(...toInsert);
   }
 }, MESSAGE_FLUSH_INTERVAL_MS);
+
+// ✅ EMERGENCY: Throttle de Broadcast de Viewers (Reduz tráfego de rede e CPU)
+const viewerCountUpdateQueue = new Set();
+setInterval(() => {
+  if (viewerCountUpdateQueue.size === 0) return;
+  const streamsToUpdate = Array.from(viewerCountUpdateQueue);
+  viewerCountUpdateQueue.clear();
+
+  streamsToUpdate.forEach(streamId => {
+    const room = io.sockets.adapter.rooms.get(`stream:${streamId}`);
+    const viewerCount = room ? room.size : 0;
+
+    // Atualizar no DB via wrapper (já tem proteção de load)
+    supabaseWrapper.updateViewerCount(streamId, viewerCount);
+
+    // Emitir para os clientes
+    io.to(`stream:${streamId}`).emit('viewer-count-updated', {
+      streamId,
+      count: viewerCount,
+      timestamp: Date.now()
+    });
+
+    // Log apenas se mudou significativamente
+    if (lastViewerCountByStream.get(streamId) !== viewerCount) {
+      lastViewerCountByStream.set(streamId, viewerCount);
+      console.log(`📊 [THROTTLED] Viewer count para ${streamId}: ${viewerCount}`);
+    }
+  });
+}, 5000); // Atualiza estatísticas a cada 5 segundos
 
 // =====================================================
 // CACHE DE LIVE STREAMS (Reduz carga no Supabase)
@@ -527,21 +557,8 @@ io.on('connection', (socket) => {
   });
 
   const broadcastViewerCount = (streamId) => {
-    const room = io.sockets.adapter.rooms.get(`stream:${streamId}`);
-    const viewerCount = room ? room.size : 0;
-
-    supabaseWrapper.updateViewerCount(streamId, viewerCount);
-
-    io.to(`stream:${streamId}`).emit('viewer-count-updated', {
-      streamId,
-      count: viewerCount,
-      timestamp: Date.now()
-    });
-
-    if (lastViewerCountByStream.get(streamId) !== viewerCount) {
-      lastViewerCountByStream.set(streamId, viewerCount);
-      console.log(`📊 Viewer count atualizado para stream ${streamId}: ${viewerCount}`);
-    }
+    // Agora apenas agendamos a atualização para o próximo ciclo de 5s
+    viewerCountUpdateQueue.add(streamId);
   };
 
   // Viewer se junta à sala da stream (ack para load-test e clientes que esperam confirmação)
@@ -795,6 +812,10 @@ io.on('connection', (socket) => {
       // Mensagem com id temporário ou de cache (ainda não UUID no banco) — like só em memória
       const idStr = String(messageId);
       if (idStr.startsWith('temp-') || idStr.startsWith('cache-')) {
+        if (!tempMessageLikes.has(messageId) && tempMessageLikes.size >= MAX_TEMP_LIKES) {
+          const firstKey = tempMessageLikes.keys().next().value;
+          tempMessageLikes.delete(firstKey);
+        }
         const entry = tempMessageLikes.get(messageId) || { count: 0, likedBy: new Set() };
         if (entry.likedBy.has(who)) {
           entry.likedBy.delete(who);

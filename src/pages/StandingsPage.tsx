@@ -6,6 +6,7 @@ import { ArrowLeft, Trophy, Shield, Users, ArrowUp, ArrowDown, Minus, Share2, Ca
 import { CruzeiroStanding } from '../types';
 import { Calculator, Zap } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import TeamLogo from '../components/TeamLogo';
 
 const StandingsPage: React.FC = () => {
   const { competitionName } = useParams<{ competitionName: string }>();
@@ -288,9 +289,12 @@ const StandingsPage: React.FC = () => {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              {team.logo && (
-                                <img src={team.logo} alt={team.team} className="w-8 h-8 object-contain" />
-                              )}
+                              <TeamLogo
+                                teamName={team.team}
+                                customLogo={team.logo}
+                                size="md"
+                                showName={false}
+                              />
                               <div className="flex flex-col">
                                 <span className={`text-sm font-bold ${isCruzeiro ? 'text-primary' : 'text-white'}`}>
                                   {team.team}
@@ -424,11 +428,12 @@ const StandingsPage: React.FC = () => {
                           </div>
 
                           <div className="flex items-center gap-3">
-                            {team.logo && (
-                              <div className="w-12 h-12 p-2 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center">
-                                <img src={team.logo} alt={team.team} className="w-full h-full object-contain" />
-                              </div>
-                            )}
+                            <TeamLogo
+                              teamName={team.team}
+                              customLogo={team.logo}
+                              size="lg"
+                              showName={false}
+                            />
                             <div>
                               <h3 className={`text-sm font-black uppercase tracking-tight ${isCruzeiro ? 'text-white' : 'text-blue-100'}`}>
                                 {team.team}

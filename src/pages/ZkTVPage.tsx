@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useSocket } from '../hooks/useSocket';
 import {
@@ -7,18 +8,19 @@ import {
     Calendar,
     Activity,
     Shield,
-    Play,
     Clock,
     MapPin,
-    Zap,
     Maximize2,
     Minimize2,
+    Play,
     Eye,
     MessageSquare,
     X,
     Crown,
     Target,
-    Bell
+    Bell,
+    Trophy,
+    Zap
 } from 'lucide-react';
 import { LiveViewer } from '../components/LiveViewer';
 import MobileLiveControls from '../components/live/MobileLiveControls';
@@ -31,9 +33,11 @@ import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import VipSubscriptionModal from '../components/vip/VipSubscriptionModal';
 import PoolBetModal from '../components/pool/PoolBetModal';
 import { CastButton } from '../components/CastButton';
-import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding } from '../types';
+import TeamLogo from '../components/TeamLogo';
+import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding, YouTubeClip } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useRegisterStreamId } from '../features/chat/useRegisterStreamId';
+import { getTeamColors } from '../utils/teamLogos';
 import toast from 'react-hot-toast';
 
 interface LiveStream {
@@ -56,6 +60,7 @@ const isZkTVDebug = () => (import.meta as any).env?.DEV === true || (import.meta
 
 const ZkTVPage: React.FC = () => {
     const { user } = useAuth();
+    const [searchParams] = useSearchParams();
 
     // Estados principais
     const [settings, setSettings] = useState<CruzeiroSettings | null>(null);
@@ -68,7 +73,13 @@ const ZkTVPage: React.FC = () => {
         winRate: 0,
         topScorer: 'N/A'
     });
-    const [activeTab, setActiveTab] = useState<'games' | 'standings' | 'stats'>('games');
+    const [activeTab, setActiveTab] = useState<'games' | 'standings' | 'stats' | 'clips'>(() => {
+        const tab = searchParams.get('tab');
+        if (tab === 'standings' || tab === 'stats' || tab === 'clips') return tab as any;
+        return 'games';
+    });
+    const [clips, setClips] = useState<YouTubeClip[]>([]);
+    const [selectedClip, setSelectedClip] = useState<YouTubeClip | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [isLandscape, setIsLandscape] = useState(false);
@@ -261,6 +272,20 @@ const ZkTVPage: React.FC = () => {
             }
         }
     }, [activeStream]);
+    const loadClips = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('youtube_clips')
+                .select('*')
+                .eq('is_active', true)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            setClips(data || []);
+        } catch (error) {
+            console.error('Error loading clips:', error);
+        }
+    };
 
     // Verificar status VIP
     const checkVipStatus = async () => {
@@ -760,6 +785,8 @@ const ZkTVPage: React.FC = () => {
                 supabase.from('cruzeiro_standings').select('*').order('position', { ascending: true })
             ]);
 
+            loadClips();
+
             if (settingsRes.error) {
                 console.error('❌ Erro ao carregar settings:', settingsRes.error);
             }
@@ -1074,39 +1101,59 @@ const ZkTVPage: React.FC = () => {
                                     ) : (
                                         <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 sm:p-6 lg:p-12 text-center overflow-y-auto">
                                             {nextGame ? (
-                                                <div className="w-full max-w-sm mx-auto animate-in fade-in zoom-in duration-700 py-2">
-                                                    <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
-                                                        <span className="px-2 sm:px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Próximo Jogo</span>
-                                                        <span className="text-[9px] sm:text-[10px] font-black text-white/40 uppercase tracking-widest truncate">{nextGame.competition}</span>
-                                                    </div>
+                                                <div className="w-full max-w-lg mx-auto animate-in fade-in zoom-in duration-700 py-4 px-6 rounded-[2.5rem] bg-slate-900/40 border border-white/5 backdrop-blur-xl relative overflow-hidden group">
+                                                    {/* Dynamic Background Glow */}
+                                                    <div
+                                                        className="absolute -top-24 -right-24 w-48 h-48 blur-[100px] opacity-20 transition-all group-hover:opacity-40"
+                                                        style={{ backgroundColor: getTeamColors(nextGame.opponent).primary }}
+                                                    ></div>
 
-                                                    <div className="flex items-center justify-between gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
-                                                        <div className="flex flex-col items-center flex-1 min-w-0">
-                                                            <div className="h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 bg-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center text-sm sm:text-base lg:text-lg font-black text-white mb-2 sm:mb-3 shadow-xl shadow-blue-600/20">CRU</div>
-                                                            <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full">Cruzeiro</span>
-                                                        </div>
-
-                                                        <div className="flex flex-col items-center flex-shrink-0">
-                                                            <div className="text-lg sm:text-xl lg:text-2xl font-black italic text-white/10 uppercase mb-1">VS</div>
-                                                            <div className="h-1 w-6 sm:w-8 bg-blue-500/20 rounded-full" />
-                                                        </div>
-
-                                                        <div className="flex flex-col items-center flex-1 min-w-0">
-                                                            <div className="h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 bg-slate-800 border border-white/5 rounded-xl sm:rounded-2xl flex items-center justify-center text-sm sm:text-base lg:text-lg font-black text-slate-400 mb-2 sm:mb-3">
-                                                                {nextGame.opponent.substring(0, 3).toUpperCase()}
+                                                    <div className="relative z-10">
+                                                        <div className="flex items-center justify-between mb-6 sm:mb-8 gap-4">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="px-3 py-1 rounded-full bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20">Próximo Jogo</span>
+                                                                <div className="w-1 h-1 rounded-full bg-slate-700" />
+                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">{nextGame.competition}</span>
                                                             </div>
-                                                            <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full px-1">{nextGame.opponent}</span>
+                                                            <div className="flex items-center gap-2 text-slate-500">
+                                                                <MapPin className="w-3 h-3" />
+                                                                <span className="text-[9px] font-bold uppercase">{nextGame.venue}</span>
+                                                            </div>
                                                         </div>
-                                                    </div>
 
-                                                    <div className="pt-3 sm:pt-4 lg:pt-6 border-t border-white/5 flex items-center justify-center gap-4 sm:gap-6 lg:gap-8 pb-2">
-                                                        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-black text-blue-300">
-                                                            <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                                            <span>{new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                                                        <div className="flex items-center justify-between gap-4 sm:gap-8 mb-6 sm:mb-10">
+                                                            <div className="flex flex-col items-center flex-1">
+                                                                <TeamLogo teamName="Cruzeiro" size="xl" />
+                                                                <span className="mt-3 text-xs sm:text-sm font-black text-white uppercase tracking-tighter">Cruzeiro</span>
+                                                            </div>
+
+                                                            <div className="flex flex-col items-center justify-center">
+                                                                <div className="text-3xl sm:text-4xl font-black italic text-slate-800/50 mb-2">VS</div>
+                                                                <div className="h-[2px] w-8 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
+                                                            </div>
+
+                                                            <div className="flex flex-col items-center flex-1">
+                                                                <TeamLogo teamName={nextGame.opponent} size="xl" />
+                                                                <span className="mt-3 text-xs sm:text-sm font-black text-white uppercase tracking-tighter text-center line-clamp-1">{nextGame.opponent}</span>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-black text-blue-300">
-                                                            <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                                            <span>{new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h</span>
+
+                                                        <div className="pt-6 border-t border-white/5 flex items-center justify-center gap-8">
+                                                            <div className="flex flex-col items-center gap-1">
+                                                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">Data</span>
+                                                                <div className="flex items-center gap-2 text-blue-400 font-black">
+                                                                    <Calendar className="w-4 h-4" />
+                                                                    <span className="text-sm">{new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="w-[1px] h-8 bg-white/5" />
+                                                            <div className="flex flex-col items-center gap-1">
+                                                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">Horário</span>
+                                                                <div className="flex items-center gap-2 text-blue-400 font-black">
+                                                                    <Clock className="w-4 h-4" />
+                                                                    <span className="text-sm">{new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h</span>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1320,44 +1367,86 @@ const ZkTVPage: React.FC = () => {
                         {/* Sidebar: Next Match & Stats */}
                         <div className="lg:col-span-1 space-y-4 sm:space-y-6 lg:space-y-8">
                             {/* Next Match Card - Escondido no mobile */}
-                            <div className="hidden md:block bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-4 sm:p-6 lg:p-8 rounded-[2rem] relative overflow-visible group pb-6 sm:pb-8">
+                            <div className="hidden md:block bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-4 sm:p-6 lg:p-8 rounded-[2rem] relative overflow-hidden group pb-6 sm:pb-8">
+                                {nextGame && (
+                                    <div
+                                        className="absolute -top-24 -right-24 w-48 h-48 blur-[100px] opacity-10 transition-all group-hover:opacity-30"
+                                        style={{ backgroundColor: getTeamColors(nextGame.opponent).primary }}
+                                    ></div>
+                                )}
+
                                 <div className="absolute top-0 right-0 p-4 sm:p-6 lg:p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
                                     <Shield className="w-24 sm:w-32 h-24 sm:h-32 text-blue-500" />
                                 </div>
 
-                                <h3 className="text-xs sm:text-sm font-bold text-blue-500 uppercase tracking-widest mb-3 sm:mb-4 lg:mb-6">Próximo Jogo</h3>
+                                <h3 className="text-xs sm:text-sm font-black text-blue-500 uppercase tracking-widest mb-3 sm:mb-4 lg:mb-8 relative z-10 flex items-center gap-2">
+                                    <Zap className="w-4 h-4" />
+                                    Próximo Jogo
+                                </h3>
 
                                 {nextGame ? (
-                                    <>
-                                        <div className="flex items-center justify-between mb-3 sm:mb-4 lg:mb-6 gap-2 sm:gap-4">
-                                            <div className="text-center flex-1 min-w-0">
-                                                <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-2 sm:mb-3 shadow-lg shadow-blue-600/20 font-black text-white text-xs sm:text-sm lg:text-base">CRU</div>
-                                                <span className="text-xs sm:text-sm font-bold block truncate">Cruzeiro</span>
+                                    <div className="relative z-10">
+                                        <div className="flex items-center justify-between mb-6 sm:mb-8 gap-2">
+                                            <div className="flex flex-col items-center flex-1 min-w-0">
+                                                <TeamLogo teamName="Cruzeiro" size="lg" />
+                                                <span className="mt-3 text-[10px] font-black text-white uppercase tracking-tighter truncate w-full text-center">Cruzeiro</span>
                                             </div>
-                                            <div className="px-1 sm:px-2 lg:px-4 text-lg sm:text-xl lg:text-2xl font-black italic text-slate-700 flex-shrink-0">VS</div>
-                                            <div className="text-center flex-1 min-w-0">
-                                                <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-slate-800 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-2 sm:mb-3 border border-slate-700 font-black text-slate-400 text-xs sm:text-sm lg:text-base">
-                                                    {nextGame.opponent.substring(0, 3).toUpperCase()}
-                                                </div>
-                                                <span className="text-xs sm:text-sm font-bold block truncate px-1">{nextGame.opponent}</span>
+                                            <div className="flex flex-col items-center justify-center px-4">
+                                                <div className="text-xl font-black italic text-slate-800/80">VS</div>
+                                            </div>
+                                            <div className="flex flex-col items-center flex-1 min-w-0">
+                                                <TeamLogo
+                                                    teamName={nextGame.opponent}
+                                                    customLogo={nextGame.opponent_logo}
+                                                    size="lg"
+                                                />
+                                                <span className="mt-3 text-[10px] font-black text-white uppercase tracking-tighter truncate w-full text-center">{nextGame.opponent}</span>
                                             </div>
                                         </div>
 
-                                        <div className="space-y-2 sm:space-y-3 pt-3 sm:pt-4 lg:pt-6 border-t border-slate-800/50 pb-2">
-                                            <div className="flex items-center gap-2 sm:gap-3 text-slate-300">
-                                                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
-                                                <span className="text-xs sm:text-sm break-words">{new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+                                        <div className="space-y-3 pt-6 border-t border-white/5">
+                                            <div className="flex items-center gap-3 text-slate-300">
+                                                <div className="w-8 h-8 rounded-lg bg-slate-800/50 flex items-center justify-center border border-white/5">
+                                                    <Trophy className="w-4 h-4 text-blue-500" />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black text-slate-500 uppercase">Competição</span>
+                                                    <span className="text-xs font-bold text-white uppercase tracking-tight">{nextGame.competition}</span>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-2 sm:gap-3 text-slate-300">
-                                                <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
-                                                <span className="text-xs sm:text-sm">{new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h</span>
+                                            <div className="flex items-center gap-3 text-slate-300">
+                                                <div className="w-8 h-8 rounded-lg bg-slate-800/50 flex items-center justify-center border border-white/5">
+                                                    <Calendar className="w-4 h-4 text-blue-500" />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold text-white">
+                                                        {new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} • {new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-2 sm:gap-3 text-slate-300">
-                                                <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
-                                                <span className="text-xs sm:text-sm break-words">{nextGame.venue}</span>
+                                            <div className="flex items-center gap-3 text-slate-300">
+                                                <div className="w-8 h-8 rounded-lg bg-slate-800/50 flex items-center justify-center border border-white/5">
+                                                    <MapPin className="w-4 h-4 text-blue-500" />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black text-slate-500 uppercase">Local</span>
+                                                    <span className="text-xs font-bold text-white truncate max-w-[150px]">{nextGame.venue}</span>
+                                                </div>
                                             </div>
                                         </div>
-                                    </>
+
+                                        {/* CTA para Escalação */}
+                                        <div className="mt-8 pt-6 border-t border-white/5">
+                                            <Link
+                                                to="/escalacao"
+                                                className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                            >
+                                                <Trophy className="w-4 h-4" />
+                                                Escalar Time Ideal
+                                            </Link>
+                                            <p className="text-center text-[10px] text-slate-500 mt-3 font-medium">Monte sua tática e compartilhe!</p>
+                                        </div>
+                                    </div>
                                 ) : (
                                     <p className="text-slate-500 text-center py-6 sm:py-8 text-xs sm:text-sm">Aguardando calendário...</p>
                                 )}
@@ -1394,21 +1483,23 @@ const ZkTVPage: React.FC = () => {
                         {/* Main Content: Tabs & Tables */}
                         <div className="lg:col-span-2 space-y-4 sm:space-y-6 lg:space-y-8">
                             {/* Tab Selector */}
-                            <div className="flex gap-2 sm:gap-4 p-1 bg-slate-900 border border-slate-800 rounded-xl sm:rounded-2xl w-full sm:w-fit">
-                                <button
-                                    onClick={() => setActiveTab('games')}
-                                    className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === 'games' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
-                                        }`}
-                                >
-                                    Jogos
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('standings')}
-                                    className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === 'standings' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
-                                        }`}
-                                >
-                                    Tabela
-                                </button>
+                            <div className="flex flex-wrap gap-2 sm:gap-4 p-1 bg-slate-900 border border-slate-800 rounded-xl sm:rounded-2xl w-full sm:w-fit">
+                                {[
+                                    { id: 'games', label: 'Jogos' },
+                                    { id: 'standings', label: 'Tabela' },
+                                    { id: 'stats', label: 'Estatísticas' }
+                                ].map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id as any)}
+                                        className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === tab.id
+                                            ? 'bg-blue-600 text-white shadow-lg'
+                                            : 'text-slate-400 hover:text-white'
+                                            }`}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
                             </div>
 
                             {/* Tab Panels */}
@@ -1428,28 +1519,61 @@ const ZkTVPage: React.FC = () => {
                                                     Próximos Confrontos
                                                 </h4>
                                                 <div className="grid gap-3 sm:gap-4">
-                                                    {upcomingGames.map(game => (
-                                                        <div key={game.id} className="flex items-center justify-between p-3 sm:p-4 lg:p-6 bg-slate-900/50 border border-slate-800 rounded-xl sm:rounded-2xl hover:border-blue-500/30 transition-all group gap-2 sm:gap-4">
-                                                            <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 min-w-0 flex-1">
-                                                                <div className="text-[10px] sm:text-xs font-black text-slate-500 rotate-180 [writing-mode:vertical-lr] hidden sm:block flex-shrink-0">
-                                                                    {new Date(game.date).toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase()}
-                                                                </div>
-                                                                <div className="min-w-0 flex-1">
-                                                                    <div className="text-xs sm:text-sm font-bold text-blue-500 mb-1 truncate">{game.competition}</div>
-                                                                    {/* Mobile: duas linhas | Desktop: uma linha */}
-                                                                    <div className="text-sm sm:text-base lg:text-xl font-black text-center sm:text-left">
-                                                                        <span className="block sm:inline">Cruzeiro</span>
-                                                                        <span className="text-slate-600 mx-1 sm:mx-2 block sm:inline">x</span>
-                                                                        <span className="block sm:inline">{game.opponent}</span>
+                                                    {upcomingGames.map(game => {
+                                                        const oppColors = getTeamColors(game.opponent);
+                                                        return (
+                                                            <div key={game.id} className="relative overflow-hidden group">
+                                                                <div className="flex items-center justify-between p-4 sm:p-5 lg:p-6 bg-slate-900/40 border border-slate-800 rounded-2xl sm:rounded-3xl hover:border-blue-500/30 transition-all gap-4 relative z-10 backdrop-blur-sm">
+                                                                    {/* Dynamic Glow */}
+                                                                    <div
+                                                                        className="absolute -top-12 -right-12 w-24 h-24 blur-[60px] opacity-10 group-hover:opacity-20 transition-all"
+                                                                        style={{ backgroundColor: oppColors.primary }}
+                                                                    ></div>
+
+                                                                    <div className="flex items-center gap-4 sm:gap-6 flex-1 min-w-0">
+                                                                        <div className="hidden sm:flex flex-col items-center justify-center px-4 py-2 border-r border-white/5">
+                                                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">{new Date(game.date).toLocaleDateString('pt-BR', { month: 'short' })}</span>
+                                                                            <span className="text-xl font-black text-white italic">{new Date(game.date).toLocaleDateString('pt-BR', { day: '2-digit' })}</span>
+                                                                        </div>
+
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <div className="flex items-center gap-2 mb-2">
+                                                                                <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest px-2 py-0.5 bg-blue-500/10 rounded-full border border-blue-500/20">{game.competition}</span>
+                                                                                {game.status === 'live' && (
+                                                                                    <span className="flex items-center gap-1 text-[9px] font-black text-rose-500 uppercase tracking-widest px-2 py-0.5 bg-rose-500/10 rounded-full border border-rose-500/20 animate-pulse">
+                                                                                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                                                                        Ao Vivo
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+
+                                                                            <div className="flex items-center gap-2 sm:gap-4 ml-1">
+                                                                                <div className="flex items-center gap-2 flex-1 justify-end">
+                                                                                    <span className="text-xs sm:text-sm font-black text-white uppercase italic tracking-tighter hidden sm:block">Cruzeiro</span>
+                                                                                    <TeamLogo teamName="Cruzeiro" size="sm" showName={false} />
+                                                                                </div>
+
+                                                                                <div className="text-[10px] font-black text-slate-700 italic">VS</div>
+
+                                                                                <div className="flex items-center gap-2 flex-1">
+                                                                                    <TeamLogo teamName={game.opponent} size="sm" showName={false} />
+                                                                                    <span className="text-xs sm:text-sm font-black text-white uppercase italic tracking-tighter line-clamp-1">{game.opponent}</span>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
+                                                                        <div className="flex items-center gap-1 text-slate-300 font-black italic">
+                                                                            <Clock className="w-3 h-3 text-blue-500" />
+                                                                            <span className="text-xs sm:text-sm">{new Date(game.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h</span>
+                                                                        </div>
+                                                                        <div className="text-[10px] font-bold text-slate-500 max-w-[100px] truncate">{game.venue}</div>
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                            <div className="text-right flex-shrink-0">
-                                                                <div className="text-xs sm:text-sm font-bold text-slate-300">{new Date(game.date).toLocaleDateString('pt-BR')}</div>
-                                                                <div className="text-[10px] sm:text-xs text-slate-500 truncate max-w-[80px] sm:max-w-none">{game.venue}</div>
-                                                            </div>
-                                                        </div>
-                                                    ))}
+                                                        );
+                                                    })}
                                                     {upcomingGames.length === 0 && <p className="text-slate-500 text-center py-12">Nenhum jogo futuro cadastrado.</p>}
                                                 </div>
                                             </div>
@@ -1486,19 +1610,47 @@ const ZkTVPage: React.FC = () => {
                                                         </div>
                                                     ) : (
                                                         // Se não houver resultado do bolão, mostrar jogos finalizados do Cruzeiro
-                                                        recentGames.map(game => (
-                                                            <div key={game.id} className="flex items-center justify-between p-3 sm:p-4 lg:p-6 bg-slate-950 border border-slate-900 rounded-xl sm:rounded-2xl gap-2 sm:gap-4">
-                                                                <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 min-w-0 flex-1">
-                                                                    <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500 flex-shrink-0" />
-                                                                    <span className="text-xs sm:text-sm font-bold truncate">{game.opponent}</span>
+                                                        recentGames.map(game => {
+                                                            const oppColors = getTeamColors(game.opponent);
+                                                            return (
+                                                                <div key={game.id} className="relative overflow-hidden group">
+                                                                    <div className="flex items-center justify-between p-4 sm:p-5 lg:p-6 bg-slate-950/50 border border-slate-900 rounded-2xl sm:rounded-3xl hover:border-blue-500/20 transition-all gap-4 relative z-10 backdrop-blur-sm">
+                                                                        <div
+                                                                            className="absolute -top-12 -right-12 w-24 h-24 blur-[60px] opacity-5 group-hover:opacity-10 transition-all"
+                                                                            style={{ backgroundColor: oppColors.primary }}
+                                                                        ></div>
+
+                                                                        <div className="flex items-center gap-3 sm:gap-5 lg:gap-8 flex-1 min-w-0">
+                                                                            <div className="flex items-center gap-2 flex-1 justify-end min-w-0 text-right">
+                                                                                <span className="text-xs sm:text-sm font-black text-white uppercase italic tracking-tighter truncate hidden sm:block">Cruzeiro</span>
+                                                                                <TeamLogo teamName="Cruzeiro" size="sm" showName={false} />
+                                                                            </div>
+
+                                                                            <div className="flex items-center gap-1.5 sm:gap-3 font-black flex-shrink-0">
+                                                                                <div className="px-3 sm:px-4 py-1 sm:py-2 bg-slate-900 border border-white/5 rounded-xl text-sm sm:text-base text-white shadow-inner">{game.score_home}</div>
+                                                                                <span className="text-slate-700 text-lg sm:text-xl italic">-</span>
+                                                                                <div className="px-3 sm:px-4 py-1 sm:py-2 bg-slate-900 border border-white/5 rounded-xl text-sm sm:text-base text-white shadow-inner">{game.score_away}</div>
+                                                                            </div>
+
+                                                                            <div className="flex items-center gap-2 flex-1 min-w-0 text-left">
+                                                                                <TeamLogo
+                                                                                    teamName={game.opponent}
+                                                                                    customLogo={game.opponent_logo}
+                                                                                    size="sm"
+                                                                                    showName={false}
+                                                                                />
+                                                                                <span className="text-xs sm:text-sm font-black text-white uppercase italic tracking-tighter truncate hidden sm:block">{game.opponent}</span>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div className="hidden md:flex flex-col items-end opacity-40">
+                                                                            <span className="text-[10px] font-black uppercase tracking-widest">{game.competition}</span>
+                                                                            <span className="text-[9px] font-bold">{new Date(game.date).toLocaleDateString('pt-BR')}</span>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 font-black flex-shrink-0">
-                                                                    <div className="px-2 sm:px-3 py-0.5 sm:py-1 bg-slate-900 rounded-md sm:rounded-lg text-xs sm:text-sm">{game.score_home}</div>
-                                                                    <span className="text-slate-700 text-sm sm:text-base">-</span>
-                                                                    <div className="px-2 sm:px-3 py-0.5 sm:py-1 bg-slate-900 rounded-md sm:rounded-lg text-xs sm:text-sm">{game.score_away}</div>
-                                                                </div>
-                                                            </div>
-                                                        ))
+                                                            );
+                                                        })
                                                     )}
                                                     {!lastPoolResult && recentGames.length === 0 && (
                                                         <p className="text-slate-500 text-center py-8 sm:py-12 text-xs sm:text-sm">Nenhum resultado disponível.</p>
@@ -1532,9 +1684,7 @@ const ZkTVPage: React.FC = () => {
                                                             <tr key={team.id} className={`${team.is_cruzeiro ? 'bg-blue-600/10 border-l-4 border-l-blue-500' : ''} hover:bg-slate-800/30 transition-colors`}>
                                                                 <td className="px-8 py-5 font-black text-slate-500">{team.position}º</td>
                                                                 <td className="px-8 py-5 font-bold flex items-center gap-3">
-                                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-[10px] ${team.is_cruzeiro ? 'bg-blue-600' : 'bg-slate-800'}`}>
-                                                                        {team.is_cruzeiro ? 'CRU' : team.team.substring(0, 3).toUpperCase()}
-                                                                    </div>
+                                                                    <TeamLogo teamName={team.team} size="sm" showName={false} />
                                                                     {team.team}
                                                                 </td>
                                                                 <td className="px-8 py-5 text-center font-black text-white">{team.points}</td>
@@ -1545,6 +1695,114 @@ const ZkTVPage: React.FC = () => {
                                                         ))}
                                                     </tbody>
                                                 </table>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                    {activeTab === 'clips' && (
+                                        <motion.div
+                                            key="clips"
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.95 }}
+                                            className="p-4 sm:p-6 lg:p-8 space-y-6"
+                                        >
+                                            {selectedClip ? (
+                                                <div className="bg-slate-900/60 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl">
+                                                    <div className="relative aspect-video">
+                                                        <iframe
+                                                            src={`https://www.youtube.com/embed/${selectedClip.youtube_url}?autoplay=1`}
+                                                            title={selectedClip.title}
+                                                            className="w-full h-full"
+                                                            frameBorder="0"
+                                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                            allowFullScreen
+                                                        />
+                                                        <button
+                                                            onClick={() => setSelectedClip(null)}
+                                                            className="absolute top-4 right-4 p-2 bg-black/60 backdrop-blur-md rounded-full text-white hover:bg-black transition-all"
+                                                        >
+                                                            <X className="w-5 h-5" />
+                                                        </button>
+                                                    </div>
+                                                    <div className="p-6">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <span className="px-2 py-1 bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase rounded border border-blue-500/20">
+                                                                {selectedClip.category}
+                                                            </span>
+                                                        </div>
+                                                        <h3 className="text-xl font-bold text-white mb-2">{selectedClip.title}</h3>
+                                                        <p className="text-slate-400 text-sm leading-relaxed">{selectedClip.description}</p>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                    {clips.map((clip) => (
+                                                        <motion.button
+                                                            key={clip.id}
+                                                            whileHover={{ scale: 1.02 }}
+                                                            whileTap={{ scale: 0.98 }}
+                                                            onClick={() => setSelectedClip(clip)}
+                                                            className="bg-slate-900/40 border border-slate-800/50 rounded-2xl overflow-hidden text-left group transition-all hover:bg-slate-900/60"
+                                                        >
+                                                            <div className="relative aspect-video">
+                                                                <img
+                                                                    src={clip.thumbnail_url}
+                                                                    alt={clip.title}
+                                                                    className="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
+                                                                />
+                                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                                                                    <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/40 transform scale-75 group-hover:scale-100 transition-all duration-300">
+                                                                        <Play className="w-6 h-6 text-white fill-current" />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="p-4">
+                                                                <h4 className="font-bold text-white text-sm line-clamp-1 group-hover:text-blue-400 transition-colors">{clip.title}</h4>
+                                                                <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-wider">{clip.category}</p>
+                                                            </div>
+                                                        </motion.button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {clips.length === 0 && (
+                                                <div className="py-20 text-center flex flex-col items-center gap-4">
+                                                    <Tv className="w-12 h-12 text-slate-800" />
+                                                    <p className="text-slate-500">Nenhum clipe disponível no momento.</p>
+                                                </div>
+                                            )}
+                                        </motion.div>
+                                    )}
+
+                                    {activeTab === 'stats' && (
+                                        <motion.div
+                                            key="stats"
+                                            initial={{ opacity: 0, x: -20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: 20 }}
+                                            className="p-4 sm:p-6 lg:p-8"
+                                        >
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                                <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-3xl text-center">
+                                                    <Trophy className="w-8 h-8 text-yellow-500 mx-auto mb-3" />
+                                                    <span className="block text-slate-500 text-[10px] font-black uppercase mb-1">Vitórias</span>
+                                                    <span className="text-3xl font-black text-white">{quickStats.victories}</span>
+                                                </div>
+                                                <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-3xl text-center">
+                                                    <Zap className="w-8 h-8 text-blue-500 mx-auto mb-3" />
+                                                    <span className="block text-slate-500 text-[10px] font-black uppercase mb-1">Gols Pró</span>
+                                                    <span className="text-3xl font-black text-white">{quickStats.goalsFor}</span>
+                                                </div>
+                                                <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-3xl text-center">
+                                                    <Activity className="w-8 h-8 text-emerald-500 mx-auto mb-3" />
+                                                    <span className="block text-slate-500 text-[10px] font-black uppercase mb-1">Aproveit.</span>
+                                                    <span className="text-3xl font-black text-white">{quickStats.winRate}%</span>
+                                                </div>
+                                                <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-3xl text-center">
+                                                    <Target className="w-8 h-8 text-rose-500 mx-auto mb-3" />
+                                                    <span className="block text-slate-500 text-[10px] font-black uppercase mb-1">Artilheiro</span>
+                                                    <span className="text-lg font-black text-white line-clamp-1">{quickStats.topScorer}</span>
+                                                </div>
                                             </div>
                                         </motion.div>
                                     )}

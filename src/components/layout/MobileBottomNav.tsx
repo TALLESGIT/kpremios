@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Trophy, Tv, User, Music } from 'lucide-react';
+import { Home, Trophy, Tv, User, Music, Users } from 'lucide-react';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 const MobileBottomNav = () => {
@@ -15,7 +15,7 @@ const MobileBottomNav = () => {
 
   const navItems = [
     { path: '/', icon: Home, label: 'Início' },
-    { path: '/winners', icon: Trophy, label: 'Ganhadores' },
+    { path: '/escalacao', icon: Users, label: 'Escale' },
     { path: '/zk-tv', icon: Tv, label: 'Ao Vivo' },
     { path: '/spotify', icon: Music, label: 'Músicas' },
     { path: '/profile', icon: User, label: 'Perfil' },

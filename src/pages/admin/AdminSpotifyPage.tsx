@@ -135,13 +135,22 @@ const AdminSpotifyPage: React.FC = () => {
                   Notificar Usuários via Push
                 </label>
               </div>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-green-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {submitting ? 'Adicionando...' : 'Adicionar Lançamento'}
-              </button>
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-green-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? 'Adicionando...' : 'Adicionar Lançamento'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setTitle(''); setEmbedUrl(''); }}
+                  className="px-4 py-3 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white font-bold rounded-xl transition-all border border-white/10"
+                >
+                  Limpar
+                </button>
+              </div>
             </form>
           </div>
         </div>

@@ -6,56 +6,63 @@
 
 class ResilientCache {
   constructor() {
-    // Cache de usuários (roles, VIP status, etc)
+    // Cache de usuários (roles, VIP status, etc) - Limite de 1000 para poupar RAM
     this.users = new Map();
-    
+    this.MAX_USERS = 1000;
+
     // Cache de viewers por stream
     this.viewers = new Map();
-    
+
     // Cache de mensagens recentes (últimas 100 por stream)
     this.messages = new Map();
-    
+
     // Cache de enquetes ativas
     this.polls = new Map();
-    
+
     // Cache de streams ativas
     this.streams = new Map();
-    
+
     // Estatísticas de falhas do Supabase
     this.supabaseFailures = 0;
     this.lastSupabaseCheck = Date.now();
-    
+
     console.log('✅ Cache resiliente inicializado');
   }
 
   // =====================================================
   // USUÁRIOS
   // =====================================================
-  
+
   setUser(userId, userData) {
     this.users.set(userId, {
       ...userData,
       cachedAt: Date.now()
     });
+
+    // ✅ Proteção: Evitar leak de memória
+    if (this.users.size > this.MAX_USERS) {
+      const oldestKey = this.users.keys().next().value;
+      this.users.delete(oldestKey);
+    }
   }
 
   getUser(userId) {
     const cached = this.users.get(userId);
     if (!cached) return null;
-    
+
     // Cache válido por 5 minutos
     if (Date.now() - cached.cachedAt > 5 * 60 * 1000) {
       this.users.delete(userId);
       return null;
     }
-    
+
     return cached;
   }
 
   // =====================================================
   // VIEWERS
   // =====================================================
-  
+
   addViewer(streamId, socketId) {
     if (!this.viewers.has(streamId)) {
       this.viewers.set(streamId, new Set());
@@ -81,18 +88,18 @@ class ResilientCache {
   // =====================================================
   // MENSAGENS
   // =====================================================
-  
+
   addMessage(streamId, message) {
     if (!this.messages.has(streamId)) {
       this.messages.set(streamId, []);
     }
-    
+
     const messages = this.messages.get(streamId);
     messages.push({
       ...message,
       cachedAt: Date.now()
     });
-    
+
     // Manter apenas últimas 100 mensagens
     if (messages.length > 100) {
       messages.shift();
@@ -102,14 +109,14 @@ class ResilientCache {
   getRecentMessages(streamId, limit = 50) {
     const messages = this.messages.get(streamId);
     if (!messages) return [];
-    
+
     return messages.slice(-limit);
   }
 
   // =====================================================
   // ENQUETES
   // =====================================================
-  
+
   setPoll(streamId, poll) {
     this.polls.set(streamId, {
       ...poll,
@@ -128,7 +135,7 @@ class ResilientCache {
   // =====================================================
   // STREAMS
   // =====================================================
-  
+
   setStream(streamId, streamData) {
     this.streams.set(streamId, {
       ...streamData,
@@ -139,24 +146,24 @@ class ResilientCache {
   getStream(streamId) {
     const cached = this.streams.get(streamId);
     if (!cached) return null;
-    
+
     // Cache válido por 1 minuto
     if (Date.now() - cached.cachedAt > 60 * 1000) {
       this.streams.delete(streamId);
       return null;
     }
-    
+
     return cached;
   }
 
   // =====================================================
   // HEALTH CHECK
   // =====================================================
-  
+
   recordSupabaseFailure() {
     this.supabaseFailures++;
     this.lastSupabaseCheck = Date.now();
-    
+
     if (this.supabaseFailures > 5) {
       console.warn(`⚠️ CACHE: Supabase com ${this.supabaseFailures} falhas - usando cache`);
     }
@@ -179,17 +186,17 @@ class ResilientCache {
   // =====================================================
   // LIMPEZA
   // =====================================================
-  
+
   cleanup() {
     const now = Date.now();
-    
+
     // Limpar usuários antigos (> 5 minutos)
     for (const [userId, data] of this.users.entries()) {
       if (now - data.cachedAt > 5 * 60 * 1000) {
         this.users.delete(userId);
       }
     }
-    
+
     // Limpar mensagens antigas (> 10 minutos)
     for (const [streamId, messages] of this.messages.entries()) {
       const filtered = messages.filter(msg => now - msg.cachedAt < 10 * 60 * 1000);
@@ -199,7 +206,7 @@ class ResilientCache {
         this.messages.set(streamId, filtered);
       }
     }
-    
+
     // Limpar streams antigos (> 1 minuto)
     for (const [streamId, data] of this.streams.entries()) {
       if (now - data.cachedAt > 60 * 1000) {
@@ -211,7 +218,7 @@ class ResilientCache {
   // =====================================================
   // ESTATÍSTICAS
   // =====================================================
-  
+
   getStats() {
     return {
       users: this.users.size,
@@ -228,10 +235,10 @@ class ResilientCache {
 // Exportar instância única (singleton)
 const cache = new ResilientCache();
 
-// Limpar cache a cada 5 minutos
+// Limpar cache a cada 2 minutos (mais agressivo para liberar RAM)
 setInterval(() => {
   cache.cleanup();
-  console.log('🧹 Cache limpo:', cache.getStats());
-}, 5 * 60 * 1000);
+  console.log('🧹 [EMERGENCY CLEANUP] Cache limpo:', cache.getStats());
+}, 2 * 60 * 1000);
 
 module.exports = cache;

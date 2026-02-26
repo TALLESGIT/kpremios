@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Cast, Airplay, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useLiveStatus } from '../hooks/useLiveStatus';
@@ -6,16 +6,16 @@ import { supabase } from '../lib/supabase';
 import { DEFAULT_LIVE_CHANNEL } from '../config/constants';
 
 interface CastButtonProps {
-  videoUrl?: string; // URL HLS ou do stream
+  videoUrl?: string;
   hlsUrl?: string;
-  channelName?: string; // Nome do canal para buscar HLS
+  channelName?: string;
   className?: string;
 }
 
 /**
  * Componente de Cast Universal
- * Detecta automaticamente Chromecast, AirPlay e outros dispositivos
- * Similar ao YouTube - aparece automaticamente quando há dispositivos disponíveis
+ * O Cast SDK é carregado APENAS quando o usuário clica no botão,
+ * evitando o erro chrome-extension://invalid/ no console.
  */
 export const CastButton: React.FC<CastButtonProps> = ({
   videoUrl,
@@ -28,12 +28,13 @@ export const CastButton: React.FC<CastButtonProps> = ({
   const [isCasting, setIsCasting] = useState(false);
   const [castDevices, setCastDevices] = useState<any[]>([]);
   const [streamHlsUrl, setStreamHlsUrl] = useState<string | null>(null);
+  const [sdkLoading, setSdkLoading] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const castInitializedRef = useRef(false);
 
-  // Buscar URL HLS do stream usando o mesmo hook do LiveViewer
   const { data: liveData } = useLiveStatus(channelName);
 
-  // Buscar HLS URL do banco de dados também
+  // Buscar HLS URL do banco de dados
   useEffect(() => {
     const fetchHlsUrl = async () => {
       try {
@@ -54,153 +55,163 @@ export const CastButton: React.FC<CastButtonProps> = ({
     fetchHlsUrl();
   }, [channelName]);
 
-  useEffect(() => {
-    // Buscar elemento de vídeo na página
+  // Detectar se há vídeo na página (sem carregar Cast SDK)
+  const checkAirPlay = useCallback(() => {
     const video = document.querySelector('video');
     if (video) {
       videoRef.current = video;
-    }
-
-    // Detectar Chromecast
-    const checkChromecast = () => {
-      if (typeof window !== 'undefined') {
-        // Verificar se a API do Chrome Cast está disponível
-        const cast = (window as any).chrome?.cast;
-        if (cast) {
-          setIsCastAvailable(true);
-          initializeChromecast();
-        } else {
-          // Tentar carregar o framework do Chromecast
-          if ((window as any).cast?.framework) {
-            setIsCastAvailable(true);
-            initializeChromecast();
-          }
-        }
-      }
-    };
-
-    // Detectar AirPlay (iOS)
-    const checkAirPlay = () => {
-      const video = videoRef.current || document.querySelector('video');
-      if (video && (video as any).webkitShowPlaybackTargetPicker) {
+      if ((video as any).webkitShowPlaybackTargetPicker) {
         setIsAirPlayAvailable(true);
       }
-    };
+    }
+  }, []);
 
-    // Inicializar Chromecast
-    const initializeChromecast = () => {
-      try {
-        const castContext = (window as any).cast?.framework?.CastContext?.getInstance();
-        if (castContext) {
-          castContext.setOptions({
-            receiverApplicationId: (window as any).chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
-            autoJoinPolicy: (window as any).chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
-          });
-
-          // Listener para mudanças de estado
-          castContext.addEventListener(
-            (window as any).cast.framework.CastContextEventType.CAST_STATE_CHANGED,
-            (event: any) => {
-              const castState = event.castState;
-              if (castState === (window as any).cast.framework.CastState.CONNECTED) {
-                setIsCasting(true);
-              } else {
-                setIsCasting(false);
-              }
-            }
-          );
-
-          // Listener para disponibilidade de dispositivos
-          castContext.addEventListener(
-            (window as any).cast.framework.CastContextEventType.AVAILABLE_CAST_DEVICES_CHANGED,
-            () => {
-              const devices = castContext.getCastDevices();
-              setCastDevices(devices || []);
-              setIsCastAvailable(devices && devices.length > 0);
-            }
-          );
-        }
-      } catch (error) {
-        console.log('Chromecast não disponível:', error);
-      }
-    };
-
-    // Aguardar o framework do Chromecast carregar
-    if ((window as any).cast?.framework) {
-      checkChromecast();
-    } else {
-      // Aguardar até 3 segundos para o script carregar
-      let attempts = 0;
-      const interval = setInterval(() => {
-        attempts++;
-        if ((window as any).cast?.framework || attempts > 30) {
-          clearInterval(interval);
-          checkChromecast();
-        }
-      }, 100);
+  useEffect(() => {
+    const video = document.querySelector('video');
+    if (video) {
+      videoRef.current = video;
+      setIsCastAvailable(true); // Show cast button when video is present
     }
 
     checkAirPlay();
 
-    // Verificar novamente quando o vídeo for carregado
     const observer = new MutationObserver(() => {
+      const v = document.querySelector('video');
+      if (v && !videoRef.current) {
+        videoRef.current = v;
+        setIsCastAvailable(true);
+      }
       checkAirPlay();
     });
 
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
+    observer.observe(document.body, { childList: true, subtree: true });
 
-    return () => {
-      observer.disconnect();
-    };
+    return () => observer.disconnect();
+  }, [checkAirPlay]);
+
+  // Lazy-load Cast SDK — called ONLY on user click
+  const loadCastSdk = useCallback((): Promise<void> => {
+    return new Promise((resolve) => {
+      if ((window as any).__castSdkLoaded || document.querySelector('script[src*="cast_sender"]')) {
+        resolve();
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
+      script.async = true;
+      script.onload = () => {
+        (window as any).__castSdkLoaded = true;
+        resolve();
+      };
+      script.onerror = () => resolve();
+      document.head.appendChild(script);
+    });
   }, []);
+
+  const waitForCastFramework = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ((window as any).cast?.framework) {
+        resolve(true);
+        return;
+      }
+      let attempts = 0;
+      const interval = setInterval(() => {
+        attempts++;
+        if ((window as any).cast?.framework) {
+          clearInterval(interval);
+          resolve(true);
+        } else if (attempts > 30) {
+          clearInterval(interval);
+          resolve(false);
+        }
+      }, 100);
+    });
+  };
+
+  const initializeChromecast = () => {
+    if (castInitializedRef.current) return;
+    try {
+      const castContext = (window as any).cast?.framework?.CastContext?.getInstance();
+      if (castContext) {
+        castContext.setOptions({
+          receiverApplicationId: (window as any).chrome?.cast?.media?.DEFAULT_MEDIA_RECEIVER_APP_ID || 'CC1AD845',
+          autoJoinPolicy: (window as any).chrome?.cast?.AutoJoinPolicy?.ORIGIN_SCOPED,
+        });
+
+        castContext.addEventListener(
+          (window as any).cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+          (event: any) => {
+            if (event.sessionState === (window as any).cast.framework.SessionState.SESSION_ENDED) {
+              setIsCasting(false);
+            }
+          }
+        );
+
+        castContext.addEventListener(
+          (window as any).cast.framework.CastContextEventType.AVAILABLE_CAST_DEVICES_CHANGED,
+          () => {
+            const devices = castContext.getCastDevices();
+            setCastDevices(devices || []);
+          }
+        );
+
+        castInitializedRef.current = true;
+      }
+    } catch (error) {
+      console.log('Chromecast não disponível:', error);
+    }
+  };
+
+  const resolveStreamUrl = (): string | null => {
+    let url = hlsUrl || videoUrl || streamHlsUrl || liveData?.hls_url;
+
+    if (!url) {
+      const video = document.querySelector('video');
+      if (video && video.src) {
+        url = video.src;
+      } else if (video && (video as any).currentSrc) {
+        url = (video as any).currentSrc;
+      }
+    }
+
+    if (!url) {
+      const mediaMtxBase = (import.meta.env.VITE_MEDIAMTX_HLS_BASE_URL as string | undefined)?.trim();
+      if (mediaMtxBase) {
+        const channel = channelName || 'ZkOficial';
+        url = `${mediaMtxBase.replace(/\/$/, '')}/live/${channel}/index.m3u8`;
+      }
+    }
+
+    return url || null;
+  };
 
   const handleChromecast = async () => {
     try {
+      // Load SDK on first click only
+      if (!(window as any).__castSdkLoaded) {
+        setSdkLoading(true);
+        toast('Carregando Chromecast...', { icon: '📺', duration: 2000 });
+        await loadCastSdk();
+        const ready = await waitForCastFramework();
+        setSdkLoading(false);
+
+        if (!ready) {
+          toast.error('Cast SDK não pôde ser carregado. Verifique sua conexão.');
+          return;
+        }
+        initializeChromecast();
+      }
+
       const castContext = (window as any).cast?.framework?.CastContext?.getInstance();
       if (!castContext) {
         toast.error('Chromecast não disponível. Certifique-se de que o dispositivo está na mesma rede Wi-Fi.');
         return;
       }
 
-      // Tentar obter URL de várias fontes (prioridade)
-      let url = hlsUrl ||
-        videoUrl ||
-        streamHlsUrl ||
-        liveData?.hls_url;
-
-      // Se não tiver URL, tentar buscar do elemento de vídeo
+      const url = resolveStreamUrl();
       if (!url) {
-        const video = document.querySelector('video');
-        if (video && video.src) {
-          url = video.src;
-        } else if (video && (video as any).currentSrc) {
-          url = (video as any).currentSrc;
-        }
-      }
-
-      // Se ainda não tiver, tentar construir URL HLS padrão do MediaMTX
-      if (!url) {
-        const mediaMtxBase = (import.meta.env.VITE_MEDIAMTX_HLS_BASE_URL as string | undefined)?.trim();
-        if (mediaMtxBase) {
-          const channel = channelName || 'ZkOficial';
-          url = `${mediaMtxBase.replace(/\/$/, '')}/live/${channel}/index.m3u8`;
-          console.log('⚠️ Usando URL HLS padrão (MediaMTX):', url);
-        }
-      }
-
-      if (!url) {
-        toast.error('URL do stream não disponível. Aguarde alguns segundos e tente novamente.', {
-          duration: 4000,
-        });
-        console.error('❌ Nenhuma URL disponível para cast:', {
-          hlsUrl,
-          videoUrl,
-          streamHlsUrl,
-          liveDataHlsUrl: liveData?.hls_url,
-        });
+        toast.error('URL do stream não disponível. Aguarde alguns segundos e tente novamente.', { duration: 4000 });
+        console.error('❌ Nenhuma URL disponível para cast:', { hlsUrl, videoUrl, streamHlsUrl, liveDataHlsUrl: liveData?.hls_url });
         return;
       }
 
@@ -210,7 +221,7 @@ export const CastButton: React.FC<CastButtonProps> = ({
 
       const mediaInfo = new (window as any).cast.framework.messages.MediaInfo(
         url,
-        'application/vnd.apple.mpegurl' // HLS
+        'application/vnd.apple.mpegurl'
       );
 
       mediaInfo.metadata = new (window as any).cast.framework.messages.GenericMediaMetadata();
@@ -223,16 +234,10 @@ export const CastButton: React.FC<CastButtonProps> = ({
       await session.loadMedia(request);
 
       setIsCasting(true);
-      toast.success('🎉 Transmitindo para TV!', {
-        icon: '📺',
-        duration: 3000,
-      });
+      toast.success('🎉 Transmitindo para TV!', { icon: '📺', duration: 3000 });
     } catch (error: any) {
       console.error('Erro Chromecast:', error);
-      if (error.code === 'cancel') {
-        // Usuário cancelou
-        return;
-      }
+      if (error.code === 'cancel') return;
       toast.error('Erro ao conectar com Chromecast. Verifique se o dispositivo está na mesma rede Wi-Fi.');
     }
   };
@@ -242,18 +247,13 @@ export const CastButton: React.FC<CastButtonProps> = ({
     if (video && (video as any).webkitShowPlaybackTargetPicker) {
       try {
         (video as any).webkitShowPlaybackTargetPicker();
-        toast.success('Selecione o dispositivo AirPlay na lista', {
-          icon: '📺',
-          duration: 3000,
-        });
+        toast.success('Selecione o dispositivo AirPlay na lista', { icon: '📺', duration: 3000 });
       } catch (error) {
         console.error('Erro AirPlay:', error);
         toast.error('Erro ao abrir AirPlay');
       }
     } else {
-      toast('AirPlay não disponível neste dispositivo', {
-        icon: 'ℹ️',
-      });
+      toast('AirPlay não disponível neste dispositivo', { icon: 'ℹ️' });
     }
   };
 
@@ -267,12 +267,12 @@ export const CastButton: React.FC<CastButtonProps> = ({
       {isCastAvailable && (
         <button
           onClick={handleChromecast}
-          disabled={isCasting}
+          disabled={isCasting || sdkLoading}
           className={`p-3 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl border border-white/10 transition-all group ${isCasting ? 'bg-green-600/20 border-green-500/30' : ''
             }`}
           title={isCasting ? 'Transmitindo para TV' : 'Transmitir para TV (Chromecast)'}
         >
-          {isCasting ? (
+          {isCasting || sdkLoading ? (
             <Loader2 className="w-5 h-5 text-green-400 animate-spin" />
           ) : (
             <Cast className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
@@ -292,4 +292,3 @@ export const CastButton: React.FC<CastButtonProps> = ({
     </div>
   );
 };
-

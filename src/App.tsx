@@ -40,6 +40,8 @@ import ProfilePage from './pages/ProfilePage';
 import ZkTVPage from './pages/ZkTVPage';
 import AdminZkTVPage from './pages/admin/AdminZkTVPage';
 import PublicLiveStreamPage from './pages/PublicLiveStreamPage';
+import ZkClipsPage from './pages/ZkClipsPage';
+import EscalacaoPage from './pages/EscalacaoPage';
 
 // Spotify
 import SpotifyPage from './pages/SpotifyPage';
@@ -222,15 +224,27 @@ function AppContentInner() {
     if (Capacitor.isNativePlatform()) console.log('📱 [Mobile Debug] Path normalizado para /');
   }
 
-  // Verificação mais robusta para rotas públicas
-  const isPublicRoute = publicRoutes.some(route =>
-    route === '/' ? currentPath === '/' : currentPath.startsWith(route)
-  );
+  // Verificação mais robusta para rotas públicas (incluindo sub-rotas e normalização mobile)
+  const isPublicRoute = React.useMemo(() => {
+    // Se não houver path, assume raiz
+    if (!currentPath || currentPath === '' || currentPath === '/' || currentPath.includes('index.html')) {
+      return true;
+    }
 
-  if (Capacitor.isNativePlatform()) {
-    console.log('📱 [Mobile Debug] isPublicRoute:', isPublicRoute);
-    console.log('📱 [Mobile Debug] User:', user ? user.email : 'None');
-  }
+    return publicRoutes.some(route =>
+      route === '/' ? currentPath === '/' : currentPath.startsWith(route)
+    );
+  }, [currentPath, publicRoutes]);
+
+  // LOGS DE DEPURAÇÃO PARA MOBILE
+  React.useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      console.log('📱 [Mobile Debug] Path:', currentPath);
+      console.log('📱 [Mobile Debug] isPublicRoute:', isPublicRoute);
+      console.log('📱 [Mobile Debug] Auth Loading:', authLoading);
+      console.log('📱 [Mobile Debug] User:', user ? user.email : 'None');
+    }
+  }, [currentPath, isPublicRoute, authLoading, user]);
 
   // Mostrar loading enquanto verifica a sessão, exceto para rotas públicas
   if (loading && !isPublicRoute) {
@@ -385,10 +399,12 @@ function AppContentInner() {
             <Route path="/zk-tv" element={<ZkTVPage />} />
             <Route path="/live/:channelName" element={<PublicLiveStreamPage />} />
             <Route path="/spotify" element={<SpotifyPage />} />
+            <Route path="/zk-clips" element={<ZkClipsPage />} />
 
             {/* Competições e Tabelas */}
             <Route path="/competicoes" element={<CompetitionsPage />} />
             <Route path="/tabela/:competitionName" element={<StandingsPage />} />
+            <Route path="/escalacao" element={<EscalacaoPage />} />
 
           </Route>
 

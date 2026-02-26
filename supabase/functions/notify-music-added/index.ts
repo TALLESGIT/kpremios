@@ -18,7 +18,7 @@ Deno.serve(async (req: Request) => {
     const supabaseClient = createClient(supabaseUrl, supabaseKey)
 
     const payload = await req.json()
-    const { record, type } = payload
+    const { record, type, content_type } = payload
 
     if (type !== 'INSERT') {
       return new Response(JSON.stringify({ message: 'Only INSERT events are handled' }), {
@@ -27,9 +27,23 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    const musicTitle = record.title || 'Nova Música'
+    const contentTitle = record.title || 'Novo Conteúdo'
+    const isClip = content_type === 'clip'
 
-    console.log(`🎵 Disparando notificações para a música: ${musicTitle}`)
+    const notificationTitle = isClip
+      ? '🎬 NOVO CLIPE EXCLUSIVO!'
+      : '🎵 LANÇAMENTO DO ZK!'
+
+    const notificationBody = isClip
+      ? `Confira o novo clipe "${contentTitle}" — conteúdo exclusivo para a Nação! 🔥⚽`
+      : `Acabamos de lançar "${contentTitle}". Ouça esse novo sucesso agora no app! 🚀🎸`
+
+    const notificationType = isClip ? 'new_clip' : 'new_music'
+    const notificationUrl = isClip
+      ? 'https://www.zkoficial.com.br/zk-clips'
+      : 'https://www.zkoficial.com.br/musicas'
+
+    console.log(`${isClip ? '🎬' : '🎵'} Disparando notificações para: ${contentTitle}`)
 
     const { data: pushTokens, error: tokensError } = await supabaseClient
       .from('user_push_tokens')
@@ -65,19 +79,21 @@ Deno.serve(async (req: Request) => {
               message: {
                 token: t.token,
                 notification: {
-                  title: '🎵 LANÇAMENTO NOVO!',
-                  body: `Acabamos de lançar "${musicTitle}". Ouça agora no app! 🚀`,
+                  title: notificationTitle,
+                  body: notificationBody,
                 },
                 data: {
-                  type: 'new_music',
+                  type: notificationType,
                   musicId: String(record.id),
-                  url: 'https://www.zkoficial.com.br/musicas'
+                  url: notificationUrl
                 },
                 android: {
                   priority: 'high',
                   notification: {
                     channel_id: 'default',
                     click_action: 'TOP_STORY_ACTIVITY',
+                    icon: 'ic_stat_notification',
+                    color: '#005BAA'
                   }
                 }
               },
@@ -92,7 +108,7 @@ Deno.serve(async (req: Request) => {
     )
 
     const successCount = results.filter(Boolean).length
-    console.log(`✅ Notificações de música enviadas: ${successCount} de ${pushTokens.length}`)
+    console.log(`✅ Notificações enviadas: ${successCount} de ${pushTokens.length}`)
 
     return new Response(JSON.stringify({ success: true, sent: successCount }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

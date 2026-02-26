@@ -1,5 +1,6 @@
-import { PushNotifications } from '@capacitor/push-notifications';
+import { PushNotifications, PushNotification, PushNotificationActionPerformed } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
 import { supabase } from '../lib/supabase';
 
 export class PushNotificationService {
@@ -47,6 +48,8 @@ export class PushNotificationService {
     // On registration success, send token to server
     PushNotifications.addListener('registration', async ({ value }) => {
       console.log('Push registration success, token:', value);
+      // Salvar localmente para facilitar testes e debug
+      await Preferences.set({ key: 'push_token', value });
       await this.saveToken(userId, value);
     });
 
@@ -56,12 +59,19 @@ export class PushNotificationService {
     });
 
     // When notification is received in foreground
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+    PushNotifications.addListener('pushNotificationReceived', (notification: PushNotification) => {
       console.log('Push received:', notification);
+      // Opcional: Mostrar um toast interno se estiver com o app aberto
+      import('react-hot-toast').then(({ toast }) => {
+        toast.success(`🔔 ${notification.title}: ${notification.body}`, {
+          duration: 5000,
+          position: 'top-center'
+        });
+      });
     });
 
     // When user taps on notification
-    PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+    PushNotifications.addListener('pushNotificationActionPerformed', (notification: PushNotificationActionPerformed) => {
       console.log('Push action performed:', notification);
     });
   }

@@ -1,0 +1,7 @@
+# Adiciona os arquivos de volta, mesmo que o git esteja teimoso
+git add src/pages/EscalacaoPage.tsx
+git add src/components/lineup/
+
+# Salva e envia
+git commit -m "Adicionando escalação de volta ao repositório"
+git push

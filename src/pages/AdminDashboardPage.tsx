@@ -4,20 +4,17 @@ import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import { Users, Hash, BarChart, Settings, CheckCircle, MessageSquare, Trash2, Video, Tv, Image as ImageIcon, X, AlertTriangle, RotateCcw } from 'lucide-react';
+import { Users, Hash, BarChart, Settings, CheckCircle, MessageSquare, Trash2, Video, Tv, Image as ImageIcon, X, AlertTriangle, RotateCcw, Music, Film } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
-import { WhatsAppTestPanel } from '../components/admin/WhatsAppTestPanel';
-import WhatsAppMonitoringPanelSimple from '../components/admin/WhatsAppMonitoringPanelSimple';
 import SocialSettingsPanel from '../components/admin/SocialSettingsPanel';
-import { LiveViewer } from '../components/LiveViewer';
 
 export default function AdminDashboardPage() {
   const {
     getAvailableNumbersCount,
     getPendingRequestsCount,
   } = useData();
-  const [showWhatsAppTest, setShowWhatsAppTest] = useState(false);
+
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [activePoolParticipants, setActivePoolParticipants] = useState(0);
   const [vipPromo103Count, setVipPromo103Count] = useState(0);
@@ -256,77 +253,51 @@ export default function AdminDashboardPage() {
           {/* DASHBOARD SECTIONS */}
           <div className="space-y-16 pb-20">
 
-            {/* 🎥 Ferramentas de Live */}
+            {/* 🎵 Gestão de Conteúdo */}
             <section className="mb-12">
               <div className="flex items-center gap-4 mb-6 px-2">
-                <div className="w-1.5 h-10 bg-gradient-to-b from-red-500 to-red-700 rounded-full"></div>
+                <div className="w-1.5 h-10 bg-gradient-to-b from-green-500 to-red-500 rounded-full"></div>
                 <div>
-                  <h2 className="text-2xl font-black text-white italic uppercase tracking-tight">Ferramentas de Live</h2>
-                  <p className="text-red-300/40 text-[10px] font-black uppercase tracking-[0.3em]">Gestão de Transmissão</p>
+                  <h2 className="text-2xl font-black text-white italic uppercase tracking-tight">Gestão de Conteúdo</h2>
+                  <p className="text-green-300/40 text-[10px] font-black uppercase tracking-[0.3em]">YouTube Clips & Spotify</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="glass-panel rounded-2xl border border-white/5 bg-slate-800/40 relative overflow-hidden group hover:border-red-500/30 transition-all duration-300 flex flex-col">
-                  <div className="p-6 pb-2 relative z-10 flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-red-500/10 rounded-lg border border-red-500/20">
-                        <Video className="w-5 h-5 text-red-500" />
-                      </div>
-                      <h3 className="text-xl font-bold text-white uppercase italic tracking-tight">Live Agora</h3>
-                    </div>
-                    <div className="flex items-center gap-2 px-3 py-1 bg-red-500/20 rounded-full border border-red-500/20">
-                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
-                      <span className="text-[10px] uppercase font-black text-red-400 tracking-widest">Sinal On</span>
+                {/* YouTube Clips Card */}
+                <div className="glass-panel p-8 rounded-[2.5rem] border border-white/5 bg-slate-800/40 relative overflow-hidden group hover:border-red-500/30 transition-all duration-500">
+                  <div className="absolute -top-12 -right-12 w-40 h-40 bg-red-500/5 rounded-full blur-2xl group-hover:bg-red-500/10 transition-all"></div>
+                  <div className="flex items-start justify-between mb-6 relative z-10">
+                    <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center border border-red-500/20 group-hover:scale-110 transition-transform">
+                      <Film className="h-8 w-8 text-red-500" />
                     </div>
                   </div>
-
-                  <div className="flex-1 min-h-[220px] relative mt-2 bg-black border-y border-white/5">
-                    <LiveViewer enabled={true} isAdmin={true} />
-                  </div>
-
-                  <div className="p-4 bg-slate-900/40 flex items-center justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-[9px] uppercase font-black text-slate-500 tracking-widest">Reporter Web</span>
-                      <span className="text-[10px] text-blue-400 font-mono italic truncate max-w-[150px]">{window.location.origin}/reporter</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(`${window.location.origin}/reporter`);
-                          toast.success('Link do repórter copiado!');
-                        }}
-                        className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg border border-white/5 transition-all"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                      </button>
-                      <Link
-                        to="/admin/live-stream"
-                        className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black rounded-lg transition-all text-[10px] uppercase italic shadow-lg shadow-red-900/20"
-                      >
-                        Estúdio Pro
-                      </Link>
-                    </div>
-                  </div>
+                  <h3 className="text-2xl font-black text-white mb-2 italic uppercase relative z-10">YouTube Clips</h3>
+                  <p className="text-slate-400 text-sm mb-6 relative z-10">Gerencie os clipes e vídeos do YouTube exibidos na página de Clipes Premium.</p>
+                  <Link
+                    to="/admin/zk-tv"
+                    className="inline-flex items-center px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-red-600/20 uppercase italic text-xs tracking-wider relative z-10"
+                  >
+                    Gerenciar Clipes
+                  </Link>
                 </div>
 
-                <div className="glass-panel p-6 rounded-2xl border border-white/5 bg-slate-800/40 relative overflow-hidden group hover:border-emerald-500/30 transition-all duration-300">
-                  <div className="flex justify-between items-start mb-4 relative z-10">
-                    <div className="p-3 bg-slate-900 rounded-xl border border-white/10 shadow-lg">
-                      <MessageSquare className="w-6 h-6 text-emerald-400" />
+                {/* Spotify Releases Card */}
+                <div className="glass-panel p-8 rounded-[2.5rem] border border-white/5 bg-slate-800/40 relative overflow-hidden group hover:border-green-500/30 transition-all duration-500">
+                  <div className="absolute -top-12 -right-12 w-40 h-40 bg-green-500/5 rounded-full blur-2xl group-hover:bg-green-500/10 transition-all"></div>
+                  <div className="flex items-start justify-between mb-6 relative z-10">
+                    <div className="w-16 h-16 bg-green-500/10 rounded-2xl flex items-center justify-center border border-green-500/20 group-hover:scale-110 transition-transform">
+                      <Music className="h-8 w-8 text-green-500" />
                     </div>
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-2">Ferramentas de Teste WhatsApp</h3>
-                  <p className="text-slate-400 text-sm mb-6">Teste o envio de notificações de cadastro e ganhadores.</p>
-
-                  <div className="flex gap-2 relative z-10">
-                    <button
-                      onClick={() => setShowWhatsAppTest(true)}
-                      className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20"
-                    >
-                      Testar Mensagens
-                    </button>
-                  </div>
+                  <h3 className="text-2xl font-black text-white mb-2 italic uppercase relative z-10">Spotify</h3>
+                  <p className="text-slate-400 text-sm mb-6 relative z-10">Adicione e gerencie os lançamentos musicais exibidos na página do Spotify.</p>
+                  <Link
+                    to="/admin/spotify"
+                    className="inline-flex items-center px-8 py-4 bg-green-600 hover:bg-green-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-green-600/20 uppercase italic text-xs tracking-wider relative z-10"
+                  >
+                    Gerenciar Spotify
+                  </Link>
                 </div>
               </div>
             </section>
@@ -428,27 +399,7 @@ export default function AdminDashboardPage() {
           </div>
         </div >
 
-        {showWhatsAppTest && (
-          <div className="fixed z-50 inset-0 overflow-y-auto no-scrollbar backdrop-blur-md">
-            <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity" onClick={() => setShowWhatsAppTest(false)}>
-                <div className="absolute inset-0 bg-black/60"></div>
-              </div>
-              <div className="inline-block align-bottom bg-white rounded-3xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-gray-900">🧪 Teste de WhatsApp</h3>
-                  <button
-                    onClick={() => setShowWhatsAppTest(false)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-                <WhatsAppTestPanel onClose={() => setShowWhatsAppTest(false)} />
-              </div>
-            </div>
-          </div>
-        )}
+
 
       </main>
       <Footer />

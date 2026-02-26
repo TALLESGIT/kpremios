@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <group
+        android:translateX="5"
+        android:translateY="5"
+        android:scaleX="0.9"
+        android:scaleY="0.9">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M32 35 L48 35 L48 40 L38 55 L48 55 L48 62 L30 62 L30 56 L41 41 L32 41 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M52 35 L60 35 L60 46 L68 35 L78 35 L68 49 L80 62 L70 62 L60 51 L60 62 L52 62 Z" />
+    </group>
+</vector>

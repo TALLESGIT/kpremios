@@ -77,6 +77,18 @@ export interface CruzeiroSettings {
   updated_at: string;
 }
 
+export interface YouTubeClip {
+  id: string;
+  title: string;
+  description?: string;
+  youtube_url: string;
+  thumbnail_url?: string;
+  is_active: boolean;
+  category: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CruzeiroGame {
   id: string;
   opponent: string;
@@ -150,6 +162,27 @@ export interface BioProfile {
     buttonStyle?: 'solid' | 'outline' | 'ghost';
   };
   custom_links: BioLink[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface YouTubeClip {
+  id: string;
+  title: string;
+  youtube_url: string;
+  thumbnail_url?: string;
+  duration?: string;
+  updated_at: string;
+}
+
+export interface CruzeiroPlayer {
+  id: string;
+  name: string;
+  full_name?: string;
+  photo_url?: string;
+  position: 'GOL' | 'LAT' | 'ZAG' | 'MEI' | 'ATA';
+  number?: number;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }

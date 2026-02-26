@@ -138,3 +138,7 @@ firebase-debug.log*
 firestore-debug.log*
 pubsub-debug.log*
 ui-debug.log*
+
+# Custom: Local only files
+src/pages/EscalacaoPage.tsx
+src/components/lineup/

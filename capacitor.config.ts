@@ -12,6 +12,11 @@ const config: CapacitorConfig = {
       'stream.zkoficial.com.br',
       '*.zkoficial.com.br'
     ]
+  },
+  plugins: {
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"]
+    }
   }
 };
 

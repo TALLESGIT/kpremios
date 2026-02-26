@@ -92,19 +92,28 @@ const ProfilePage: React.FC = () => {
     try {
       toast.loading('Solicitando teste de servidor...', { id: 'push-test' });
 
-      // 1. Verificar se existe token localmente
-      const { data: tokens } = await supabase
-        .from('user_push_tokens')
-        .select('*')
-        .eq('user_id', user?.id)
-        .limit(1);
+      // 1. Tentar pegar token local primeiro (mais confiável para o device atual)
+      const { value: localToken } = await import('@capacitor/preferences').then(p => p.Preferences.get({ key: 'push_token' }));
+      let userToken = localToken;
 
-      if (!tokens || tokens.length === 0) {
-        toast.error('Token push não encontrado no banco de dados. Tente fechar e abrir o app novamente.', { id: 'push-test' });
-        return;
+      if (!userToken) {
+        // Fallback: Buscar o MAIS RECENTE no banco
+        const { data: tokens } = await supabase
+          .from('user_push_tokens')
+          .select('token')
+          .eq('user_id', user?.id)
+          .order('updated_at', { ascending: false })
+          .limit(1);
+
+        if (tokens && tokens.length > 0) {
+          userToken = tokens[0].token;
+        }
       }
 
-      const userToken = tokens[0].token;
+      if (!userToken) {
+        toast.error('v15: Token não encontrado. Tente reiniciar o app.', { id: 'push-test' });
+        return;
+      }
 
       // 2. Chamar Edge Function para enviar notificação real de teste
       const { data, error } = await supabase.functions.invoke('notify-live-start', {
@@ -121,10 +130,13 @@ const ProfilePage: React.FC = () => {
       }
 
       if (data?.success) {
-        toast.success('Requisição enviada! Aguarde alguns segundos pelo push.', { id: 'push-test', duration: 4000 });
+        const sentCount = data?.sent || 0;
+        const respDetails = data?.fcmResponse ? `\nFCM: ${JSON.stringify(data.fcmResponse).substring(0, 100)}...` : '';
+        toast.success(`v15: Enviada para ${sentCount} token(s)!${respDetails}`, { id: 'push-test', duration: 6000 });
       } else {
-        const errorMsg = data?.error || 'O servidor não retornou sucesso no envio.';
-        toast.error(`Erro: ${errorMsg}`, { id: 'push-test', duration: 6000 });
+        const errorMsg = data?.error || 'SEM_RESPOSTA_DO_SERVIDOR';
+        const errorDetails = data?.details ? `\nDetalhes: ${data.details}` : '';
+        toast.error(`v15 Erro: ${errorMsg}${errorDetails}`, { id: 'push-test', duration: 10000 });
       }
 
     } catch (err: any) {
@@ -275,12 +287,14 @@ const ProfilePage: React.FC = () => {
         <section>
           <div className="flex items-center justify-between px-2 mb-3">
             <h3 className="text-xs font-bold uppercase text-white/40 tracking-wider">Notificações</h3>
-            <button
-              onClick={handleTestNotification}
-              className="text-[10px] font-black text-accent hover:text-white transition-colors uppercase tracking-widest bg-accent/10 px-2 py-1 rounded-lg border border-accent/20"
-            >
-              Testar Recebimento
-            </button>
+            {currentUser?.is_admin && (
+              <button
+                onClick={handleTestNotification}
+                className="text-[10px] font-black text-accent hover:text-white transition-colors uppercase tracking-widest bg-accent/10 px-2 py-1 rounded-lg border border-accent/20"
+              >
+                Testar Recebimento
+              </button>
+            )}
           </div>
           <div className="space-y-2">
             <MenuItem

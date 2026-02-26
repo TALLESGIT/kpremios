@@ -35,7 +35,7 @@ serve(async (req) => {
     const streamTitle = isTest ? 'Live de Teste' : (record.title || 'Nova Live')
     const channelName = isTest ? 'ZkOficial' : (record.channel_name || 'ZkOficial')
 
-    console.log(`📡 Disparando notificações. Tipo: ${type}`)
+    console.log(`v7: 📡 Disparando notificações. Tipo: ${type}`)
 
     // 1. Obter os tokens de push
     let pushTokens: string[] = []

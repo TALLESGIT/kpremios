@@ -8,12 +8,14 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { useSocket } from '../hooks/useSocket';
-import { Play, Trophy, Ticket, MonitorPlay, Target, MessageCircle, DollarSign, Instagram } from 'lucide-react';
+import { Play, Trophy, MonitorPlay, Target, MessageCircle, DollarSign, Instagram, Users } from 'lucide-react';
 import { CruzeiroGame } from '../types';
 import PoolBetModal from '../components/pool/PoolBetModal';
 import AdvertisementCarousel from '../components/shared/AdvertisementCarousel';
+import TeamLogo from '../components/TeamLogo';
 import { motion } from 'framer-motion';
 import SocialModal from '../components/SocialModal';
+import { getTeamColors } from '../utils/teamLogos';
 
 function HomePage() {
   const navigate = useNavigate();
@@ -206,8 +208,8 @@ function HomePage() {
       const { data, error } = await supabase
         .from('cruzeiro_games')
         .select('*')
-        .gte('game_date', new Date().toISOString())
-        .order('game_date', { ascending: true })
+        .gte('date', new Date().toISOString())
+        .order('date', { ascending: true })
         .limit(1)
         .maybeSingle();
 
@@ -330,20 +332,65 @@ function HomePage() {
         </div>
 
         {/* Admin Managed Game Banner */}
-        {!loadingGame && nextGame?.banner_url && (
+        {!loadingGame && nextGame && (
           <div className="mt-12 w-full max-w-4xl mx-auto px-4 z-20 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-            <div className="relative group overflow-hidden rounded-[2rem] sm:rounded-[3rem] border border-white/10 shadow-2xl shadow-blue-500/10">
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10 opacity-60 group-hover:opacity-40 transition-opacity duration-700"></div>
-              <img
-                src={nextGame.banner_url}
-                alt="Próximo Jogo"
-                className="w-full h-auto min-h-[150px] object-cover transition-transform duration-1000 group-hover:scale-110"
-              />
-              <div className="absolute bottom-6 left-6 right-6 z-20 flex flex-col items-start text-left">
-                <span className="px-3 py-1 rounded-full bg-blue-600/80 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-white mb-2">Próxima Partida</span>
-                <h4 className="text-xl sm:text-3xl font-black text-white italic uppercase tracking-tight">
-                  Cruzeiro <span className="text-blue-400">vs</span> {nextGame.opponent}
-                </h4>
+            <div className="relative group overflow-hidden rounded-[2.5rem] sm:rounded-[3rem] border border-white/10 shadow-2xl shadow-blue-500/10 bg-slate-900/40 backdrop-blur-xl min-h-[280px] sm:min-h-[220px]">
+              {/* Background Banner Image */}
+              {nextGame.banner_url && (
+                <>
+                  <img
+                    src={nextGame.banner_url}
+                    alt="Banner do Jogo"
+                    className="absolute inset-0 w-full h-full object-cover sm:object-cover object-center transition-transform duration-1000 group-hover:scale-110 opacity-40"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-950/95 via-slate-950/80 to-blue-900/30 sm:from-slate-950/90 sm:via-slate-950/70 sm:to-blue-900/40"></div>
+                </>
+              )}
+
+              {/* Dynamic Glow */}
+              <div
+                className="absolute -top-24 -right-24 w-64 h-64 blur-[120px] opacity-10 group-hover:opacity-30 transition-all duration-700"
+                style={{ backgroundColor: getTeamColors(nextGame.opponent).primary }}
+              ></div>
+
+              <div className="relative z-20 p-6 sm:p-12 flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-8 h-full">
+                <div className="flex flex-col items-center sm:items-start text-center sm:text-left w-full sm:w-auto">
+                  <span className="px-3 py-1 rounded-full bg-blue-600/80 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-white mb-6 sm:mb-4 shadow-lg shadow-blue-500/20">Próxima Partida</span>
+
+                  <div className="flex items-center justify-center sm:justify-start gap-4 sm:gap-6 w-full">
+                    <div className="flex flex-col items-center gap-2 group/team cursor-pointer transition-transform hover:scale-105">
+                      <TeamLogo teamName="Cruzeiro" size="lg" />
+                      <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-tighter">Cruzeiro</span>
+                    </div>
+
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="text-xl sm:text-2xl font-black italic text-white/20">VS</div>
+                      <div className="h-[1px] w-8 bg-gradient-to-r from-transparent via-white/10 to-transparent mt-1" />
+                    </div>
+
+                    <div className="flex flex-col items-center gap-2 group/team cursor-pointer transition-transform hover:scale-105">
+                      <TeamLogo
+                        teamName={nextGame.opponent}
+                        customLogo={nextGame.opponent_logo}
+                        size="lg"
+                      />
+                      <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-tighter text-center line-clamp-1 max-w-[100px] sm:max-w-[120px]">{nextGame.opponent}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center sm:items-end gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                  <div className="flex items-center gap-2 text-blue-400 font-black">
+                    <span className="text-base sm:text-lg bg-blue-500/20 px-5 py-2.5 rounded-2xl border border-blue-400/30 backdrop-blur-md text-blue-300 shadow-xl shadow-black/20">
+                      {new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} • {new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-950/40 px-4 py-1.5 rounded-full border border-white/5 backdrop-blur-sm">
+                      {nextGame.competition}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -449,8 +496,16 @@ function HomePage() {
               </div>
               <h3 className="text-xl font-black text-white mb-1 uppercase tracking-tight">Bolão Ativo</h3>
               {(activePool.home_team || activePool.away_team) && (
-                <div className="mb-4 text-xs text-emerald-300/80 font-semibold line-clamp-1">
-                  {activePool.home_team || ''} {activePool.home_team && activePool.away_team ? 'vs' : ''} {activePool.away_team || ''}
+                <div className="mb-6 flex items-center justify-center gap-4">
+                  <div className="flex flex-col items-center gap-1 group/team">
+                    <TeamLogo teamName={activePool.home_team} size="md" showName={false} />
+                    <span className="text-[8px] font-black text-white uppercase tracking-tighter truncate max-w-[60px]">{activePool.home_team}</span>
+                  </div>
+                  <div className="text-xs font-black italic text-slate-700">VS</div>
+                  <div className="flex flex-col items-center gap-1 group/team">
+                    <TeamLogo teamName={activePool.away_team} size="md" showName={false} />
+                    <span className="text-[8px] font-black text-white uppercase tracking-tighter truncate max-w-[60px]">{activePool.away_team}</span>
+                  </div>
                 </div>
               )}
               <div className="space-y-3 mb-4">
@@ -494,6 +549,22 @@ function HomePage() {
             </div>
           )}
 
+          {/* Card: ESCALAÇÃO */}
+          <div className="glass-panel p-8 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2 border border-blue-500/20">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-blue-600"></div>
+            <div className="w-20 h-20 mx-auto bg-blue-500/20 rounded-full flex items-center justify-center mb-6 text-blue-400 group-hover:scale-110 transition-transform group-hover:bg-blue-500/30">
+              <Users className="w-10 h-10" />
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-3 italic uppercase tracking-tighter">Escale o Time</h3>
+            <p className="text-blue-200 mb-8 text-sm leading-relaxed">Monte sua escalação ideal e compartilhe com a torcida.</p>
+            <button
+              onClick={() => navigate('/escalacao')}
+              className="btn btn-primary w-full bg-blue-600 hover:bg-blue-500 border-none rounded-xl font-black uppercase tracking-widest text-xs py-4 shadow-lg shadow-blue-600/20"
+            >
+              MONTAR TIME
+            </button>
+          </div>
+
           {/* Card: GANHADORES */}
           <div className="glass-panel p-8 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent to-yellow-600"></div>
@@ -507,7 +578,7 @@ function HomePage() {
             </Link>
           </div>
 
-          {/* Card: RANKING */}
+          {/* Card: TABELA */}
           <div className="glass-panel p-8 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-green-600"></div>
             <div className="w-20 h-20 mx-auto bg-green-500/20 rounded-full flex items-center justify-center mb-6 text-green-300 group-hover:scale-110 transition-transform group-hover:bg-green-500/30">
@@ -523,6 +594,21 @@ function HomePage() {
             </button>
           </div>
 
+          {/* Card: CLIPES INÉDITOS */}
+          <div className="glass-panel p-8 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2 border border-blue-500/20">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-blue-600 shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
+            <div className="w-20 h-20 mx-auto bg-blue-500/20 rounded-full flex items-center justify-center mb-6 text-blue-300 group-hover:scale-110 transition-transform group-hover:bg-blue-500/30">
+              <Play className="w-10 h-10 fill-current" />
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-3 italic uppercase tracking-tighter">Clipes <span className="text-blue-400">Premium</span></h3>
+            <p className="text-blue-200 mb-8 text-sm leading-relaxed">Bastidores e conteúdos exclusivos para a Nação!</p>
+            <button
+              onClick={() => navigate('/zk-clips')}
+              className="btn btn-primary w-full bg-blue-600 hover:bg-blue-500 border-none rounded-xl font-black uppercase tracking-widest text-xs"
+            >
+              ASSISTIR AGORA
+            </button>
+          </div>
         </section>
 
         {/* Banners de Patrocinadores */}

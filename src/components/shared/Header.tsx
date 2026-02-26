@@ -165,6 +165,16 @@ function Header() {
               </Link>
 
               <Link
+                to="/escalacao"
+                className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/escalacao'
+                  ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
+                  : 'text-white/90 hover:text-white hover:bg-white/10'
+                  }`}
+              >
+                Escale o Time
+              </Link>
+
+              <Link
                 to="/spotify"
                 className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/spotify'
                   ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
