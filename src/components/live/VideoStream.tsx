@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import AgoraRTC from 'agora-rtc-sdk-ng';
-import { Video, VideoOff, Mic, MicOff, Volume2, MonitorSpeaker, Square } from 'lucide-react';
+import { Video, VideoOff, Volume2, MonitorSpeaker, Square } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import MobileVideoPlayer from './MobileVideoPlayer';
 
@@ -224,14 +224,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       // Criar novo preview
       const track = await AgoraRTC.createCameraVideoTrack({
         cameraId: deviceId,
-        optimizationMode: 'motion',
         encoderConfig: {
           width: 1280,
           height: 720,
           frameRate: 30,
-          bitrateMax: 1500,
-          degradationPreference: 'maintain-framerate'
-        } as any,
+          bitrateMax: 1500
+        }
       });
 
       setPreviewTrack(track);
@@ -1331,14 +1329,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             // Criar o track de vídeo
             const videoTrack = await AgoraRTC.createCameraVideoTrack({
               cameraId: selectedCamera,
-              optimizationMode: 'motion',
               encoderConfig: {
                 width: 1280,
                 height: 720,
                 frameRate: 30,
-                bitrateMax: 2000,
-                degradationPreference: 'maintain-framerate'
-              } as any,
+                bitrateMax: 2000
+              }
             });
 
             console.log('Track de vídeo criado com sucesso:', {

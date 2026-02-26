@@ -78,7 +78,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
               // Remover vídeos antigos, mantendo o atual
               const videos = containerRef.current.querySelectorAll('video');
               const currentVideo = containerRef.current.querySelector('video:last-child');
-              videos.forEach((video, index) => {
+              videos.forEach((video) => {
                 if (video !== currentVideo) {
                   try {
                     video.pause();
