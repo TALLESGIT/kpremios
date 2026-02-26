@@ -1,68 +1,17 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import AgoraRTC from 'agora-rtc-sdk-ng';
+import AgoraRTC, {
+  IAgoraRTCClient,
+  ICameraVideoTrack,
+  IMicrophoneAudioTrack,
+  ILocalTrack,
+  IRemoteVideoTrack,
+  IAgoraRTCRemoteUser
+} from 'agora-rtc-sdk-ng';
 import { Video, VideoOff, Volume2, MonitorSpeaker, Square } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import MobileVideoPlayer from './MobileVideoPlayer';
 
 const FIXED_CHANNEL = 'ZkPremios';
-
-// interfaces locais para evitar conflitos de namespace
-interface ILocalVideoTrack {
-  getTrackId(): string;
-  enabled: boolean;
-  isPlaying: boolean;
-  muted: boolean;
-  play(element: HTMLElement, config?: any): Promise<void>;
-  stop(): void;
-  close(): void;
-  setEnabled(enabled: boolean): Promise<void>;
-  setMuted(muted: boolean): Promise<void>;
-  setDevice(deviceId: string): Promise<void>;
-  on(event: string, callback: (...args: any[]) => void): void;
-}
-
-interface ILocalAudioTrack {
-  getTrackId(): string;
-  enabled: boolean;
-  muted: boolean;
-  play(): Promise<void>;
-  stop(): void;
-  close(): void;
-  setEnabled(enabled: boolean): Promise<void>;
-  setMuted(muted: boolean): Promise<void>;
-  setDevice(deviceId: string): Promise<void>;
-  setVolume?(volume: number): void;
-}
-
-interface IRemoteVideoTrack {
-  stop(): void;
-  play(element: HTMLElement, config?: any): Promise<void>;
-}
-
-interface IAgoraRTCRemoteUser {
-  uid: number | string;
-  hasVideo: boolean;
-  hasAudio: boolean;
-  videoTrack: IRemoteVideoTrack | null;
-  audioTrack: any;
-}
-
-type ConnectionState = 'CONNECTED' | 'CONNECTING' | 'RECONNECTING' | 'DISCONNECTING' | 'DISCONNECTED' | 'FAILED';
-
-interface IAgoraRTCClient {
-  connectionState: ConnectionState;
-  role?: 'host' | 'audience';
-  localTracks: Array<ILocalVideoTrack | ILocalAudioTrack>;
-  remoteUsers: IAgoraRTCRemoteUser[];
-  join(appId: string, channel: string, token: string | null, uid: number | string | null): Promise<number | string>;
-  leave(): Promise<void>;
-  publish(track: ILocalVideoTrack | ILocalAudioTrack | any): Promise<void>;
-  unpublish(track: ILocalVideoTrack | ILocalAudioTrack | any): Promise<void>;
-  subscribe(user: IAgoraRTCRemoteUser, mediaType: 'audio' | 'video'): Promise<void>;
-  setClientRole(role: 'host' | 'audience', options?: { level: number }): Promise<void>;
-  on(event: string, callback: (...args: any[]) => void): void;
-  removeAllListeners(): void;
-}
 
 interface VideoStreamProps {
   channelName: string;
@@ -95,7 +44,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const [selectedCamera, setSelectedCamera] = useState<string | null>(cameraDeviceId || null);
   const [availableMicrophones, setAvailableMicrophones] = useState<MediaDeviceInfo[]>([]);
   const [selectedMicrophone, setSelectedMicrophone] = useState<string | null>(null);
-  const [previewTrack, setPreviewTrack] = useState<ILocalVideoTrack | null>(null);
+  const [previewTrack, setPreviewTrack] = useState<ICameraVideoTrack | null>(null);
   // Controles de volume para múltiplos áudios
   const [cameraAudioVolume, setCameraAudioVolume] = useState(100);
   const [screenAudioVolume, setScreenAudioVolume] = useState(100);
@@ -114,9 +63,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const [hasAudioAvailable, setHasAudioAvailable] = useState(false); // Se há áudio disponível para reproduzir
 
   const clientRef = useRef<IAgoraRTCClient | null>(null);
-  const localVideoTrackRef = useRef<ILocalVideoTrack | null>(null);
-  const localAudioTrackRef = useRef<ILocalAudioTrack | null>(null);
-  const screenAudioTrackRef = useRef<ILocalAudioTrack | null>(null); // Áudio da tela compartilhada
+  const localVideoTrackRef = useRef<ICameraVideoTrack | null>(null);
+  const localAudioTrackRef = useRef<IMicrophoneAudioTrack | null>(null);
+  const screenAudioTrackRef = useRef<IMicrophoneAudioTrack | null>(null); // Áudio da tela compartilhada
   const remoteVideoTrackRef = useRef<IRemoteVideoTrack | null>(null);
   const remoteAudioTrackRef = useRef<any>(null); // Ref para o track de áudio remoto
   const videoContainerRef = useRef<HTMLDivElement>(null);
@@ -157,7 +106,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
     reconnectTimeoutRef.current = window.setTimeout(async () => {
       try {
-        const { channelName, appId, token, uid } = lastChannelInfoRef.current!;
+        const { appId, token, uid } = lastChannelInfoRef.current!;
 
         if (!clientRef.current) {
           console.error('❌ Cliente não está disponível para reconexão');
@@ -165,14 +114,14 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         }
 
         // Verificar se já está conectado
-        if (clientRef.current.connectionState === 'CONNECTED') {
+        if ((clientRef.current as any).connectionState === 'CONNECTED') {
           console.log('✅ Já está conectado, cancelando reconexão');
           setReconnectAttempts(0);
           return;
         }
 
         // Fazer join novamente
-        const uidResponse = await clientRef.current.join(appId, FIXED_CHANNEL, token, uid || null);
+        await clientRef.current.join(appId, FIXED_CHANNEL, token, uid || null);
 
         // Configurar role
         if (role === 'host') {
@@ -479,7 +428,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     });
 
     // Logs adicionais para debug e reconexão automática
-    client.on('connection-state-change', (curState: ConnectionState, revState: ConnectionState) => {
+    client.on('connection-state-change', (curState: any, revState: any) => {
       console.log('🔄 Agora: Estado de conexão mudou:', {
         curState,
         revState,
@@ -1457,7 +1406,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               video: localTracks.filter((t: any) => t.trackMediaType === 'video').length,
               audio: localTracks.filter((t: any) => t.trackMediaType === 'audio').length,
               total: localTracks.length,
-              tracks: localTracks.map((t: ILocalVideoTrack | ILocalAudioTrack) => {
+              tracks: localTracks.map((t: ILocalTrack) => {
                 const track = t as any;
                 return {
                   type: track.trackMediaType || 'unknown',
@@ -1617,10 +1566,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           channelName,
           connectionState: clientRef.current.connectionState,
           localTracksCount: localTracks.length,
-          localTracks: localTracks.map((t: ILocalVideoTrack | ILocalAudioTrack) => ({
+          localTracks: localTracks.map((t: ILocalTrack) => ({
             type: (t as any).trackMediaType,
-            enabled: (t as any).isPlaying || t.enabled,
-            muted: t.muted,
+            enabled: (t as any).isPlaying || (t as any).enabled,
+            muted: (t as any).muted,
             trackId: t.getTrackId()
           })),
           remoteUsers: clientRef.current.remoteUsers.length,
