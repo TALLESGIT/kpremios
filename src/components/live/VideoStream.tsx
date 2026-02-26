@@ -229,6 +229,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           width: 1280,
           height: 720,
           frameRate: 30,
+          bitrateMax: 1500,
+          degradationPreference: 'maintain-framerate'
         },
       });
 
@@ -1333,7 +1335,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                 width: 1280,
                 height: 720,
                 frameRate: 30,
-                bitrateMax: 2500,
+                bitrateMax: 2000,
+                optimizationMode: 'motion',
+                degradationPreference: 'maintain-framerate'
               },
             });
 

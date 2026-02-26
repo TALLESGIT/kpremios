@@ -52,7 +52,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
 
       if (mediaType === "video") {
         activeUserRef.current = user;
-        
+
         // ✅ CORREÇÃO: Configurar qualidade de vídeo ALTA e fallback para evitar tela preta
         try {
           // Usar qualidade ALTA (1) para melhor nitidez
@@ -64,14 +64,14 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
         } catch (err) {
           console.warn('⚠️ ZKViewerOptimized: Erro ao configurar qualidade:', err);
         }
-        
+
         if (containerRef.current) {
           // ✅ CORREÇÃO: Não limpar imediatamente, manter último frame até novo vídeo carregar
           // Isso evita tela preta durante reconexões
           try {
             // Limpar apenas depois que o novo vídeo começar a tocar
             await user.videoTrack?.play(containerRef.current);
-            
+
             // Só limpar HTML depois que o novo vídeo estiver reproduzindo
             // Isso mantém o último frame visível durante a transição
             if (containerRef.current.children.length > 1) {
@@ -91,11 +91,11 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
               });
             }
 
-          // Forçar object-fit no vídeo gerado pelo Agora
-          const videoEl = containerRef.current.querySelector('video');
-          if (videoEl) {
-            videoEl.style.objectFit = fitMode;
-              
+            // Forçar object-fit no vídeo gerado pelo Agora
+            const videoEl = containerRef.current.querySelector('video');
+            if (videoEl) {
+              videoEl.style.objectFit = fitMode;
+
               // ✅ CORREÇÃO: Adicionar listener para erros de decodificação
               const handleVideoError = (e: Event) => {
                 console.error('❌ Erro no elemento de vídeo:', e);
@@ -106,9 +106,9 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
                     try {
                       // Tentar reproduzir novamente sem limpar (isso vai substituir automaticamente)
                       activeUserRef.current?.videoTrack?.play(containerRef.current!);
-                      
+
                       // Tentar aumentar qualidade novamente
-                      client.setRemoteVideoStreamType?.(activeUserRef.current.uid, 1).catch(() => {});
+                      client.setRemoteVideoStreamType?.(activeUserRef.current.uid, 1).catch(() => { });
                       console.log('🔄 Tentativa de recuperação de vídeo após erro');
                     } catch (replayErr) {
                       console.error('Erro ao recuperar vídeo:', replayErr);
@@ -123,9 +123,9 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
                   }, 1000);
                 }
               };
-              
+
               videoEl.addEventListener('error', handleVideoError);
-              
+
               // Limpar listener quando vídeo for removido
               const observer = new MutationObserver(() => {
                 if (!containerRef.current?.contains(videoEl)) {
@@ -151,7 +151,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
           // ✅ CONFIGURAÇÕES ULTRA-BAIXA LATÊNCIA PARA ÁUDIO EM TEMPO REAL
           try {
             user.audioTrack.setVolume(100);
-            
+
             // Configurações agressivas para eliminar delay de áudio
             const audioTrack = user.audioTrack as any;
             if (typeof audioTrack.setAudioBufferDelay === 'function') {
@@ -161,17 +161,22 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
               audioTrack.setLatencyMode('ultra_low'); // Modo ultra-baixa latência
             }
             if (typeof audioTrack.setJitterBufferDelay === 'function') {
-              audioTrack.setJitterBufferDelay(0, 0); // Jitter buffer ZERO
+              audioTrack.setJitterBufferDelay(0, 0); // Jitter buffer ZERO (mínimo, máximo)
             }
             if (typeof audioTrack.setAudioProcessingDelay === 'function') {
               audioTrack.setAudioProcessingDelay(0); // Processamento ZERO
             }
-            
+
+            // Garantir que o buffer de áudio não acumule
+            if (typeof audioTrack.setAudioSourceBuffer === 'function') {
+              audioTrack.setAudioSourceBuffer(0);
+            }
+
             console.log('✅ ZKViewerOptimized: Configurações ultra-baixa latência aplicadas');
           } catch (configErr) {
             console.warn('ZKViewerOptimized: Algumas configurações de áudio não disponíveis:', configErr);
           }
-          
+
           // Reproduzir imediatamente
           user.audioTrack.play();
           console.log('🔊 ZKViewerOptimized: Áudio reproduzindo (modo usuário)');
@@ -195,7 +200,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
     const handleException = (evt: any) => {
       const { code, msg, uid } = evt;
       console.warn('⚠️ Exceção Agora detectada:', { code, msg, uid });
-      
+
       // Se for erro de decodificação de vídeo, tentar reconectar
       if (code === 1005 || msg === 'RECV_VIDEO_DECODE_FAILED') {
         console.log('🔄 Tentando reconectar vídeo devido a erro de decodificação...');
@@ -204,9 +209,9 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
             try {
               containerRef.current!.innerHTML = "";
               activeUserRef.current?.videoTrack?.play(containerRef.current!);
-              
+
               // Tentar aumentar qualidade novamente
-              client.setRemoteVideoStreamType?.(activeUserRef.current.uid, 1).catch(() => {});
+              client.setRemoteVideoStreamType?.(activeUserRef.current.uid, 1).catch(() => { });
             } catch (reconnectErr) {
               console.error('Erro ao reconectar vídeo:', reconnectErr);
             }
@@ -262,7 +267,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
           // ✅ CONFIGURAÇÕES ULTRA-BAIXA LATÊNCIA PARA ÁUDIO EM TEMPO REAL
           try {
             activeUserRef.current.audioTrack.setVolume(100);
-            
+
             const audioTrack = activeUserRef.current.audioTrack as any;
             if (typeof audioTrack.setAudioBufferDelay === 'function') {
               audioTrack.setAudioBufferDelay(0);
@@ -279,7 +284,7 @@ const ZKViewerOptimized: React.FC<ZKViewerOptimizedProps> = ({
           } catch (configErr) {
             console.warn('ZKViewerOptimized: Erro ao configurar áudio:', configErr);
           }
-          
+
           activeUserRef.current.audioTrack.play();
         }
       }
