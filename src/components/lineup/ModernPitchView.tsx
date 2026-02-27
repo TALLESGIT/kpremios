@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { CruzeiroPlayer, CruzeiroGame } from '../../types';
 import { X, ChevronDown, Instagram, Search } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 
 type FormationKey = '4-3-3' | '4-4-2' | '3-5-2' | '4-2-3-1' | '5-3-2';
 
@@ -165,24 +165,23 @@ const ModernPitchView: React.FC = () => {
 
     try {
       setSharing(true);
-      const loadingToast = toast.loading('Preparando sua escalação...');
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const loadingToast = toast.loading('Gerando imagem perfeita...');
 
-      const canvas = await html2canvas(pitchRef.current, {
-        useCORS: true,
-        scale: 2,
-        backgroundColor: '#0055ff',
-        logging: true,
-        allowTaint: false,
-        imageTimeout: 10000,
-        removeContainer: true,
+      // 1. Garantir que as fontes e imagens carregaram
+      await document.fonts.ready;
+      await new Promise(resolve => setTimeout(resolve, 600));
+
+      // 2. A mágica acontece aqui
+      const dataUrl = await toPng(pitchRef.current, {
+        quality: 0.95,
+        pixelRatio: 2, // Imagem nítida
+        skipFonts: false,
+        fontEmbedCSS: '', // Ajuda a não quebrar o título
+        style: {
+          borderRadius: '0', // Remove bordas arredondadas no print
+        }
       });
 
-      if (!canvas || canvas.width === 0) {
-        throw new Error('Canvas gerado está vazio.');
-      }
-
-      const dataUrl = canvas.toDataURL('image/png');
       const blob = await (await fetch(dataUrl)).blob();
       const file = new File([blob], 'meu-time-cruzeiro.png', { type: 'image/png' });
 
@@ -191,7 +190,7 @@ const ModernPitchView: React.FC = () => {
       if (navigator.share) {
         await navigator.share({
           title: 'Minha Escalação do Cruzeiro',
-          text: 'Confira meu time ideal do Cruzeiro! Monte o seu em: https://www.zkoficial.com.br',
+          text: 'Confira meu time ideal do Cruzeiro!',
           files: [file],
         });
       } else {
@@ -272,6 +271,7 @@ const ModernPitchView: React.FC = () => {
       {/* CONTAINER DO CAMPO (O que sai na foto) */}
       <div
         ref={pitchRef}
+        data-pitch-view="true"
         className="w-full bg-[#0055ff] rounded-2xl overflow-hidden shadow-2xl border-4 border-white/10 flex flex-col relative"
       >
         {/* 1. BANNER DE TÍTULO - Fica em cima, separadinho! */}
@@ -299,7 +299,8 @@ const ModernPitchView: React.FC = () => {
                 <div className="h-[1px] w-4 sm:w-8 bg-blue-400/50"></div>
               </div>
 
-              <h2 className="text-sm sm:text-xl font-black italic uppercase tracking-tighter text-white leading-none text-center drop-shadow-md">
+              <h2 className="text-sm sm:text-xl font-black italic uppercase tracking-tighter text-white text-center drop-shadow-md"
+                style={{ lineHeight: '1.5', display: 'block' }}>
                 ESCALAÇÃO IDEAL
               </h2>
 
@@ -332,7 +333,7 @@ const ModernPitchView: React.FC = () => {
                   </div>
                 )}
               </div>
-              <span className="text-[7px] sm:text-[9px] font-black text-white/70 italic uppercase tracking-tighter truncate max-w-[60px]">
+              <span className="text-[7px] sm:text-[9px] font-black text-white/70 italic uppercase tracking-tighter truncate max-w-[80px] text-center">
                 {nextGame?.opponent || 'ADVERSÁRIO'}
               </span>
             </div>
@@ -375,18 +376,17 @@ const ModernPitchView: React.FC = () => {
             </div>
           </div>
 
-          {/* MARCA D'ÁGUA DO INSTAGRAM (@itallozkoficial) */}
-          <a
-            href="https://www.instagram.com/itallozkoficial/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute bottom-1.5 sm:bottom-3 right-1.5 sm:right-3 z-30 flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2 py-1 sm:px-3 sm:py-1.5 rounded-full border border-white/20 shadow-xl hover:bg-black/60 transition-all group"
+          <div
+            className="absolute bottom-2 sm:bottom-4 right-2 sm:right-4 z-30 inline-flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-3 py-1.5 sm:py-2 rounded-full border border-white/20 shadow-2xl insta-badge"
           >
-            <Instagram className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white group-hover:scale-110 transition-transform" />
-            <span className="text-white font-bold text-[8px] sm:text-xs tracking-wide">
+            <Instagram className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />
+            <span
+              style={{ lineHeight: '1.2' }}
+              className="text-white font-black text-[9px] sm:text-[11px] tracking-wide"
+            >
               @itallozkoficial
             </span>
-          </a>
+          </div>
 
           {/* Jogadores (Player Slots) */}
           {FORMATIONS[formation].map((pos) => {
@@ -395,7 +395,6 @@ const ModernPitchView: React.FC = () => {
             return (
               <motion.button
                 key={`${formation}-${pos.id}`}
-                layout
                 initial={{ opacity: 0, scale: 0 }}
                 animate={{ opacity: 1, scale: 1 }}
                 onClick={() => {
@@ -407,7 +406,7 @@ const ModernPitchView: React.FC = () => {
                   left: `${pos.left}%`,
                 }}
                 // A CLASSE MÁGICA QUE CENTRALIZA: -translate-x-1/2 -translate-y-1/2
-                className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-20 group"
+                className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-20 group player-slot-container"
               >
                 {/* Player Circle Slot */}
                 <div className={`
@@ -436,14 +435,19 @@ const ModernPitchView: React.FC = () => {
                   )}
                 </div>
 
-                {/* Player Name Label */}
                 <div className={`
-                  mt-0 sm:mt-1 px-1 py-0 sm:px-1.5 sm:py-0.5 rounded-lg shadow-xl border transition-all
+                  mt-1 w-[70px] h-[20px] rounded-lg shadow-xl border player-label
                   ${player ? 'bg-white border-blue-600' : 'bg-blue-900/60 border-white/20'}
-                `}>
-                  <span className={`text-[8px] sm:text-[10px] font-black uppercase tracking-tighter whitespace-nowrap italic
+                `} style={{ display: 'block', textAlign: 'center' }}>
+                  <span className={`font-black uppercase tracking-tighter italic block
                     ${player ? 'text-blue-700' : 'text-white/80'}
-                  `}>
+                  `} style={{
+                      display: 'block',
+                      fontSize: '9px',
+                      lineHeight: '20px', // O mesmo tamanho da div para centralizar no print
+                      height: '20px',
+                      margin: '0 auto'
+                    }}>
                     {player ? player.name : pos.role}
                   </span>
                 </div>
@@ -543,7 +547,7 @@ const ModernPitchView: React.FC = () => {
             </motion.div>
           </div>)}
       </AnimatePresence>
-    </div>
+    </div >
   );
 };
 
