@@ -169,36 +169,52 @@ const ModernPitchView: React.FC = () => {
 
       // 1. Garantir que as fontes e imagens carregaram
       await document.fonts.ready;
-      await new Promise(resolve => setTimeout(resolve, 600));
+      await new Promise(resolve => setTimeout(resolve, 800));
 
-      // 2. A mágica acontece aqui
+      // 2. Gerar a imagem
       const dataUrl = await toPng(pitchRef.current, {
         quality: 0.95,
-        pixelRatio: 2, // Imagem nítida
+        pixelRatio: 2,
         skipFonts: false,
-        fontEmbedCSS: '', // Ajuda a não quebrar o título
+        fontEmbedCSS: '',
         style: {
-          borderRadius: '0', // Remove bordas arredondadas no print
+          borderRadius: '0',
         }
       });
 
+      // 3. Preparar o arquivo para compartilhamento real
       const blob = await (await fetch(dataUrl)).blob();
-      const file = new File([blob], 'meu-time-cruzeiro.png', { type: 'image/png' });
+      const file = new File([blob], 'meu-time-zk.png', { type: 'image/png' });
 
       toast.dismiss(loadingToast);
 
-      if (navigator.share) {
-        await navigator.share({
-          title: 'Minha Escalação do Cruzeiro',
-          text: 'Confira meu time ideal do Cruzeiro!',
-          files: [file],
-        });
-      } else {
+      // Função auxiliar para download
+      const triggerDownload = () => {
         const link = document.createElement('a');
         link.download = 'minha-escalacao-zk.png';
         link.href = dataUrl;
         link.click();
-        toast.success('Imagem baixada com sucesso!');
+        toast.success('Imagem salva com sucesso! Agora você pode compartilhar nas redes sociais.');
+      };
+
+      // 4. Compartilhamento Nativo (Redes Sociais)
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            title: 'Minha Escalação no ZK',
+            text: 'Confira meu time ideal do Cruzeiro!',
+            files: [file],
+          });
+        } catch (shareError: any) {
+          // Se não foi o usuário que cancelou, tenta o download
+          if (shareError.name !== 'AbortError') {
+            console.error('Erro no share nativo:', shareError);
+            triggerDownload();
+          }
+        }
+      } else {
+        // Se o navegador não suporta compartilhamento de arquivos (ex: PC ou navegadores antigos)
+        triggerDownload();
       }
     } catch (error) {
       console.error('Erro ao compartilhar:', error);
