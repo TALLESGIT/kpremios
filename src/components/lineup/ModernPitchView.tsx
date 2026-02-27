@@ -342,13 +342,19 @@ const ModernPitchView: React.FC = () => {
 
           {nextGame && (
             <div className="mt-2 flex items-center gap-3">
-              <div className="px-2 py-0.5 bg-blue-800/50 border border-blue-400/20 rounded-full">
-                <span className="text-[7px] sm:text-[9px] font-bold text-blue-100 uppercase tracking-widest">
+              <div className="px-2 py-0.5 bg-blue-800/50 border border-blue-400/20 rounded-full h-[18px] sm:h-[22px] flex items-center justify-center">
+                <span
+                  style={{ lineHeight: '1', display: 'block' }}
+                  className="text-[7px] sm:text-[9px] font-bold text-blue-100 uppercase tracking-widest whitespace-nowrap"
+                >
                   {nextGame.competition}
                 </span>
               </div>
-              <div className="w-1 h-1 bg-blue-400 rounded-full opacity-50"></div>
-              <span className="text-[7px] sm:text-[9px] font-bold text-blue-300 uppercase tracking-widest">
+              <div className="w-1 h-1 bg-blue-400 rounded-full opacity-50 shrink-0"></div>
+              <span
+                style={{ lineHeight: '1', display: 'block' }}
+                className="text-[7px] sm:text-[9px] font-bold text-blue-300 uppercase tracking-widest whitespace-nowrap"
+              >
                 {nextGame.venue}
               </span>
             </div>
