@@ -299,8 +299,8 @@ const ModernPitchView: React.FC = () => {
                 <div className="h-[1px] w-4 sm:w-8 bg-blue-400/50"></div>
               </div>
 
-              <h2 className="text-sm sm:text-xl font-black italic uppercase tracking-tighter text-white text-center drop-shadow-md"
-                style={{ lineHeight: '1.5', display: 'block' }}>
+              <h2 className="titulo-principal text-sm sm:text-xl font-black italic uppercase tracking-tighter text-white text-center drop-shadow-md"
+                style={{ lineHeight: '1.2', display: 'block' }}>
                 ESCALAÇÃO IDEAL
               </h2>
 
@@ -439,7 +439,7 @@ const ModernPitchView: React.FC = () => {
                   mt-1 w-[70px] h-[20px] rounded-lg shadow-xl border player-label
                   ${player ? 'bg-white border-blue-600' : 'bg-blue-900/60 border-white/20'}
                 `} style={{ display: 'block', textAlign: 'center' }}>
-                  <span className={`font-black uppercase tracking-tighter italic block
+                  <span className={`texto-jogador font-black uppercase tracking-tighter italic block
                     ${player ? 'text-blue-700' : 'text-white/80'}
                   `} style={{
                       display: 'block',
