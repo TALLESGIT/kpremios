@@ -5,6 +5,8 @@ import { CruzeiroPlayer, CruzeiroGame } from '../../types';
 import { X, ChevronDown, Instagram, Search } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { toBlob } from 'html-to-image';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 type FormationKey = '4-3-3' | '4-4-2' | '3-5-2' | '4-2-3-1' | '5-3-2';
 
@@ -167,63 +169,76 @@ const ModernPitchView: React.FC = () => {
       setSharing(true);
       const loadingToast = toast.loading('Gerando imagem para compartilhar...');
 
-      // 1. Garantir carregamento
+      // 1. Garantir carregamento das fontes e renderização
       await document.fonts.ready;
       await new Promise(resolve => setTimeout(resolve, 800));
 
-      // 2. Gerar o Blob diretamente (mais eficiente para arquivos)
+      // 2. Gerar o Blob da imagem
       const blob = await toBlob(pitchRef.current, {
         quality: 0.95,
         pixelRatio: 2,
-        style: {
-          borderRadius: '0',
-        }
+        style: { borderRadius: '0' }
       });
 
       if (!blob) throw new Error('Falha ao gerar imagem');
 
-      // 3. Criar o arquivo
-      const file = new File([blob], 'meu-time-zk.png', { type: 'image/png' });
-
       toast.dismiss(loadingToast);
 
-      // Função de fallback: Download e aviso
-      const triggerDownloadFallback = () => {
+      // 3. Converter blob para base64
+      const reader = new FileReader();
+      const base64Data: string = await new Promise((resolve, reject) => {
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          // Remove o prefixo 'data:image/png;base64,'
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      // 4. Tentar compartilhamento nativo via Capacitor (Android/iOS)
+      try {
+        // Salvar temporariamente no sistema de arquivos do dispositivo
+        const fileName = `escalacao-zk-${Date.now()}.png`;
+        await Filesystem.writeFile({
+          path: fileName,
+          data: base64Data,
+          directory: Directory.Cache,
+        });
+
+        // Obter URI do arquivo salvo
+        const fileUriResult = await Filesystem.getUri({
+          path: fileName,
+          directory: Directory.Cache,
+        });
+
+        // Abrir o sheet de compartilhamento nativo do SO!
+        await Share.share({
+          title: 'Minha Escalação no ZK',
+          text: 'Confira meu time ideal do Cruzeiro! ⚽ @zkoficial',
+          url: fileUriResult.uri,
+          dialogTitle: 'Compartilhar Escalação',
+        });
+      } catch (nativeError: any) {
+        // Se o usuário cancelou (AbortError), não faz nada
+        if (nativeError?.errorMessage === 'Share canceled' ||
+          nativeError?.name === 'AbortError') {
+          return;
+        }
+
+        // Fallback para browser (desktop ou WebView sem Capacitor)
+        console.warn('Share nativo falhou, usando fallback web:', nativeError);
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.download = 'minha-escalacao-zk.png';
         link.href = url;
         link.click();
         URL.revokeObjectURL(url);
-        toast.success('Imagem baixada! Agora você pode compartilhar nas redes sociais.', {
-          duration: 5000
-        });
-      };
-
-      // 4. Tentativa de Compartilhamento Nativo (Redes Sociais)
-      if (navigator.share) {
-        try {
-          // Tenta compartilhar o arquivo diretamente
-          await navigator.share({
-            title: 'Minha Escalação no ZK',
-            text: 'Confira meu time ideal do Cruzeiro!',
-            files: [file],
-          });
-        } catch (shareError: any) {
-          // Se for AbortError, o usuário só fechou a janela. Não fazemos nada.
-          if (shareError.name === 'AbortError') return;
-
-          // Se falhou por outro motivo (ex: arquivo não suportado no WebView), tenta download
-          console.error('Erro no share nativo:', shareError);
-          triggerDownloadFallback();
-        }
-      } else {
-        // Sem suporte ao Share API (Desktop ou navegadores antigos)
-        triggerDownloadFallback();
+        toast.success('Imagem salva! Compartilhe nas redes sociais.', { duration: 4000 });
       }
     } catch (error) {
       console.error('Erro ao compartilhar:', error);
-      toast.error('Erro ao gerar imagem.');
+      toast.error('Erro ao gerar imagem. Tente novamente.');
     } finally {
       setSharing(false);
     }
@@ -411,7 +426,7 @@ const ModernPitchView: React.FC = () => {
               style={{ lineHeight: '1.2' }}
               className="text-white font-black text-[9px] sm:text-[11px] tracking-wide"
             >
-              @itallozkoficial
+              @itallozk
             </span>
           </div>
 

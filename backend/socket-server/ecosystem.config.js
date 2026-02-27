@@ -31,7 +31,7 @@ module.exports = {
     // Configurações do PM2
     autorestart: true,
     watch: false,
-    max_memory_restart: '250M',
+    max_memory_restart: '2G',
 
     // Logs
     error_file: '/root/.pm2/logs/zkpremios-socket-error.log',
