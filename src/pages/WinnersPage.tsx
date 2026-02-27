@@ -88,7 +88,14 @@ function WinnersPage() {
       let { data, error } = await supabase
         .from('pool_bets')
         .select(`
-          *,
+          id,
+          user_id,
+          predicted_home_score,
+          predicted_away_score,
+          prize_amount,
+          is_winner,
+          payment_status,
+          created_at,
           match_pools!inner (
             id,
             match_title,
@@ -104,9 +111,7 @@ function WinnersPage() {
           ),
           users!inner (
             id,
-            name,
-            email,
-            whatsapp
+            name
           )
         `)
         .eq('is_winner', true)

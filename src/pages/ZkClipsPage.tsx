@@ -14,6 +14,7 @@ import { supabase } from '../lib/supabase';
 import { YouTubeClip } from '../types';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { getYouTubeId, getYouTubeThumbnail, getYouTubeEmbedUrl } from '../utils/youtube';
 
 const ZkClipsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -45,15 +46,6 @@ const ZkClipsPage: React.FC = () => {
     }
   };
 
-  const getYouTubeId = (url: string) => {
-    try {
-      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-      const match = url.match(regExp);
-      return (match && match[2].length === 11) ? match[2] : null;
-    } catch (e) {
-      return null;
-    }
-  };
 
   const filteredClips = clips.filter(clip =>
     clip.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -189,7 +181,7 @@ const ZkClipsPage: React.FC = () => {
               >
                 <div className="relative aspect-video rounded-2xl overflow-hidden mb-4 border border-white/5 shadow-xl">
                   <img
-                    src={clip.thumbnail_url || `https://img.youtube.com/vi/${getYouTubeId(clip.youtube_url)}/maxresdefault.jpg`}
+                    src={getYouTubeThumbnail(clip.youtube_url)}
                     alt={clip.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   />
@@ -235,7 +227,7 @@ const ZkClipsPage: React.FC = () => {
             <div className="w-full max-w-6xl flex flex-col gap-6">
               <div className="aspect-video bg-black rounded-3xl overflow-hidden shadow-[0_0_100px_rgba(59,130,246,0.15)] border border-white/10">
                 <iframe
-                  src={`https://www.youtube.com/embed/${getYouTubeId(selectedClip.youtube_url)}?autoplay=1`}
+                  src={getYouTubeEmbedUrl(selectedClip.youtube_url)}
                   className="w-full h-full"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

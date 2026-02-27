@@ -23,6 +23,8 @@ interface MatchPool {
   winners_count: number;
   prize_per_winner: number;
   accumulated_amount: number;
+  home_team_logo?: string;
+  away_team_logo?: string;
 }
 
 const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
@@ -33,7 +35,9 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
   const [formData, setFormData] = useState({
     match_title: '',
     home_team: '',
-    away_team: ''
+    away_team: '',
+    home_team_logo: '',
+    away_team_logo: ''
   });
   const [resultData, setResultData] = useState({
     home_score: '',
@@ -64,6 +68,32 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
     }
   };
 
+  const fetchLatestGame = async () => {
+    try {
+      const { data: latestGame, error } = await supabase
+        .from('cruzeiro_games')
+        .select('*')
+        .order('date', { ascending: false })
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (latestGame) {
+        setFormData({
+          match_title: latestGame.is_home ? `Cruzeiro x ${latestGame.opponent}` : `${latestGame.opponent} x Cruzeiro`,
+          home_team: latestGame.is_home ? 'Cruzeiro' : latestGame.opponent,
+          away_team: latestGame.is_home ? latestGame.opponent : 'Cruzeiro',
+          home_team_logo: latestGame.is_home ? 'https://logodetimes.com/times/cruzeiro/logo-cruzeiro-256.png' : (latestGame.opponent_logo || ''),
+          away_team_logo: latestGame.is_home ? (latestGame.opponent_logo || '') : 'https://logodetimes.com/times/cruzeiro/logo-cruzeiro-256.png'
+        });
+        toast.success('Sugestão do último jogo carregada!');
+      }
+    } catch (err) {
+      console.error('Erro ao buscar jogo recente:', err);
+      toast.error('Não foi possível carregar sugestão do último jogo');
+    }
+  };
+
   const createPool = async () => {
     if (!formData.match_title || !formData.home_team || !formData.away_team) {
       toast.error('Preencha todos os campos');
@@ -73,13 +103,15 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
     try {
       setLoading(true);
 
-      const { data, error } = await supabase
+      const { data: newPool, error } = await supabase
         .from('match_pools')
         .insert({
           live_stream_id: streamId,
           match_title: formData.match_title,
           home_team: formData.home_team,
+          home_team_logo: formData.home_team_logo,
           away_team: formData.away_team,
+          away_team_logo: formData.away_team_logo,
           is_active: false
           // accumulated_amount será definido automaticamente pelo trigger before_insert_match_pool
         })
@@ -88,9 +120,15 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
 
       if (error) throw error;
 
-      setPool(data);
+      setPool(newPool);
       setShowCreateModal(false);
-      setFormData({ match_title: '', home_team: '', away_team: '' });
+      setFormData({
+        match_title: '',
+        home_team: '',
+        home_team_logo: '',
+        away_team: '',
+        away_team_logo: ''
+      });
       toast.success('Bolão criado com sucesso!');
     } catch (err: any) {
       console.error('Erro ao criar bolão:', err);
@@ -452,8 +490,17 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
       {/* Modal Criar Bolão */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 p-8 rounded-[2.5rem] border border-white/10 w-full max-w-md shadow-2xl">
-            <h3 className="text-2xl font-black text-white uppercase italic mb-6">Criar Bolão</h3>
+          <div className="bg-slate-800 p-8 rounded-[2.5rem] border border-white/10 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-black text-white uppercase italic">Criar Bolão</h3>
+              <button
+                onClick={fetchLatestGame}
+                className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 px-3 py-1.5 rounded-lg text-xs font-black uppercase flex items-center gap-2 border border-blue-500/20"
+              >
+                <Trophy size={14} />
+                Sugerir Próximo Jogo
+              </button>
+            </div>
             <div className="space-y-4">
               <div>
                 <label className="block text-white font-bold mb-2 text-sm">Título da Partida</label>
@@ -465,31 +512,65 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
                   className="w-full px-4 py-3 bg-slate-900 border border-white/5 rounded-xl text-white font-bold"
                 />
               </div>
-              <div>
-                <label className="block text-white font-bold mb-2 text-sm">Time da Casa</label>
-                <input
-                  type="text"
-                  value={formData.home_team}
-                  onChange={(e) => setFormData({ ...formData, home_team: e.target.value })}
-                  placeholder="Ex: Cruzeiro"
-                  className="w-full px-4 py-3 bg-slate-900 border border-white/5 rounded-xl text-white font-bold"
-                />
-              </div>
-              <div>
-                <label className="block text-white font-bold mb-2 text-sm">Time Visitante</label>
-                <input
-                  type="text"
-                  value={formData.away_team}
-                  onChange={(e) => setFormData({ ...formData, away_team: e.target.value })}
-                  placeholder="Ex: Atlético"
-                  className="w-full px-4 py-3 bg-slate-900 border border-white/5 rounded-xl text-white font-bold"
-                />
-              </div>
               <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <label className="block text-white font-bold text-sm">Time da Casa</label>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-lg bg-slate-900 border border-white/5 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {formData.home_team_logo ? (
+                        <img src={formData.home_team_logo} alt="Home Logo" className="w-10 h-10 object-contain" />
+                      ) : (
+                        <Trophy className="w-6 h-6 text-slate-700" />
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={formData.home_team}
+                      onChange={(e) => setFormData({ ...formData, home_team: e.target.value })}
+                      placeholder="Nome"
+                      className="flex-1 px-4 py-3 bg-slate-900 border border-white/5 rounded-xl text-white font-bold"
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.home_team_logo}
+                    onChange={(e) => setFormData({ ...formData, home_team_logo: e.target.value })}
+                    placeholder="URL Logo"
+                    className="w-full px-4 py-2 bg-slate-900/50 border border-white/5 rounded-lg text-white text-[10px]"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <label className="block text-white font-bold text-sm">Visitante</label>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-lg bg-slate-900 border border-white/5 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {formData.away_team_logo ? (
+                        <img src={formData.away_team_logo} alt="Away Logo" className="w-10 h-10 object-contain" />
+                      ) : (
+                        <Trophy className="w-6 h-6 text-slate-700" />
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={formData.away_team}
+                      onChange={(e) => setFormData({ ...formData, away_team: e.target.value })}
+                      placeholder="Nome"
+                      className="flex-1 px-4 py-3 bg-slate-900 border border-white/5 rounded-xl text-white font-bold"
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.away_team_logo}
+                    onChange={(e) => setFormData({ ...formData, away_team_logo: e.target.value })}
+                    placeholder="URL Logo"
+                    className="w-full px-4 py-2 bg-slate-900/50 border border-white/5 rounded-lg text-white text-[10px]"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mt-6">
                 <button
                   onClick={() => {
                     setShowCreateModal(false);
-                    setFormData({ match_title: '', home_team: '', away_team: '' });
+                    setFormData({ match_title: '', home_team: '', home_team_logo: '', away_team: '', away_team_logo: '' });
                   }}
                   className="py-3 bg-slate-700 text-white rounded-xl font-black uppercase text-xs"
                 >

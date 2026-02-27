@@ -495,19 +495,17 @@ function HomePage() {
                 <Target className="w-8 h-8" />
               </div>
               <h3 className="text-xl font-black text-white mb-1 uppercase tracking-tight">Bolão Ativo</h3>
-              {(activePool.home_team || activePool.away_team) && (
-                <div className="mb-6 flex items-center justify-center gap-4">
-                  <div className="flex flex-col items-center gap-1 group/team">
-                    <TeamLogo teamName={activePool.home_team} size="md" showName={false} />
-                    <span className="text-[8px] font-black text-white uppercase tracking-tighter truncate max-w-[60px]">{activePool.home_team}</span>
-                  </div>
-                  <div className="text-xs font-black italic text-slate-700">VS</div>
-                  <div className="flex flex-col items-center gap-1 group/team">
-                    <TeamLogo teamName={activePool.away_team} size="md" showName={false} />
-                    <span className="text-[8px] font-black text-white uppercase tracking-tighter truncate max-w-[60px]">{activePool.away_team}</span>
-                  </div>
+              <div className="mb-6 flex items-center justify-center gap-4">
+                <div className="flex flex-col items-center gap-1 group/team">
+                  <TeamLogo teamName={activePool.home_team} customLogo={activePool.home_team_logo} size="md" showName={false} />
+                  <span className="text-[8px] font-black text-white uppercase tracking-tighter truncate max-w-[60px]">{activePool.home_team}</span>
                 </div>
-              )}
+                <div className="text-xs font-black italic text-slate-700">VS</div>
+                <div className="flex flex-col items-center gap-1 group/team">
+                  <TeamLogo teamName={activePool.away_team} customLogo={activePool.away_team_logo} size="md" showName={false} />
+                  <span className="text-[8px] font-black text-white uppercase tracking-tighter truncate max-w-[60px]">{activePool.away_team}</span>
+                </div>
+              </div>
               <div className="space-y-3 mb-4">
                 <div className="bg-gradient-to-br from-emerald-500/15 via-emerald-600/10 to-emerald-700/15 border-2 border-emerald-500/40 rounded-xl p-4 relative overflow-hidden">
                   <div className="relative text-center">
@@ -578,22 +576,6 @@ function HomePage() {
             </Link>
           </div>
 
-          {/* Card: TABELA */}
-          <div className="glass-panel p-8 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-green-600"></div>
-            <div className="w-20 h-20 mx-auto bg-green-500/20 rounded-full flex items-center justify-center mb-6 text-green-300 group-hover:scale-110 transition-transform group-hover:bg-green-500/30">
-              <MonitorPlay className="w-10 h-10" />
-            </div>
-            <h3 className="text-2xl font-bold text-white mb-3">Tabela</h3>
-            <p className="text-blue-200 mb-8 text-sm leading-relaxed">Acompanhe o Cabuloso no campeonato.</p>
-            <button
-              onClick={() => navigate('/competicoes')}
-              className="btn btn-outline w-full border-green-400/30 hover:bg-green-500/20 text-green-300 hover:text-white rounded-xl"
-            >
-              VER TABELA
-            </button>
-          </div>
-
           {/* Card: CLIPES INÉDITOS */}
           <div className="glass-panel p-8 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2 border border-blue-500/20">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-blue-600 shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
@@ -615,7 +597,7 @@ function HomePage() {
         <section className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
           <AdvertisementCarousel position="homepage" autoPlay={true} autoPlayInterval={5000} />
         </section>
-      </div>
+      </div >
 
       <SuccessModal
         isOpen={showSuccess}
@@ -629,16 +611,20 @@ function HomePage() {
         onUpsellClick={handleUpsellClick}
       />
 
-      {activePool && (
-        <PoolBetModal
-          isOpen={showPoolModal}
-          onClose={() => setShowPoolModal(false)}
-          poolId={activePool.id}
-          matchTitle={activePool.match_title}
-          homeTeam={activePool.home_team}
-          awayTeam={activePool.away_team}
-        />
-      )}
+      {
+        activePool && (
+          <PoolBetModal
+            isOpen={showPoolModal}
+            onClose={() => setShowPoolModal(false)}
+            poolId={activePool.id}
+            matchTitle={activePool.match_title}
+            homeTeam={activePool.home_team}
+            awayTeam={activePool.away_team}
+            homeTeamLogo={activePool.home_team_logo}
+            awayTeamLogo={activePool.away_team_logo}
+          />
+        )
+      }
 
       <VipGrantedModal
         isOpen={showVipModal}
@@ -657,7 +643,7 @@ function HomePage() {
         onClose={() => setShowSocialModal(false)}
         socialLinks={socialLinks}
       />
-    </main>
+    </main >
   );
 }
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getYouTubeThumbnail } from '../../utils/youtube';
 import { supabase } from '../../lib/supabase';
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-hot-toast';
@@ -495,16 +496,18 @@ const AdminZkTVPage: React.FC = () => {
     // YouTube Clips Handlers
     const handleSaveClip = async () => {
         if (!clipForm.title || !clipForm.youtube_url) {
-            toast.error('Título e URL são obrigatórios');
+            toast.error('Preencha pelo menos o título e a URL do YouTube');
             return;
         }
 
-        // Extrair ID do vídeo do YouTube se for uma URL completa
-        let videoId = clipForm.youtube_url;
+        // Robust extraction for various YouTube URL formats
         const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-        const match = videoId.match(regExp);
-        if (match && match[2].length === 11) {
-            videoId = match[2];
+        const match = clipForm.youtube_url.match(regExp);
+        const videoId = (match && match[2].length === 11) ? match[2] : null;
+
+        if (!videoId) {
+            toast.error('URL do YouTube inválida ou ID do vídeo não encontrado');
+            return;
         }
 
         const thumbnail_url = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
@@ -1468,7 +1471,7 @@ const AdminZkTVPage: React.FC = () => {
                                             <div key={clip.id} className="bg-slate-900/40 border border-slate-800 rounded-2xl overflow-hidden group">
                                                 <div className="relative aspect-video">
                                                     <img
-                                                        src={clip.thumbnail_url || `https://img.youtube.com/vi/${clip.youtube_url}/maxresdefault.jpg`}
+                                                        src={getYouTubeThumbnail(clip.youtube_url)}
                                                         alt={clip.title}
                                                         className="w-full h-full object-cover grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
                                                     />

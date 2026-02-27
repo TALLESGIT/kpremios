@@ -103,6 +103,8 @@ const ModernPitchView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPos, setFilterPos] = useState<string | null>(null);
 
+  const isTeamComplete = Object.values(selectedPlayers).filter(p => p !== null).length === 11;
+
   useEffect(() => {
     loadPlayers();
     loadNextGame();
@@ -170,8 +172,15 @@ const ModernPitchView: React.FC = () => {
         useCORS: true,
         scale: 2,
         backgroundColor: '#0055ff',
-        logging: false,
+        logging: true,
+        allowTaint: false,
+        imageTimeout: 10000,
+        removeContainer: true,
       });
+
+      if (!canvas || canvas.width === 0) {
+        throw new Error('Canvas gerado está vazio.');
+      }
 
       const dataUrl = canvas.toDataURL('image/png');
       const blob = await (await fetch(dataUrl)).blob();
@@ -182,7 +191,7 @@ const ModernPitchView: React.FC = () => {
       if (navigator.share) {
         await navigator.share({
           title: 'Minha Escalação do Cruzeiro',
-          text: 'Confira meu time ideal do Cruzeiro! Monte o seu no app ZK Oficial.',
+          text: 'Confira meu time ideal do Cruzeiro! Monte o seu em: https://www.zkoficial.com.br',
           files: [file],
         });
       } else {
@@ -231,11 +240,11 @@ const ModernPitchView: React.FC = () => {
     <div className="flex flex-col gap-6 w-full max-w-md mx-auto items-center justify-center">
       {/* Controles de Topo */}
       <div className="grid grid-cols-2 sm:flex sm:flex-nowrap items-center justify-center gap-2 w-full px-2">
-        <div className="relative col-span-2 sm:col-span-1">
+        <div className="relative col-span-2 sm:col-span-1 border-2 border-white/20 rounded-lg overflow-hidden">
           <select
             value={formation}
             onChange={(e) => setFormation(e.target.value as FormationKey)}
-            className="w-full appearance-none bg-[#0055ff] border-2 border-white/20 px-3 py-2.5 pr-8 rounded-lg text-white font-black text-xs outline-none cursor-pointer shadow-xl transition-all"
+            className="w-full appearance-none bg-[#0055ff] px-3 py-2.5 pr-8 text-white font-black text-xs outline-none cursor-pointer shadow-xl transition-all"
           >
             {Object.keys(FORMATIONS).map(f => (
               <option key={f} value={f}>{f}</option>
@@ -243,13 +252,6 @@ const ModernPitchView: React.FC = () => {
           </select>
           <ChevronDown className="w-4 h-4 text-white absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
-
-        <button
-          onClick={() => toast.success('Escalação salva!')}
-          className="flex-1 px-3 py-2.5 bg-[#0055ff] text-white rounded-lg font-black text-[10px] uppercase shadow-xl active:scale-95 border-2 border-white/20 transition-all"
-        >
-          Salvar
-        </button>
 
         <button
           onClick={() => setSelectedPlayers({})}
@@ -260,10 +262,10 @@ const ModernPitchView: React.FC = () => {
 
         <button
           onClick={handleShare}
-          disabled={sharing}
-          className="col-span-2 sm:flex-1 px-3 py-2.5 bg-[#0055ff] text-white rounded-lg font-black text-[10px] uppercase shadow-xl active:scale-95 border-2 border-white/20 transition-all disabled:opacity-50"
+          disabled={sharing || !isTeamComplete}
+          className={`col-span-2 sm:flex-1 px-3 py-2.5 bg-[#0055ff] text-white rounded-lg font-black text-[10px] uppercase shadow-xl active:scale-95 border-2 border-white/20 transition-all ${(!isTeamComplete && !sharing) ? 'opacity-30 cursor-not-allowed grayscale' : 'opacity-100'}`}
         >
-          {sharing ? 'Gerando...' : 'Compartilhar'}
+          {sharing ? 'Gerando...' : isTeamComplete ? 'Compartilhar' : 'Escalar 11 para Compartilhar'}
         </button>
       </div>
 
@@ -283,6 +285,7 @@ const ModernPitchView: React.FC = () => {
                   src="/logos/cruzeiro.png"
                   alt="Cruzeiro"
                   className="w-full h-full object-contain"
+                  crossOrigin="anonymous"
                 />
               </div>
               <span className="text-[7px] sm:text-[9px] font-black text-white italic uppercase tracking-tighter">CRUZEIRO</span>
@@ -321,6 +324,7 @@ const ModernPitchView: React.FC = () => {
                     src={nextGame.opponent_logo}
                     alt={nextGame.opponent}
                     className="w-full h-full object-contain"
+                    crossOrigin="anonymous"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-blue-900/40">
@@ -356,7 +360,8 @@ const ModernPitchView: React.FC = () => {
           <div
             className="absolute inset-0"
             style={{
-              background: `repeating-linear-gradient(0deg, #0055ff, #0055ff 10%, #0066ff 10%, #0066ff 20%)`,
+              background: 'linear-gradient(to bottom, #0055ff 0%, #0055ff 50%, #0066ff 50%, #0066ff 100%)',
+              backgroundSize: '100% 40px',
             }}
           ></div>
 

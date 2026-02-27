@@ -40,6 +40,7 @@ import { useAuth } from '../context/AuthContext';
 import { useRegisterStreamId } from '../features/chat/useRegisterStreamId';
 import { getTeamColors } from '../utils/teamLogos';
 import toast from 'react-hot-toast';
+import { getYouTubeId, getYouTubeThumbnail, getYouTubeEmbedUrl } from '../utils/youtube';
 
 interface LiveStream {
     id: string;
@@ -1714,7 +1715,7 @@ const ZkTVPage: React.FC = () => {
                                                 <div className="bg-slate-900/60 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl">
                                                     <div className="relative aspect-video">
                                                         <iframe
-                                                            src={`https://www.youtube.com/embed/${selectedClip.youtube_url}?autoplay=1`}
+                                                            src={getYouTubeEmbedUrl(selectedClip.youtube_url)}
                                                             title={selectedClip.title}
                                                             className="w-full h-full"
                                                             frameBorder="0"
@@ -1750,7 +1751,7 @@ const ZkTVPage: React.FC = () => {
                                                         >
                                                             <div className="relative aspect-video">
                                                                 <img
-                                                                    src={clip.thumbnail_url}
+                                                                    src={getYouTubeThumbnail(clip.youtube_url)}
                                                                     alt={clip.title}
                                                                     className="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
                                                                 />

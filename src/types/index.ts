@@ -83,8 +83,9 @@ export interface YouTubeClip {
   description?: string;
   youtube_url: string;
   thumbnail_url?: string;
+  duration?: string;
   is_active: boolean;
-  category: string;
+  category?: string;
   created_at: string;
   updated_at: string;
 }
@@ -166,14 +167,6 @@ export interface BioProfile {
   updated_at: string;
 }
 
-export interface YouTubeClip {
-  id: string;
-  title: string;
-  youtube_url: string;
-  thumbnail_url?: string;
-  duration?: string;
-  updated_at: string;
-}
 
 export interface CruzeiroPlayer {
   id: string;

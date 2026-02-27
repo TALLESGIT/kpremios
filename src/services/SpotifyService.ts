@@ -13,14 +13,49 @@ export interface SpotifyRelease {
  * Converts: open.spotify.com/album/... → open.spotify.com/embed/album/...
  * Spotify blocks non-embed URLs from being iframed via CSP frame-ancestors.
  */
-function ensureEmbedUrl(url: string): string {
-  if (!url) return url;
-  // Already a correct embed URL
-  if (url.includes('/embed/')) return url;
-  // Strip locale prefix (e.g. /intl-pt/, /intl-en/) — Spotify embeds don't use it
-  const cleaned = url.replace(/open\.spotify\.com\/intl-[a-z]{2}\//, 'open.spotify.com/');
+function ensureEmbedUrl(url: string | null | undefined): string {
+  if (!url) return 'https://open.spotify.com/embed/track/noop';
+
+  // If it's already an embed but has extra stuff, keep it but clean it
+  if (url.includes('/embed/')) {
+    return url.split('?')[0] + '?utm_source=generator';
+  }
+
+  // Basic cleaning
+  let cleaned = url.trim();
+
+  // Strip iframe tags if accidental
+  if (cleaned.includes('<iframe')) {
+    const srcMatch = cleaned.match(/src="([^"]+)"/);
+    if (srcMatch && srcMatch[1]) {
+      cleaned = srcMatch[1];
+    }
+  }
+
+  // Strip locale prefix (e.g. /intl-pt/, /intl-en/)
+  cleaned = cleaned.replace(/open\.spotify\.com\/intl-[a-z]{2}\//, 'open.spotify.com/');
+
   // Convert regular open.spotify.com URL to embed format
-  return cleaned.replace('open.spotify.com/', 'open.spotify.com/embed/');
+  if (cleaned.includes('open.spotify.com/') && !cleaned.includes('/embed/')) {
+    cleaned = cleaned.replace('open.spotify.com/', 'open.spotify.com/embed/');
+  } else if (!cleaned.startsWith('http')) {
+    // If it's just an ID or something else, it might be a track ID
+    // But Spotify URLs are complex, so we assume it should be a full URL
+    // If it's just "4a03...", we can't be sure if it's a track or album.
+    // Better to return it if it looks like a track ID, formatted as a track embed.
+    if (/^[a-zA-Z0-9]{22}$/.test(cleaned)) {
+      return `https://open.spotify.com/embed/track/${cleaned}?utm_source=generator`;
+    }
+    return 'https://open.spotify.com/embed/track/noop';
+  }
+
+  // Ensure it has https
+  if (!cleaned.startsWith('http')) {
+    cleaned = 'https://' + cleaned;
+  }
+
+  // Strip query params and add generator param
+  return cleaned.split('?')[0] + '?utm_source=generator';
 }
 
 export const SpotifyService = {
