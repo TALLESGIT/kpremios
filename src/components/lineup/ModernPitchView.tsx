@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { CruzeiroPlayer, CruzeiroGame } from '../../types';
 import { X, ChevronDown, Instagram, Search } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { toPng } from 'html-to-image';
+import { toBlob } from 'html-to-image';
 
 type FormationKey = '4-3-3' | '4-4-2' | '3-5-2' | '4-2-3-1' | '5-3-2';
 
@@ -165,56 +165,61 @@ const ModernPitchView: React.FC = () => {
 
     try {
       setSharing(true);
-      const loadingToast = toast.loading('Gerando imagem perfeita...');
+      const loadingToast = toast.loading('Gerando imagem para compartilhar...');
 
-      // 1. Garantir que as fontes e imagens carregaram
+      // 1. Garantir carregamento
       await document.fonts.ready;
       await new Promise(resolve => setTimeout(resolve, 800));
 
-      // 2. Gerar a imagem
-      const dataUrl = await toPng(pitchRef.current, {
+      // 2. Gerar o Blob diretamente (mais eficiente para arquivos)
+      const blob = await toBlob(pitchRef.current, {
         quality: 0.95,
         pixelRatio: 2,
-        skipFonts: false,
-        fontEmbedCSS: '',
         style: {
           borderRadius: '0',
         }
       });
 
-      // 3. Preparar o arquivo para compartilhamento real
-      const blob = await (await fetch(dataUrl)).blob();
+      if (!blob) throw new Error('Falha ao gerar imagem');
+
+      // 3. Criar o arquivo
       const file = new File([blob], 'meu-time-zk.png', { type: 'image/png' });
 
       toast.dismiss(loadingToast);
 
-      // Função auxiliar para download
-      const triggerDownload = () => {
+      // Função de fallback: Download e aviso
+      const triggerDownloadFallback = () => {
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.download = 'minha-escalacao-zk.png';
-        link.href = dataUrl;
+        link.href = url;
         link.click();
-        toast.success('Imagem salva com sucesso! Agora você pode compartilhar nas redes sociais.');
+        URL.revokeObjectURL(url);
+        toast.success('Imagem baixada! Agora você pode compartilhar nas redes sociais.', {
+          duration: 5000
+        });
       };
 
-      // 4. Compartilhamento Nativo (Redes Sociais)
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      // 4. Tentativa de Compartilhamento Nativo (Redes Sociais)
+      if (navigator.share) {
         try {
+          // Tenta compartilhar o arquivo diretamente
           await navigator.share({
             title: 'Minha Escalação no ZK',
             text: 'Confira meu time ideal do Cruzeiro!',
             files: [file],
           });
         } catch (shareError: any) {
-          // Se não foi o usuário que cancelou, tenta o download
-          if (shareError.name !== 'AbortError') {
-            console.error('Erro no share nativo:', shareError);
-            triggerDownload();
-          }
+          // Se for AbortError, o usuário só fechou a janela. Não fazemos nada.
+          if (shareError.name === 'AbortError') return;
+
+          // Se falhou por outro motivo (ex: arquivo não suportado no WebView), tenta download
+          console.error('Erro no share nativo:', shareError);
+          triggerDownloadFallback();
         }
       } else {
-        // Se o navegador não suporta compartilhamento de arquivos (ex: PC ou navegadores antigos)
-        triggerDownload();
+        // Sem suporte ao Share API (Desktop ou navegadores antigos)
+        triggerDownloadFallback();
       }
     } catch (error) {
       console.error('Erro ao compartilhar:', error);
