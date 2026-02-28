@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useSocket } from '../hooks/useSocket';
 import { LiveViewer } from '../components/LiveViewer';
+import { ViewerCountDisplay } from '../components/live/ViewerCountDisplay';
 import { ChatSlot } from '../features/chat/ChatSlot';
 import { FloatingChatButton } from '../features/chat/FloatingChatButton';
 import { ChatDrawer } from '../features/chat/ChatDrawer';
@@ -482,31 +483,13 @@ const PublicLiveStreamPage: React.FC = () => {
                     </div>
                   )}
 
-                  {stream.is_active && isFullscreen && !isMobile && (
-                    <div className="absolute top-4 left-4 z-20">
-                      <div className="px-6 py-3 bg-slate-800/80 backdrop-blur-md rounded-2xl border border-white/10 flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                          <Eye className="w-4 h-4 text-slate-400" />
-                          <span className="text-white font-black">{currentViewerCount || stream.viewer_count || 0}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {isFullscreen && !isMobile && isChatOpen && stream.is_active && (
-                    <div className="absolute right-4 top-4 bottom-4 z-50 w-[400px] flex flex-col gap-3 pointer-events-auto">
-                      <div className="flex-[4] min-h-0 bg-black/80 backdrop-blur-md rounded-2xl p-2 border border-white/10 overflow-hidden shadow-2xl">
-                        <ChatSlot id="public-desktop-fullscreen-chat" priority={100} className="h-full" />
-                      </div>
-                      <div className="flex-[1] min-h-0 pointer-events-auto bg-black/80 backdrop-blur-md rounded-2xl p-3 space-y-2 overflow-y-auto border border-white/10 custom-scrollbar shadow-2xl">
-                        <PollDisplay streamId={stream.id} compact={true} />
-                        <PinnedLinkOverlay streamId={stream.id} />
-                      </div>
-                    </div>
-                  )}
-
                   {stream.is_active && (
                     <>
+                      {/* Top Info Bar (Desktop & Mobile Fullscreen) */}
+                      <div className={`absolute top-4 left-4 z-20 transition-opacity duration-300 ${showControls || !isMobile ? 'opacity-100' : 'opacity-0'}`}>
+                        <ViewerCountDisplay count={currentViewerCount || stream.viewer_count || 0} />
+                      </div>
+
                       {!isMobile && (
                         <>
                           <button
@@ -558,10 +541,14 @@ const PublicLiveStreamPage: React.FC = () => {
 
                 {isMobile && isFullscreen && isLandscape && isDockedChat && stream.is_active && (
                   <div className="w-[400px] min-w-[350px] max-w-[45vw] h-full bg-black/90 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl">
-                    <div className="p-3 border-b border-white/10 flex items-center justify-between shrink-0">
-                      <span className="text-xs font-black text-white uppercase italic tracking-wider">Chat</span>
-                      <button onClick={() => setIsDockedChat(false)} className="p-1.5 hover:bg-white/10 rounded-lg transition-all">
-                        <X className="w-4 h-4 text-white" />
+                    <div className="p-4 border-b border-white/10 flex items-center justify-between shrink-0">
+                      <span className="text-sm font-black text-white uppercase italic tracking-wider">Chat da Live</span>
+                      <button
+                        onClick={() => setIsDockedChat(false)}
+                        className="p-3 hover:bg-white/10 rounded-xl transition-all active:scale-90"
+                        title="Fechar Chat"
+                      >
+                        <X className="w-6 h-6 text-white" />
                       </button>
                     </div>
                     <div className="flex-1 overflow-hidden flex flex-col">
