@@ -245,9 +245,9 @@ function WhepPlayer({
             attempt === 0
               ? 0
               : Math.min(
-                  CONFIG.RECONNECT_BASE_DELAY_MS * Math.pow(2, attempt),
-                  CONFIG.RECONNECT_MAX_DELAY_MS
-                );
+                CONFIG.RECONNECT_BASE_DELAY_MS * Math.pow(2, attempt),
+                CONFIG.RECONNECT_MAX_DELAY_MS
+              );
           setStatusSafe('reconnecting');
           cleanup();
           reconnectTimeoutRef.current = setTimeout(() => {
@@ -281,7 +281,10 @@ function WhepPlayer({
 
         const response = await fetch(whepUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/sdp' },
+          headers: {
+            'Content-Type': 'application/sdp',
+            'Authorization': 'Basic ' + btoa('zk_viewer:@zk_view_2026')
+          },
           body: localSDP,
           signal: controller.signal,
         }).finally(() => clearTimeout(timeoutId));
@@ -354,9 +357,9 @@ function WhepPlayer({
                 attempt === 0
                   ? 0
                   : Math.min(
-                      CONFIG.RECONNECT_BASE_DELAY_MS * Math.pow(2, attempt),
-                      CONFIG.RECONNECT_MAX_DELAY_MS
-                    );
+                    CONFIG.RECONNECT_BASE_DELAY_MS * Math.pow(2, attempt),
+                    CONFIG.RECONNECT_MAX_DELAY_MS
+                  );
               setStatusSafe('reconnecting');
               cleanup();
               reconnectTimeoutRef.current = setTimeout(() => {

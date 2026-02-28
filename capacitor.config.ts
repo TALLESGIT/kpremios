@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.zkoficial.premios',
-  appName: 'ZK Oficial',
+  appName: 'ZkOficial',
   webDir: 'dist',
   server: {
     // Permitir conexões com APIs externas (Supabase, Socket.IO, MediaMTX)

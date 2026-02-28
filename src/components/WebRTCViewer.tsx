@@ -234,7 +234,10 @@ function WebRTCViewer({
 
         const response = await fetch(whepUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/sdp' },
+          headers: {
+            'Content-Type': 'application/sdp',
+            'Authorization': 'Basic ' + btoa('zk_viewer:@zk_view_2026')
+          },
           body: offer.sdp,
           signal: controller.signal,
         }).finally(() => clearTimeout(timeoutId));
