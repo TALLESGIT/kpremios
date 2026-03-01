@@ -32,6 +32,7 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
+  const [showConfirmCreateModal, setShowConfirmCreateModal] = useState(false);
   const [formData, setFormData] = useState({
     match_title: '',
     home_team: '',
@@ -95,11 +96,6 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
   };
 
   const createPool = async () => {
-    if (!formData.match_title || !formData.home_team || !formData.away_team) {
-      toast.error('Preencha todos os campos');
-      return;
-    }
-
     try {
       setLoading(true);
 
@@ -120,8 +116,50 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
 
       if (error) throw error;
 
+      // ----------------------------------------------------------------------
+      // ATUALIZA O PRÓXIMO JOGO NO BANCO (cruzeiro_games) COM OS DADOS DO BOLÃO
+      // Isso garante que a logo do adversário e o nome apareçam na Escalação
+      // ----------------------------------------------------------------------
+      const { data: upcomingGames } = await supabase
+        .from('cruzeiro_games')
+        .select('id')
+        .eq('status', 'upcoming')
+        .order('date', { ascending: true })
+        .limit(1);
+
+      const isHome = formData.home_team.toLowerCase().includes('cruzeiro');
+      const opponentName = isHome ? formData.away_team : formData.home_team;
+      const opponentLogo = isHome ? formData.away_team_logo : formData.home_team_logo;
+
+      if (upcomingGames && upcomingGames.length > 0) {
+        // Atualiza o jogo existente
+        await supabase
+          .from('cruzeiro_games')
+          .update({
+            opponent: opponentName,
+            opponent_logo: opponentLogo,
+            is_home: isHome
+          })
+          .eq('id', upcomingGames[0].id);
+      } else {
+        // Insere um novo jogo se não existir nenhum 'upcoming'
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        await supabase
+          .from('cruzeiro_games')
+          .insert({
+            opponent: opponentName,
+            opponent_logo: opponentLogo,
+            is_home: isHome,
+            status: 'upcoming',
+            date: tomorrow.toISOString(),
+            championship: 'Bolão ZK'
+          });
+      }
+
       setPool(newPool);
       setShowCreateModal(false);
+      setShowConfirmCreateModal(false);
       setFormData({
         match_title: '',
         home_team: '',
@@ -202,6 +240,35 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
       if (updateError) {
         console.error('Erro ao salvar resultado do bolão:', updateError);
         throw new Error((updateError as { message?: string }).message || 'Erro ao salvar resultado');
+      }
+
+      // ----------------------------------------------------------------------
+      // ATUALIZA O STATUS DA PARTIDA (cruzeiro_games) PARA 'finished' E SALVA O PLACAR
+      // Buscamos a partida 'upcoming' (ou 'live') contra o respectivo adversário
+      // ----------------------------------------------------------------------
+      const isHome = pool.home_team.toLowerCase().includes('cruzeiro');
+      const opponentName = isHome ? pool.away_team : pool.home_team;
+
+      const { data: upcomingGames } = await supabase
+        .from('cruzeiro_games')
+        .select('id')
+        .in('status', ['upcoming', 'live'])
+        .eq('opponent', opponentName)
+        .order('date', { ascending: true })
+        .limit(1);
+
+      if (upcomingGames && upcomingGames.length > 0) {
+        const cruzeiroScore = isHome ? home : away;
+        const opponentScore = isHome ? away : home;
+
+        await supabase
+          .from('cruzeiro_games')
+          .update({
+            status: 'finished',
+            score_home: isHome ? cruzeiroScore : opponentScore,
+            score_away: !isHome ? cruzeiroScore : opponentScore,
+          })
+          .eq('id', upcomingGames[0].id);
       }
 
       // Calcular ganhadores
@@ -615,11 +682,62 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
                   Cancelar
                 </button>
                 <button
-                  onClick={createPool}
+                  onClick={() => {
+                    if (!formData.match_title || !formData.home_team || !formData.away_team) {
+                      toast.error('Preencha os times da casa, visitante e o título da partida.');
+                      return;
+                    }
+                    setShowConfirmCreateModal(true);
+                  }}
                   disabled={loading}
                   className="py-3 bg-blue-600 text-white rounded-xl font-black uppercase text-xs disabled:opacity-50"
                 >
-                  {loading ? 'Criando...' : 'Criar'}
+                  Criar Bolão
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação de Criação do Bolão */}
+      {showConfirmCreateModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
+          <div className="bg-slate-800 p-8 rounded-[2rem] border border-blue-500/30 w-full max-w-sm shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-4">
+                <Target className="w-8 h-8 text-blue-400" />
+              </div>
+
+              <h3 className="text-xl font-black text-white uppercase italic mb-2">Confirmar Novo Bolão?</h3>
+              <p className="text-slate-300 text-sm mb-6">
+                Tem certeza que deseja criar o bolão <strong>{formData.match_title}</strong>?
+                <br /><br />
+                Os dados do próximo jogo (adversário e logo) serão atualizados automaticamente para a página de escalação.
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 w-full">
+                <button
+                  onClick={() => setShowConfirmCreateModal(false)}
+                  className="py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold uppercase text-xs transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={createPool}
+                  disabled={loading}
+                  className="py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black uppercase text-xs transition-colors disabled:opacity-50 flex gap-1 flex-col items-center justify-center"
+                >
+                  {loading ? (
+                    <span className="animate-pulse">Criando...</span>
+                  ) : (
+                    <>
+                      <span>Confirmar</span>
+                      <span className="text-[9px] font-normal opacity-80 mt-0.5">e Sincronizar</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>

@@ -132,7 +132,9 @@ const AdminZkTVPage: React.FC = () => {
         competition: '',
         is_home: true,
         banner_url: '',
-        status: 'upcoming'
+        status: 'upcoming',
+        score_home: 0,
+        score_away: 0
     });
 
     // Players State
@@ -684,10 +686,12 @@ const AdminZkTVPage: React.FC = () => {
                                                     opponent: '',
                                                     date: new Date().toISOString(),
                                                     venue: '',
-                                                    competition: 'Brasileirão Série A',
+                                                    competition: 'Campeonato Mineiro',
                                                     is_home: true,
                                                     banner_url: '',
-                                                    status: 'upcoming'
+                                                    status: 'upcoming',
+                                                    score_home: 0,
+                                                    score_away: 0
                                                 });
                                                 setIsAddingGame(true);
                                             }}
@@ -812,6 +816,43 @@ const AdminZkTVPage: React.FC = () => {
                                                         className="w-full bg-slate-950 border border-slate-700 p-4 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                                                     />
                                                 </div>
+                                                <div>
+                                                    <label className="block text-sm text-slate-400 mb-2">Status da Partida</label>
+                                                    <select
+                                                        value={gameForm.status}
+                                                        onChange={(e) => setGameForm({ ...gameForm, status: e.target.value as any })}
+                                                        className="w-full bg-slate-950 border border-slate-700 p-4 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none appearance-none font-bold"
+                                                    >
+                                                        <option value="upcoming" className="text-emerald-500">Próximo Jogo</option>
+                                                        <option value="live" className="text-red-500">Ao Vivo</option>
+                                                        <option value="finished" className="text-slate-400">Partida Finalizada</option>
+                                                    </select>
+                                                </div>
+
+                                                {(gameForm.status === 'live' || gameForm.status === 'finished') && (
+                                                    <>
+                                                        <div>
+                                                            <label className="block text-sm text-slate-400 mb-2">Gols {gameForm.is_home ? 'do Cruzeiro' : 'do Adversário'} (Casa)</label>
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                value={gameForm.score_home ?? 0}
+                                                                onChange={(e) => setGameForm({ ...gameForm, score_home: parseInt(e.target.value) || 0 })}
+                                                                className="w-full bg-slate-950 border border-slate-700 p-4 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-xl font-black text-center"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-sm text-slate-400 mb-2">Gols {!gameForm.is_home ? 'do Cruzeiro' : 'do Adversário'} (Fora)</label>
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                value={gameForm.score_away ?? 0}
+                                                                onChange={(e) => setGameForm({ ...gameForm, score_away: parseInt(e.target.value) || 0 })}
+                                                                className="w-full bg-slate-950 border border-slate-700 p-4 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-xl font-black text-center"
+                                                            />
+                                                        </div>
+                                                    </>
+                                                )}
                                                 <div className="md:col-span-2">
                                                     <label className="block text-sm text-slate-400 mb-2">Banner do Jogo (Opcional)</label>
                                                     <div className="space-y-4">

@@ -1116,7 +1116,14 @@ const ZkTVPage: React.FC = () => {
                                                     <div className="relative z-10">
                                                         <div className="flex items-center justify-between mb-6 sm:mb-8 gap-4">
                                                             <div className="flex items-center gap-2">
-                                                                <span className="px-3 py-1 rounded-full bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20">Próximo Jogo</span>
+                                                                <span className={`px-3 py-1 rounded-full text-white text-[10px] font-black uppercase tracking-widest shadow-lg ${nextGame.status === 'live' ? 'bg-red-500 shadow-red-500/20' :
+                                                                        nextGame.status === 'finished' ? 'bg-emerald-500 shadow-emerald-500/20' :
+                                                                            'bg-blue-500 shadow-blue-500/20'
+                                                                    }`}>
+                                                                    {nextGame.status === 'live' ? 'Ao Vivo' :
+                                                                        nextGame.status === 'finished' ? 'Partida Finalizada' :
+                                                                            'Próximo Jogo'}
+                                                                </span>
                                                                 <div className="w-1 h-1 rounded-full bg-slate-700" />
                                                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">{nextGame.competition}</span>
                                                             </div>
@@ -1386,7 +1393,7 @@ const ZkTVPage: React.FC = () => {
 
                                 <h3 className="text-xs sm:text-sm font-black text-blue-500 uppercase tracking-widest mb-3 sm:mb-4 lg:mb-8 relative z-10 flex items-center gap-2">
                                     <Zap className="w-4 h-4" />
-                                    Próximo Jogo
+                                    {nextGame?.status === 'live' ? 'Partida Ao Vivo' : nextGame?.status === 'finished' ? 'Partida Finalizada' : 'Próximo Jogo'}
                                 </h3>
 
                                 {nextGame ? (

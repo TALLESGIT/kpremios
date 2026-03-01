@@ -355,7 +355,14 @@ function HomePage() {
 
               <div className="relative z-20 p-6 sm:p-12 flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-8 h-full">
                 <div className="flex flex-col items-center sm:items-start text-center sm:text-left w-full sm:w-auto">
-                  <span className="px-3 py-1 rounded-full bg-blue-600/80 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-white mb-6 sm:mb-4 shadow-lg shadow-blue-500/20">Próxima Partida</span>
+                  <span className={`px-3 py-1 rounded-full backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-white mb-6 sm:mb-4 shadow-lg ${nextGame.status === 'live' ? 'bg-red-600/80 shadow-red-500/20' :
+                      nextGame.status === 'finished' ? 'bg-emerald-600/80 shadow-emerald-500/20' :
+                        'bg-blue-600/80 shadow-blue-500/20'
+                    }`}>
+                    {nextGame.status === 'live' ? 'Partida Ao Vivo' :
+                      nextGame.status === 'finished' ? 'Partida Finalizada' :
+                        'Próxima Partida'}
+                  </span>
 
                   <div className="flex items-center justify-center sm:justify-start gap-4 sm:gap-6 w-full">
                     <div className="flex flex-col items-center gap-2 group/team cursor-pointer transition-transform hover:scale-105">
