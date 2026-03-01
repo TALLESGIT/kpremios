@@ -73,7 +73,21 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
     const channel = supabase
       .channel('admin-vip-watcher')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vip_alerts' }, (payload) => {
-        setRecentVips(prev => [payload.new as RecentVip, ...prev].slice(0, 5));
+        const newVip = payload.new as RecentVip;
+        setRecentVips(prev => [newVip, ...prev].slice(0, 5));
+
+        // Som de notificação
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
+        audio.play().catch(e => console.log('Bloqueio de áudio pelo browser:', e));
+        toast.success(`NOVO VIP: ${newVip.user_name} 💎`, {
+          duration: 5000,
+          icon: '👑',
+          style: {
+            background: '#1e293b',
+            color: '#fbbf24',
+            border: '1px solid #fbbf24'
+          }
+        });
       })
       .subscribe();
 

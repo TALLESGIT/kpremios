@@ -16,6 +16,7 @@ import PollDisplay from '../components/live/PollDisplay';
 import PinnedLinkOverlay from '../components/live/PinnedLinkOverlay';
 import MobileLiveControls from '../components/live/MobileLiveControls';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
+import VipAlertOverlay from '../components/live/VipAlertOverlay';
 import VipSubscriptionModal from '../components/vip/VipSubscriptionModal';
 import { CastButton } from '../components/CastButton';
 import { CruzeiroGame, CruzeiroStanding } from '../types';
@@ -456,6 +457,7 @@ const PublicLiveStreamPage: React.FC = () => {
                         showPerf={showPerf}
                       />
                       <VipMessageOverlay streamId={stream.id} isActive={stream.is_active} />
+                      <VipAlertOverlay />
                     </>
                   ) : (
                     <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center z-30">
