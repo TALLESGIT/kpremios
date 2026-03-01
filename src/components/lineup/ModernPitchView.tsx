@@ -114,16 +114,34 @@ const ModernPitchView: React.FC = () => {
 
   const loadNextGame = async () => {
     try {
+      // 1) Try upcoming or live games first
       const { data, error } = await supabase
         .from('cruzeiro_games')
         .select('*')
-        .eq('status', 'upcoming')
+        .in('status', ['upcoming', 'live'])
         .order('date', { ascending: true })
         .limit(1)
         .maybeSingle();
 
       if (error) throw error;
-      if (data) setNextGame(data);
+
+      if (data) {
+        setNextGame(data);
+        return;
+      }
+
+      // 2) Fallback: most recent finished game (so opponent logo still shows)
+      const { data: recentGame, error: recentError } = await supabase
+        .from('cruzeiro_games')
+        .select('*')
+        .eq('status', 'finished')
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!recentError && recentGame) {
+        setNextGame(recentGame);
+      }
     } catch (err) {
       console.error('Error loading next game:', err);
     }

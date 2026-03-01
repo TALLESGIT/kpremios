@@ -394,28 +394,65 @@ const AdminZkTVPage: React.FC = () => {
                 toast.success('Jogo adicionado!');
 
                 if (createPoolToggle) {
-                    const isHome = savedGame.is_home;
-                    const matchTitle = isHome ? `Cruzeiro x ${savedGame.opponent}` : `${savedGame.opponent} x Cruzeiro`;
-                    const homeTeam = isHome ? 'Cruzeiro' : savedGame.opponent;
-                    const awayTeam = isHome ? savedGame.opponent : 'Cruzeiro';
-                    const cruzeiroLogo = 'https://logodetimes.com/times/cruzeiro/logo-cruzeiro-256.png';
-                    const homeLogo = isHome ? cruzeiroLogo : (savedGame.opponent_logo || '');
-                    const awayLogo = isHome ? (savedGame.opponent_logo || '') : cruzeiroLogo;
+                    try {
+                        const isHome = savedGame.is_home;
+                        const matchTitle = isHome ? `Cruzeiro x ${savedGame.opponent}` : `${savedGame.opponent} x Cruzeiro`;
+                        const homeTeam = isHome ? 'Cruzeiro' : savedGame.opponent;
+                        const awayTeam = isHome ? savedGame.opponent : 'Cruzeiro';
+                        const cruzeiroLogo = 'https://logodetimes.com/times/cruzeiro/logo-cruzeiro-256.png';
+                        const homeLogo = isHome ? cruzeiroLogo : (savedGame.opponent_logo || '');
+                        const awayLogo = isHome ? (savedGame.opponent_logo || '') : cruzeiroLogo;
 
-                    const { error: poolError } = await supabase.from('match_pools').insert({
-                        match_title: matchTitle,
-                        home_team: homeTeam,
-                        away_team: awayTeam,
-                        home_team_logo: homeLogo,
-                        away_team_logo: awayLogo,
-                        is_active: false
-                    });
+                        // 1) Create a live_stream first (required FK for match_pools)
+                        const streamTitle = `Transmissão: ${matchTitle}`;
+                        const channelSlug = streamTitle
+                            .toLowerCase()
+                            .normalize('NFD')
+                            .replace(/[\u0300-\u036f]/g, '')
+                            .replace(/[^a-z0-9\s-]/g, '')
+                            .replace(/\s+/g, '-')
+                            .replace(/-+/g, '-')
+                            .trim() + '-' + Date.now().toString().slice(-4);
 
-                    if (poolError) {
-                        console.error('Erro ao criar bolão associado:', poolError);
-                        toast.error('Jogo salvo, mas houve um erro ao criar o bolão automaticamente.');
-                    } else {
-                        toast.success('Bolão gerado com sucesso!');
+                        const { data: streamData, error: streamError } = await supabase
+                            .from('live_streams')
+                            .insert([{
+                                title: streamTitle,
+                                channel_name: channelSlug,
+                                is_active: false
+                            }])
+                            .select()
+                            .single();
+
+                        if (streamError || !streamData) {
+                            console.error('Erro ao criar live_stream para o bolão:', streamError);
+                            toast.error('Jogo salvo, mas houve erro ao criar a Transmissão para o Bolão.');
+                        } else {
+                            // 2) Now create the pool linked to the new live_stream
+                            const { error: poolError } = await supabase.from('match_pools').insert({
+                                live_stream_id: streamData.id,
+                                match_title: matchTitle,
+                                home_team: homeTeam,
+                                away_team: awayTeam,
+                                home_team_logo: homeLogo,
+                                away_team_logo: awayLogo,
+                                is_active: false,
+                                total_pool_amount: 0,
+                                total_participants: 0,
+                                winners_count: 0,
+                                prize_per_winner: 0
+                            });
+
+                            if (poolError) {
+                                console.error('Erro ao criar bolão associado:', poolError);
+                                toast.error('Jogo e Transmissão salvos, mas houve erro ao criar o Bolão!');
+                            } else {
+                                toast.success('Bolão e Transmissão criados com sucesso! 🎁', { duration: 4000 });
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Exceção ao criar bolão associado ao jogo:', err);
+                        toast.error('Jogo salvo, mas ocorreu um erro inesperado ao criar o bolão.');
                     }
                 }
             }
