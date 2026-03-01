@@ -124,6 +124,7 @@ const AdminZkTVPage: React.FC = () => {
     const [games, setGames] = useState<CruzeiroGame[]>([]);
     const [isAddingGame, setIsAddingGame] = useState(false);
     const [editingGame, setEditingGame] = useState<CruzeiroGame | null>(null);
+    const [createPoolToggle, setCreatePoolToggle] = useState(false);
     const [gameForm, setGameForm] = useState<Partial<CruzeiroGame>>({
         opponent: '',
         opponent_logo: '',
@@ -379,14 +380,49 @@ const AdminZkTVPage: React.FC = () => {
                 updated_at: new Date().toISOString()
             };
 
-            const { error } = editingGame
-                ? await supabase.from('cruzeiro_games').update(payload).eq('id', editingGame.id)
-                : await supabase.from('cruzeiro_games').insert([payload]);
+            let savedGame = null;
 
-            if (error) throw error;
-            toast.success(editingGame ? 'Jogo atualizado!' : 'Jogo adicionado!');
+            if (editingGame) {
+                const { data, error } = await supabase.from('cruzeiro_games').update(payload).eq('id', editingGame.id).select().single();
+                if (error) throw error;
+                savedGame = data;
+                toast.success('Jogo atualizado!');
+            } else {
+                const { data, error } = await supabase.from('cruzeiro_games').insert([payload]).select().single();
+                if (error) throw error;
+                savedGame = data;
+                toast.success('Jogo adicionado!');
+
+                if (createPoolToggle) {
+                    const isHome = savedGame.is_home;
+                    const matchTitle = isHome ? `Cruzeiro x ${savedGame.opponent}` : `${savedGame.opponent} x Cruzeiro`;
+                    const homeTeam = isHome ? 'Cruzeiro' : savedGame.opponent;
+                    const awayTeam = isHome ? savedGame.opponent : 'Cruzeiro';
+                    const cruzeiroLogo = 'https://logodetimes.com/times/cruzeiro/logo-cruzeiro-256.png';
+                    const homeLogo = isHome ? cruzeiroLogo : (savedGame.opponent_logo || '');
+                    const awayLogo = isHome ? (savedGame.opponent_logo || '') : cruzeiroLogo;
+
+                    const { error: poolError } = await supabase.from('match_pools').insert({
+                        match_title: matchTitle,
+                        home_team: homeTeam,
+                        away_team: awayTeam,
+                        home_team_logo: homeLogo,
+                        away_team_logo: awayLogo,
+                        is_active: false
+                    });
+
+                    if (poolError) {
+                        console.error('Erro ao criar bolão associado:', poolError);
+                        toast.error('Jogo salvo, mas houve um erro ao criar o bolão automaticamente.');
+                    } else {
+                        toast.success('Bolão gerado com sucesso!');
+                    }
+                }
+            }
+
             setIsAddingGame(false);
             setEditingGame(null);
+            setCreatePoolToggle(false);
             loadData();
         } catch (error) {
             console.error('Error saving game:', error);
@@ -910,6 +946,28 @@ const AdminZkTVPage: React.FC = () => {
                                                         )}
                                                     </div>
                                                 </div>
+
+                                                {!editingGame && (
+                                                    <div className="md:col-span-2 pt-4 border-t border-slate-800">
+                                                        <label className="flex items-center gap-3 cursor-pointer group w-fit">
+                                                            <div className={`w-6 h-6 rounded border flex items-center justify-center transition-all ${createPoolToggle ? 'bg-blue-600 border-blue-500' : 'bg-slate-900 border-slate-700 group-hover:border-blue-500'}`}>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    className="hidden"
+                                                                    checked={createPoolToggle}
+                                                                    onChange={(e) => setCreatePoolToggle(e.target.checked)}
+                                                                />
+                                                                {createPoolToggle && <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                                            </div>
+                                                            <span className="text-slate-300 font-medium group-hover:text-white transition-colors">
+                                                                Criar bolão automaticamente para este jogo
+                                                            </span>
+                                                        </label>
+                                                        <p className="text-xs text-slate-500 mt-2 ml-9">
+                                                            Um novo bolão será criado com as informações da partida. Ele ficará inativo até você abri-lo na página de Transmissões.
+                                                        </p>
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="flex justify-end gap-4">
                                                 <button
