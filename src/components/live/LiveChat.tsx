@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { useSocketChat, type ChatMessage } from '../../hooks/useSocketChat';
+import PinnedLinkOverlay from './PinnedLinkOverlay';
 
 
 interface LiveChatProps {
@@ -58,7 +59,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
   const { user } = useAuth();
   const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);
-  const { currentUser } = useData();
+  const { } = useData();
   const navigate = useNavigate();
 
   // Manter controle local de messages para compatibilidade com código existente
@@ -81,6 +82,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
   const [audioCountRemaining, setAudioCountRemaining] = useState<number>(3);
   const [vipOverlayCountRemaining, setVipOverlayCountRemaining] = useState<number>(10);
   const [likedMessages, setLikedMessages] = useState<Set<string>>(new Set());
+  const [currentPinnedLink, setCurrentPinnedLink] = useState<ChatMessage | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -99,11 +101,48 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
     messages: socketMessages,
     isConnected: socketConnected,
     sendMessage: socketSendMessage,
-    emit: socketEmit
+    emit: socketEmit,
+    on: socketOn,
+    off: socketOff
   } = useSocketChat({
     streamId,
     enabled: isActive !== false || isAdmin // Sempre habilitar se for admin ou se isActive não for false
   });
+
+  // ✅ Sincronizar mensagens do socket com o estado local para real-time imediato
+  useEffect(() => {
+    if (socketMessages.length > 0) {
+      setMessages(socketMessages);
+    }
+  }, [socketMessages]);
+
+  // ✅ Sincronizar link fixado via Socket.io
+  useEffect(() => {
+    if (!socketConnected) return;
+
+    // 1. Ouvir atualizações de link fixado (broadcast do servidor)
+    const handlePinnedUpdate = (pinned: ChatMessage | null) => {
+      if (isLiveChatDebug()) console.log('📌 LiveChat: Link fixado atualizado via Socket.io:', pinned?.id);
+      setCurrentPinnedLink(pinned);
+    };
+
+    // 2. Ouvir resposta do link fixado inicial (carregado ao entrar na sala)
+    const handlePinnedActive = (pinned: ChatMessage | null) => {
+      if (isLiveChatDebug()) console.log('📌 LiveChat: Link fixado inicial recebido do Socket.io:', pinned?.id);
+      setCurrentPinnedLink(pinned);
+    };
+
+    socketOn('pinned-link-updated', handlePinnedUpdate);
+    socketOn('pinned-link-active', handlePinnedActive);
+
+    // 3. Solicitar link fixado atual ao conectar
+    socketEmit('chat-get-pinned-link', { streamId });
+
+    return () => {
+      socketOff('pinned-link-updated', handlePinnedUpdate);
+      socketOff('pinned-link-active', handlePinnedActive);
+    };
+  }, [socketConnected, streamId]);
 
   // Função para carregar contadores de limites VIP
   const loadVipLimits = async () => {
@@ -272,31 +311,22 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
         sessionStorage.setItem('session_id', sessionId);
       }
 
-      const { data, error } = await supabase.rpc('toggle_message_like', {
-        p_message_id: messageId,
-        p_user_id: user?.id || null,
-        p_session_id: user?.id ? null : sessionId
+      // ✅ Unificar: Emitir via Socket.io para sincronização instantânea
+      socketEmit('like-message', {
+        messageId,
+        userId: user?.id || null,
+        sessionId: user?.id ? null : sessionId,
+        streamId
       });
 
-      if (error) throw error;
-
-      if (data && data.success) {
-        // Atualizar estado local
-        const newLikedMessages = new Set(likedMessages);
-        if (data.liked) {
-          newLikedMessages.add(messageId);
-        } else {
-          newLikedMessages.delete(messageId);
-        }
-        setLikedMessages(newLikedMessages);
-
-        // Atualizar contador na mensagem
-        setMessages(prev => prev.map(msg =>
-          msg.id === messageId
-            ? { ...msg, likes_count: data.likes_count || 0 }
-            : msg
-        ));
+      // Atualização otimista do estado local
+      const newLikedMessages = new Set(likedMessages);
+      if (likedMessages.has(messageId)) {
+        newLikedMessages.delete(messageId);
+      } else {
+        newLikedMessages.add(messageId);
       }
+      setLikedMessages(newLikedMessages);
     } catch (error: any) {
       console.error('Erro ao curtir mensagem:', error);
       toast.error('Erro ao curtir mensagem');
@@ -499,8 +529,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
         }
       }
     }
-    // ✅ CORREÇÃO: Usar apenas dependências estáveis, socketMessages.length em vez de socketMessages
-  }, [socketMessages.length, messages.length, isVip, user?.id, userRoles, loadUserRoles, loadVipLimits]);
+  }, [socketMessages, isVip, user?.id, userRoles, loadUserRoles, loadVipLimits]);
 
   // Funções para validar conteúdo
   const containsPhoneNumber = (text: string): boolean => {
@@ -726,10 +755,10 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
       }
 
       // Enviar via Socket.io com tipo TTS (backend vai salvar no Supabase com message_type='tts')
-      socketSendMessage(msg, { 
+      socketSendMessage(msg, {
         messageType: 'tts',
-        tts_text: msg,
-        audio_duration: estimatedDuration
+        ttsText: msg,
+        audioDuration: estimatedDuration
       });
 
       // Atualizar contador de áudios restantes
@@ -878,23 +907,23 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
     }
 
     try {
-      if (isLiveChatDebug()) console.log('📌 LiveChat: Fixando link via Socket.io:', validLink);
+      if (isLiveChatDebug()) console.log('📌 LiveChat: Solicitando fixação de link via Socket.io:', validLink);
 
+      // ✅ Unificar: Emitir via Socket.io e deixar o backend lidar com a persistência e broadcast
       socketEmit('chat-pin-link', {
         streamId,
         userId: user?.id,
-        message: linkMessage.trim() || 'Link compartilhado',
+        message: linkMessage.trim() || 'Link importante fixado',
         pinned_link: validLink,
-        userName: (currentUser?.name || user?.email?.split('@')[0] || 'Admin').split(' ')[0],
+        userName: (user as any)?.name || user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Admin',
         userEmail: user?.email
       });
 
       setShowPinLinkModal(false);
       setLinkToPin('');
       setLinkMessage('');
-      // Sucesso será confirmado pelo evento pinned-link-updated (se houver listener) ou pelo toast de feedback do socket
       toast.success('Solicitação de fixação enviada');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao fixar link:', err);
       toast.error('Erro ao fixar link');
     }
@@ -903,10 +932,10 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
   const handleUnpinLink = async () => {
     if (!confirm('Desfixar este link?')) return;
     try {
-      if (isLiveChatDebug()) console.log('📌 LiveChat: Desfixando link via Socket.io');
+      if (isLiveChatDebug()) console.log('📌 LiveChat: Solicitando desfixação de link via Socket.io');
       socketEmit('chat-unpin-link', { streamId });
       toast.success('Solicitação de desfixação enviada');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao desfixar link:', err);
       toast.error('Erro ao desfixar link');
     }
@@ -983,6 +1012,14 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
           </div>
         </div>
       )}
+      <div className="px-4 py-2 border-b border-white/5 bg-slate-900/50">
+        <PinnedLinkOverlay
+          streamId={streamId}
+          canUnpin={isAdmin || isModerator}
+          pinnedLink={currentPinnedLink}
+        />
+      </div>
+
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
         {messages.filter(msg => !msg.is_pinned).map((msg) => {
           const styles = getMessageStyles(msg);

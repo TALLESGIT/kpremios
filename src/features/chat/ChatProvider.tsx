@@ -17,6 +17,8 @@ interface ChatContextValue {
     audioDuration?: number;
   }) => void;
   emit: (streamId: string, event: string, data: any) => void;
+  on: (event: string, callback: (data: any) => void) => void;
+  off: (event: string, callback: (data: any) => void) => void;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -67,7 +69,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
   // Função para obter sessão de chat
   const getChatSession = (streamId: string): ChatSessionStore | null => {
     if (!streamId) return null;
-    
+
     // Inicializar se ainda não foi
     if (!activeStoresRef.current.has(streamId)) {
       initializeStore(streamId);
@@ -121,7 +123,9 @@ export function ChatProvider({ children }: ChatProviderProps) {
   const value: ChatContextValue = {
     getChatSession,
     sendMessage,
-    emit
+    emit,
+    on: socket.on,
+    off: socket.off
   };
 
   return (

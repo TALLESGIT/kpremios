@@ -42,6 +42,8 @@ export interface UseSocketChatReturn {
   emit: (event: string, data: any) => void;
   onMessageUpdate: (callback: (data: any) => void) => void;
   onMessageDelete: (callback: (data: any) => void) => void;
+  on: (event: string, callback: (...args: any[]) => void) => void;
+  off: (event: string, callback: (...args: any[]) => void) => void;
 }
 
 interface MessageOptions {
@@ -167,6 +169,8 @@ export const useSocketChat = (options: UseSocketChatOptions): UseSocketChatRetur
     deleteMessage,
     emit,
     onMessageUpdate,
-    onMessageDelete
+    onMessageDelete,
+    on,
+    off
   };
 };

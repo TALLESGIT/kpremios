@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Users, MessageSquare, Eye, TrendingUp, Clock, Copy, Share2, Crown, Sparkles } from 'lucide-react';
 import { useSocket } from '../../hooks/useSocket';
@@ -26,7 +26,7 @@ interface RecentVip {
 }
 
 const isLiveDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
-const liveDebug = (...args: unknown[]) => { if (isLiveDebug()) console.log('[AdminLivePanel]', ...args); };
+
 
 const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, isActive }) => {
   const [stats, setStats] = useState<StreamStats>({
@@ -42,7 +42,7 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
   const [isSimulatingVip, setIsSimulatingVip] = useState(false);
 
   // ✅ Socket.io para atualizações em tempo real
-  const { socket, isConnected, on, off } = useSocket({
+  const { socket, isConnected, on, off, emit } = useSocket({
     streamId: streamId,
     autoConnect: !!streamId && isActive
   });
@@ -97,9 +97,18 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
   const loadStats = async () => {
     if (!streamId) return;
     try {
-      const { data, error } = await supabase.rpc('get_stream_analytics', { p_stream_id: streamId });
+      const { data, error } = await supabase.rpc('get_stream_statistics', { p_stream_id: streamId });
       if (error) throw error;
-      if (data) setStats(data);
+      if (data && data.length > 0) {
+        const statsData = data[0];
+        setStats(prev => ({
+          ...prev,
+          totalViewers: Number(statsData.total_viewers) || 0,
+          activeViewers: Number(statsData.active_viewers) || 0,
+          avgWatchTime: Number(statsData.avg_watch_time) || 0,
+          uniqueSessions: Number(statsData.unique_sessions) || 0,
+        }));
+      }
     } catch (err) {
       console.error('Erro ao carregar estatísticas:', err);
     }
@@ -126,13 +135,22 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
     setIsSimulatingVip(true);
     try {
       const names = ['Anderson', 'Gabriel', 'Ricardo', 'Talles', 'Marcos', 'Fernando'];
-      const randomName = names[Math.floor(Math.random() * names.length)] + ' (Teste)';
+      const randomName = names[Math.floor(Math.random() * names.length)];
+
+      // Emitir via Socket.io para broadcast imediato para todos
+      emit('chat-vip-alert', {
+        streamId,
+        user_name: randomName,
+        id: crypto.randomUUID?.() || Math.random().toString(36).substring(2)
+      });
 
       const { error } = await supabase
         .from('vip_alerts')
         .insert([{ user_name: randomName, stream_id: streamId }]);
 
-      if (error) throw error;
+      if (error) {
+        if (isLiveDebug()) console.warn('AdminLivePanel: Erro ao salvar VIP no Supabase, mas emitido via Socket:', error);
+      }
       toast.success(`Simulando VIP: ${randomName}`);
     } catch (err) {
       toast.error('Erro ao simular VIP');
@@ -182,7 +200,7 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
               className="flex-1 sm:flex-none px-6 py-4 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-black font-black text-xs uppercase rounded-2xl transition-all flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(234,179,8,0.3)] disabled:opacity-50 active:scale-95"
             >
               <Crown className={`w-4 h-4 ${isSimulatingVip ? 'animate-bounce' : ''}`} />
-              Simular VIP
+              LANÇAR VIP 💎
             </button>
             <button
               onClick={copyToClipboard}
@@ -260,34 +278,39 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
 
         {/* Lado Direito: VIPs Recentes */}
         <div className="glass-panel rounded-[2rem] border border-yellow-500/10 bg-yellow-500/5 flex flex-col overflow-hidden">
-          <div className="p-6 border-b border-yellow-500/10 flex items-center justify-between">
+          <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-3">
               <Crown className="w-5 h-5 text-yellow-500" />
               <h3 className="text-xs font-black text-yellow-500 uppercase tracking-widest">VIPs Recentes</h3>
             </div>
-            <Sparkles className="w-4 h-4 text-yellow-500/40 animate-pulse" />
+            <div className="flex items-center gap-2 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20">
+              <span className="text-[10px] font-black text-yellow-500 uppercase tracking-wider italic">Total</span>
+              <span className="text-xs font-black text-white">{recentVips.length}</span>
+            </div>
           </div>
-          <div className="flex-1 p-4 space-y-3">
+          <div className="flex-1 p-4 max-h-[300px] overflow-y-auto custom-scrollbar">
             <AnimatePresence initial={false}>
               {recentVips.length > 0 ? (
-                recentVips.map((vip) => (
-                  <motion.div
-                    key={vip.id}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl flex items-center justify-between group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-yellow-500 flex items-center justify-center text-black font-black text-xs">
-                        {vip.user_name.charAt(0)}
+                <div className="space-y-3">
+                  {recentVips.map((vip) => (
+                    <motion.div
+                      key={vip.id}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl flex items-center justify-between group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-yellow-500 flex items-center justify-center text-black font-black text-xs">
+                          {vip.user_name.charAt(0)}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-black text-white italic uppercase">{vip.user_name}</span>
+                          <span className="text-[9px] text-yellow-500/60 font-bold uppercase tracking-wider">Novo Assinante 💎</span>
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-black text-white italic uppercase">{vip.user_name}</span>
-                        <span className="text-[9px] text-yellow-500/60 font-bold uppercase tracking-wider">Novo Assinante 💎</span>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))
+                    </motion.div>
+                  ))}
+                </div>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-center opacity-30 p-8">
                   <Crown className="w-10 h-10 mb-4" />

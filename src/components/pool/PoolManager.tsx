@@ -343,6 +343,30 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
         }
       }
 
+      // Finalizar automaticamente o jogo principal vinculado a esta stream (se houver)
+      try {
+        const { data: activeGames } = await supabase
+          .from('live_games')
+          .select('id')
+          .eq('status', 'active')
+          .eq('stream_id', streamId)
+          .limit(1);
+
+        if (activeGames && activeGames.length > 0) {
+          await supabase
+            .from('live_games')
+            .update({
+              status: 'finished',
+              finished_at: new Date().toISOString()
+            })
+            .eq('id', activeGames[0].id);
+
+          toast.success('Jogo principal finalizado automaticamente! 🏁');
+        }
+      } catch (gameErr) {
+        console.error('Erro ao finalizar jogo principal:', gameErr);
+      }
+
       await loadPool();
 
       // Enviar notificações via Edge Function (Push + Winners)
@@ -475,14 +499,28 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
               )}
             </div>
 
-            {pool.result_home_score === null && (
-              <button
-                onClick={() => setShowResultModal(true)}
-                className="w-full px-6 py-3 bg-yellow-600 hover:bg-yellow-500 text-white font-black rounded-xl uppercase text-xs"
-              >
-                Definir Resultado
-              </button>
-            )}
+            <div className="flex gap-3 mt-4">
+              {pool.result_home_score === null && (
+                <button
+                  onClick={() => setShowResultModal(true)}
+                  className="flex-1 px-6 py-3 bg-yellow-600 hover:bg-yellow-500 text-white font-black rounded-xl uppercase text-xs"
+                >
+                  Definir Resultado
+                </button>
+              )}
+
+              {(pool.result_home_score !== null) && (
+                <button
+                  onClick={() => {
+                    setPool(null);
+                    setShowCreateModal(true);
+                  }}
+                  className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl uppercase text-xs animate-pulse shadow-[0_0_15px_rgba(37,99,235,0.4)]"
+                >
+                  Criar Próximo Bolão
+                </button>
+              )}
+            </div>
           </>
         )}
       </div>

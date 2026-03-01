@@ -1505,6 +1505,15 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Alerts de VIP - Broadcast para todos
+  socket.on('chat-vip-alert', (data) => {
+    const { streamId } = data;
+    if (streamId) {
+      console.log(`✨ Backend: Alerta VIP recebido para stream ${streamId}`);
+      io.to(`stream:${streamId}`).emit('chat-vip-alert', data);
+    }
+  });
+
   // Desconexão
   socket.on('disconnect', (reason) => {
     console.log(`❌ Viewer desconectado: ${socket.id}, motivo: ${reason}`);

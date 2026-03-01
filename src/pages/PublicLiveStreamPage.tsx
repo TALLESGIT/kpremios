@@ -457,7 +457,7 @@ const PublicLiveStreamPage: React.FC = () => {
                         showPerf={showPerf}
                       />
                       <VipMessageOverlay streamId={stream.id} isActive={stream.is_active} />
-                      <VipAlertOverlay />
+                      <VipAlertOverlay streamId={stream.id} />
                     </>
                   ) : (
                     <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center z-30">

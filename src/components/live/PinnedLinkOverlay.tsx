@@ -11,12 +11,28 @@ interface PinnedLinkMessage {
 interface PinnedLinkOverlayProps {
   streamId: string;
   canUnpin?: boolean;
+  pinnedLink?: any | null;
 }
 
 const isPinnedDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
 
-const PinnedLinkOverlay: React.FC<PinnedLinkOverlayProps> = ({ streamId, canUnpin = false }) => {
+const PinnedLinkOverlay: React.FC<PinnedLinkOverlayProps> = ({ streamId, canUnpin = false, pinnedLink }) => {
   const [pinned, setPinned] = useState<PinnedLinkMessage | null>(null);
+
+  // ✅ Atualizar estado interno se a prop mudar (Sync de fora)
+  useEffect(() => {
+    if (pinnedLink !== undefined) {
+      if (pinnedLink && pinnedLink.is_pinned && pinnedLink.pinned_link) {
+        setPinned({
+          id: pinnedLink.id,
+          message: pinnedLink.message,
+          pinned_link: pinnedLink.pinned_link,
+        });
+      } else {
+        setPinned(null);
+      }
+    }
+  }, [pinnedLink]);
 
   const { isConnected, emit, on, off } = useSocket({
     streamId,

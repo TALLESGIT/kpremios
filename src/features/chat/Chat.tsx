@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { useChatSession, useChat } from './ChatProvider';
 import type { ChatMessage } from '../../hooks/useSocketChat';
+import PinnedLinkOverlay from '../../components/live/PinnedLinkOverlay';
 
 interface ChatProps {
   streamId: string;
@@ -79,6 +80,7 @@ export function Chat({ streamId, isActive = true, className, showHeader = true }
   const [audioCountRemaining, setAudioCountRemaining] = useState<number>(3);
   const [vipOverlayCountRemaining, setVipOverlayCountRemaining] = useState<number>(10);
   const [likedMessages, setLikedMessages] = useState<Set<string>>(new Set());
+  const [currentPinnedLink, setCurrentPinnedLink] = useState<any | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -164,6 +166,22 @@ export function Chat({ streamId, isActive = true, className, showHeader = true }
       loadUserLikes(messages.map(m => m.id));
     }
   }, [messages.length]);
+
+  // ✅ Sincronizar Link Fixado via Socket.io
+  useEffect(() => {
+    if (!connected || !streamId) return;
+
+    const handlePinnedLink = (data: any) => {
+      console.log('📌 Chat: Link fixado recebido/atualizado:', data?.id);
+      setCurrentPinnedLink(data);
+    };
+
+    // Registrar ouvintes
+    emit('chat-get-pinned-link', { streamId });
+    // Nota: O useChatSession expõe o socket via ChatProvider se necessário, 
+    // mas aqui vamos usar o padrão de emit direto.
+    // Como o PinnedLinkOverlay também tem seu próprio socket, isso é redundante mas garante o estado local.
+  }, [connected, streamId, emit]);
 
   // Scroll automático
   useEffect(() => {
@@ -385,12 +403,12 @@ export function Chat({ streamId, isActive = true, className, showHeader = true }
 
   const getMessageStyles = (msg: ChatMessage) => {
     const hasLink = containsLink(msg.message);
-    
+
     // ✅ NOVO: Primeiro verificar dados da própria mensagem (vêm do backend em tempo real)
     // Fallback para userRoles (para mensagens antigas carregadas do banco)
     const msgData = msg as any; // Type cast para acessar is_vip, is_admin
     const roles = userRoles[msg.user_id || ''] || { isAdmin: false, isVip: false, isModerator: false };
-    
+
     // Priorizar dados da mensagem, depois fallback para userRoles
     const isUserAdmin = msgData.is_admin === true || roles.isAdmin;
     const isUserVip = msgData.is_vip === true || roles.isVip;
@@ -727,6 +745,14 @@ export function Chat({ streamId, isActive = true, className, showHeader = true }
           </div>
         </div>
       )}
+      <div className="px-4 py-2 border-b border-white/5 bg-slate-900/50">
+        <PinnedLinkOverlay
+          streamId={streamId}
+          canUnpin={isAdmin || isModerator}
+          pinnedLink={currentPinnedLink}
+        />
+      </div>
+
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
         {messages.filter(msg => !msg.is_pinned).map((msg) => {
           const styles = getMessageStyles(msg);

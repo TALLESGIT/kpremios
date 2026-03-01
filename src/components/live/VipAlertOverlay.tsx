@@ -2,33 +2,44 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Sparkles, Star } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useSocket } from '../../hooks/useSocket';
 
 interface VipAlert {
   id: string;
   user_name: string;
 }
 
-const VipAlertOverlay: React.FC = () => {
+interface VipAlertOverlayProps {
+  streamId: string | undefined;
+}
+
+const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId }) => {
   const [alerts, setAlerts] = useState<VipAlert[]>([]);
+  const { isConnected, on, off } = useSocket({
+    streamId: streamId || '',
+    autoConnect: !!streamId
+  });
 
   useEffect(() => {
-    // Escutar novos alertas na tabela vip_alerts
+    if (!streamId) return;
+
+    // Escutar novos alertas na tabela vip_alerts filtrando por stream_id
     const channel = supabase
-      .channel('vip-alerts-realtime')
+      .channel(`vip-alerts-${streamId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'vip_alerts'
+          table: 'vip_alerts',
+          filter: `stream_id=eq.${streamId}`
         },
         (payload) => {
           const newAlert = payload.new as VipAlert;
-
           // Adicionar novo alerta à fila
           setAlerts((prev) => [...prev, newAlert]);
 
-          // Remover o alerta após 6 segundos (reduzido de 8 para ser mais dinâmico)
+          // Remover o alerta após 6 segundos
           setTimeout(() => {
             setAlerts((prev) => prev.filter((a) => a.id !== newAlert.id));
           }, 6000);
@@ -39,7 +50,34 @@ const VipAlertOverlay: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [streamId]);
+
+  // ✅ Socket.io VIP Alerts
+  useEffect(() => {
+    if (!isConnected || !streamId) return;
+
+    const handleVipAlert = (data: any) => {
+      console.log('💎 VipAlertOverlay: Alerta VIP recebido via socket:', data);
+      const newAlert: VipAlert = {
+        id: data.id || Math.random().toString(36).substring(2),
+        user_name: data.user_name || data.userName || 'Doador'
+      };
+
+      setAlerts((prev) => [...prev, newAlert]);
+
+      setTimeout(() => {
+        setAlerts((prev) => prev.filter((a) => a.id !== newAlert.id));
+      }, 6000);
+    };
+
+    on('vip-alert-received', handleVipAlert);
+    on('chat-vip-alert', handleVipAlert); // Fallback for direct broadcast
+
+    return () => {
+      off('vip-alert-received', handleVipAlert);
+      off('chat-vip-alert', handleVipAlert);
+    };
+  }, [isConnected, streamId, on, off]);
 
   return (
     <div className="absolute inset-x-0 bottom-24 sm:bottom-10 z-[100] flex flex-col items-start pointer-events-none px-4 overflow-hidden">
