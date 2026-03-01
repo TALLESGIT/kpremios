@@ -295,4 +295,69 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(59, 130, 246, 0.5);
   }
+
+  /* --- SMART TV PREMIUM ADAPTATION --- */
+body.tv-mode {
+  font-size: 1.25rem;
+  background-color: #0b1120; /* Deep blue professional background */
+  overflow: hidden; /* Prevent scrollbars on TV unless manual */
+}
+
+body.tv-mode .text-sm { font-size: 1rem; }
+body.tv-mode .text-xs { font-size: 0.875rem; }
+body.tv-mode .text-2xl { font-size: 2.5rem; }
+body.tv-mode .text-3xl { font-size: 3.5rem; }
+
+/* Premium TV Focus Ring */
+.tv-focusable {
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+  border-radius: inherit;
+  outline: none !important;
+}
+
+.tv-focusable.focused {
+  transform: scale(1.05);
+  z-index: 50;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5), 
+              0 0 30px rgba(59, 130, 246, 0.3),
+              0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.tv-focusable.focused::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  animation: tv-focus-pulse 2s infinite;
+  pointer-events: none;
+}
+
+@keyframes tv-focus-pulse {
+  0% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 0.5; transform: scale(1); }
+}
+
+/* Glassmorphism for TV Panels */
+body.tv-mode .glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Optimized Spacing for 10ft Experience */
+body.tv-mode main {
+  padding: 4rem 2rem;
+}
+
+body.tv-mode .gap-8 { gap: 3rem; }
+body.tv-mode .mb-12 { margin-bottom: 5rem; }
+
+/* Interactive feedback on Enter */
+.tv-focusable:active {
+  transform: scale(0.98);
+  transition: all 0.1s ease;
+}
 }

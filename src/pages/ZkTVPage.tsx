@@ -35,8 +35,10 @@ import PoolBetModal from '../components/pool/PoolBetModal';
 import { CastButton } from '../components/CastButton';
 import TeamLogo from '../components/TeamLogo';
 import VipAlertOverlay from '../components/live/VipAlertOverlay';
+import ViewerCountDisplay from '../components/live/ViewerCountDisplay';
 import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding, YouTubeClip } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { useRegisterStreamId } from '../features/chat/useRegisterStreamId';
 import { getTeamColors } from '../utils/teamLogos';
 import toast from 'react-hot-toast';
@@ -62,7 +64,13 @@ const isZkTVDebug = () => (import.meta as any).env?.DEV === true || (import.meta
 
 const ZkTVPage: React.FC = () => {
     const { user } = useAuth();
+    const { currentUser } = useData();
     const [searchParams] = useSearchParams();
+
+    // Verificar se o usuário está logado
+    const isLoggedIn = !!(user && currentUser);
+    // Verificar se é admin
+    const isAdmin = currentUser?.is_admin || false;
 
     // Estados principais
     const [settings, setSettings] = useState<CruzeiroSettings | null>(null);
@@ -1041,7 +1049,19 @@ const ZkTVPage: React.FC = () => {
                                         {activeStream.id && (
                                             <>
                                                 <VipMessageOverlay streamId={activeStream.id} isActive={activeStream.is_active} />
-                                                <VipAlertOverlay />
+                                                {/* VIP Overlay */}
+                                                {isLiveActive && (isFullscreen || (isMobile && !isFullscreen)) && (
+                                                    <div className={`absolute ${isMobile ? 'bottom-20 left-4' : 'top-4 left-4'} z-20`}>
+                                                        <ViewerCountDisplay
+                                                            count={currentViewerCount}
+                                                            isActive={isLiveActive}
+                                                        />
+                                                    </div>
+                                                )}
+                                                <VipAlertOverlay
+                                                    streamId={activeStream?.id}
+                                                    isAdmin={isAdmin}
+                                                />
                                             </>
                                         )}
                                     </>
@@ -1117,8 +1137,8 @@ const ZkTVPage: React.FC = () => {
                                                         <div className="flex items-center justify-between mb-6 sm:mb-8 gap-4">
                                                             <div className="flex items-center gap-2">
                                                                 <span className={`px-3 py-1 rounded-full text-white text-[10px] font-black uppercase tracking-widest shadow-lg ${nextGame.status === 'live' ? 'bg-red-500 shadow-red-500/20' :
-                                                                        nextGame.status === 'finished' ? 'bg-emerald-500 shadow-emerald-500/20' :
-                                                                            'bg-blue-500 shadow-blue-500/20'
+                                                                    nextGame.status === 'finished' ? 'bg-emerald-500 shadow-emerald-500/20' :
+                                                                        'bg-blue-500 shadow-blue-500/20'
                                                                     }`}>
                                                                     {nextGame.status === 'live' ? 'Ao Vivo' :
                                                                         nextGame.status === 'finished' ? 'Partida Finalizada' :
@@ -1182,22 +1202,8 @@ const ZkTVPage: React.FC = () => {
                                     )
                                 )}
 
-                                {/* Status e Viewer Count (Apenas Fullscreen Desktop - NÃO mostrar no mobile) */}
-                                {isLiveActive && isFullscreen && !isMobile && (
-                                    <div className="absolute top-4 left-4 z-20">
-                                        <div className="px-6 py-3 bg-slate-800/80 backdrop-blur-md rounded-2xl border border-white/10 flex items-center gap-4">
-                                            <div className="flex items-center gap-2">
-                                                <Eye className="w-4 h-4 text-slate-400" />
-                                                <span className="text-white font-black">
-                                                    {activeStream?.is_active
-                                                        ? (currentViewerCount || activeStream?.viewer_count || 0)
-                                                        : 0
-                                                    }
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
+                                {/* Status e Viewer Count removidos daqui pois agora estão unificados no player overlay acima */}
+
 
 
                                 {/* Desktop Fullscreen - Sidebar Lateral (Chat + Enquete) - Estilo CazéTV */}

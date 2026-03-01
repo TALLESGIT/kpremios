@@ -8,6 +8,9 @@ import { toBlob } from 'html-to-image';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { getTeamLogo, getTeamInitials } from '../../utils/teamLogos';
+import { useTVNavigation } from '../../hooks/useTVNavigation';
+import { TVFocusable } from '../shared/TVFocusable';
+import { useCallback } from 'react';
 
 type FormationKey = '4-3-3' | '4-4-2' | '3-5-2' | '4-2-3-1' | '5-3-2';
 
@@ -109,6 +112,71 @@ const ModernPitchView: React.FC = () => {
   const [filterPos, setFilterPos] = useState<string | null>(null);
 
   const isTeamComplete = Object.values(selectedPlayers).filter(p => p !== null).length === 11;
+
+  // --- TV NAVIGATION ---
+  const { isTVMode } = useTVNavigation();
+  const [focusedIndex, setFocusedIndex] = useState(0);
+
+  const getPitchNeighbor = useCallback((currentId: number, direction: 'up' | 'down' | 'left' | 'right') => {
+    const currentPos = FORMATIONS[formation].find(p => p.id === currentId);
+    if (!currentPos) return currentId;
+
+    const others = FORMATIONS[formation].filter(p => p.id !== currentId);
+    let candidates = others;
+
+    if (direction === 'up') candidates = others.filter(p => p.top < currentPos.top - 2);
+    if (direction === 'down') candidates = others.filter(p => p.top > currentPos.top + 2);
+    if (direction === 'left') candidates = others.filter(p => p.left < currentPos.left - 2);
+    if (direction === 'right') candidates = others.filter(p => p.left > currentPos.left + 2);
+
+    if (candidates.length === 0) return currentId;
+
+    // Find closest based on distance (weighting the primary axis of direction)
+    return candidates.reduce((prev, curr) => {
+      const distPrev = Math.hypot(curr.left - currentPos.left, curr.top - currentPos.top);
+      const distBest = Math.hypot(prev.left - currentPos.left, prev.top - currentPos.top);
+      return distPrev < distBest ? curr : prev;
+    }).id;
+  }, [formation]);
+
+  useEffect(() => {
+    if (!isTVMode) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // If modal is open, navigation is different (handled later or ignored for now)
+      if (activeSlot !== null) return;
+
+      if (e.key === 'ArrowDown') {
+        if (focusedIndex < 3) setFocusedIndex(10 + FORMATIONS[formation].reduce((prev, curr) => curr.top < prev.top ? curr : prev).id);
+        else if (focusedIndex >= 10 && focusedIndex <= 20) {
+          const nextId = getPitchNeighbor(focusedIndex - 10, 'down');
+          if (nextId === focusedIndex - 10) return; // Stay
+          setFocusedIndex(10 + nextId);
+        }
+      } else if (e.key === 'ArrowUp') {
+        if (focusedIndex >= 10 && focusedIndex <= 20) {
+          const nextId = getPitchNeighbor(focusedIndex - 10, 'up');
+          if (nextId === (focusedIndex - 10)) setFocusedIndex(0); // Go back to header
+          else setFocusedIndex(10 + nextId);
+        }
+      } else if (e.key === 'ArrowLeft') {
+        if (focusedIndex >= 1 && focusedIndex <= 2) setFocusedIndex(focusedIndex - 1);
+        else if (focusedIndex >= 10 && focusedIndex <= 20) {
+          const nextId = getPitchNeighbor(focusedIndex - 10, 'left');
+          setFocusedIndex(10 + nextId);
+        }
+      } else if (e.key === 'ArrowRight') {
+        if (focusedIndex < 2) setFocusedIndex(focusedIndex + 1);
+        else if (focusedIndex >= 10 && focusedIndex <= 20) {
+          const nextId = getPitchNeighbor(focusedIndex - 10, 'right');
+          setFocusedIndex(10 + nextId);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isTVMode, focusedIndex, formation, activeSlot, getPitchNeighbor]);
 
   useEffect(() => {
     loadPlayers();
@@ -296,7 +364,7 @@ const ModernPitchView: React.FC = () => {
     <div className="flex flex-col gap-6 w-full max-w-md mx-auto items-center justify-center">
       {/* Controles de Topo */}
       <div className="grid grid-cols-2 sm:flex sm:flex-nowrap items-center justify-center gap-2 w-full px-2">
-        <div className="relative col-span-2 sm:col-span-1 border-2 border-white/20 rounded-lg overflow-hidden">
+        <TVFocusable isFocused={isTVMode && focusedIndex === 0} className="col-span-2 sm:col-span-1 border-2 border-white/20 rounded-lg overflow-hidden">
           <select
             value={formation}
             onChange={(e) => setFormation(e.target.value as FormationKey)}
@@ -307,22 +375,19 @@ const ModernPitchView: React.FC = () => {
             ))}
           </select>
           <ChevronDown className="w-4 h-4 text-white absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-        </div>
+        </TVFocusable>
 
-        <button
-          onClick={() => setSelectedPlayers({})}
-          className="flex-1 px-3 py-2.5 bg-[#0055ff] text-white rounded-lg font-black text-[10px] uppercase shadow-xl active:scale-95 border-2 border-white/20 transition-all"
-        >
-          Limpar
-        </button>
+        <TVFocusable isFocused={isTVMode && focusedIndex === 1} onClick={() => setSelectedPlayers({})} className="flex-1">
+          <div className="px-3 py-2.5 bg-[#0055ff] text-white rounded-lg font-black text-[10px] uppercase shadow-xl border-2 border-white/20 transition-all text-center">
+            Limpar
+          </div>
+        </TVFocusable>
 
-        <button
-          onClick={handleShare}
-          disabled={sharing || !isTeamComplete}
-          className={`col-span-2 sm:flex-1 px-3 py-2.5 bg-[#0055ff] text-white rounded-lg font-black text-[10px] uppercase shadow-xl active:scale-95 border-2 border-white/20 transition-all ${(!isTeamComplete && !sharing) ? 'opacity-30 cursor-not-allowed grayscale' : 'opacity-100'}`}
-        >
-          {sharing ? 'Gerando...' : isTeamComplete ? 'Compartilhar' : 'Escalar 11 para Compartilhar'}
-        </button>
+        <TVFocusable isFocused={isTVMode && focusedIndex === 2} onClick={handleShare} disabled={sharing || !isTeamComplete} className="col-span-2 sm:flex-1">
+          <div className={`px-3 py-2.5 bg-[#0055ff] text-white rounded-lg font-black text-[10px] uppercase shadow-xl border-2 border-white/20 transition-all text-center ${(!isTeamComplete && !sharing) ? 'opacity-30 grayscale' : 'opacity-100'}`}>
+            {sharing ? 'Gerando...' : isTeamComplete ? 'Compartilhar' : 'Escalar 11 para Compartilhar'}
+          </div>
+        </TVFocusable>
       </div>
 
       {/* CONTAINER DO CAMPO (O que sai na foto) */}
@@ -463,65 +528,69 @@ const ModernPitchView: React.FC = () => {
             const player = selectedPlayers[pos.id];
 
             return (
-              <motion.button
+              <TVFocusable
                 key={`${formation}-${pos.id}`}
-                initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: 1, scale: 1 }}
+                isFocused={isTVMode && focusedIndex === 10 + pos.id}
                 onClick={() => {
                   setActiveSlot(pos.id);
                   setFilterPos(pos.role);
                 }}
+                className="absolute -translate-x-1/2 -translate-y-1/2 z-20"
                 style={{
                   top: `${pos.top}%`,
                   left: `${pos.left}%`,
                 }}
-                // A CLASSE MÁGICA QUE CENTRALIZA: -translate-x-1/2 -translate-y-1/2
-                className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-20 group player-slot-container"
               >
-                {/* Player Circle Slot */}
-                <div className={`
-                  relative w-10 h-10 sm:w-14 sm:h-14 rounded-full border-2 sm:border-[3px] transition-all duration-300
-                  ${player
-                    ? 'border-white bg-white shadow-2xl'
-                    : 'border-white/50 bg-white/20 hover:bg-white/40'
-                  }
-                  flex items-center justify-center overflow-hidden
-                `}>
-                  {player ? (
-                    <img
-                      src={player.photo_url || ''}
-                      alt={player.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://ui-avatars.com/api/?name=ZK&background=0055ff&color=fff';
-                      }}
-                    />
-                  ) : (
-                    <img
-                      src={POSITION_ICONS[pos.role]}
-                      alt="Adicionar jogador"
-                      className="w-full h-full object-contain opacity-40 group-hover:opacity-100 transition-opacity"
-                    />
-                  )}
-                </div>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex flex-col items-center group player-slot-container"
+                >
+                  {/* Player Circle Slot */}
+                  <div className={`
+                    relative w-10 h-10 sm:w-14 sm:h-14 rounded-full border-2 sm:border-[3px] transition-all duration-300
+                    ${player
+                      ? 'border-white bg-white shadow-2xl'
+                      : 'border-white/50 bg-white/20 hover:bg-white/40'
+                    }
+                    flex items-center justify-center overflow-hidden
+                  `}>
+                    {player ? (
+                      <img
+                        src={player.photo_url || ''}
+                        alt={player.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://ui-avatars.com/api/?name=ZK&background=0055ff&color=fff';
+                        }}
+                      />
+                    ) : (
+                      <img
+                        src={POSITION_ICONS[pos.role]}
+                        alt="Adicionar jogador"
+                        className="w-full h-full object-contain opacity-40 group-hover:opacity-100 transition-opacity"
+                      />
+                    )}
+                  </div>
 
-                <div className={`
-                  mt-1 w-[70px] h-[20px] rounded-lg shadow-xl border player-label
-                  ${player ? 'bg-white border-blue-600' : 'bg-blue-900/60 border-white/20'}
-                `} style={{ display: 'block', textAlign: 'center' }}>
-                  <span className={`texto-jogador font-black uppercase tracking-tighter italic block
-                    ${player ? 'text-blue-700' : 'text-white/80'}
-                  `} style={{
-                      display: 'block',
-                      fontSize: '9px',
-                      lineHeight: '20px', // O mesmo tamanho da div para centralizar no print
-                      height: '20px',
-                      margin: '0 auto'
-                    }}>
-                    {player ? player.name : pos.role}
-                  </span>
-                </div>
-              </motion.button>
+                  <div className={`
+                    mt-1 w-[70px] h-[20px] rounded-lg shadow-xl border player-label
+                    ${player ? 'bg-white border-blue-600' : 'bg-blue-900/60 border-white/20'}
+                  `} style={{ display: 'block', textAlign: 'center' }}>
+                    <span className={`texto-jogador font-black uppercase tracking-tighter italic block
+                      ${player ? 'text-blue-700' : 'text-white/80'}
+                    `} style={{
+                        display: 'block',
+                        fontSize: '9px',
+                        lineHeight: '20px', // O mesmo tamanho da div para centralizar no print
+                        height: '20px',
+                        margin: '0 auto'
+                      }}>
+                      {player ? player.name : pos.role}
+                    </span>
+                  </div>
+                </motion.div>
+              </TVFocusable>
             );
           })}
         </div>

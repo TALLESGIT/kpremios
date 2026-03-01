@@ -147,9 +147,12 @@ function GlobalChatAndPollOverlay() {
   );
 }
 
+import { useTVNavigation } from './hooks/useTVNavigation';
+
 function AppContentInner() {
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = React.useState(true);
+  const { isTVMode } = useTVNavigation();
   const navigate = useNavigate();
   const location = useLocation();
 

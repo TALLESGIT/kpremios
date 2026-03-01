@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useLiveStatus } from '../hooks/useLiveStatus';
 import { DEFAULT_LIVE_CHANNEL } from '../config/constants';
 import WhepPlayer from './WhepPlayer';
@@ -85,6 +86,8 @@ export function LiveViewer({
   const isActuallyLive = data.is_active;
   const effectiveStreamName = data.channel_name || DEFAULT_LIVE_CHANNEL || 'ZkOficial';
   const whepBaseUrl = (import.meta.env.VITE_WHEP_BASE_URL as string | undefined)?.trim();
+  const [fallbackToHls, setFallbackToHls] = useState(false);
+  const [fallbackToAgora, setFallbackToAgora] = useState(false);
 
   const renderContent = () => {
     // Live encerrada — overlay imediato (Realtime sincroniza com backend)
@@ -117,27 +120,37 @@ export function LiveViewer({
 
     // Prioridade: WebRTC (WHEP) se configurado → HLS se hls_url disponível → Agora (ZKViewer)
     // MediaMTX sempre recebe em live/ZkOficial (Stream Key do ZK Studio), independente do channel_name no DB
-    if (whepBaseUrl) {
+    if (whepBaseUrl && !fallbackToHls && !fallbackToAgora) {
       return (
         <WhepPlayer
-          channelName={DEFAULT_LIVE_CHANNEL}
+          channelName={effectiveStreamName}
           fitMode={fitMode}
           pathPrefix="live"
           isAdmin={isAdmin}
           expectLive={isActuallyLive}
+          onError={(err) => {
+            console.warn('⚠️ WHEP falhou, tentando fallback para HLS...', err);
+            setFallbackToHls(true);
+          }}
         />
       );
     }
-    if (data.hls_url) {
+
+    if (data.hls_url && !fallbackToAgora) {
       return (
         <HLSViewer
           hlsUrl={data.hls_url}
           fitMode={fitMode}
           className="w-full h-full"
           isAdmin={isAdmin}
+          onError={() => {
+            console.warn('⚠️ HLS falhou, tentando fallback para Agora...');
+            setFallbackToAgora(true);
+          }}
         />
       );
     }
+
     return (
       <ZKViewer
         channel={effectiveStreamName}

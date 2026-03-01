@@ -11,10 +11,16 @@ interface VipAlert {
 
 interface VipAlertOverlayProps {
   streamId: string | undefined;
+  isAdmin?: boolean;
 }
 
-const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId }) => {
+const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId, isAdmin = false }) => {
   const [alerts, setAlerts] = useState<VipAlert[]>([]);
+
+  if (isAdmin && streamId) {
+    console.log(`[VipAlertOverlay] Admin viewing stream: ${streamId}`);
+  }
+
   const { isConnected, on, off } = useSocket({
     streamId: streamId || '',
     autoConnect: !!streamId

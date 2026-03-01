@@ -9,6 +9,8 @@ interface HLSViewerProps {
   showPerf?: boolean;
   /** Admin NUNCA deve ouvir — evita eco (já escuta áudio local do ZK Studio) */
   isAdmin?: boolean;
+  /** Callback para notificar erro e permitir fallback */
+  onError?: (error: string) => void;
 }
 
 /**
@@ -16,7 +18,7 @@ interface HLSViewerProps {
  * Usa video HTML5 nativo que suporta HLS
  * Respeita políticas de autoplay - vídeo inicia mutado, áudio só após interação
  */
-export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initialInteracted = false, showPerf = false, isAdmin = false }: HLSViewerProps) {
+export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initialInteracted = false, showPerf = false, isAdmin = false, onError }: HLSViewerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [needsInteraction, setNeedsInteraction] = useState(true);
@@ -50,8 +52,11 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     video.src = hlsUrl;
     video.load();
 
-    const handleError = () => {};
-    const handleLoadStart = () => {};
+    const handleError = (e: any) => {
+      console.error('❌ HLSViewer: Erro no elemento de vídeo:', e);
+      if (onError) onError('Falha na reprodução nativa HLS');
+    };
+    const handleLoadStart = () => { };
     const handleCanPlay = async () => {
       setHasVideo(true);
       try {

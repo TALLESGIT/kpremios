@@ -45,6 +45,8 @@ interface WhepPlayerProps {
   isAdmin?: boolean;
   /** Quando true (live ativa no DB), retry mais agressivo para conectar assim que SRT subir */
   expectLive?: boolean;
+  /** Callback para notificar erro fatal e permitir fallback */
+  onError?: (error: string) => void;
 }
 
 // =============================================================================
@@ -92,6 +94,7 @@ function WhepPlayer({
   pathPrefix = 'live',
   isAdmin = false,
   expectLive = false,
+  onError,
 }: WhepPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -157,6 +160,7 @@ function WhepPlayer({
     async (isReconnect = false) => {
       if (!baseUrl) {
         setStatusSafe('error');
+        if (onError) onError('Base URL para WHEP não configurada.');
         return;
       }
 
@@ -237,6 +241,7 @@ function WhepPlayer({
           const attempt = reconnectAttemptRef.current;
           if (attempt >= CONFIG.MAX_RECONNECT_ATTEMPTS) {
             setStatusSafe('ended');
+            if (onError) onError('A transmissão foi encerrada ou não pôde ser recuperada.');
             cleanup();
             return;
           }
@@ -301,6 +306,7 @@ function WhepPlayer({
           if (wasLiveRef.current) {
             // Estava assistindo e o stream sumiu → ZK Studio encerrou (não usa Supabase)
             setStatusSafe('ended');
+            if (onError) onError('A transmissão foi encerrada.');
             cleanup();
             return;
           }
@@ -325,6 +331,7 @@ function WhepPlayer({
 
         if (!response.ok) {
           setStatusSafe('error');
+          if (onError) onError(response.statusText || 'Erro de conexão WHEP');
           cleanup();
           return;
         }

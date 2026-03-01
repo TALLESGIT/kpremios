@@ -10,7 +10,9 @@ const config: CapacitorConfig = {
       'bukigyhhgrtgryklabjg.supabase.co',
       'api.zkoficial.com.br',
       'stream.zkoficial.com.br',
-      '*.zkoficial.com.br'
+      '*.zkoficial.com.br',
+      'zk-live.com',
+      '*.zk-live.com'
     ]
   },
   plugins: {

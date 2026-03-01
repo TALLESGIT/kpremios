@@ -17,11 +17,15 @@ import { motion } from 'framer-motion';
 import SocialModal from '../components/SocialModal';
 import { getTeamColors } from '../utils/teamLogos';
 
+import { TVFocusable } from '../components/shared/TVFocusable';
+
 function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { currentUser, selectFreeNumber, numbers } = useData();
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const [isTVMode, setIsTVMode] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successNumber, setSuccessNumber] = useState<number | null>(null);
   const [hasActiveRaffle, setHasActiveRaffle] = useState(false);
@@ -68,6 +72,33 @@ function HomePage() {
       })
       .subscribe();
 
+    const poolChannel = supabase
+      .channel('home-pool-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'match_pools'
+      }, (payload) => {
+        if (!activeStreamId || !isConnected) {
+          checkActivePool();
+          checkActivePools();
+        }
+      })
+      .subscribe();
+
+    const poolBetsChannel = supabase
+      .channel('home-pool-bets-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'pool_bets'
+      }, () => {
+        if (!activeStreamId || !isConnected) {
+          loadPoolWinnersCount();
+        }
+      })
+      .subscribe();
+
     let poolUpdateHandler: ((data: any) => void) | null = null;
     let poolBetUpdateHandler: ((data: any) => void) | null = null;
 
@@ -97,33 +128,6 @@ function HomePage() {
       on('pool-bet-updated', poolBetUpdateHandler);
     }
 
-    const poolChannel = supabase
-      .channel('home-pool-updates')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'match_pools'
-      }, (payload) => {
-        if (!activeStreamId || !isConnected) {
-          checkActivePool();
-          checkActivePools();
-        }
-      })
-      .subscribe();
-
-    const poolBetsChannel = supabase
-      .channel('home-pool-bets-updates')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'pool_bets'
-      }, () => {
-        if (!activeStreamId || !isConnected) {
-          loadPoolWinnersCount();
-        }
-      })
-      .subscribe();
-
     return () => {
       supabase.removeChannel(liveChannel);
       supabase.removeChannel(poolChannel);
@@ -132,6 +136,29 @@ function HomePage() {
       if (poolBetUpdateHandler) off('pool-bet-updated', poolBetUpdateHandler);
     };
   }, [activeStreamId, isConnected]);
+
+  // Lógica de Navegação Smart TV (D-Pad)
+  useEffect(() => {
+    const handleTVKeyDown = (e: KeyboardEvent) => {
+      const tvKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'];
+      if (tvKeys.includes(e.key)) {
+        if (!isTVMode) {
+          setIsTVMode(true);
+          document.body.classList.add('tv-mode');
+        }
+
+        const maxIndex = 5; // Total de elementos focáveis na home: TV, Bolão, Bolão Ativo, Escalação, Hall da Fama, Clipes
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+          setFocusedIndex(prev => (prev < maxIndex ? prev + 1 : 0));
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+          setFocusedIndex(prev => (prev > 0 ? prev - 1 : maxIndex));
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleTVKeyDown);
+    return () => window.removeEventListener('keydown', handleTVKeyDown);
+  }, [isTVMode]);
 
   const checkActivePools = async () => {
     try {
@@ -473,20 +500,28 @@ function HomePage() {
                     +1.2k
                   </div>
                 </div>
-                <button
+                <TVFocusable
+                  isFocused={focusedIndex === 0}
                   onClick={() => navigate('/zk-tv')}
-                  className="bg-white text-blue-900 px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-blue-50 transition-colors shadow-xl shadow-white/5 active:scale-95 duration-200"
                 >
-                  {hasActiveLive ? 'Entrar na Live' : 'Acessar ZK TV'}
-                </button>
-                {activePool && activePool.is_active && (
                   <button
-                    onClick={() => setShowPoolModal(true)}
-                    className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:from-emerald-500 hover:to-emerald-400 transition-all shadow-xl shadow-emerald-600/20 active:scale-95 duration-200 flex items-center gap-2"
+                    className="bg-white text-blue-900 px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-blue-50 transition-colors shadow-xl shadow-white/5 active:scale-95 duration-200 w-full"
                   >
-                    <Target className="w-4 h-4" />
-                    Participar do Bolão
+                    {hasActiveLive ? 'Entrar na Live' : 'Acessar ZK TV'}
                   </button>
+                </TVFocusable>
+                {activePool && activePool.is_active && (
+                  <TVFocusable
+                    isFocused={focusedIndex === 1}
+                    onClick={() => setShowPoolModal(true)}
+                  >
+                    <button
+                      className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:from-emerald-500 hover:to-emerald-400 transition-all shadow-xl shadow-emerald-600/20 active:scale-95 duration-200 flex items-center gap-2 w-full justify-center"
+                    >
+                      <Target className="w-4 h-4" />
+                      Participar do Bolão
+                    </button>
+                  </TVFocusable>
                 )}
               </div>
             </div>
@@ -545,13 +580,17 @@ function HomePage() {
                   </div>
                 )}
               </div>
-              <button
+              <TVFocusable
+                isFocused={focusedIndex === 2}
                 onClick={() => setShowPoolModal(true)}
-                className="btn bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 hover:from-emerald-500 hover:via-emerald-400 hover:to-emerald-500 text-white w-full border-0 shadow-xl shadow-emerald-600/30 rounded-xl font-black uppercase tracking-widest text-xs py-3 transform hover:scale-105 transition-all duration-200 relative"
               >
-                <span className="relative z-10">Participar Agora</span>
-                <span className="absolute inset-0 rounded-xl bg-emerald-400 opacity-20 animate-ping"></span>
-              </button>
+                <button
+                  className="btn bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 hover:from-emerald-500 hover:via-emerald-400 hover:to-emerald-500 text-white w-full border-0 shadow-xl shadow-emerald-600/30 rounded-xl font-black uppercase tracking-widest text-xs py-3 transform hover:scale-105 transition-all duration-200 relative"
+                >
+                  <span className="relative z-10">Participar Agora</span>
+                  <span className="absolute inset-0 rounded-xl bg-emerald-400 opacity-20 animate-ping"></span>
+                </button>
+              </TVFocusable>
             </div>
           )}
 
@@ -563,12 +602,16 @@ function HomePage() {
             </div>
             <h3 className="text-2xl font-bold text-white mb-3 italic uppercase tracking-tighter">Escale o Time</h3>
             <p className="text-blue-200 mb-8 text-sm leading-relaxed">Monte sua escalação ideal e compartilhe com a torcida.</p>
-            <button
+            <TVFocusable
+              isFocused={focusedIndex === 3}
               onClick={() => navigate('/escalacao')}
-              className="btn btn-primary w-full bg-blue-600 hover:bg-blue-500 border-none rounded-xl font-black uppercase tracking-widest text-xs py-4 shadow-lg shadow-blue-600/20"
             >
-              MONTAR TIME
-            </button>
+              <button
+                className="btn btn-primary w-full bg-blue-600 hover:bg-blue-500 border-none rounded-xl font-black uppercase tracking-widest text-xs py-4 shadow-lg shadow-blue-600/20"
+              >
+                MONTAR TIME
+              </button>
+            </TVFocusable>
           </div>
 
           {/* Card: GANHADORES */}
@@ -579,9 +622,16 @@ function HomePage() {
             </div>
             <h3 className="text-2xl font-bold text-white mb-3">Hall da Fama</h3>
             <p className="text-blue-200 mb-8 text-sm leading-relaxed">Veja quem já faturou prêmios incríveis.</p>
-            <Link to="/winners" className="btn btn-outline w-full border-yellow-400/30 hover:bg-yellow-500/20 text-accent hover:text-white rounded-xl">
-              VER GANHADORES
-            </Link>
+            <TVFocusable
+              isFocused={focusedIndex === 5}
+              onClick={() => navigate('/winners')}
+            >
+              <button
+                className="btn btn-outline w-full border-yellow-400/30 hover:bg-yellow-500/20 text-accent hover:text-white rounded-xl py-4"
+              >
+                VER GANHADORES
+              </button>
+            </TVFocusable>
           </div>
 
           {/* Card: CLIPES INÉDITOS */}
@@ -592,12 +642,16 @@ function HomePage() {
             </div>
             <h3 className="text-2xl font-bold text-white mb-3 italic uppercase tracking-tighter">Clipes <span className="text-blue-400">Premium</span></h3>
             <p className="text-blue-200 mb-8 text-sm leading-relaxed">Bastidores e conteúdos exclusivos para a Nação!</p>
-            <button
+            <TVFocusable
+              isFocused={focusedIndex === 4}
               onClick={() => navigate('/zk-clips')}
-              className="btn btn-primary w-full bg-blue-600 hover:bg-blue-500 border-none rounded-xl font-black uppercase tracking-widest text-xs"
             >
-              ASSISTIR AGORA
-            </button>
+              <button
+                className="btn btn-primary w-full bg-blue-600 hover:bg-blue-500 border-none rounded-xl font-black uppercase tracking-widest text-xs"
+              >
+                ASSISTIR AGORA
+              </button>
+            </TVFocusable>
           </div>
         </section>
 
