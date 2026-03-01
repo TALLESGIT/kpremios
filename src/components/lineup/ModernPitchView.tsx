@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast';
 import { toBlob } from 'html-to-image';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import { getTeamLogo, getTeamInitials } from '../../utils/teamLogos';
 
 type FormationKey = '4-3-3' | '4-4-2' | '3-5-2' | '4-2-3-1' | '5-3-2';
 
@@ -100,6 +101,8 @@ const ModernPitchView: React.FC = () => {
   const [selectedPlayers, setSelectedPlayers] = useState<Record<number, CruzeiroPlayer | null>>({});
   const [players, setPlayers] = useState<CruzeiroPlayer[]>([]);
   const [nextGame, setNextGame] = useState<CruzeiroGame | null>(null);
+  const [opponentImgError, setOpponentImgError] = useState(false);
+  const [cruzeiroImgError, setCruzeiroImgError] = useState(false);
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const [sharing, setSharing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -335,12 +338,17 @@ const ModernPitchView: React.FC = () => {
             {/* Cruzeiro Logo */}
             <div className="flex flex-col items-center gap-1">
               <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white rounded-full p-1 shadow-xl border-2 border-primary flex items-center justify-center">
-                <img
-                  src="/logos/cruzeiro.png"
-                  alt="Cruzeiro"
-                  className="w-full h-full object-contain"
-                  crossOrigin="anonymous"
-                />
+                {!cruzeiroImgError ? (
+                  <img
+                    src="/logos/cruzeiro.png"
+                    alt="Cruzeiro"
+                    className="w-full h-full object-contain"
+                    crossOrigin="anonymous"
+                    onError={() => setCruzeiroImgError(true)}
+                  />
+                ) : (
+                  <span className="text-xs font-black text-primary">CRU</span>
+                )}
               </div>
               <span className="text-[7px] sm:text-[9px] font-black text-white italic uppercase tracking-tighter">CRUZEIRO</span>
             </div>
@@ -374,16 +382,18 @@ const ModernPitchView: React.FC = () => {
             {/* Opponent Logo */}
             <div className="flex flex-col items-center gap-1">
               <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white/10 backdrop-blur-md rounded-full p-1.5 shadow-xl border-2 border-white/20 flex items-center justify-center overflow-hidden">
-                {nextGame?.opponent_logo ? (
+                {(nextGame?.opponent_logo || (nextGame?.opponent ? getTeamLogo(nextGame.opponent) : null)) && !opponentImgError ? (
                   <img
-                    src={nextGame.opponent_logo}
-                    alt={nextGame.opponent}
+                    src={nextGame?.opponent_logo || getTeamLogo(nextGame!.opponent!)!}
+                    alt={nextGame?.opponent}
                     className="w-full h-full object-contain"
-                    crossOrigin="anonymous"
+                    onError={() => setOpponentImgError(true)}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-blue-900/40">
-                    <Search className="w-4 h-4 sm:w-6 sm:h-6 text-white/20" />
+                    <span className="text-xs sm:text-lg font-black text-white/40">
+                      {nextGame?.opponent ? getTeamInitials(nextGame.opponent) : '?'}
+                    </span>
                   </div>
                 )}
               </div>

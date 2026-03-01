@@ -25,7 +25,10 @@ const TEAM_LOGOS: Record<string, string> = {
   'Vitória': 'https://logodetimes.com/times/vitoria/logo-vitoria-256.png',
   'Criciúma': 'https://logodetimes.com/times/criciuma/logo-criciuma-256.png',
   'Atlético-GO': 'https://logodetimes.com/times/atletico-goianiense/logo-atletico-goianiense-256.png',
-  'Santos': 'https://logodetimes.com/times/santos/logo-santos-256.png',
+  'Amazonas': 'https://logodetimes.com/times/amazonas-fc/logo-amazonas-fc-256.png',
+  'Santos': 'https://logodetimes.com/times/sao-paulo/logo-sao-paulo-256.png', // Fallback for 256px
+  'Chapecoense': 'https://logodetimes.com/times/chapecoense/logo-chapecoense-256.png',
+  'Remo': 'https://logodetimes.com/times/remo/logo-remo-256.png',
   'Sport': 'https://logodetimes.com/times/sport/logo-sport-256.png',
   'Ceará': 'https://logodetimes.com/times/ceara/logo-ceara-256.png',
   'Mirassol': 'https://logodetimes.com/times/mirassol/logo-mirassol-256.png',
@@ -102,6 +105,9 @@ const TEAM_COLORS: Record<string, { primary: string; secondary: string }> = {
   'Juventude': { primary: '#006437', secondary: '#FFFFFF' },
   'Criciúma': { primary: '#FFD700', secondary: '#000000' },
   'Atlético-GO': { primary: '#D1001C', secondary: '#000000' },
+  'Amazonas': { primary: '#FFD700', secondary: '#000000' },
+  'Chapecoense': { primary: '#009145', secondary: '#FFFFFF' },
+  'Remo': { primary: '#161923', secondary: '#FFFFFF' },
   'Mirassol': { primary: '#FFD700', secondary: '#006437' },
   'Goiás': { primary: '#006437', secondary: '#FFFFFF' },
   'Coritiba': { primary: '#006437', secondary: '#FFFFFF' },
@@ -194,6 +200,10 @@ export function getTeamInitials(teamName: string): string {
     'Universitario': 'UNI',
     'Defensa y Justicia': 'DYJ',
     'Red Bull Bragantino': 'RBB',
+    'RB Bragantino': 'RBB',
+    'Amazonas': 'AMA',
+    'Chapecoense': 'CHA',
+    'Remo': 'REM',
   };
   if (INITIALS_MAP[teamName]) return INITIALS_MAP[teamName];
   return teamName.substring(0, 3).toUpperCase();
