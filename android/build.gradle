@@ -32,13 +32,17 @@ subprojects {
                     sourceCompatibility JavaVersion.VERSION_17
                     targetCompatibility JavaVersion.VERSION_17
                 }
-
-                // Salto de segurança: Só configura kotlinOptions se o plugin estiver presente
-                if (project.plugins.hasPlugin("org.jetbrains.kotlin.android")) {
-                    kotlinOptions {
-                        jvmTarget = "17"
-                    }
-                }
+            }
+        }
+        
+        // Força o JVM Target 17 em todas as tarefas de compilação (Java e Kotlin)
+        tasks.withType(JavaCompile).configureEach {
+            sourceCompatibility = JavaVersion.VERSION_17
+            targetCompatibility = JavaVersion.VERSION_17
+        }
+        tasks.configureEach { task ->
+            if (task.class.name.contains("KotlinCompile")) {
+                task.kotlinOptions.jvmTarget = "17"
             }
         }
     }
