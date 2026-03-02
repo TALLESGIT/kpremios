@@ -398,6 +398,7 @@ function WhepPlayer({
         }
 
         setStatusSafe('error');
+        if (onError) onError(err instanceof Error ? err.message : 'Erro desconhecido no WHEP');
         cleanup();
       }
     },

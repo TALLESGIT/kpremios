@@ -123,7 +123,7 @@ export function LiveViewer({
     if (whepBaseUrl && !fallbackToHls && !fallbackToAgora) {
       return (
         <WhepPlayer
-          channelName={effectiveStreamName}
+          channelName={DEFAULT_LIVE_CHANNEL}
           fitMode={fitMode}
           pathPrefix="live"
           isAdmin={isAdmin}

@@ -35,7 +35,7 @@ import PoolBetModal from '../components/pool/PoolBetModal';
 import { CastButton } from '../components/CastButton';
 import TeamLogo from '../components/TeamLogo';
 import VipAlertOverlay from '../components/live/VipAlertOverlay';
-import ViewerCountDisplay from '../components/live/ViewerCountDisplay';
+import { ViewerCountDisplay } from '../components/live/ViewerCountDisplay';
 import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding, YouTubeClip } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
