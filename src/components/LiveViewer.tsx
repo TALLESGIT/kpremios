@@ -34,6 +34,8 @@ export function LiveViewer({
 
 
   const { data, loading, error } = useLiveStatus(channelName);
+  const [fallbackToHls, setFallbackToHls] = useState(false);
+  const [fallbackToAgora, setFallbackToAgora] = useState(false);
 
   // Loading state
   if (loading) {
@@ -86,8 +88,6 @@ export function LiveViewer({
   const isActuallyLive = data.is_active;
   const effectiveStreamName = data.channel_name || DEFAULT_LIVE_CHANNEL || 'ZkOficial';
   const whepBaseUrl = (import.meta.env.VITE_WHEP_BASE_URL as string | undefined)?.trim();
-  const [fallbackToHls, setFallbackToHls] = useState(false);
-  const [fallbackToAgora, setFallbackToAgora] = useState(false);
 
   const renderContent = () => {
     // Live encerrada — overlay imediato (Realtime sincroniza com backend)
