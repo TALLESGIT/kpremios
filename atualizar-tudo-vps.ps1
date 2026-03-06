@@ -17,16 +17,17 @@ Write-Host ""
 Write-Host "[PASSO 1/3] ATUALIZANDO BACKEND..." -ForegroundColor Yellow
 Write-Host ""
 
-Write-Host "[INFO] Fazendo pull do GitHub no backend..." -ForegroundColor Yellow
-ssh ${VPS_USER}@${VPS_IP} "cd $BACKEND_PATH && git pull origin master"
+# Nota: O backend na VPS não é um repositório git, por isso usamos scp
+Write-Host "[INFO] Enviando server.js para a VPS..." -ForegroundColor Yellow
+scp "backend\socket-server\server.js" "${VPS_USER}@${VPS_IP}:${BACKEND_PATH}/server.js"
 
 Write-Host ""
-Write-Host "[INFO] Instalando dependencias do backend..." -ForegroundColor Yellow
+Write-Host "[INFO] Instalando dependencias do backend (se necessário)..." -ForegroundColor Yellow
 ssh ${VPS_USER}@${VPS_IP} "cd $BACKEND_PATH && npm install"
 
 Write-Host ""
 Write-Host "[INFO] Reiniciando PM2 (backend)..." -ForegroundColor Yellow
-ssh ${VPS_USER}@${VPS_IP} "cd $BACKEND_PATH && pm2 restart zkpremios-socket"
+ssh ${VPS_USER}@${VPS_IP} "pm2 restart zkpremios-socket --update-env"
 
 Write-Host ""
 Write-Host "[OK] Backend atualizado!" -ForegroundColor Green
@@ -38,19 +39,12 @@ Write-Host ""
 Write-Host "[PASSO 2/3] ATUALIZANDO FRONTEND..." -ForegroundColor Yellow
 Write-Host ""
 
-Write-Host "[INFO] Fazendo pull do GitHub no frontend..." -ForegroundColor Yellow
-ssh ${VPS_USER}@${VPS_IP} "cd $FRONTEND_PATH && git pull origin master"
+Write-Host "[INFO] O frontend é hospedado no Vercel (https://www.zkoficial.com.br)." -ForegroundColor Cyan
+Write-Host "[INFO] O deploy no Vercel é automático ao fazer 'git push origin master'." -ForegroundColor Cyan
+Write-Host "[SKIP] Pulando atualização local na VPS pois o diretório não existe e o site está no Vercel." -ForegroundColor Gray
 
 Write-Host ""
-Write-Host "[INFO] Instalando dependencias do frontend..." -ForegroundColor Yellow
-ssh ${VPS_USER}@${VPS_IP} "cd $FRONTEND_PATH && npm install"
-
-Write-Host ""
-Write-Host "[INFO] Buildando frontend (isso pode demorar 2-3 minutos)..." -ForegroundColor Yellow
-ssh ${VPS_USER}@${VPS_IP} "cd $FRONTEND_PATH && npm run build"
-
-Write-Host ""
-Write-Host "[OK] Frontend atualizado!" -ForegroundColor Green
+Write-Host "[OK] Frontend (Vercel) em processo de deploy via GitHub!" -ForegroundColor Green
 Write-Host ""
 
 # ========================================
