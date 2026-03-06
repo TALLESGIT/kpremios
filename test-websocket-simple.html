@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste WebSocket Simples</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        #status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .connected {
+            background: #4CAF50;
+        }
+        .disconnected {
+            background: #f44336;
+        }
+        .connecting {
+            background: #ff9800;
+        }
+        #log {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 Teste WebSocket Simples</h1>
+        <p>Este teste usa WebSocket nativo (não Socket.IO) para verificar se a conexão funciona.</p>
+        <p>URL: <strong>wss://api.zkoficial.com.br/socket.io/?EIO=4&transport=websocket</strong></p>
+        
+        <div id="status" class="disconnected">Desconectado</div>
+        
+        <button onclick="testConnection()">Testar Conexão</button>
+        <button onclick="clearLog()">Limpar Log</button>
+        
+        <div>
+            <h3>📋 Log:</h3>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function updateStatus(status, text) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = status;
+            statusDiv.textContent = text;
+        }
+
+        function testConnection() {
+            log('Tentando conectar via WebSocket nativo...');
+            updateStatus('connecting', 'Conectando...');
+
+            // Tentar conexão WebSocket direta
+            const ws = new WebSocket('wss://api.zkoficial.com.br/socket.io/?EIO=4&transport=websocket');
+
+            ws.onopen = () => {
+                log('✅ WebSocket conectado!');
+                updateStatus('connected', 'Conectado');
+            };
+
+            ws.onerror = (error) => {
+                log('❌ Erro na conexão WebSocket');
+                log('Detalhes: ' + JSON.stringify(error));
+                updateStatus('disconnected', 'Erro de Conexão');
+            };
+
+            ws.onclose = (event) => {
+                log(`❌ Conexão fechada. Código: ${event.code}, Motivo: ${event.reason || 'N/A'}`);
+                updateStatus('disconnected', 'Desconectado');
+            };
+
+            ws.onmessage = (event) => {
+                log('📨 Mensagem recebida: ' + event.data);
+            };
+        }
+
+        log('Página carregada. Clique em "Testar Conexão" para começar.');
+    </script>
+</body>
+</html>

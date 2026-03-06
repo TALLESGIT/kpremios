@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste WebSocket - Socket.IO</title>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" onerror="handleSocketIOError()"></script>
+    <script>
+        function handleSocketIOError() {
+            document.body.innerHTML = '<div style="padding: 50px; text-align: center; background: #f44336; color: white; font-family: Arial; min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column;"><h1>❌ Erro ao carregar Socket.IO</h1><p>O CDN do Socket.IO não carregou. Verifique sua conexão com a internet.</p><p>Tente recarregar a página (F5)</p></div>';
+        }
+        
+        // Verificar se Socket.IO carregou após 2 segundos
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (typeof io === 'undefined') {
+                    handleSocketIOError();
+                }
+            }, 2000);
+        });
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+            display: block;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        .disconnect {
+            background: #f44336;
+        }
+        .disconnect:hover {
+            background: #da190b;
+        }
+        #status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .connected {
+            background: #4CAF50;
+            color: white;
+        }
+        .disconnected {
+            background: #f44336;
+            color: white;
+        }
+        .connecting {
+            background: #ff9800;
+            color: white;
+        }
+        #log {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #4CAF50;
+            padding-left: 10px;
+        }
+        .log-error {
+            border-left-color: #f44336;
+            color: #ff6b6b;
+        }
+        .log-info {
+            border-left-color: #2196F3;
+            color: #64b5f6;
+        }
+    </style>
+</head>
+<body>
+    <noscript>
+        <div style="padding: 50px; text-align: center; background: #f44336; color: white;">
+            <h1>❌ JavaScript Desabilitado</h1>
+            <p>Por favor, habilite o JavaScript para usar este teste.</p>
+        </div>
+    </noscript>
+    
+    <div class="container">
+        <h1>🔌 Teste de Conexão WebSocket</h1>
+        <p>URL do servidor: <strong id="serverUrl">https://api.zkoficial.com.br</strong></p>
+        <p id="loadingStatus" style="color: #ff9800;">⏳ Carregando Socket.IO...</p>
+        
+        <div id="status" class="disconnected">Desconectado</div>
+        
+        <div>
+            <button id="connectBtn" onclick="connect()">Conectar</button>
+            <button id="disconnectBtn" class="disconnect" onclick="disconnect()" disabled>Desconectar</button>
+            <button onclick="clearLog()">Limpar Log</button>
+        </div>
+        
+        <div>
+            <h3>📋 Log de Eventos:</h3>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // Verificar se Socket.IO está disponível
+        if (typeof io === 'undefined') {
+            document.body.innerHTML = '<div style="padding: 50px; text-align: center; background: #f44336; color: white; font-family: Arial;"><h1>❌ Erro: Socket.IO não carregou</h1><p>Recarregue a página ou verifique sua conexão.</p></div>';
+        }
+
+        let socket = null;
+        const serverUrl = 'https://api.zkoficial.com.br';
+
+        function log(message, type = 'info') {
+            try {
+                const logDiv = document.getElementById('log');
+                if (!logDiv) return;
+                
+                const entry = document.createElement('div');
+                entry.className = `log-entry log-${type}`;
+                const timestamp = new Date().toLocaleTimeString();
+                entry.textContent = `[${timestamp}] ${message}`;
+                logDiv.appendChild(entry);
+                logDiv.scrollTop = logDiv.scrollHeight;
+            } catch (e) {
+                console.error('Erro ao fazer log:', e);
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function updateStatus(status, text) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = status;
+            statusDiv.textContent = text;
+        }
+
+        function connect() {
+            try {
+                if (typeof io === 'undefined') {
+                    log('❌ Socket.IO não está disponível. Recarregue a página.', 'error');
+                    return;
+                }
+
+                if (socket && socket.connected) {
+                    log('Já está conectado!', 'info');
+                    return;
+                }
+
+                log('Tentando conectar...', 'info');
+                updateStatus('connecting', 'Conectando...');
+                
+                const connectBtn = document.getElementById('connectBtn');
+                const disconnectBtn = document.getElementById('disconnectBtn');
+                if (connectBtn) connectBtn.disabled = true;
+                if (disconnectBtn) disconnectBtn.disabled = false;
+
+                socket = io(serverUrl, {
+                    transports: ['websocket'],
+                    withCredentials: true,
+                    reconnection: true,
+                    reconnectionDelay: 1000,
+                    reconnectionAttempts: 5
+                });
+            } catch (e) {
+                log(`❌ Erro ao conectar: ${e.message}`, 'error');
+                updateStatus('disconnected', 'Erro');
+                const connectBtn = document.getElementById('connectBtn');
+                const disconnectBtn = document.getElementById('disconnectBtn');
+                if (connectBtn) connectBtn.disabled = false;
+                if (disconnectBtn) disconnectBtn.disabled = true;
+            }
+
+            socket.on('connect', () => {
+                try {
+                    log(`✅ Conectado! Socket ID: ${socket.id}`, 'info');
+                    updateStatus('connected', `Conectado (${socket.id})`);
+                } catch (e) {
+                    console.error('Erro no evento connect:', e);
+                }
+            });
+
+            socket.on('disconnect', (reason) => {
+                try {
+                    log(`❌ Desconectado. Motivo: ${reason}`, 'error');
+                    updateStatus('disconnected', 'Desconectado');
+                    const connectBtn = document.getElementById('connectBtn');
+                    const disconnectBtn = document.getElementById('disconnectBtn');
+                    if (connectBtn) connectBtn.disabled = false;
+                    if (disconnectBtn) disconnectBtn.disabled = true;
+                } catch (e) {
+                    console.error('Erro no evento disconnect:', e);
+                }
+            });
+
+            socket.on('connect_error', (error) => {
+                try {
+                    log(`❌ Erro de conexão: ${error.message || error}`, 'error');
+                    updateStatus('disconnected', 'Erro de Conexão');
+                    const connectBtn = document.getElementById('connectBtn');
+                    const disconnectBtn = document.getElementById('disconnectBtn');
+                    if (connectBtn) connectBtn.disabled = false;
+                    if (disconnectBtn) disconnectBtn.disabled = true;
+                } catch (e) {
+                    console.error('Erro no evento connect_error:', e);
+                }
+            });
+
+            socket.on('error', (error) => {
+                try {
+                    log(`❌ Erro: ${JSON.stringify(error)}`, 'error');
+                } catch (e) {
+                    console.error('Erro no evento error:', e);
+                }
+            });
+
+            // Testar evento de stream
+            socket.on('joined-stream', (data) => {
+                log(`📡 Entrou na stream: ${JSON.stringify(data)}`, 'info');
+            });
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                log('Desconexão solicitada', 'info');
+                updateStatus('disconnected', 'Desconectado');
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+            }
+        }
+
+        // Auto-conectar ao carregar a página
+        window.addEventListener('load', () => {
+            const loadingStatus = document.getElementById('loadingStatus');
+            if (loadingStatus) {
+                if (typeof io !== 'undefined') {
+                    loadingStatus.textContent = '✅ Socket.IO carregado!';
+                    loadingStatus.style.color = '#4CAF50';
+                    setTimeout(() => {
+                        loadingStatus.style.display = 'none';
+                    }, 2000);
+                } else {
+                    loadingStatus.textContent = '❌ Socket.IO não carregou';
+                    loadingStatus.style.color = '#f44336';
+                }
+            }
+            log('Página carregada. Clique em "Conectar" para testar.', 'info');
+        });
+    </script>
+</body>
+</html>

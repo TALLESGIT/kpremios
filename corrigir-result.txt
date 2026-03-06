@@ -1,0 +1,108 @@
+============================================
+  ZK OFICIAL - APLICANDO CORRECOES NA VPS
+============================================
+
+--- CORRECAO 1: .env do backend ---
+Backup criado: /var/www/zkpremios-backend/.env.bak
+Verificando SERVICE_ROLE_KEY:
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVC
+OK - .env corrigido!
+
+--- CORRECAO 2: Nginx WebSocket map ---
+Map WebSocket JA EXISTE no nginx.conf - OK!
+
+--- CORRECAO 3: Fechar porta 9997 (MediaMTX API - acesso interno apenas) ---
+Could not delete non-existent rule
+Could not delete non-existent rule (v6)
+Porta 9997 removida do firewall!
+
+--- CORRECAO 4: Abrir porta TURN 3478 (WebRTC) ---
+Rule added
+Rule added (v6)
+Rule added
+Rule added (v6)
+Porta 3478 aberta (TURN server para WebRTC)
+
+--- Reiniciando backend (PM2) para pegar correcoes do .env ---
+Use --update-env to update environment variables
+[PM2] Applying action restartProcessId on app [zkpremios-socket](ids: [ 0 ])
+[PM2] [zkpremios-socket](0) ✓
+┌────┬──────────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name                 │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼──────────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 1  │ zkpremios-monitor    │ default     │ N/A     │ fork    │ 1041     │ 6h     │ 0    │ online    │ 0%       │ 3.4mb    │ root     │ disabled │
+│ 0  │ zkpremios-socket     │ default     │ 1.0.0   │ fork    │ 29528    │ 0s     │ 2    │ online    │ 0%       │ 21.9mb   │ root     │ disabled │
+└────┴──────────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+┌────┬──────────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name                 │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼──────────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 1  │ zkpremios-monitor    │ default     │ N/A     │ fork    │ 1041     │ 6h     │ 0    │ online    │ 0%       │ 3.4mb    │ root     │ disabled │
+│ 0  │ zkpremios-socket     │ default     │ 1.0.0   │ fork    │ 29528    │ 3s     │ 2    │ online    │ 0%       │ 69.0mb   │ root     │ disabled │
+└────┴──────────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+
+--- STATUS FINAL DO FIREWALL ---
+Status: active
+
+To                         Action      From
+--                         ------      ----
+22/tcp                     ALLOW       Anywhere                  
+80/tcp                     ALLOW       Anywhere                  
+443/tcp                    ALLOW       Anywhere                  
+1935/tcp                   ALLOW       Anywhere                  
+8888/tcp                   ALLOW       Anywhere                  
+8889/tcp                   ALLOW       Anywhere                  
+8189/udp                   ALLOW       Anywhere                  
+8890/udp                   ALLOW       Anywhere                  
+3478/tcp                   ALLOW       Anywhere                   # TURN server WebRTC TCP
+3478/udp                   ALLOW       Anywhere                   # TURN server WebRTC UDP
+22/tcp (v6)                ALLOW       Anywhere (v6)             
+80/tcp (v6)                ALLOW       Anywhere (v6)             
+443/tcp (v6)               ALLOW       Anywhere (v6)             
+1935/tcp (v6)              ALLOW       Anywhere (v6)             
+8888/tcp (v6)              ALLOW       Anywhere (v6)             
+8889/tcp (v6)              ALLOW       Anywhere (v6)             
+8189/udp (v6)              ALLOW       Anywhere (v6)             
+8890/udp (v6)              ALLOW       Anywhere (v6)             
+3478/tcp (v6)              ALLOW       Anywhere (v6)              # TURN server WebRTC TCP
+3478/udp (v6)              ALLOW       Anywhere (v6)              # TURN server WebRTC UDP
+
+
+============================================
+  CORRECOES APLICADAS COM SUCESSO!
+============================================
+
+VERIFICANDO backend health:
+{
+    "status": "healthy",
+    "timestamp": "2026-03-04T19:18:15.341Z",
+    "environment": "production",
+    "socketio": {
+        "connected": 1,
+        "rooms": 0
+    },
+    "server": {
+        "uptime": 5.299906815,
+        "memory": {
+            "used": "12 MB",
+            "total": "30 MB"
+        }
+    },
+    "cache": {
+        "users": 0,
+        "viewers": 0,
+        "messages": 0,
+        "polls": 0,
+        "streams": 0,
+        "supabaseFailures": 0,
+        "supabaseHealthy": true
+    },
+    "supabase": {
+        "healthy": true
+    },
+    "liveStreamsCache": {
+        "cached": false,
+        "age": "n/a",
+        "count": 0
+    }
+}
+

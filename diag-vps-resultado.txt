@@ -1,0 +1,203 @@
+============================================
+  ZK OFICIAL - DIAGNOSTICO COMPLETO VPS
+============================================
+
+--- PM2 STATUS ---
+┌────┬──────────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name                 │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼──────────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 1  │ zkpremios-monitor    │ default     │ N/A     │ fork    │ 1041     │ 3h     │ 0    │ online    │ 0%       │ 3.4mb    │ root     │ disabled │
+│ 0  │ zkpremios-socket     │ default     │ 1.0.0   │ fork    │ 1227     │ 3h     │ 1    │ online    │ 0%       │ 79.5mb   │ root     │ disabled │
+└────┴──────────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+
+--- PM2 ENV (backend) ---
+[PM2][ERROR] Modules with id zkpremios-socket not found
+
+--- PORTAS EM USO ---
+LISTEN 0      511          0.0.0.0:443       0.0.0.0:*    users:(("nginx",pid=7684,fd=9),("nginx",pid=7683,fd=9),("nginx",pid=7682,fd=9),("nginx",pid=7681,fd=9),("nginx",pid=815,fd=9))     
+LISTEN 0      511          0.0.0.0:80        0.0.0.0:*    users:(("nginx",pid=7684,fd=7),("nginx",pid=7683,fd=7),("nginx",pid=7682,fd=7),("nginx",pid=7681,fd=7),("nginx",pid=815,fd=7))     
+LISTEN 0      511                *:3001            *:*    users:(("node /var/www/z",pid=1227,fd=20))                                                                                         
+LISTEN 0      4096               *:8888            *:*    users:(("mediamtx",pid=7485,fd=10))                                                                                                
+LISTEN 0      4096               *:8889            *:*    users:(("mediamtx",pid=7485,fd=11))                                                                                                
+LISTEN 0      511             [::]:443          [::]:*    users:(("nginx",pid=7684,fd=10),("nginx",pid=7683,fd=10),("nginx",pid=7682,fd=10),("nginx",pid=7681,fd=10),("nginx",pid=815,fd=10))
+LISTEN 0      511             [::]:80           [::]:*    users:(("nginx",pid=7684,fd=8),("nginx",pid=7683,fd=8),("nginx",pid=7682,fd=8),("nginx",pid=7681,fd=8),("nginx",pid=815,fd=8))     
+LISTEN 0      4096               *:9997            *:*    users:(("mediamtx",pid=7485,fd=14))                                                                                                
+
+--- NGINX STATUS ---
+active
+NGINX: RODANDO
+
+--- NGINX SITES ATIVOS ---
+total 8
+drwxr-xr-x 2 root root 4096 Mar  4 14:34 .
+drwxr-xr-x 8 root root 4096 Mar  4 01:41 ..
+lrwxrwxrwx 1 root root   47 Jan 22 16:01 api.zkoficial.com.br -> /etc/nginx/sites-available/api.zkoficial.com.br
+lrwxrwxrwx 1 root root   34 Jan 20 22:52 default -> /etc/nginx/sites-available/default
+lrwxrwxrwx 1 root root   33 Mar  4 01:40 stream -> /etc/nginx/sites-available/stream
+
+--- NGINX CONFIG TEST ---
+2026/03/04 17:03:15 [warn] 18356#18356: "ssl_stapling" ignored, no OCSP responder URL in the certificate "/etc/letsencrypt/live/api.zkoficial.com.br/fullchain.pem"
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+--- MEDIAMTX PROCESSO ---
+mediamtx    7485  0.4  0.2 1328020 33468 ?       Ssl  14:32   0:43 /opt/mediamtx/bin/mediamtx /opt/mediamtx/mediamtx.yml
+active
+mediamtx service: ATIVO
+
+--- .ENV DO BACKEND NA VPS ---
+ARQUIVO ENCONTRADO:
+# =====================================================
+# CONFIGURAÇÃO BACKEND SOCKET.IO
+# =====================================================
+
+# Porta do servidor Socket.io
+PORT=3001
+
+# URL do frontend (Vercel)
+# IMPORTANTE: Configure com sua URL do Vercel
+# Aceita múltiplas URLs separadas por vírgula (sem espaços)
+FRONTEND_URL=https://www.zkoficial.com.br,https://zkoficial.com.br
+
+# =====================================================
+# SUPABASE (OBRIGATÓRIO)
+# =====================================================
+# Obtenha essas informações em: https://supabase.com/dashboard
+# Vá em: Settings → API
+
+SUPABASE_URL=https://bukigyhhgrtgryklabjg.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1a2lneWhoZ3J0Z3J5a2xhYmpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczNDk5NTcsImV4cCI6MjA3MjkyNTk1N30.Fj4f7LatljCx8SUFgH6un_jldg5eXrI37XB4DK7vSog
+
+# =====================================================
+# REDIS (OPCIONAL - Para escalar horizontalmente)
+# =====================================================
+# Se precisar escalar com múltiplos servidores, use Redis
+# Por enquanto, pode deixar comentado
+
+# REDIS_URL=redis://localhost:6379
+
+   SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1a2lneWhoZ3J0Z3J5a2xhYmpnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzM0OTk1NywiZXhwIjoyMDcyOTI1OTU3fQ.G41qsBF6Spd5-ZkHqhtAtkzrds5EcORtpgwz1-8PoZQ
+
+# API key para ZK Studio (ativar/desativar live)
+# Use a mesma chave no ZK Studio: Configurações → Streaming → API Key
+ZK_STUDIO_API_KEY=zk_live_8f4a2e9c7b1d6e3f0a5c8b2d9e1f4a7c0b3e6d
+
+--- DIRETORIOS EM /var/www/ ---
+total 16
+drwxr-xr-x  4 root root 4096 Jan 20 22:52 .
+drwxr-xr-x 14 root root 4096 Jan 20 22:42 ..
+drwxr-xr-x  2 root root 4096 Jan 20 22:52 html
+drwxr-xr-x  3 root root 4096 Feb 27 17:22 zkpremios-backend
+
+--- ULTIMOS LOGS PM2 ---
+[TAILING] Tailing last 30 lines for [zkpremios-socket] process (change the value with --lines option)
+/root/.pm2/logs/zkpremios-socket-error.log last 30 lines:
+0|zkpremio | 2026-03-04 15:27:15 +00:00:       origin: 'https://www.zkoficial.com.br',
+0|zkpremio | 2026-03-04 15:27:15 +00:00:       host: 'api.zkoficial.com.br',
+0|zkpremio | 2026-03-04 15:27:15 +00:00:       upgrade: 'none',
+0|zkpremio | 2026-03-04 15:27:15 +00:00:       connection: 'close',
+0|zkpremio | 2026-03-04 15:27:15 +00:00:       'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36'
+0|zkpremio | 2026-03-04 15:27:15 +00:00:     }
+0|zkpremio | 2026-03-04 15:27:15 +00:00:   }
+0|zkpremio | 2026-03-04 15:27:15 +00:00: }
+0|zkpremio | 2026-03-04 16:09:56 +00:00: ❌ Socket.IO: Erro de conexão: https://www.zkoficial.com.br
+0|zkpremio | 2026-03-04 16:09:56 +00:00: ❌ Mensagem: Bad request
+0|zkpremio | 2026-03-04 16:09:56 +00:00: ❌ Detalhes completos: {
+0|zkpremio | 2026-03-04 16:09:56 +00:00:   code: 3,
+0|zkpremio | 2026-03-04 16:09:56 +00:00:   context: {
+0|zkpremio | 2026-03-04 16:09:56 +00:00:     name: 'TRANSPORT_MISMATCH',
+0|zkpremio | 2026-03-04 16:09:56 +00:00:     transport: 'websocket',
+0|zkpremio | 2026-03-04 16:09:56 +00:00:     previousTransport: 'polling'
+0|zkpremio | 2026-03-04 16:09:56 +00:00:   },
+0|zkpremio | 2026-03-04 16:09:56 +00:00:   type: undefined,
+0|zkpremio | 2026-03-04 16:09:56 +00:00:   req: {
+0|zkpremio | 2026-03-04 16:09:56 +00:00:     method: 'GET',
+0|zkpremio | 2026-03-04 16:09:56 +00:00:     url: '/socket.io/?EIO=4&transport=websocket&sid=mjOfUzHz6VkvDf6DAABa',
+0|zkpremio | 2026-03-04 16:09:56 +00:00:     headers: {
+0|zkpremio | 2026-03-04 16:09:56 +00:00:       origin: 'https://www.zkoficial.com.br',
+0|zkpremio | 2026-03-04 16:09:56 +00:00:       host: 'api.zkoficial.com.br',
+0|zkpremio | 2026-03-04 16:09:56 +00:00:       upgrade: 'none',
+0|zkpremio | 2026-03-04 16:09:56 +00:00:       connection: 'close',
+0|zkpremio | 2026-03-04 16:09:56 +00:00:       'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/23D127 [FBAN/FBIOS;FBAV/550.0.0.34.65;FBBV/890804754;FBDV/iPhone14,5;FBMD/iPhone;FBSN/iOS;FBSV/26.3;FBSS/3;FBID/phone;FBLC/pt_BR;FBOP/5;FBRV/897488997]'
+0|zkpremio | 2026-03-04 16:09:56 +00:00:     }
+0|zkpremio | 2026-03-04 16:09:56 +00:00:   }
+0|zkpremio | 2026-03-04 16:09:56 +00:00: }
+
+/root/.pm2/logs/zkpremios-socket-out.log last 30 lines:
+0|zkpremio | 2026-03-04 16:58:37 +00:00:   supabaseHealthy: true
+0|zkpremio | 2026-03-04 16:58:37 +00:00: }
+0|zkpremio | 2026-03-04 16:59:19 +00:00: ❌ Viewer desconectado: qA8lhkO0xlK5OiPPAAB1, motivo: ping timeout
+0|zkpremio | 2026-03-04 16:59:27 +00:00: ✅ Viewer conectado: {
+0|zkpremio | 2026-03-04 16:59:27 +00:00:   id: 'Elv6TimFt45nfElVAAB5',
+0|zkpremio | 2026-03-04 16:59:27 +00:00:   transport: 'polling',
+0|zkpremio | 2026-03-04 16:59:27 +00:00:   remoteAddress: '::ffff:127.0.0.1',
+0|zkpremio | 2026-03-04 16:59:27 +00:00:   origin: 'https://www.zkoficial.com.br',
+0|zkpremio | 2026-03-04 16:59:27 +00:00:   userAgent: 'Mozilla/5.0 (Linux; Android 15; moto g05 Build/VVTAS35.51-137-2-1; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/145.0.7632.113 Mobile Safari/537.36 Instagram 418.0.0.51.77 Android (35/15; 280dpi; 720x1604; motorola; moto g05; lamul; mt6768; pt_BR; 891072358; IABMV/1)'
+0|zkpremio | 2026-03-04 16:59:27 +00:00: }
+0|zkpremio | 2026-03-04 16:59:27 +00:00: 🔄 Socket Elv6TimFt45nfElVAAB5 fez upgrade para: websocket
+0|zkpremio | 2026-03-04 17:00:37 +00:00: 🧹 [EMERGENCY CLEANUP] Cache limpo: {
+0|zkpremio | 2026-03-04 17:00:37 +00:00:   users: 0,
+0|zkpremio | 2026-03-04 17:00:37 +00:00:   viewers: 0,
+0|zkpremio | 2026-03-04 17:00:37 +00:00:   messages: 0,
+0|zkpremio | 2026-03-04 17:00:37 +00:00:   polls: 0,
+0|zkpremio | 2026-03-04 17:00:37 +00:00:   streams: 0,
+0|zkpremio | 2026-03-04 17:00:37 +00:00:   supabaseFailures: 0,
+0|zkpremio | 2026-03-04 17:00:37 +00:00:   supabaseHealthy: true
+0|zkpremio | 2026-03-04 17:00:37 +00:00: }
+0|zkpremio | 2026-03-04 17:00:45 +00:00: ❌ Viewer desconectado: Elv6TimFt45nfElVAAB5, motivo: transport close
+0|zkpremio | 2026-03-04 17:02:37 +00:00: 🧹 [EMERGENCY CLEANUP] Cache limpo: {
+0|zkpremio | 2026-03-04 17:02:37 +00:00:   users: 0,
+0|zkpremio | 2026-03-04 17:02:37 +00:00:   viewers: 0,
+0|zkpremio | 2026-03-04 17:02:37 +00:00:   messages: 0,
+0|zkpremio | 2026-03-04 17:02:37 +00:00:   polls: 0,
+0|zkpremio | 2026-03-04 17:02:37 +00:00:   streams: 0,
+0|zkpremio | 2026-03-04 17:02:37 +00:00:   supabaseFailures: 0,
+0|zkpremio | 2026-03-04 17:02:37 +00:00:   supabaseHealthy: true
+0|zkpremio | 2026-03-04 17:02:37 +00:00: }
+
+
+--- FIREWALL ---
+Status: active
+
+To                         Action      From
+--                         ------      ----
+22/tcp                     ALLOW       Anywhere                  
+80/tcp                     ALLOW       Anywhere                  
+443/tcp                    ALLOW       Anywhere                  
+1935/tcp                   ALLOW       Anywhere                  
+8888/tcp                   ALLOW       Anywhere                  
+8889/tcp                   ALLOW       Anywhere                  
+8189/udp                   ALLOW       Anywhere                  
+8890/udp                   ALLOW       Anywhere                  
+22/tcp (v6)                ALLOW       Anywhere (v6)             
+80/tcp (v6)                ALLOW       Anywhere (v6)             
+443/tcp (v6)               ALLOW       Anywhere (v6)             
+1935/tcp (v6)              ALLOW       Anywhere (v6)             
+8888/tcp (v6)              ALLOW       Anywhere (v6)             
+8889/tcp (v6)              ALLOW       Anywhere (v6)             
+8189/udp (v6)              ALLOW       Anywhere (v6)             
+8890/udp (v6)              ALLOW       Anywhere (v6)             
+
+
+--- DOCKER (evolution-api etc) ---
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+
+--- SERVICOS IMPORTANTES ---
+nginx: active
+mediamtx: active
+pm2-root: active
+docker: active
+
+--- DISCO E MEMORIA ---
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1       193G  4.5G  189G   3% /
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi       631Mi        13Gi       1.1Mi       1.3Gi        15Gi
+Swap:             0B          0B          0B
+
+--- UPTIMES DO SISTEMA ---
+ 17:03:16 up  3:54,  1 user,  load average: 0.05, 0.04, 0.00
+
+============================================
+  FIM DO DIAGNOSTICO
+============================================
