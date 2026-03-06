@@ -167,6 +167,10 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
   const loadUserLikes = async (messageIds: string[]) => {
     if (!user && !sessionStorage.getItem('session_id')) return;
 
+    // Filtrar IDs temporários do Socket.io (não são UUIDs válidos no Supabase)
+    const validIds = messageIds.filter(id => !id.startsWith('temp-'));
+    if (validIds.length === 0) return;
+
     try {
       const sessionId = sessionStorage.getItem('session_id') || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       if (!sessionStorage.getItem('session_id')) {
@@ -174,7 +178,7 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
       }
 
       const likedSet = new Set<string>();
-      for (const msgId of messageIds) {
+      for (const msgId of validIds) {
         const { data } = await supabase.rpc('has_user_liked', {
           p_message_id: msgId,
           p_user_id: user?.id || null,
@@ -347,6 +351,12 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
   };
 
   const handleToggleLike = async (messageId: string) => {
+    // Não permitir like em mensagens com ID temporário (ainda não persistidas no Supabase)
+    if (messageId.startsWith('temp-')) {
+      toast.error('Aguarde um momento, a mensagem ainda está sendo salva...');
+      return;
+    }
+
     try {
       const sessionId = sessionStorage.getItem('session_id') || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       if (!sessionStorage.getItem('session_id')) {

@@ -40,7 +40,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
 
   const { socket, on, off } = useSocket({
     streamId: streamId,
-    autoConnect: !!streamId && isActive
+    autoConnect: !!streamId // Manter conectado mesmo se isActive mudar, para não perder eventos VIP
   });
 
   // Cores VIP
@@ -157,7 +157,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
           // Verificar se o usuário é VIP
           if (!userRolesRef.current[newMsg.user_id]) {
             const { data: profile } = await supabase
-              .from('profiles')
+              .from('users')
               .select('is_vip, vip_color')
               .eq('id', newMsg.user_id)
               .single();

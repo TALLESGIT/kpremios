@@ -383,43 +383,43 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
               Dividir
             </button>
           </div>
+        </div>
 
-          {/* Teste Animação VIP */}
-          <div className="pt-6 mt-4 border-t border-white/5 flex flex-col sm:flex-row gap-3 items-end">
-            <div className="flex-1 w-full">
-              <label className="text-[10px] font-black text-amber-200/40 uppercase tracking-[0.2em] ml-1 mb-2 block">
-                Simular Animação VIP
-              </label>
-              <input
-                type="text"
-                value={vipTestName}
-                onChange={(e) => setVipTestName(e.target.value)}
-                placeholder="Nome do VIP"
-                className="w-full px-5 py-3.5 bg-slate-800/50 border border-amber-500/20 text-amber-400 rounded-2xl text-sm font-bold focus:outline-none focus:border-amber-500/50"
-              />
-            </div>
-            <button
-              onClick={() => {
-                if (vipTestName.trim() === '') {
-                  toast.error('Digite o nome do usuário VIP.');
-                  return;
-                }
-                console.log('🚀 [AdminLivePanel] Disparando evento vip-new-subscriber:', { streamId, name: vipTestName });
-                console.log('📡 [AdminLivePanel] Socket status:', socket?.connected ? 'CONECTADO' : 'DESCONECTADO', socket?.id);
-
-                if (socket && socket.connected) {
-                  socket.emit('vip-new-subscriber', { streamId, name: vipTestName });
-                  toast.success(`Animação VIP disparada para ${vipTestName}!`);
-                } else {
-                  toast.error('Erro: Socket não conectado. Tente atualizar a página.');
-                }
-              }}
-              className="flex-1 sm:flex-none w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-2xl text-xs font-black uppercase transition-all shadow-[0_0_15px_rgba(168,85,247,0.4)] flex items-center justify-center gap-2"
-            >
-              <Crown className="w-4 h-4 text-yellow-300" />
-              Testar Animação Global
-            </button>
+        {/* Teste Animação VIP — Seção separada */}
+        <div className="flex flex-col sm:flex-row gap-3 items-end">
+          <div className="flex-1 w-full">
+            <label className="text-[10px] font-black text-amber-200/40 uppercase tracking-[0.2em] ml-1 mb-2 block">
+              Simular Animação VIP
+            </label>
+            <input
+              type="text"
+              value={vipTestName}
+              onChange={(e) => setVipTestName(e.target.value)}
+              placeholder="Nome do VIP"
+              className="w-full px-5 py-3.5 bg-slate-800/50 border border-amber-500/20 text-amber-400 rounded-2xl text-sm font-bold focus:outline-none focus:border-amber-500/50"
+            />
           </div>
+          <button
+            onClick={() => {
+              if (vipTestName.trim() === '') {
+                toast.error('Digite o nome do usuário VIP.');
+                return;
+              }
+              console.log('🚀 [AdminLivePanel] Disparando evento vip-new-subscriber:', { streamId, name: vipTestName });
+              console.log('📡 [AdminLivePanel] Socket status:', socket?.connected ? 'CONECTADO' : 'DESCONECTADO', socket?.id);
+
+              if (socket && socket.connected) {
+                socket.emit('vip-new-subscriber', { streamId, name: vipTestName });
+                toast.success(`Animação VIP disparada para ${vipTestName}!`);
+              } else {
+                toast.error('Erro: Socket não conectado. Tente atualizar a página.');
+              }
+            }}
+            className="flex-1 sm:flex-none w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-2xl text-xs font-black uppercase transition-all shadow-[0_0_15px_rgba(168,85,247,0.4)] flex items-center justify-center gap-2"
+          >
+            <Crown className="w-4 h-4 text-yellow-300" />
+            Testar Animação Global
+          </button>
         </div>
 
         {/* Métricas em Tempo Real */}
