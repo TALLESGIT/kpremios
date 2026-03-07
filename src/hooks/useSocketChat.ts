@@ -55,6 +55,7 @@ interface MessageOptions {
   isPinned?: boolean;
   pinnedLink?: string;
   vipColor?: string;
+  vip_color?: string;
 }
 
 export const useSocketChat = (options: UseSocketChatOptions): UseSocketChatReturn => {
@@ -156,7 +157,7 @@ export const useSocketChat = (options: UseSocketChatOptions): UseSocketChatRetur
       userId: user?.id || null,
       userName: (user as any)?.name || user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Anônimo',
       message,
-      vip_color: options.vipColor,
+      vip_color: options.vip_color || options.vipColor,
       ...options
     });
   };

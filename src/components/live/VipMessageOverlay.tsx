@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '../../lib/supabase';
 import { Volume2, Crown, Sparkles } from 'lucide-react';
 import googleTtsService from '../../services/googleTtsService';
 import { useSocket } from '../../hooks/useSocket';
@@ -27,9 +26,7 @@ const debug = (...args: any[]) => { if (isDebug()) console.log('[VipMessageOverl
 const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActive }) => {
   const [currentMessage, setCurrentMessage] = useState<VipMessage | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const userRolesRef = useRef<{ [userId: string]: { isVip: boolean; vipColor?: string } }>({});
 
   // FILA DE MENSAGENS VIP - Processa uma de cada vez
   const messageQueueRef = useRef<VipMessage[]>([]);
@@ -40,15 +37,6 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
     autoConnect: !!streamId
   });
 
-  // Detectar mobile
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   // Cleanup de áudio ao desmontar ou trocar mensagem
   useEffect(() => {
@@ -196,62 +184,6 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
   useEffect(() => {
     if (!streamId || !isActive) return;
 
-    // Listener para mensagens VIP do DB (Realtime Supabase)
-    const vipChannel = supabase
-      .channel(`vip_messages_${streamId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'live_chat_messages',
-          filter: `stream_id=eq.${streamId}`,
-        },
-        async (payload) => {
-          const newMsg = payload.new;
-
-          // Verificar se o usuário é VIP
-          if (!userRolesRef.current[newMsg.user_id]) {
-            const { data: profile } = await supabase
-              .from('users')
-              .select('is_vip, vip_color')
-              .eq('id', newMsg.user_id)
-              .single();
-
-            userRolesRef.current[newMsg.user_id] = {
-              isVip: profile?.is_vip || false,
-              vipColor: profile?.vip_color || 'purple'
-            };
-          } else {
-            // Se já está no cache, mas a mensagem trouxe uma cor diferente, atualizar cache
-            if (newMsg.vip_color && userRolesRef.current[newMsg.user_id].vipColor !== newMsg.vip_color) {
-              userRolesRef.current[newMsg.user_id].vipColor = newMsg.vip_color;
-            }
-          }
-
-          const role = userRolesRef.current[newMsg.user_id];
-
-          if (role.isVip || newMsg.is_vip) {
-            debug('Nova mensagem VIP recebida:', newMsg.message);
-            const vipMsg: VipMessage = {
-              id: newMsg.id,
-              user_id: newMsg.user_id,
-              user_name: newMsg.user_name,
-              message: newMsg.message,
-              created_at: newMsg.created_at,
-              message_type: newMsg.message_type || 'text',
-              vip_color: newMsg.vip_color || role.vipColor || 'purple'
-            };
-
-            messageQueueRef.current.push(vipMsg);
-            if (!isProcessingQueueRef.current) {
-              processMessageQueue();
-            }
-          }
-        }
-      )
-      .subscribe();
-
     // ✅ Listener para mensagens normais que são de usuários VIP (Socket.io - MAIS RÁPIDO)
     const handleNewMessage = (msg: any) => {
       if (!msg.is_vip) return;
@@ -300,40 +232,12 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
       }
     };
 
-    // ✅ Listener para overlay "Novo VIP!" disparado pelo admin
-    const handleNewVipSubscriber = (data: { name: string; streamId: string }) => {
-      debug('Novo VIP anunciado pelo admin:', data.name);
-
-      // Tocar som épico
-      try {
-        const audio = new Audio('https://www.myinstants.com/media/sounds/epic.mp3');
-        audio.volume = 0.5;
-        audio.play().catch(e => console.log('Áudio VIP bloqueado pelo navegador:', e));
-      } catch (err) { }
-
-      // Mantém a mensagem no topo como log secundário
-      const fakeMsg: VipMessage = {
-        id: `vip-announce-${Date.now()}`,
-        user_id: 'admin-announce',
-        message: `🎉 ${data.name} acabou de se tornar VIP! Bem-vindo ao clube! 💎`,
-        user_name: data.name,
-        created_at: new Date().toISOString(),
-        message_type: 'text',
-        vip_color: 'gold',
-      };
-      messageQueueRef.current.push(fakeMsg);
-      if (!isProcessingQueueRef.current) processMessageQueue();
-    };
-
     on('new-message', handleNewMessage);
     on('new-vip-message', handleNewVipMessage);
-    on('vip-new-subscriber', handleNewVipSubscriber);
 
     return () => {
-      supabase.removeChannel(vipChannel);
       off('new-message', handleNewMessage);
       off('new-vip-message', handleNewVipMessage);
-      off('vip-new-subscriber', handleNewVipSubscriber);
     };
   }, [streamId, isActive, on, off]);
 

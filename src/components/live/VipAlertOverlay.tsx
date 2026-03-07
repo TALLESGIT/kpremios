@@ -98,9 +98,10 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId }) => {
     if (!isConnected || !streamId) return;
 
     const handleVipAlert = (data: any) => {
+      if (isLiveChatDebug()) console.log('💎 VipAlertOverlay: Recebeu alerta VIP:', data);
       const newAlert: VipAlert = {
         id: data.id || Math.random().toString(36).substring(2),
-        user_name: data.user_name || data.userName || data.name || 'Doador'
+        user_name: data.user_name || data.userName || data.name || (data.user && data.user.name) || 'Doador'
       };
 
       playVipSound();
@@ -113,10 +114,14 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId }) => {
 
     on('vip-alert-received', handleVipAlert);
     on('chat-vip-alert', handleVipAlert);
+    on('vip-new-subscriber', handleVipAlert);
+    on('vip-promo-launched', handleVipAlert);
 
     return () => {
       off('vip-alert-received', handleVipAlert);
       off('chat-vip-alert', handleVipAlert);
+      off('vip-new-subscriber', handleVipAlert);
+      off('vip-promo-launched', handleVipAlert);
     };
   }, [isConnected, streamId, on, off, playVipSound]);
 
