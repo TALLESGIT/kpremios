@@ -153,7 +153,7 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId }) => {
   }, [isConnected, streamId, on, off, playVipSound]);
 
   return (
-    <div className={`absolute ${isFullscreen ? 'bottom-2' : 'bottom-1 sm:bottom-24'} left-4 z-[9999] flex flex-col items-start gap-1 sm:gap-4 pointer-events-none max-w-[calc(100%-2rem)]`}>
+    <div className={`absolute ${isFullscreen ? 'bottom-0' : 'bottom-1 sm:bottom-24'} left-4 z-[9999] flex flex-col items-start gap-1 sm:gap-4 pointer-events-none max-w-[calc(100%-2rem)]`}>
       <AnimatePresence>
         {alerts.map((alert) => (
           <motion.div
