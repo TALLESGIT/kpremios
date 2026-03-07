@@ -4,6 +4,8 @@ import { Crown, Sparkles, Star } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useSocket } from '../../hooks/useSocket';
 
+const isLiveChatDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
+
 interface VipAlert {
   id: string;
   user_name: string;
