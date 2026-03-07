@@ -17,6 +17,31 @@ interface VipAlertOverlayProps {
 
 const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId }) => {
   const [alerts, setAlerts] = useState<VipAlert[]>([]);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Detect Fullscreen
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      ));
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
 
   // ✅ Som Premium - Shimmering Chime (Major 7th Chord)
   const playVipSound = useCallback(() => {
@@ -128,7 +153,7 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId }) => {
   }, [isConnected, streamId, on, off, playVipSound]);
 
   return (
-    <div className="absolute bottom-4 sm:bottom-24 left-4 z-[9999] flex flex-col items-start gap-1 sm:gap-4 pointer-events-none max-w-[calc(100%-2rem)]">
+    <div className={`absolute ${isFullscreen ? 'bottom-2' : 'bottom-1 sm:bottom-24'} left-4 z-[9999] flex flex-col items-start gap-1 sm:gap-4 pointer-events-none max-w-[calc(100%-2rem)]`}>
       <AnimatePresence>
         {alerts.map((alert) => (
           <motion.div
@@ -138,8 +163,7 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId }) => {
             exit={{ opacity: 0, x: -30, scale: 0.9, filter: 'blur(10px)' }}
             transition={{
               type: "spring",
-              stiffness: 260,
-              damping: 20,
+              stiffness: 260, damping: 20,
               duration: 0.6
             }}
             className="relative group"
