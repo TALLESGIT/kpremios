@@ -405,9 +405,6 @@ const socketIoChatMessages = new Set(); // messageId -> timestamp
 const messageBuffer = [];
 const MESSAGE_FLUSH_INTERVAL_MS = 4000; // 3 a 5 segundos
 
-// Likes em mensagens com id temporário (antes do batch insert) — só em memória
-const tempMessageLikes = new Map(); // messageId -> { count, likedBy: Set }
-
 // Flush do buffer de mensagens a cada 3–5 s (uma única escrita em lote)
 setInterval(async () => {
   if (messageBuffer.length === 0) return;
@@ -801,82 +798,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // =====================================================
-  // LIKES DE MENSAGENS - Handler Socket.io
-  // =====================================================
-
-  // Like/Unlike em mensagem de chat
-  socket.on('like-message', async (data) => {
-    const { streamId, messageId, userId, sessionId } = data;
-
-    if (!streamId || !messageId) {
-      socket.emit('error', { message: 'streamId e messageId são obrigatórios' });
-      return;
-    }
-
-    if (!userId && !sessionId) {
-      socket.emit('error', { message: 'userId ou sessionId é obrigatório para curtir' });
-      return;
-    }
-
-    const who = userId || sessionId;
-
-    try {
-      // Mensagem com id temporário ou de cache (ainda não UUID no banco) — like só em memória
-      const idStr = String(messageId);
-      if (idStr.startsWith('temp-') || idStr.startsWith('cache-')) {
-        const entry = tempMessageLikes.get(messageId) || { count: 0, likedBy: new Set() };
-        if (entry.likedBy.has(who)) {
-          entry.likedBy.delete(who);
-          entry.count = Math.max(0, entry.count - 1);
-        } else {
-          entry.likedBy.add(who);
-          entry.count += 1;
-        }
-        tempMessageLikes.set(messageId, entry);
-        io.to(`stream:${streamId}`).emit('message-liked', {
-          messageId,
-          streamId,
-          likes_count: entry.count,
-          liked: entry.likedBy.has(who),
-          likedBy: who
-        });
-        return;
-      }
-
-      console.log(`❤️ Backend: Processando like na mensagem ${messageId} (user: ${who})`);
-
-      const { data: result, error, fromCache } = await supabaseWrapper.toggleMessageLike(messageId, who);
-
-      if (fromCache) {
-        console.warn('⚠️ Like processado via cache (Supabase indisponível)');
-      }
-
-      if (error) {
-        console.error('❌ Erro ao processar like:', error);
-        socket.emit('error', { message: 'Erro ao processar like: ' + error.message });
-        return;
-      }
-
-      if (result) {
-        const likesCount = result.likes_count || 1;
-
-        // Broadcast para TODOS os viewers da stream
-        io.to(`stream:${streamId}`).emit('message-liked', {
-          messageId,
-          streamId,
-          likes_count: likesCount,
-          liked: result.liked !== false,
-          likedBy: userId || sessionId
-        });
-
-        console.log(`❤️ Like processado: mensagem ${messageId}, total likes: ${likesCount}, liked: ${result.liked}`);
-      }
-    } catch (error) {
-      console.error('❌ Erro ao processar like:', error);
-      socket.emit('error', { message: 'Erro ao processar like' });
-    }
-  });
 
   // =====================================================
   // LINKS FIXADOS (PINNED LINKS) - Handlers Socket.io
@@ -1547,7 +1468,7 @@ io.on('connection', (socket) => {
 // Escutar mudanças no Supabase Realtime e broadcast via Socket.io
 // Isso permite que o backend escute mudanças e notifique os clientes
 
-// ✅ CANAL PARA ESCUTAR ATUALIZAÇÕES DE MENSAGENS (likes, pins, etc.)
+// ✅ CANAL PARA ESCUTAR ATUALIZAÇÕES DE MENSAGENS (pins, etc.)
 const chatMessagesChannel = supabase
   .channel('socket-chat-messages-updates')
   .on('postgres_changes', {
@@ -1585,6 +1506,7 @@ const chatMessagesChannel = supabase
       // O handler Socket.io já faz broadcast, então este é apenas backup para webhooks/bots
       io.to(`stream:${data.stream_id}`).emit('new-message', data);
     } else if (eventType === 'UPDATE') {
+      // Nota: Curtidas foram desativadas, então UPDATE aqui geralmente seria para fixação ou edição
       io.to(`stream:${data.stream_id}`).emit('message-updated', data);
     } else if (eventType === 'DELETE') {
       io.to(`stream:${data.stream_id}`).emit('message-deleted', {
@@ -1595,7 +1517,7 @@ const chatMessagesChannel = supabase
   })
   .subscribe();
 
-console.log('✅ Canal Realtime configurado para atualizações de mensagens (likes, pins, etc.)');
+console.log('✅ Canal Realtime configurado para atualizações de mensagens (pins, etc.)');
 
 // Canal para escutar mudanças em match_pools (bolões)
 const poolChannel = supabase

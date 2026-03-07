@@ -27,7 +27,6 @@ const debug = (...args: any[]) => { if (isDebug()) console.log('[VipMessageOverl
 const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActive }) => {
   const [currentMessage, setCurrentMessage] = useState<VipMessage | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [overlayMessagesCount, setOverlayMessagesCount] = useState(0);
   const [queueWaitTime, setQueueWaitTime] = useState<number | null>(null);
   const userRolesRef = useRef<{ [userId: string]: { isVip: boolean; vipColor?: string } }>({});
 
@@ -38,7 +37,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
   const messageQueueRef = useRef<VipMessage[]>([]);
   const isProcessingQueueRef = useRef(false);
 
-  const { socket, on, off } = useSocket({
+  const { on, off } = useSocket({
     streamId: streamId,
     autoConnect: !!streamId // Manter conectado mesmo se isActive mudar, para não perder eventos VIP
   });
@@ -87,7 +86,6 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
 
     if (nextMessage) {
       setCurrentMessage(nextMessage);
-      setOverlayMessagesCount(prev => prev + 1);
 
       // Se for TTS, sintetizar e tocar áudio
       if (nextMessage.message_type === 'tts') {
@@ -264,7 +262,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
               }}
               className="absolute top-4 left-0 right-0 flex justify-center px-4"
             >
-              <div className={`bg-gradient-to-r ${colorClasses.bg} backdrop-blur-md border-2 ${colorClasses.border} rounded-2xl px-5 py-3 shadow-2xl w-full max-w-lg mx-auto pointer-events-auto`}>
+              <div className={`bg-gradient-to-r ${colorClasses.bg} backdrop-blur-md border border-white/20 md:border-2 ${colorClasses.border} rounded-xl md:rounded-2xl px-3 py-2 md:px-5 md:py-3 shadow-2xl w-full max-w-[95vw] md:max-w-lg mx-auto pointer-events-auto`}>
                 <div className="flex items-center gap-3 mb-2">
                   <span className={`${colorClasses.text} text-xs font-black uppercase tracking-wider flex items-center gap-1`}>
                     <span className="text-lg animate-pulse">💎</span> VIP
@@ -275,7 +273,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
                       ÁUDIO
                     </span>
                   )}
-                  <span className="text-white text-sm font-bold truncate max-w-[200px]">
+                  <span className="text-white text-xs md:text-sm font-bold truncate max-w-[150px] md:max-w-[200px]">
                     {currentMessage.user_name}
                   </span>
                   {messageQueueRef.current.length > 0 && (
@@ -287,7 +285,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
                     </span>
                   )}
                 </div>
-                <p className="text-white text-sm font-medium leading-relaxed break-words line-clamp-3">
+                <p className="text-white text-xs md:text-sm font-medium leading-relaxed break-words line-clamp-3">
                   {currentMessage.message}
                 </p>
               </div>
@@ -316,7 +314,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
               <motion.div
                 initial={{ y: 20 }}
                 animate={{ y: 0 }}
-                className="relative bg-slate-900/90 backdrop-blur-xl border-4 border-yellow-400 p-10 rounded-[40px] shadow-[0_0_80px_rgba(250,204,21,0.4)] flex flex-col items-center gap-6 text-center overflow-hidden"
+                className="relative bg-slate-900/90 backdrop-blur-xl border-2 md:border-4 border-yellow-400 p-6 md:p-10 rounded-[24px] md:rounded-[40px] shadow-[0_0_80px_rgba(250,204,21,0.4)] flex flex-col items-center gap-4 md:gap-6 text-center overflow-hidden max-w-[90vw]"
               >
                 {/* Partículas de Brilho */}
                 <div className="absolute top-4 left-4"><Sparkles className="w-6 h-6 text-yellow-300 animate-pulse" /></div>
@@ -326,17 +324,17 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
                   animate={{ scale: [1, 1.2, 1], rotate: [0, 5, -5, 0] }}
                   transition={{ duration: 2, repeat: Infinity }}
                 >
-                  <Crown className="w-28 h-28 text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.6)]" />
+                  <Crown className="w-16 h-16 md:w-28 md:h-28 text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.6)]" />
                 </motion.div>
 
                 <div className="space-y-2">
-                  <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-200 uppercase tracking-tighter italic">
+                  <h2 className="text-xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-200 uppercase tracking-tighter italic">
                     Novo VIP na Área!
                   </h2>
                   <div className="h-1 w-24 bg-gradient-to-r from-transparent via-yellow-400 to-transparent mx-auto" />
                 </div>
 
-                <p className="text-6xl font-black text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] tracking-tight">
+                <p className="text-3xl md:text-6xl font-black text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] tracking-tight">
                   {showVipGlobalAnimation.username}
                 </p>
 

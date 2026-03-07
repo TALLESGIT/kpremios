@@ -3,7 +3,6 @@
 // =====================================================
 
 import { useEffect } from 'react';
-import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChatSlot } from './ChatSlot';
 
@@ -53,7 +52,7 @@ export function ChatDrawer({ isOpen, onClose }: Omit<ChatDrawerProps, 'streamId'
 
             {/* Chat Content */}
             <div className="flex-1 min-h-0 overflow-hidden">
-              <ChatSlot id="mobile-drawer-chat" priority={95} className="h-full" showHeader={true} onClose={onClose} />
+              <ChatSlot id="mobile-drawer-chat" priority={95} className="h-full" showHeader={true} onClose={onClose} hideCloseButton={true} />
             </div>
           </motion.div>
         </>

@@ -8,6 +8,7 @@ export interface ChatSlot {
   priority: number;
   showHeader?: boolean;
   onClose?: () => void;
+  hideCloseButton?: boolean;
   isActive?: boolean;
 }
 

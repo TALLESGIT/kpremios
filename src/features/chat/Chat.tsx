@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { MessageSquare, Smile, Send, Pin, Link2, X, Palette, Mic, Volume2, Heart } from 'lucide-react';
+import { MessageSquare, Smile, Send, Pin, Link2, X, Palette, Mic, Volume2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
@@ -19,6 +19,7 @@ interface ChatProps {
   className?: string;
   showHeader?: boolean;
   onClose?: () => void;
+  hideCloseButton?: boolean;
 }
 
 const EMOJI_CATEGORIES = {
@@ -55,7 +56,7 @@ const VIP_COLOR_PRESETS = [
   { name: 'Prata', value: 'silver', hex: '#94a3b8' },
 ];
 
-export function Chat({ streamId, isActive = true, className, showHeader = true, onClose }: ChatProps) {
+export function Chat({ streamId, isActive = true, className, showHeader = true, onClose, hideCloseButton = false }: ChatProps) {
   const { user } = useAuth();
   const { currentUser } = useData();
   const navigate = useNavigate();
@@ -79,7 +80,6 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
   const [isSendingAudio, setIsSendingAudio] = useState(false);
   const [lastAudioSentAt, setLastAudioSentAt] = useState<number>(0);
   const [audioCountRemaining, setAudioCountRemaining] = useState<number>(3);
-  const [likedMessages, setLikedMessages] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -163,40 +163,11 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
     }
   };
 
-  // Carregar likes do usuário
-  const loadUserLikes = async (messageIds: string[]) => {
-    if (!user && !sessionStorage.getItem('session_id')) return;
-
-    // Filtrar IDs temporários do Socket.io (não são UUIDs válidos no Supabase)
-    const validIds = messageIds.filter(id => !id.startsWith('temp-'));
-    if (validIds.length === 0) return;
-
-    try {
-      const sessionId = sessionStorage.getItem('session_id') || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      if (!sessionStorage.getItem('session_id')) {
-        sessionStorage.setItem('session_id', sessionId);
-      }
-
-      const likedSet = new Set<string>();
-      for (const msgId of validIds) {
-        const { data } = await supabase.rpc('has_user_liked', {
-          p_message_id: msgId,
-          p_user_id: user?.id || null,
-          p_session_id: user?.id ? null : sessionId
-        });
-        if (data) likedSet.add(msgId);
-      }
-      setLikedMessages(likedSet);
-    } catch (error) {
-      console.error('Erro ao carregar likes:', error);
-    }
-  };
 
   // Carregar roles quando mensagens mudarem
   useEffect(() => {
     if (messages.length > 0) {
       loadUserRoles();
-      loadUserLikes(messages.map(m => m.id));
     }
   }, [messages.length]);
 
@@ -350,51 +321,6 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
     }
   };
 
-  const handleToggleLike = async (messageId: string) => {
-    // Não permitir like em mensagens com ID temporário (ainda não persistidas no Supabase)
-    if (messageId.startsWith('temp-')) {
-      toast.error('Aguarde um momento, a mensagem ainda está sendo salva...');
-      return;
-    }
-
-    try {
-      const sessionId = sessionStorage.getItem('session_id') || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      if (!sessionStorage.getItem('session_id')) {
-        sessionStorage.setItem('session_id', sessionId);
-      }
-
-      // Chamada RPC para persistência (banco de dados)
-      const { data, error: rpcError } = await supabase.rpc('toggle_message_like', {
-        p_message_id: messageId,
-        p_user_id: user?.id || null,
-        p_session_id: user?.id ? null : sessionId
-      });
-
-      if (rpcError) throw rpcError;
-
-      if (data && data.success) {
-        // Atualização otimista do estado local
-        const newLikedMessages = new Set(likedMessages);
-        if (likedMessages.has(messageId)) {
-          newLikedMessages.delete(messageId);
-        } else {
-          newLikedMessages.add(messageId);
-        }
-        setLikedMessages(newLikedMessages);
-
-        // ✅ Broadcast via Socket.io para que todos vejam instantaneamente
-        if (connected) {
-          emit(streamId, 'message-updated', {
-            id: messageId,
-            likes_count: data.likes_count || 0
-          });
-        }
-      }
-    } catch (error: any) {
-      console.error('Erro ao curtir mensagem:', error);
-      toast.error('Erro ao curtir mensagem');
-    }
-  };
 
   const containsPhoneNumber = (text: string): boolean => {
     const phonePatterns = [
@@ -439,18 +365,22 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
 
   const getMessageStyles = (msg: ChatMessage) => {
     const hasLink = containsLink(msg.message);
+    const msgData = msg as any; // Type access for backend-provided properties
 
-    // ✅ NOVO: Primeiro verificar dados da própria mensagem (vêm do backend em tempo real)
-    // Fallback para userRoles (para mensagens antigas carregadas do banco)
-    const msgData = msg as any; // Type cast para acessar is_vip, is_admin
+    // ✅ Priority 1: Backend provided properties (Socket.io)
+    // The backend broadcasts these for real-time consistency
+    const isUserAdmin = msgData.user_is_admin === true || msgData.is_admin === true;
+    const isUserVip = msgData.user_is_vip === true || msgData.is_vip === true;
+    const isUserModerator = msgData.user_is_moderator === true || msgData.is_moderator === true;
+
+    // User data from our local cache (Supabase initial load)
     const roles = userRoles[msg.user_id || ''] || { isAdmin: false, isVip: false, isModerator: false };
 
-    // Priorizar dados da mensagem, depois fallback para userRoles
-    const isUserAdmin = msgData.is_admin === true || roles.isAdmin;
-    const isUserVip = msgData.is_vip === true || roles.isVip;
-    const isUserModerator = roles.isModerator; // Moderador ainda vem do userRoles
+    const finalIsAdmin = isUserAdmin || roles.isAdmin;
+    const finalIsVip = isUserVip || roles.isVip;
+    const finalIsModerator = isUserModerator || roles.isModerator;
 
-    if (isUserAdmin) {
+    if (finalIsAdmin) {
       return {
         border: hasLink ? 'border-2 border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.3)]' : 'border-2 border-yellow-500/60',
         bg: hasLink ? 'bg-gradient-to-r from-yellow-600/30 to-yellow-500/20' : 'bg-gradient-to-r from-yellow-900/20 to-yellow-800/10',
@@ -459,7 +389,7 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
         badgeClass: 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300',
         isHighlighted: hasLink
       };
-    } else if (isUserModerator) {
+    } else if (finalIsModerator) {
       return {
         border: hasLink ? 'border-2 border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'border-2 border-blue-500/60',
         bg: hasLink ? 'bg-gradient-to-r from-blue-600/30 to-blue-500/20' : 'bg-gradient-to-r from-blue-900/20 to-blue-800/10',
@@ -468,9 +398,10 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
         badgeClass: 'bg-blue-500/20 border-blue-500/40 text-blue-300',
         isHighlighted: hasLink
       };
-    } else if (isUserVip) {
+    } else if (finalIsVip) {
+      // Use color from message data first, then fallback to local state if it's our message
       const isOwnMessage = msg.user_id === user?.id;
-      const colorToUse = isOwnMessage ? vipCustomColor : 'purple';
+      const colorToUse = msgData.vip_color || (isOwnMessage ? vipCustomColor : 'purple');
       const colorConfig = VIP_COLOR_PRESETS.find(c => c.value === colorToUse) || VIP_COLOR_PRESETS[0];
       const colorClasses = getVipColorClasses(colorConfig.value);
       return {
@@ -563,7 +494,8 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
       sendMessage(streamId, msg, {
         messageType: 'tts',
         ttsText: msg,
-        audioDuration: estimatedDuration
+        audioDuration: estimatedDuration,
+        vipColor: isVip ? vipCustomColor : undefined
       });
 
       const remaining = Math.max(0, 3 - (audioCount || 0) - 1);
@@ -628,7 +560,10 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
         return;
       }
 
-      sendMessage(streamId, msg, { messageType: 'text' });
+      sendMessage(streamId, msg, {
+        messageType: 'text',
+        vipColor: isVip ? vipCustomColor : undefined
+      });
     } catch (err) {
       console.error('Erro ao enviar mensagem:', err);
       toast.error('Erro ao enviar mensagem');
@@ -777,7 +712,7 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
                 )}
               </div>
             )}
-            {onClose && (
+            {onClose && !hideCloseButton && (
               <button
                 onClick={onClose}
                 className="p-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all"
@@ -863,19 +798,6 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
                     <p className="text-xs text-white break-words font-medium">{msg.message}</p>
                   </div>
 
-                  <button
-                    onClick={() => handleToggleLike(msg.id)}
-                    className={`flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition-all ${likedMessages.has(msg.id)
-                      ? 'text-red-400 hover:bg-red-500/10'
-                      : 'text-slate-400 hover:bg-slate-700/50 hover:text-red-400'
-                      }`}
-                    title="Curtir"
-                  >
-                    <Heart className={`w-4 h-4 ${likedMessages.has(msg.id) ? 'fill-current' : ''}`} />
-                    {msg.likes_count && msg.likes_count > 0 && (
-                      <span className="text-[9px] font-bold">{msg.likes_count}</span>
-                    )}
-                  </button>
                 </div>
 
                 {(isModerator || isAdmin) && (

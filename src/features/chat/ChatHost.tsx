@@ -27,12 +27,14 @@ export function ChatHost() {
     const newSlotId = slot?.id || null;
     const newShowHeader = slot?.showHeader;
     const newOnClose = slot?.onClose;
+    const newHideCloseButton = slot?.hideCloseButton;
 
     // Só atualizar state se o slot ou suas props visíveis realmente mudaram
     if (
       newSlotId !== lastSlotIdRef.current ||
       newShowHeader !== (lastSlotIdRef.current ? activeSlot?.showHeader : undefined) ||
       newOnClose !== (lastSlotIdRef.current ? activeSlot?.onClose : undefined) ||
+      newHideCloseButton !== (lastSlotIdRef.current ? activeSlot?.hideCloseButton : undefined) ||
       slot?.isActive !== activeSlot?.isActive
     ) {
       lastSlotIdRef.current = newSlotId;
@@ -68,6 +70,7 @@ export function ChatHost() {
       streamId={streamId}
       showHeader={activeSlot.showHeader}
       onClose={activeSlot.onClose}
+      hideCloseButton={activeSlot.hideCloseButton}
       isActive={activeSlot.isActive}
     />,
     activeSlot.container

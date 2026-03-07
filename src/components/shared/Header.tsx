@@ -202,36 +202,34 @@ function Header() {
                 </>
               )}
 
-              {/* Admin and Public navigation links */}
-              {currentAppUser && (
-                <>
-                  <Link
-                    to="/spotify"
-                    className={`px-3 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/spotify'
-                      ? 'bg-white/10 text-white shadow-sm border border-white/20'
-                      : 'text-white/80 hover:text-white hover:bg-white/5'
-                      }`}
-                  >
-                    Músicas
-                  </Link>
-                  <Link
-                    to="/zk-clips"
-                    className={`px-3 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/zk-clips'
-                      ? 'bg-white/10 text-white shadow-sm border border-white/20'
-                      : 'text-white/80 hover:text-white hover:bg-white/5'
-                      }`}
-                  >
-                    Clipes
-                  </Link>
-                  {currentAppUser.is_admin && (
-                    <Link
-                      to="/admin/live-stream"
-                      className="ml-2 px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 bg-white text-primary hover:bg-gray-100 shadow-lg"
-                    >
-                      Transmitir ao Vivo
-                    </Link>
-                  )}
-                </>
+              {/* Links públicos */}
+              <Link
+                to="/spotify"
+                className={`px-3 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/spotify'
+                  ? 'bg-white/10 text-white shadow-sm border border-white/20'
+                  : 'text-white/80 hover:text-white hover:bg-white/5'
+                  }`}
+              >
+                Músicas
+              </Link>
+              <Link
+                to="/zk-clips"
+                className={`px-3 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/zk-clips'
+                  ? 'bg-white/10 text-white shadow-sm border border-white/20'
+                  : 'text-white/80 hover:text-white hover:bg-white/5'
+                  }`}
+              >
+                Clipes
+              </Link>
+
+              {/* Admin specific navigation links */}
+              {currentAppUser?.is_admin && (
+                <Link
+                  to="/admin/live-stream"
+                  className="ml-2 px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 bg-white text-primary hover:bg-gray-100 shadow-lg"
+                >
+                  Transmitir ao Vivo
+                </Link>
               )}
 
               {/* User buttons */}
@@ -407,22 +405,20 @@ function Header() {
                 )}
 
                 {/* Mobile Admin and Public Links */}
-                {currentAppUser && (
-                  <div className="py-2 space-y-2 border-t border-white/10 mt-2 pt-4">
-                    <p className="px-4 text-xs font-bold uppercase text-white/50 tracking-wider mb-2">Conteúdo</p>
-                    <Link to="/spotify" onClick={closeMenu} className="flex items-center px-4 py-2 text-white/80 hover:text-white hover:bg-white/5 rounded-lg">
-                      <span className="mr-3">🎵</span> Músicas
+                <div className="py-2 space-y-2 border-t border-white/10 mt-2 pt-4">
+                  <p className="px-4 text-xs font-bold uppercase text-white/50 tracking-wider mb-2">Conteúdo</p>
+                  <Link to="/spotify" onClick={closeMenu} className="flex items-center px-4 py-2 text-white/80 hover:text-white hover:bg-white/5 rounded-lg">
+                    <span className="mr-3">🎵</span> Músicas
+                  </Link>
+                  <Link to="/zk-clips" onClick={closeMenu} className="flex items-center px-4 py-2 text-white/80 hover:text-white hover:bg-white/5 rounded-lg">
+                    <span className="mr-3">🎬</span> Clipes
+                  </Link>
+                  {currentAppUser?.is_admin && (
+                    <Link to="/admin/live-stream" onClick={closeMenu} className="flex items-center px-4 py-2 text-white/80 hover:text-white hover:bg-white/5 rounded-lg">
+                      <span className="mr-3">📡</span> Transmitir ao Vivo
                     </Link>
-                    <Link to="/zk-clips" onClick={closeMenu} className="flex items-center px-4 py-2 text-white/80 hover:text-white hover:bg-white/5 rounded-lg">
-                      <span className="mr-3">🎬</span> Clipes
-                    </Link>
-                    {currentAppUser.is_admin && (
-                      <Link to="/admin/live-stream" onClick={closeMenu} className="flex items-center px-4 py-2 text-white/80 hover:text-white hover:bg-white/5 rounded-lg">
-                        <span className="mr-3">📡</span> Transmitir ao Vivo
-                      </Link>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {!user && !currentAppUser && (
                   <div className="pt-4 mt-4 border-t border-white/10 space-y-3">

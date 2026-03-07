@@ -53,6 +53,7 @@ interface MessageOptions {
   audioDuration?: number;
   isPinned?: boolean;
   pinnedLink?: string;
+  vipColor?: string;
 }
 
 export const useSocketChat = (options: UseSocketChatOptions): UseSocketChatReturn => {

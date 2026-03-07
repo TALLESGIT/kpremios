@@ -2,10 +2,10 @@
 // ChatProvider - Provider global para gerenciar sessões de chat por streamId
 // =====================================================
 
-import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useRef, ReactNode } from 'react';
 import { useSocket } from '../../hooks/useSocket';
 import { useAuth } from '../../context/AuthContext';
-import { getChatSessionStore, destroyChatSessionStore, ChatSessionStore } from './chatSessionStore';
+import { getChatSessionStore, ChatSessionStore } from './chatSessionStore';
 import type { ChatMessage } from '../../hooks/useSocketChat';
 
 interface ChatContextValue {
@@ -15,6 +15,7 @@ interface ChatContextValue {
     ttsText?: string;
     audioUrl?: string;
     audioDuration?: number;
+    vipColor?: string;
   }) => void;
   emit: (streamId: string, event: string, data: any) => void;
 }
@@ -88,6 +89,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     ttsText?: string;
     audioUrl?: string;
     audioDuration?: number;
+    vipColor?: string;
   } = {}) => {
     const store = getChatSessionStore(streamId);
     if (!store || !socket.isConnected) {

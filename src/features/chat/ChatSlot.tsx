@@ -12,10 +12,11 @@ export interface ChatSlotProps {
   className?: string;
   showHeader?: boolean;
   onClose?: () => void;
+  hideCloseButton?: boolean;
   isActive?: boolean;
 }
 
-export function ChatSlot({ id, priority, children, className, showHeader, onClose, isActive }: ChatSlotProps) {
+export function ChatSlot({ id, priority, children, className, showHeader, onClose, hideCloseButton, isActive }: ChatSlotProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,13 +28,14 @@ export function ChatSlot({ id, priority, children, className, showHeader, onClos
       id,
       showHeader,
       onClose,
+      hideCloseButton,
       isActive
     });
 
     return () => {
       unregisterChatSlot(id);
     };
-  }, [id, priority, showHeader, onClose, isActive]);
+  }, [id, priority, showHeader, onClose, hideCloseButton, isActive]);
 
   return (
     <div ref={containerRef} className={`h-full ${className || ''}`} data-chat-slot-id={id}>
