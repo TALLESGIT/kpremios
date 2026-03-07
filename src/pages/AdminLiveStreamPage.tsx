@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
@@ -7,12 +7,9 @@ import { useAuth } from '../context/AuthContext';
 import { useRegisterStreamId } from '../features/chat/useRegisterStreamId';
 import { ChatSlot } from '../features/chat/ChatSlot';
 import {
-  Play,
-  Trash2,
   Users,
   Radio,
-  Plus,
-  Tv
+  Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { DEFAULT_LIVE_CHANNEL } from '../config/constants';
@@ -381,16 +378,26 @@ const AdminLiveStreamPage = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
-                <div className="aspect-video bg-black rounded-3xl overflow-hidden border border-white/5">
+                <div className="aspect-video bg-black rounded-3xl overflow-hidden border border-white/5 relative">
                   <LiveViewer
                     streamId={selectedStream.id}
                     channelName={selectedStream.channel_name}
                     hlsUrl={selectedStream.hls_url}
                     isActive={selectedStream.is_active}
                     isAdmin={true}
+                    className={!isStreaming ? 'blur-sm grayscale-[0.3]' : ''}
                   />
                   <VipMessageOverlay streamId={selectedStream.id} isActive={selectedStream.is_active} />
                   <VipAlertOverlay streamId={selectedStream.id} isAdmin={true} />
+
+                  {/* Overlay de Preview para o Admin */}
+                  {!isStreaming && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-10 pointer-events-none">
+                      <div className="bg-blue-600/80 backdrop-blur-md px-4 py-2 rounded-full border border-white/20">
+                        <span className="text-white text-xs font-black uppercase tracking-widest">Visualização Prévia (OFFLINE)</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <AdminLivePanel
                   streamId={selectedStream.id}

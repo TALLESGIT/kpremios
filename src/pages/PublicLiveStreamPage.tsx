@@ -587,6 +587,10 @@ const PublicLiveStreamPage: React.FC = () => {
                           </div>
                         </>
                       )}
+
+                      {/* VIP Overlays INSIDE the player */}
+                      <VipAlertOverlay streamId={stream.id} />
+                      <VipMessageOverlay streamId={stream.id} isActive={stream.is_active} />
                     </>
                   )}
                 </div>
@@ -667,15 +671,7 @@ const PublicLiveStreamPage: React.FC = () => {
 
       <Footer />
 
-      {/* Overlays de VIP (Novo VIP e Mensagens VIP) - Movidos p/ fora p/ evitar clipping */}
-      {stream && stream.id && (
-        <>
-          <VipAlertOverlay streamId={stream.id} />
-          {stream.is_active && (
-            <VipMessageOverlay streamId={stream.id} isActive={stream.is_active} />
-          )}
-        </>
-      )}
+      <Footer />
 
       <VipSubscriptionModal
         isOpen={showVipModal}

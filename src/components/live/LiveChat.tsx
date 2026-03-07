@@ -69,7 +69,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
   const [isAdmin, setIsAdmin] = useState(false);
   const [isVip, setIsVip] = useState(false);
   const [isBanned, setIsBanned] = useState(false);
-  const [userRoles, setUserRoles] = useState<{ [userId: string]: { isAdmin: boolean; isVip: boolean; isModerator: boolean; vipColor?: string } }>({});
+  const [userRoles, setUserRoles] = useState<Record<string, { isAdmin: boolean; isVip: boolean; isModerator: boolean; vipColor?: string }>>({});
   const [slowModeSecondsRemaining, setSlowModeSecondsRemaining] = useState(0);
   const [showPinLinkModal, setShowPinLinkModal] = useState(false);
   const [linkToPin, setLinkToPin] = useState('');
@@ -98,7 +98,10 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
     messages: socketMessages,
     isConnected: socketConnected,
     sendMessage: socketSendMessage,
-    emit: socketEmit
+    emit: socketEmit,
+    on,
+    off,
+    handleNewMessage
   } = useSocketChat({
     streamId,
     enabled: isActive !== false || isAdmin // Sempre habilitar se for admin ou se isActive não for false
@@ -260,12 +263,16 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('is_vip')
+        .select('is_vip, vip_color')
         .eq('id', user.id)
         .single();
 
       if (!error && data) {
         setIsVip(data.is_vip || false);
+        if (data.vip_color) {
+          setVipCustomColor(data.vip_color);
+          localStorage.setItem(`vip_color_${user.id}`, data.vip_color);
+        }
       }
     } catch (err) {
       console.error('Erro ao verificar status VIP:', err);

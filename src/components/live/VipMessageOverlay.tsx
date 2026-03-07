@@ -338,12 +338,12 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
   }, [streamId, isActive, on, off]);
 
 
-  if ((!currentMessage) || isMobile) {
+  if (!currentMessage) {
     return null;
   }
 
   return (
-    <div className="absolute inset-x-0 top-16 pointer-events-none z-[99999] flex justify-center">
+    <div className="absolute inset-x-0 top-4 pointer-events-none z-[99999] flex justify-center">
       {/* Overlay de Mensagem VIP Individual (Topo-Centro) */}
       <AnimatePresence mode="wait">
         {currentMessage && (() => {
