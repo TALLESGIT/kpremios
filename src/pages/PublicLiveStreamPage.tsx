@@ -23,6 +23,7 @@ import Footer from '../components/shared/Footer';
 import { CastButton } from '../components/CastButton';
 import { CruzeiroGame, CruzeiroStanding } from '../types';
 import { useRegisterStreamId } from '../features/chat/useRegisterStreamId';
+import TeamLogo from '../components/TeamLogo';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DEFAULT_LIVE_CHANNEL } from '../config/constants';
 import { useTVNavigation } from '../hooks/useTVNavigation';
@@ -86,6 +87,7 @@ const PublicLiveStreamPage: React.FC = () => {
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [upcomingGames, setUpcomingGames] = useState<CruzeiroGame[]>([]);
   const [standings, setStandings] = useState<CruzeiroStanding[]>([]);
+  const [lastPoolResult, setLastPoolResult] = useState<any>(null);
   const [isVip, setIsVip] = useState(false);
   const [showVipModal, setShowVipModal] = useState(false);
 
@@ -292,10 +294,29 @@ const PublicLiveStreamPage: React.FC = () => {
   };
 
   const loadZkTVData = async () => {
-    const { data: games } = await supabase.from('cruzeiro_games').select('*').eq('status', 'upcoming').order('date', { ascending: true }).limit(3);
-    const { data: table } = await supabase.from('cruzeiro_standings').select('*').order('position', { ascending: true });
-    if (games) setUpcomingGames(games);
-    if (table) setStandings(table);
+    try {
+      // 1. Jogos Futuros
+      const { data: games } = await supabase.from('cruzeiro_games').select('*').eq('status', 'upcoming').order('date', { ascending: true }).limit(3);
+      if (games) setUpcomingGames(games);
+
+      // 2. Classificação
+      const { data: table } = await supabase.from('cruzeiro_standings').select('*').order('position', { ascending: true });
+      if (table) setStandings(table);
+
+      // 3. Último Resultado do Bolão (com resultado preenchido)
+      const { data: poolData } = await supabase
+        .from('match_pools')
+        .select('*')
+        .not('result_home_score', 'is', null)
+        .not('result_away_score', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (poolData) setLastPoolResult(poolData);
+    } catch (e) {
+      console.error('Erro ao carregar dados ZK TV:', e);
+    }
   };
 
   const handleShare = async () => {
@@ -428,43 +449,7 @@ const PublicLiveStreamPage: React.FC = () => {
                   }
                 </p>
 
-                {upcomingGames.length > 0 && (
-                  <div className="inline-block bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-4 sm:p-6 rounded-2xl mb-6">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Calendar className="w-4 h-4 text-blue-400" />
-                      <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Próximo Jogo</span>
-                    </div>
-                    <div className="flex items-center justify-center gap-4 sm:gap-6">
-                      <div className="text-center">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-1 font-black text-white text-xs">CRU</div>
-                        <span className="text-xs font-bold text-slate-300">Cruzeiro</span>
-                      </div>
-                      <div className="text-slate-600 font-black text-sm">VS</div>
-                      <div className="text-center">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-800 border border-slate-700 rounded-xl flex items-center justify-center mx-auto mb-1 font-black text-slate-400 text-xs">
-                          {upcomingGames[0].opponent.substring(0, 3).toUpperCase()}
-                        </div>
-                        <span className="text-xs font-bold text-slate-300 truncate max-w-[80px] block mx-auto">{upcomingGames[0].opponent}</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mt-3 pt-3 border-t border-slate-700/50 text-xs text-slate-400">
-                      <span className="flex items-center gap-1.5">
-                        <Calendar className="w-3 h-3 text-blue-500" />
-                        {new Date(upcomingGames[0].date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <Clock className="w-3 h-3 text-blue-500" />
-                        {new Date(upcomingGames[0].date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
-                      </span>
-                      {upcomingGames[0].venue && (
-                        <span className="flex items-center gap-1.5 truncate max-w-[120px]">
-                          <MapPin className="w-3 h-3 text-blue-500 flex-shrink-0" />
-                          {upcomingGames[0].venue}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
+                {/* Extra 'Próximo Jogo' top card was removed here to avoid duplication with the video placeholder card */}
               </div>
 
               <div
@@ -615,9 +600,20 @@ const PublicLiveStreamPage: React.FC = () => {
               <div className="bg-slate-800/20 p-8 rounded-[2rem] border border-white/5 space-y-6">
                 <div className="flex items-center gap-3"><Calendar className="w-5 h-5 text-blue-400" /><h3 className="text-white font-black uppercase text-xs italic tracking-widest">Próximos Jogos</h3></div>
                 {upcomingGames.map(g => (
-                  <div key={g.id} className="p-4 bg-white/5 rounded-2xl flex justify-between items-center group cursor-pointer hover:bg-white/10 transition-all border border-transparent hover:border-white/5">
-                    <span className="text-white text-sm font-bold uppercase tracking-tight">{g.opponent}</span>
-                    <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-blue-400 transition-colors" />
+                  <div key={g.id} className="p-4 bg-white/5 rounded-2xl flex items-center justify-between group cursor-pointer hover:bg-white/10 transition-all border border-transparent hover:border-white/5 gap-4">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <TeamLogo
+                        teamName={g.opponent}
+                        customLogo={g.opponent_logo}
+                        size="sm"
+                        showName={false}
+                      />
+                      <span className="text-white text-sm font-bold uppercase tracking-tight truncate">{g.opponent}</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
+                      <span>{new Date(g.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>
+                      <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-blue-400 transition-colors" />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -636,6 +632,58 @@ const PublicLiveStreamPage: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* New Section: Últimos Resultados do Bolão */}
+          {lastPoolResult && (
+            <div className="mt-8 bg-gradient-to-br from-slate-900/60 to-slate-800/20 p-6 sm:p-8 rounded-[2rem] border border-emerald-500/20 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[80px] rounded-full pointer-events-none" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center border border-emerald-500/30 shadow-lg shadow-emerald-500/10">
+                      <Target className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-white font-black uppercase text-xs italic tracking-widest leading-none">Último Resultado</h3>
+                      <p className="text-emerald-400/60 text-[10px] font-bold uppercase tracking-wider mt-1">{lastPoolResult.match_title || 'Bolão ZK Oficial'}</p>
+                    </div>
+                  </div>
+                  <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                    <span className="text-[10px] font-black text-emerald-400 tracking-widest uppercase">CONCLUÍDO</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col md:flex-row items-center justify-between gap-8 bg-black/20 p-6 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-6 flex-1 justify-center md:justify-start">
+                    <div className="text-center">
+                      <TeamLogo teamName={lastPoolResult.home_team} size="md" className="mx-auto mb-2" />
+                      <span className="text-xs font-bold text-slate-300 block">{lastPoolResult.home_team}</span>
+                    </div>
+                    <div className="text-slate-600 font-black text-xl italic uppercase">VS</div>
+                    <div className="text-center">
+                      <TeamLogo teamName={lastPoolResult.away_team} size="md" className="mx-auto mb-2" />
+                      <span className="text-xs font-bold text-slate-300 block">{lastPoolResult.away_team}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 bg-slate-900 border border-emerald-500/30 rounded-2xl flex items-center justify-center text-3xl font-black text-emerald-400 shadow-inner">
+                      {lastPoolResult.result_home_score}
+                    </div>
+                    <div className="text-emerald-500/30 font-black text-xl">-</div>
+                    <div className="w-16 h-16 bg-slate-900 border border-emerald-500/30 rounded-2xl flex items-center justify-center text-3xl font-black text-emerald-400 shadow-inner">
+                      {lastPoolResult.result_away_score}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 text-center">
+                  <p className="text-slate-500 text-[10px] font-medium uppercase tracking-widest">{lastPoolResult.match_title}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
 
         {isChatOpen && stream.is_active && !isDockedChat && !isFullscreen && (
@@ -662,8 +710,7 @@ const PublicLiveStreamPage: React.FC = () => {
         {isMobile && isFullscreen && !isLandscape && stream && stream.is_active && (
           <ChatDrawer
             isOpen={isChatOpen}
-            onClose={() => setIsChatOpen(false)}
-          />
+            onClose={() => setIsChatOpen(false)} streamId={streamId || ''} />
         )}
       </main>
 

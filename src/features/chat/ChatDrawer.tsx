@@ -13,7 +13,7 @@ interface ChatDrawerProps {
   isActive?: boolean;
 }
 
-export function ChatDrawer({ isOpen, onClose }: Omit<ChatDrawerProps, 'streamId' | 'isActive'>) {
+export function ChatDrawer({ isOpen, onClose, streamId, isActive }: ChatDrawerProps) {
   // Prevenir scroll do body quando drawer estiver aberto
   useEffect(() => {
     if (isOpen) {
@@ -51,8 +51,16 @@ export function ChatDrawer({ isOpen, onClose }: Omit<ChatDrawerProps, 'streamId'
             <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto my-3 flex-shrink-0" />
 
             {/* Chat Content */}
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <ChatSlot id="mobile-drawer-chat" priority={95} className="h-full" showHeader={true} onClose={onClose} hideCloseButton={true} />
+            <div className="flex-1 min-h-0 overflow-hidden" data-stream-id={streamId}>
+              <ChatSlot
+                id="mobile-drawer-chat"
+                priority={95}
+                className="h-full"
+                showHeader={true}
+                onClose={onClose}
+                hideCloseButton={true}
+                isActive={isActive}
+              />
             </div>
           </motion.div>
         </>

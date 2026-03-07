@@ -36,6 +36,7 @@ import { CastButton } from '../components/CastButton';
 import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useRegisterStreamId } from '../features/chat/useRegisterStreamId';
+import TeamLogo from '../components/TeamLogo';
 import toast from 'react-hot-toast';
 
 interface LiveStream {
@@ -44,7 +45,7 @@ interface LiveStream {
     channel_name: string;
     is_active: boolean;
     viewer_count?: number;
-    hls_url?: string;
+    hls_url?: string | null;
 }
 
 interface QuickStats {
@@ -963,11 +964,11 @@ const ZkTVPage: React.FC = () => {
                                 transition={{ delay: 0.1 }}
                                 className="text-2xl sm:text-3xl md:text-5xl lg:text-7xl font-black tracking-tight mb-6 uppercase italic break-words max-w-full"
                             >
-                                {activeStream?.is_active ? (
+                                {isLiveActive ? (
                                     <>
-                                        {activeStream.title.split(' x ')[0]}
+                                        {activeStream?.title.split(' x ')[0] || 'Ao Vivo'}
                                         <span className="text-blue-500">
-                                            {activeStream.title.includes(' x ') ? ` x ${activeStream.title.split(' x ')[1]}` : ''}
+                                            {activeStream?.title.includes(' x ') ? ` x ${activeStream.title.split(' x ')[1]}` : ''}
                                         </span>
                                     </>
                                 ) : (
@@ -981,54 +982,13 @@ const ZkTVPage: React.FC = () => {
                                 transition={{ delay: 0.2 }}
                                 className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-8 leading-relaxed"
                             >
-                                {activeStream?.is_active
-                                    ? `Assista agora: ${activeStream.title}. Acompanhe ao vivo com a melhor qualidade e interatividade.`
+                                {isLiveActive
+                                    ? `Assista agora: ${activeStream?.title || 'ZK TV'}. Acompanhe ao vivo com a melhor qualidade e interatividade.`
                                     : 'Acompanhe tudo sobre o Maior de Minas. Transmissões ao vivo, estatísticas, próximos jogos e muito mais em um só lugar.'
                                 }
                             </motion.p>
 
-                            {nextGame && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.25 }}
-                                    className="inline-block bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-4 sm:p-6 rounded-2xl mb-6"
-                                >
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <Calendar className="w-4 h-4 text-blue-400" />
-                                        <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Próximo Jogo</span>
-                                    </div>
-                                    <div className="flex items-center justify-center gap-4 sm:gap-6">
-                                        <div className="text-center">
-                                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-1 font-black text-white text-xs">CRU</div>
-                                            <span className="text-xs font-bold text-slate-300">Cruzeiro</span>
-                                        </div>
-                                        <div className="text-slate-600 font-black text-sm">VS</div>
-                                        <div className="text-center">
-                                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-800 border border-slate-700 rounded-xl flex items-center justify-center mx-auto mb-1 font-black text-slate-400 text-xs">
-                                                {nextGame.opponent.substring(0, 3).toUpperCase()}
-                                            </div>
-                                            <span className="text-xs font-bold text-slate-300 truncate max-w-[80px] block mx-auto">{nextGame.opponent}</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mt-3 pt-3 border-t border-slate-700/50 text-xs text-slate-400">
-                                        <span className="flex items-center gap-1.5">
-                                            <Calendar className="w-3 h-3 text-blue-500" />
-                                            {new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-                                        </span>
-                                        <span className="flex items-center gap-1.5">
-                                            <Clock className="w-3 h-3 text-blue-500" />
-                                            {new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
-                                        </span>
-                                        {nextGame.venue && (
-                                            <span className="flex items-center gap-1.5 truncate max-w-[120px]">
-                                                <MapPin className="w-3 h-3 text-blue-500 flex-shrink-0" />
-                                                {nextGame.venue}
-                                            </span>
-                                        )}
-                                    </div>
-                                </motion.div>
-                            )}
+                            {/* Extra 'Próximo Jogo' top card was removed here to avoid duplication with the video placeholder card */}
 
                         </div>
 
@@ -1045,19 +1005,19 @@ const ZkTVPage: React.FC = () => {
                             title={isMobile ? "Toque duas vezes para tela cheia" : "Duplo clique para tela cheia"}
                         >
                             <div className="relative w-full h-full flex">
-                                {activeStream?.is_active ? (
+                                {isLiveActive ? (
                                     <>
-                                        {/* Só renderiza o player quando a transmissão estiver ativa (ZK Studio) */}
+                                        {/* Só renderiza o player quando a transmissão estiver ativa */}
                                         <LiveViewer
-                                            channelName={activeStream.channel_name}
+                                            channelName={activeStream?.channel_name || 'ZkOfical'}
                                             fitMode={videoFitMode}
                                             showOfflineMessage={false}
                                         />
-                                        {activeStream.id && (
-                                            <VipMessageOverlay streamId={activeStream.id} isActive={activeStream.is_active} />
+                                        {activeStream?.id && (
+                                            <VipMessageOverlay streamId={activeStream.id} isActive={isLiveActive} />
                                         )}
                                     </>
-                                ) : activeStream && !activeStream.is_active ? (
+                                ) : activeStream && !isLiveActive ? (
                                     <>
                                         {/* Transmissão encerrada - placeholder sem carregar o player */}
                                         <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center z-30">
@@ -1112,7 +1072,12 @@ const ZkTVPage: React.FC = () => {
 
                                                     <div className="flex items-center justify-between gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
                                                         <div className="flex flex-col items-center flex-1 min-w-0">
-                                                            <div className="h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 bg-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center text-sm sm:text-base lg:text-lg font-black text-white mb-2 sm:mb-3 shadow-xl shadow-blue-600/20">CRU</div>
+                                                            <TeamLogo
+                                                                teamName="Cruzeiro"
+                                                                size="lg"
+                                                                showName={false}
+                                                                className="mb-2 sm:mb-3"
+                                                            />
                                                             <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full">Cruzeiro</span>
                                                         </div>
 
@@ -1122,9 +1087,13 @@ const ZkTVPage: React.FC = () => {
                                                         </div>
 
                                                         <div className="flex flex-col items-center flex-1 min-w-0">
-                                                            <div className="h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 bg-slate-800 border border-white/5 rounded-xl sm:rounded-2xl flex items-center justify-center text-sm sm:text-base lg:text-lg font-black text-slate-400 mb-2 sm:mb-3">
-                                                                {nextGame.opponent.substring(0, 3).toUpperCase()}
-                                                            </div>
+                                                            <TeamLogo
+                                                                teamName={nextGame.opponent}
+                                                                customLogo={nextGame.opponent_logo}
+                                                                size="lg"
+                                                                showName={false}
+                                                                className="mb-2 sm:mb-3"
+                                                            />
                                                             <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full px-1">{nextGame.opponent}</span>
                                                         </div>
                                                     </div>
@@ -1160,7 +1129,7 @@ const ZkTVPage: React.FC = () => {
                                             <div className="flex items-center gap-2">
                                                 <Eye className="w-4 h-4 text-slate-400" />
                                                 <span className="text-white font-black">
-                                                    {activeStream?.is_active
+                                                    {isLiveActive
                                                         ? (currentViewerCount || activeStream?.viewer_count || 0)
                                                         : 0
                                                     }
@@ -1318,7 +1287,7 @@ const ZkTVPage: React.FC = () => {
 
             {/* Floating Chat Button (Mobile Fullscreen) */}
             {/* Em landscape: abre chat docked | Em portrait: abre chat drawer */}
-            {isMobile && isFullscreen && activeStream && activeStream.is_active && (
+            {isMobile && isFullscreen && activeStream && isLiveActive && (
                 <>
                     {/* Landscape: botão só aparece se chat docked não estiver aberto */}
                     {isLandscape && !isDockedChat && (
@@ -1337,7 +1306,7 @@ const ZkTVPage: React.FC = () => {
                     isOpen={isChatOpen}
                     onClose={() => setIsChatOpen(false)}
                     streamId={activeStream.id}
-                    isActive={activeStream.is_active}
+                    isActive={isLiveActive}
                 />
             )}
 
@@ -1489,27 +1458,32 @@ const ZkTVPage: React.FC = () => {
                                                 <div className="grid gap-3 sm:gap-4">
                                                     {/* Mostrar resultado do bolão se houver */}
                                                     {lastPoolResult ? (
-                                                        <div className="flex items-center justify-between p-3 sm:p-4 lg:p-6 bg-gradient-to-r from-emerald-900/30 to-blue-900/30 border border-emerald-500/30 rounded-xl sm:rounded-2xl relative overflow-visible gap-2 sm:gap-4">
-                                                            <div className="absolute top-1 right-1 sm:top-2 sm:right-2">
-                                                                <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-emerald-500/20 text-emerald-400 text-[8px] sm:text-[10px] font-black uppercase rounded-full border border-emerald-500/30">
-                                                                    Bolão
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 flex-1 min-w-0 pr-8 sm:pr-0">
-                                                                <Target className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 flex-shrink-0" />
+                                                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 lg:p-6 bg-gradient-to-r from-emerald-900/30 to-blue-900/30 border border-emerald-500/30 rounded-xl sm:rounded-2xl relative overflow-hidden gap-4">
+                                                            {/* Fundo brilhoso */}
+                                                            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-[50px] rounded-full pointer-events-none" />
+
+                                                            <div className="flex items-center gap-3 lg:gap-4 flex-1 min-w-0 z-10 w-full">
+                                                                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-900/50 rounded-xl flex items-center justify-center border border-emerald-500/30 flex-shrink-0 shadow-lg shadow-emerald-500/10">
+                                                                    <Target className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" />
+                                                                </div>
                                                                 <div className="flex-1 min-w-0">
-                                                                    <div className="text-[10px] sm:text-xs font-bold text-emerald-400 mb-1 uppercase truncate">{lastPoolResult.match_title}</div>
-                                                                    <div className="text-xs sm:text-sm font-bold text-white break-words">
-                                                                        {lastPoolResult.home_team} <span className="text-slate-500 mx-1 sm:mx-2">vs</span> {lastPoolResult.away_team}
+                                                                    <div className="flex items-center gap-2 mb-1 border-b border-emerald-500/10 pb-1">
+                                                                        <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[9px] sm:text-[10px] font-black uppercase rounded-full border border-emerald-500/30 tracking-widest shrink-0">
+                                                                            BOLÃO
+                                                                        </span>
+                                                                        <div className="text-[10px] sm:text-xs font-bold text-emerald-400/80 uppercase truncate w-full">{lastPoolResult.match_title}</div>
+                                                                    </div>
+                                                                    <div className="text-sm sm:text-base font-bold text-white truncate w-full mt-1">
+                                                                        {lastPoolResult.home_team} <span className="text-slate-500 mx-1 font-normal text-xs sm:text-sm">vs</span> {lastPoolResult.away_team}
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                            <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 font-black flex-shrink-0">
-                                                                <div className="px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 lg:py-2 bg-emerald-600/20 border border-emerald-500/30 rounded-md sm:rounded-lg text-emerald-300 text-sm sm:text-base lg:text-lg">
+                                                            <div className="flex items-center justify-center gap-2 sm:gap-4 font-black flex-shrink-0 z-10 w-full sm:w-auto pt-3 sm:pt-0 border-t sm:border-0 border-white/5">
+                                                                <div className="w-12 sm:w-14 lg:w-16 h-10 sm:h-12 lg:h-14 flex items-center justify-center bg-slate-900/80 border border-emerald-500/30 rounded-lg sm:rounded-xl text-emerald-400 text-lg sm:text-xl lg:text-2xl shadow-inner">
                                                                     {lastPoolResult.result_home_score}
                                                                 </div>
-                                                                <span className="text-emerald-400 text-base sm:text-lg lg:text-xl">x</span>
-                                                                <div className="px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 lg:py-2 bg-emerald-600/20 border border-emerald-500/30 rounded-md sm:rounded-lg text-emerald-300 text-sm sm:text-base lg:text-lg">
+                                                                <span className="text-emerald-500/50 text-xs sm:text-sm font-bold uppercase tracking-widest">X</span>
+                                                                <div className="w-12 sm:w-14 lg:w-16 h-10 sm:h-12 lg:h-14 flex items-center justify-center bg-slate-900/80 border border-emerald-500/30 rounded-lg sm:rounded-xl text-emerald-400 text-lg sm:text-xl lg:text-2xl shadow-inner">
                                                                     {lastPoolResult.result_away_score}
                                                                 </div>
                                                             </div>

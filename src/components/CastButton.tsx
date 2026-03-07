@@ -6,8 +6,8 @@ import { supabase } from '../lib/supabase';
 import { DEFAULT_LIVE_CHANNEL } from '../config/constants';
 
 interface CastButtonProps {
-  videoUrl?: string; // URL HLS ou do stream
-  hlsUrl?: string;
+  videoUrl?: string | null; // URL HLS ou do stream
+  hlsUrl?: string | null;
   channelName?: string; // Nome do canal para buscar HLS
   className?: string;
 }
