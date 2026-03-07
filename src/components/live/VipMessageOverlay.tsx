@@ -27,7 +27,9 @@ const debug = (...args: any[]) => { if (isDebug()) console.log('[VipMessageOverl
 const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActive }) => {
   const [currentMessage, setCurrentMessage] = useState<VipMessage | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [queueWaitTime, setQueueWaitTime] = useState<number | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const userRolesRef = useRef<{ [userId: string]: { isVip: boolean; vipColor?: string } }>({});
 
   // Estado para Animação Global de Novo VIP
@@ -39,8 +41,29 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
 
   const { on, off } = useSocket({
     streamId: streamId,
-    autoConnect: !!streamId // Manter conectado mesmo se isActive mudar, para não perder eventos VIP
+    autoConnect: !!streamId
   });
+
+  // Detectar mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Cleanup de áudio ao desmontar ou trocar mensagem
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current = null;
+      }
+    };
+  }, [currentMessage]);
 
   // Cores VIP
   const getVipColorClasses = (color: string) => {
@@ -57,17 +80,54 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
         text: 'text-purple-100',
         textLight: 'text-purple-200/70'
       };
+      case 'pink': return {
+        bg: 'from-pink-600/90 via-pink-500/90 to-rose-600/90',
+        border: 'border-pink-400/50',
+        text: 'text-pink-100',
+        textLight: 'text-pink-200/70'
+      };
       case 'blue': return {
         bg: 'from-blue-600/90 via-blue-500/90 to-cyan-600/90',
         border: 'border-blue-400/50',
         text: 'text-blue-100',
         textLight: 'text-blue-200/70'
       };
+      case 'cyan': return {
+        bg: 'from-cyan-600/90 via-cyan-500/90 to-sky-600/90',
+        border: 'border-cyan-400/50',
+        text: 'text-cyan-100',
+        textLight: 'text-cyan-200/70'
+      };
+      case 'green':
       case 'emerald': return {
         bg: 'from-emerald-600/90 via-emerald-500/90 to-teal-600/90',
         border: 'border-emerald-400/50',
         text: 'text-emerald-100',
         textLight: 'text-emerald-200/70'
+      };
+      case 'yellow': return {
+        bg: 'from-yellow-600/90 via-yellow-500/90 to-amber-600/90',
+        border: 'border-yellow-400/50',
+        text: 'text-yellow-100',
+        textLight: 'text-yellow-200/70'
+      };
+      case 'orange': return {
+        bg: 'from-orange-600/90 via-orange-500/90 to-red-600/90',
+        border: 'border-orange-400/50',
+        text: 'text-orange-100',
+        textLight: 'text-orange-200/70'
+      };
+      case 'red': return {
+        bg: 'from-red-600/90 via-red-500/90 to-rose-700/90',
+        border: 'border-red-400/50',
+        text: 'text-red-100',
+        textLight: 'text-red-200/70'
+      };
+      case 'silver': return {
+        bg: 'from-slate-600/90 via-slate-500/90 to-slate-600/90',
+        border: 'border-slate-400/50',
+        text: 'text-slate-100',
+        textLight: 'text-slate-200/70'
       };
       default: return {
         bg: 'from-slate-800/90 via-slate-700/90 to-slate-800/90',
@@ -96,13 +156,15 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
 
           if (audioUrl) {
             const audio = new Audio(audioUrl);
+            audioRef.current = audio;
             audio.onended = () => {
               setIsPlayingAudio(false);
+              audioRef.current = null;
               setTimeout(() => {
                 setCurrentMessage(null);
                 isProcessingQueueRef.current = false;
                 processMessageQueue();
-              }, 2000); // 2 segundos de pausa após o áudio
+              }, 1500); // Reduzido para 1.5s após o áudio
             };
             audio.play().catch(e => {
               console.error('Erro ao tocar áudio TTS:', e);
@@ -119,10 +181,10 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
           finishMessage();
         }
       } else {
-        // Se for apenas texto, aguardar 8 segundos
+        // Se for apenas texto, aguardar 7 segundos (conforme plano)
         setTimeout(() => {
           finishMessage();
-        }, 8000);
+        }, 7000);
       }
     }
   };
@@ -189,6 +251,54 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
       )
       .subscribe();
 
+    // ✅ Listener para mensagens normais que são de usuários VIP (Socket.io - MAIS RÁPIDO)
+    const handleNewMessage = (msg: any) => {
+      if (!msg.is_vip) return;
+
+      // Deduplicação básica
+      const isDuplicate = messageQueueRef.current.some(m => m.id === msg.id) || (currentMessage?.id === msg.id);
+      if (isDuplicate) return;
+
+      debug('✨ Nova mensagem VIP via Socket:', msg.message);
+      const vipMsg: VipMessage = {
+        id: msg.id || `socket-${Date.now()}`,
+        user_id: msg.user_id,
+        user_name: msg.user_name,
+        message: msg.message,
+        created_at: msg.created_at || new Date().toISOString(),
+        message_type: msg.message_type || 'text',
+        vip_color: msg.vip_color || 'purple'
+      };
+
+      messageQueueRef.current.push(vipMsg);
+      if (!isProcessingQueueRef.current) {
+        processMessageQueue();
+      }
+    };
+
+    // ✅ Listener para mensagens VIP específicas (overlay overlay)
+    const handleNewVipMessage = (msg: any) => {
+      // Deduplicação básica
+      const isDuplicate = messageQueueRef.current.some(m => m.id === msg.id) || (currentMessage?.id === msg.id);
+      if (isDuplicate) return;
+
+      debug('👑 Nova mensagem VIP Overlay via Socket:', msg.message);
+      const vipMsg: VipMessage = {
+        id: msg.id || `vip-${Date.now()}`,
+        user_id: msg.user_id,
+        user_name: msg.user_name,
+        message: msg.message,
+        created_at: msg.created_at || new Date().toISOString(),
+        message_type: msg.message_type || 'text',
+        vip_color: msg.vip_color || 'purple'
+      };
+
+      messageQueueRef.current.push(vipMsg);
+      if (!isProcessingQueueRef.current) {
+        processMessageQueue();
+      }
+    };
+
     // ✅ Listener para overlay "Novo VIP!" disparado pelo admin
     const handleNewVipSubscriber = (data: { name: string; streamId: string }) => {
       debug('Novo VIP anunciado pelo admin (Global Anim):', data.name);
@@ -218,10 +328,14 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
       if (!isProcessingQueueRef.current) processMessageQueue();
     };
 
+    on('new-message', handleNewMessage);
+    on('new-vip-message', handleNewVipMessage);
     on('vip-new-subscriber', handleNewVipSubscriber);
 
     return () => {
       supabase.removeChannel(vipChannel);
+      off('new-message', handleNewMessage);
+      off('new-vip-message', handleNewVipMessage);
       off('vip-new-subscriber', handleNewVipSubscriber);
     };
   }, [streamId, isActive, on, off]);
@@ -238,7 +352,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
     return () => clearInterval(interval);
   }, [currentMessage]);
 
-  if (!currentMessage && !showVipGlobalAnimation.show) {
+  if ((!currentMessage && !showVipGlobalAnimation.show) || isMobile) {
     return null;
   }
 
@@ -253,39 +367,40 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
           return (
             <motion.div
               key={currentMessage.id}
-              initial={{ opacity: 0, y: -100, scale: 0.8, filter: 'blur(10px)' }}
-              animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, y: 100, scale: 0.8, filter: 'blur(10px)' }}
+              initial={{ opacity: 0, x: -50, y: 50, scale: 0.8, filter: 'blur(10px)' }}
+              animate={{ opacity: 1, x: 0, y: 0, scale: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, x: -50, y: 20, scale: 0.8, filter: 'blur(10px)' }}
               transition={{
                 duration: 0.6,
-                ease: [0.25, 0.46, 0.45, 0.94]
+                ease: "easeOut"
               }}
-              className="absolute top-4 left-0 right-0 flex justify-center px-4"
+              className="absolute bottom-32 left-4 flex justify-start z-[60]"
             >
-              <div className={`bg-gradient-to-r ${colorClasses.bg} backdrop-blur-md border border-white/20 md:border-2 ${colorClasses.border} rounded-xl md:rounded-2xl px-3 py-2 md:px-5 md:py-3 shadow-2xl w-full max-w-[95vw] md:max-w-lg mx-auto pointer-events-auto`}>
-                <div className="flex items-center gap-3 mb-2">
-                  <span className={`${colorClasses.text} text-xs font-black uppercase tracking-wider flex items-center gap-1`}>
-                    <span className="text-lg animate-pulse">💎</span> VIP
+              <div className={`bg-gradient-to-r ${colorClasses.bg} backdrop-blur-md border border-white/20 md:border-2 ${colorClasses.border} rounded-xl md:rounded-2xl px-2.5 py-1.5 md:px-4 md:py-2 shadow-2xl w-full max-w-[280px] md:max-w-[320px] pointer-events-auto relative`}>
+                <div className="absolute -top-2 -right-2 transform rotate-12">
+                  <div className="bg-yellow-400 p-1 rounded-lg shadow-lg">
+                    <Crown className="w-3 h-3 text-black" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 mb-1.5">
+                  <span className={`${colorClasses.text} text-[10px] font-black uppercase tracking-wider flex items-center gap-1`}>
+                    VIP
                   </span>
                   {currentMessage.message_type === 'tts' && (
-                    <span className={`${colorClasses.textLight} text-xs font-bold flex items-center gap-1`}>
-                      <Volume2 className={`w-3 h-3 ${isPlayingAudio ? 'animate-pulse' : ''}`} />
-                      ÁUDIO
+                    <span className={`${colorClasses.textLight} text-[10px] font-bold flex items-center gap-1`}>
+                      <Volume2 className={`w-2.5 h-2.5 ${isPlayingAudio ? 'animate-pulse' : ''}`} />
                     </span>
                   )}
-                  <span className="text-white text-xs md:text-sm font-bold truncate max-w-[150px] md:max-w-[200px]">
+                  <span className="text-white text-[11px] md:text-xs font-bold truncate max-w-[120px]">
                     {currentMessage.user_name}
                   </span>
                   {messageQueueRef.current.length > 0 && (
-                    <span className={`${colorClasses.text} text-[10px] font-bold flex items-center gap-1`}>
-                      <span>+{messageQueueRef.current.length} na fila</span>
-                      {queueWaitTime !== null && (
-                        <span className={`${colorClasses.textLight} animate-pulse`}>(⏳ {queueWaitTime}s)</span>
-                      )}
+                    <span className={`${colorClasses.text} text-[9px] font-bold flex items-center gap-1`}>
+                      <span>+{messageQueueRef.current.length}</span>
                     </span>
                   )}
                 </div>
-                <p className="text-white text-xs md:text-sm font-medium leading-relaxed break-words line-clamp-3">
+                <p className="text-white text-[11px] md:text-xs font-medium leading-tight break-words line-clamp-2">
                   {currentMessage.message}
                 </p>
               </div>
@@ -346,7 +461,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </div >
   );
 };
 

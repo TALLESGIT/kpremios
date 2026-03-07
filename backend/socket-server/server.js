@@ -630,7 +630,7 @@ io.on('connection', (socket) => {
 
   // Chat: Viewer envia mensagem (Write-Behind + Read-Through Cache)
   socket.on('chat-message', async (data) => {
-    const { streamId, userId, message, messageType, userName, tts_text, audio_duration } = data;
+    const { streamId, userId, message, messageType, userName, tts_text, audio_duration, vip_color } = data;
 
     if (!streamId || !message) {
       socket.emit('error', { message: 'streamId e message são obrigatórios' });
@@ -643,7 +643,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    console.log(`💬 [Chat] Recebida msg de ${userId} para stream ${streamId}: "${message.substring(0, 30)}..."`);
+    console.log(`💬 [Chat] Recebida msg de ${userId} para stream ${streamId}: "${message.substring(0, 30)}..." (Cor: ${vip_color || 'default'})`);
 
     try {
       // ✅ Read-Through Cache: obter usuário do cache; só consulta Supabase se não estiver no cache
@@ -666,7 +666,8 @@ io.on('connection', (socket) => {
         user_id: userData ? userId : null,
         message: message,
         message_type: messageType || 'text',
-        user_name: finalUserName
+        user_name: finalUserName,
+        vip_color: vip_color || null
       };
       if (messageType === 'tts') {
         messageData.tts_text = tts_text || message;
@@ -684,7 +685,8 @@ io.on('connection', (socket) => {
         user_name: finalUserName,
         created_at: new Date().toISOString(),
         is_vip: userIsVip,
-        is_admin: userIsAdmin
+        is_admin: userIsAdmin,
+        vip_color: messageData.vip_color
       };
       if (messageData.tts_text) enrichedMessage.tts_text = messageData.tts_text;
       if (messageData.audio_duration != null) enrichedMessage.audio_duration = messageData.audio_duration;
@@ -736,7 +738,9 @@ io.on('connection', (socket) => {
 
   // VIP Messages: Enviar mensagem VIP (overlay)
   socket.on('vip-message', async (data) => {
-    const { streamId, userId, message, messageType, userName, isVip } = data;
+    const { streamId, userId, message, messageType, userName, isVip, vipColor, vip_color } = data;
+
+    const finalColor = vip_color || vipColor || null;
 
     if (!isVip) {
       socket.emit('error', { message: 'Apenas VIPs podem enviar mensagens VIP' });
@@ -757,7 +761,8 @@ io.on('connection', (socket) => {
           user_id: userId,
           message: message,
           message_type: messageType || 'text',
-          user_name: userName
+          user_name: userName,
+          vip_color: finalColor
         })
         .select()
         .single();
@@ -768,9 +773,17 @@ io.on('connection', (socket) => {
       }
 
       // Broadcast para TODOS os viewers (VIP messages aparecem para todos)
-      io.to(`stream:${streamId}`).emit('new-vip-message', savedMessage || data);
+      // Garantir que a cor está no broadcast mesmo que não tenha salvo no Supabase
+      const broadcastData = savedMessage || {
+        ...data,
+        id: `vip-${Date.now()}`,
+        created_at: new Date().toISOString(),
+        vip_color: finalColor
+      };
 
-      console.log(`👑 Mensagem VIP enviada na stream ${streamId} por ${userName}`);
+      io.to(`stream:${streamId}`).emit('new-vip-message', broadcastData);
+
+      console.log(`👑 Mensagem VIP enviada na stream ${streamId} por ${userName} (Cor: ${finalColor})`);
     } catch (error) {
       console.error('❌ Erro ao processar mensagem VIP:', error);
       socket.emit('error', { message: 'Erro ao processar mensagem VIP' });

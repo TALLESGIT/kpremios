@@ -518,13 +518,13 @@ const PublicLiveStreamPage: React.FC = () => {
 
                   {stream.is_active && (
                     <>
-                      {/* Top Info Bar (Desktop, Mobile & TV Fullscreen) */}
-                      <div className={`absolute left-4 z-20 pointer-events-none transition-all duration-300 ${isTVMode
-                        ? 'top-10'  // Posição segura para TVs (Overscan)
+                      {/* Bottom-Left Info Bar (Viewer Count) */}
+                      <div className={`absolute left-4 z-20 pointer-events-none transition-all duration-500 ${isTVMode
+                        ? 'bottom-20' // Posição segura para TVs
                         : isMobile
-                          ? (isFullscreen ? 'top-10' : 'top-4') // Sempre dentro do player no mobile
-                          : 'top-4'   // Desktop padrão
-                        }`}>
+                          ? (isFullscreen ? 'bottom-20' : 'bottom-16') // Acima do botão de chat no mobile
+                          : 'bottom-20' // Desktop padrão
+                        } ${showControls || isFullscreen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                         <div className="pointer-events-auto inline-block">
                           <ViewerCountDisplay
                             count={currentViewerCount || stream.viewer_count || 0}

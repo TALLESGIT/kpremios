@@ -121,16 +121,16 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId, isAdmin = f
   }, [isConnected, streamId, on, off, playVipSound]);
 
   return (
-    <div className="fixed inset-0 z-[99999] flex flex-col items-center justify-center pointer-events-none px-4 overflow-visible">
+    <div className="fixed bottom-32 left-4 z-[99999] flex flex-col items-start justify-end pointer-events-none px-0 overflow-visible">
       <AnimatePresence>
         {alerts.map((alert) => (
           <motion.div
             key={alert.id}
-            initial={{ opacity: 0, y: 50, scale: 0.8, filter: 'blur(10px)' }}
-            animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, x: -100, scale: 0.9, transition: { duration: 0.5 } }}
-            style={{ willChange: 'transform, opacity' }}
-            className="relative mb-4 last:mb-0 group"
+            initial={{ opacity: 0, scale: 0, x: -100, rotate: -20 }}
+            animate={{ opacity: 1, scale: 1, x: 0, rotate: 0 }}
+            exit={{ opacity: 0, x: -100, scale: 0.5, transition: { duration: 0.3 } }}
+            style={{ marginBottom: '1rem' }}
+            className="relative group"
           >
             {/* Efeitos de Partículas sutil */}
             {[...Array(3)].map((_, i) => (
@@ -169,51 +169,51 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId, isAdmin = f
             />
 
             {/* Card Principal */}
-            <div className="relative bg-black/80 backdrop-blur-xl border-2 border-yellow-500/50 p-1 rounded-2xl shadow-[0_0_40px_rgba(234,179,8,0.3)] overflow-hidden">
+            <div className="relative bg-black/80 backdrop-blur-xl border-2 border-yellow-500/50 p-0.5 rounded-xl shadow-[0_0_30px_rgba(234,179,8,0.2)] overflow-hidden">
               {/* Efeito Shine (Brilho que passa) */}
               <motion.div
                 animate={{ x: ['-100%', '200%'] }}
                 transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
-                className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg] z-10"
+                className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-[-20deg] z-10"
               />
 
-              <div className="bg-gradient-to-br from-slate-900 via-purple-900/40 to-slate-900 px-4 py-3 sm:px-6 sm:py-4 flex items-center gap-3 sm:gap-5 min-w-[240px] sm:min-w-[320px]">
+              <div className="bg-gradient-to-br from-slate-900 via-purple-900/40 to-slate-900 px-3 py-2 sm:px-4 sm:py-3 flex items-center gap-2.5 sm:gap-4 min-w-[200px] sm:min-w-[260px]">
 
                 {/* Ícone de Coroa Animado */}
                 <div className="relative flex-shrink-0">
                   <motion.div
                     animate={{
                       rotateY: [0, 360],
-                      scale: [1, 1.2, 1]
+                      scale: [1, 1.1, 1]
                     }}
                     transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                    className="bg-gradient-to-tr from-yellow-400 via-amber-200 to-yellow-600 p-2 sm:p-2.5 rounded-xl shadow-[0_0_15px_rgba(250,204,21,0.5)]"
+                    className="bg-gradient-to-tr from-yellow-400 via-amber-200 to-yellow-600 p-1.5 sm:p-2 rounded-lg shadow-[0_0_10px_rgba(250,204,21,0.4)]"
                   >
-                    <Crown className="w-5 h-5 sm:w-7 sm:h-7 text-black stroke-[2.5px]" />
+                    <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-black stroke-[2.5px]" />
                   </motion.div>
                 </div>
 
                 {/* Container de Texto */}
                 <div className="flex flex-col min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <motion.span
                       animate={{ opacity: [1, 0.5, 1] }}
                       transition={{ duration: 1, repeat: Infinity }}
-                      className="text-[9px] sm:text-[11px] font-black text-yellow-400 uppercase tracking-[0.2em] italic"
+                      className="text-[7px] sm:text-[9px] font-black text-yellow-400 uppercase tracking-[0.15em] italic"
                     >
                       NOVO MEMBRO VIP
                     </motion.span>
-                    <Sparkles className="w-3 h-3 text-yellow-400 animate-pulse" />
+                    <Sparkles className="w-2.5 h-2.5 text-yellow-400 animate-pulse" />
                   </div>
 
-                  <h4 className="text-lg sm:text-2xl font-black text-white italic uppercase tracking-tighter leading-none mt-1 truncate drop-shadow-md">
+                  <h4 className="text-sm sm:text-lg font-black text-white italic uppercase tracking-tighter leading-none mt-0.5 truncate drop-shadow-md">
                     {alert.user_name}
                   </h4>
 
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="h-[2px] w-8 bg-gradient-to-r from-yellow-400 to-transparent" />
-                    <p className="text-[10px] sm:text-xs font-bold text-yellow-200/80 italic tracking-widest">
-                      ACABOU DE ENTRAR NO TIME! 💎
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="h-[1px] w-6 bg-gradient-to-r from-yellow-400 to-transparent" />
+                    <p className="text-[8px] sm:text-[10px] font-bold text-yellow-200/80 italic tracking-wider">
+                      BEM-VINDO AO TIME! 💎
                     </p>
                   </div>
                 </div>

@@ -24,6 +24,7 @@ export interface ChatMessage {
   tts_text?: string;
   audio_url?: string;
   audio_duration?: number;
+  vip_color?: string;
   created_at: string;
 }
 
@@ -139,6 +140,7 @@ export const useSocketChat = (options: UseSocketChatOptions): UseSocketChatRetur
       userId: user?.id || null,
       userName: (user as any)?.name || user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Anônimo',
       message,
+      vip_color: options.vipColor,
       ...options
     });
   };
