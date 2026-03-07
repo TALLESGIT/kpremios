@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Sparkles, Star } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -18,6 +18,31 @@ interface VipAlertOverlayProps {
 const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId }) => {
   const [alerts, setAlerts] = useState<VipAlert[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const videoVolumeRef = useRef<Map<HTMLVideoElement, number>>(new Map());
+
+  // Handle audio ducking (lowering stream volume when VIP alert plays)
+  useEffect(() => {
+    if (alerts.length > 0) {
+      // Ducking active: Lower volume of all video elements
+      const videos = document.querySelectorAll('video');
+      videos.forEach((video) => {
+        // Only track and lower volume if it's not already tracked (to allow overlapping alerts)
+        if (!videoVolumeRef.current.has(video)) {
+          videoVolumeRef.current.set(video, video.volume);
+          // Transition volume smoothly to 30%
+          video.volume = video.volume * 0.3;
+        }
+      });
+    } else if (alerts.length === 0 && videoVolumeRef.current.size > 0) {
+      // Restore volumes
+      videoVolumeRef.current.forEach((originalVolume, video) => {
+        if (document.body.contains(video)) {
+          video.volume = originalVolume;
+        }
+      });
+      videoVolumeRef.current.clear();
+    }
+  }, [alerts.length]);
 
   // Detect Fullscreen
   useEffect(() => {
