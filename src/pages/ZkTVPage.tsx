@@ -29,6 +29,7 @@ import { FloatingChatButton } from '../features/chat/FloatingChatButton';
 import { ChatDrawer } from '../features/chat/ChatDrawer';
 import PollDisplay from '../components/live/PollDisplay';
 import PinnedLinkOverlay from '../components/live/PinnedLinkOverlay';
+import VipAlertOverlay from '../components/live/VipAlertOverlay';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import VipSubscriptionModal from '../components/vip/VipSubscriptionModal';
 import PoolBetModal from '../components/pool/PoolBetModal';
@@ -1236,6 +1237,10 @@ const ZkTVPage: React.FC = () => {
                                         )}
                                     </>
                                 )}
+
+                                {/* VIP Overlays */}
+                                <VipAlertOverlay streamId={activeStream?.id} />
+                                <VipMessageOverlay streamId={activeStream?.id || ''} isActive={isLiveActive} />
                             </div>
 
                             {/* Chat Docked (Mobile Fullscreen Landscape) - Aumentado para melhor visualização */}

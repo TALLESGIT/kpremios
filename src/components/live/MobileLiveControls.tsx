@@ -355,7 +355,32 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Badge AO VIVO - REMOVIDO: Não exibir para usuários */}
+      {/* Badge AO VIVO Premium - Re-adicionado e melhorado */}
+      <AnimatePresence>
+        {visible && isActive && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="absolute bottom-4 left-4 z-50 pointer-events-none"
+          >
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-red-600/20 backdrop-blur-md border border-red-500/30 rounded-full shadow-lg shadow-red-900/20">
+              <div className="relative flex items-center justify-center">
+                <div className="w-2 h-2 bg-red-500 rounded-full">
+                  <motion.div
+                    className="absolute inset-0 bg-red-500 rounded-full"
+                    animate={{ scale: [1, 2.5], opacity: [0.6, 0] }}
+                    transition={{ repeat: Infinity, duration: 1.5, ease: "easeOut" }}
+                  />
+                </div>
+              </div>
+              <span className="text-[10px] font-black text-white uppercase tracking-widest italic">
+                AO VIVO
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
