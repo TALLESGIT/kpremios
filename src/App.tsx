@@ -49,6 +49,7 @@ import EscalacaoPage from './pages/EscalacaoPage';
 import SpotifyPage from './pages/SpotifyPage';
 import ZkClipsPage from './pages/ZkClipsPage';
 import AdminSpotifyPage from './pages/admin/AdminSpotifyPage';
+import AdminClipsPage from './pages/admin/AdminClipsPage';
 
 
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -323,6 +324,14 @@ function AppContentInner() {
               element={
                 <ProtectedRoute>
                   <AdminSpotifyPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/clips"
+              element={
+                <ProtectedRoute>
+                  <AdminClipsPage />
                 </ProtectedRoute>
               }
             />

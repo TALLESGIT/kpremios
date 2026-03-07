@@ -25,51 +25,52 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId, isAdmin = f
 
       const ctx = new AudioContextClass();
 
-      // Fanfarra premium: C4, E4, G4, C5 (Acorde de Dó Maior ascendente rápido)
-      const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
+      // Ta-Da Sound (Victory/Success)
+      // First chord (short) -> Second chord (held longer)
+      const playChord = (notes: number[], startTime: number, duration: number, volume: number) => {
+        notes.forEach((freq) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
 
-      notes.forEach((freq, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
 
-        osc.frequency.value = freq;
-        // Transição de triângulo suave para quadrado brilhante no final
-        osc.type = i > 4 ? 'square' : 'triangle';
+          gain.gain.setValueAtTime(0, startTime);
+          gain.gain.linearRampToValueAtTime(volume, startTime + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
 
-        const startTime = ctx.currentTime + i * 0.12;
-        gain.gain.setValueAtTime(0, startTime);
-        gain.gain.linearRampToValueAtTime(0.2, startTime + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.6);
+          osc.start(startTime);
+          osc.stop(startTime + duration);
+        });
+      };
 
-        osc.start(startTime);
-        osc.stop(startTime + 0.8);
-      });
+      // F Major chord
+      const fMajor = [349.23, 440.00, 523.25]; // F4, A4, C5
+      // Bb Major chord (higher, triumphant)
+      const bbMajor = [466.16, 587.33, 698.46, 932.33]; // Bb4, D5, F5, Bb5
 
-      // Efeito de "Brilho" final (Ruído branco com filtro)
-      const bufferSize = ctx.sampleRate * 1.5;
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const output = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        output[i] = Math.random() * 2 - 1;
-      }
+      const now = ctx.currentTime;
+      // "Ta"
+      playChord(fMajor, now, 0.15, 0.15);
+      // "Da!"
+      playChord(bbMajor, now + 0.2, 1.5, 0.25);
 
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'highpass';
-      filter.frequency.value = 2000;
+      // Adicionar um pouco de brilho
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1200, now + 0.2);
+      osc.frequency.exponentialRampToValueAtTime(2000, now + 0.5);
+      gain.gain.setValueAtTime(0, now + 0.2);
+      gain.gain.linearRampToValueAtTime(0.05, now + 0.3);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+      osc.start(now + 0.2);
+      osc.stop(now + 1.2);
 
-      const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0, ctx.currentTime + 0.6);
-      noiseGain.gain.linearRampToValueAtTime(0.05, ctx.currentTime + 0.8);
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
-
-      noise.connect(filter);
-      filter.connect(noiseGain);
-      noiseGain.connect(ctx.destination);
-      noise.start(ctx.currentTime + 0.6);
     } catch (e) {
       console.warn('Erro ao reproduzir som VIP:', e);
     }

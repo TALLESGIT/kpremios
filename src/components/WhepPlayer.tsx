@@ -512,7 +512,6 @@ function WhepPlayer({
         autoPlay={autoPlay}
         playsInline
         muted={isAdmin ? true : isUserMuted}
-        controls
         className="w-full h-full pointer-events-none"
         style={{
           objectFit: fitMode,

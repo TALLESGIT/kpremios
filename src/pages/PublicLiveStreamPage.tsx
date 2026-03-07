@@ -671,8 +671,6 @@ const PublicLiveStreamPage: React.FC = () => {
 
       <Footer />
 
-      <Footer />
-
       <VipSubscriptionModal
         isOpen={showVipModal}
         onClose={() => setShowVipModal(false)}

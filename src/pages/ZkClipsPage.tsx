@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Play, Calendar, ExternalLink, Youtube, Search, Filter } from 'lucide-react';
+import { Play, Calendar, ExternalLink, Youtube, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { YouTubeClip } from '../types';
 import { getYouTubeThumbnail, getYouTubeEmbedUrl } from '../utils/youtube';
@@ -12,7 +12,7 @@ const ZkClipsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedClip, setSelectedClip] = useState<YouTubeClip | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [category, setCategory] = useState<'all' | 'gol' | 'entrevista' | 'resenha'>('all');
+  const [category] = useState<'all' | 'gol' | 'entrevista' | 'resenha'>('all');
 
   useEffect(() => {
     fetchClips();
@@ -45,12 +45,6 @@ const ZkClipsPage: React.FC = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const categories = [
-    { id: 'all', label: 'Todos', icon: Filter },
-    { id: 'gol', label: 'Gols', icon: Play },
-    { id: 'entrevista', label: 'Entrevistas', icon: Search },
-    { id: 'resenha', label: 'Resenhas', icon: Youtube },
-  ];
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -86,10 +80,10 @@ const ZkClipsPage: React.FC = () => {
           </div>
 
           {/* ───────────── Main Content Area ───────────── */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+          <div className="flex flex-col gap-16">
 
             {/* Featured Video / Player */}
-            <div className="lg:col-span-8 flex flex-col gap-6">
+            <div className="w-full xl:w-[80%] mx-auto flex flex-col gap-6">
               <AnimatePresence mode="wait">
                 {selectedClip ? (
                   <motion.div
@@ -112,7 +106,7 @@ const ZkClipsPage: React.FC = () => {
                     <div className="mt-8 flex flex-col sm:flex-row sm:items-start justify-between gap-6">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
-                          <span className="px-3 py-1 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full">Destaque</span>
+                          <span className="px-3 py-1 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full">{selectedClip.category}</span>
                           <div className="flex items-center gap-1.5 text-white/40 text-[10px] font-bold uppercase tracking-widest">
                             <Calendar className="w-3 h-3" />
                             {new Date(selectedClip.created_at).toLocaleDateString('pt-BR')}
@@ -149,67 +143,101 @@ const ZkClipsPage: React.FC = () => {
               </AnimatePresence>
             </div>
 
-            {/* Sidebar / List */}
-            <div className="lg:col-span-4 flex flex-col">
-              <h3 className="text-xs font-black text-white/30 uppercase tracking-[0.3em] mb-6 px-2">Recentes</h3>
+            {/* Playlists by Category */}
+            <div className="flex flex-col gap-12 w-full">
+              {loading ? (
+                <div className="flex justify-center py-20">
+                  <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : filteredClips.length === 0 ? (
+                <div className="p-10 text-center bg-white/5 rounded-3xl border border-white/5 max-w-xl mx-auto w-full">
+                  <Search className="w-10 h-10 text-white/10 mx-auto mb-3" />
+                  <p className="text-white/40 text-xs font-medium italic">Nenhum clip encontrado</p>
+                </div>
+              ) : (
+                Array.from(new Set(filteredClips.map(c => c.category))).map(cat => {
+                  const catClips = filteredClips.filter(c => c.category === cat);
+                  if (catClips.length === 0) return null;
 
-              <div className="flex flex-col gap-4 max-h-[700px] overflow-y-auto pr-2 custom-scrollbar">
-                {loading ? (
-                  <div className="flex justify-center py-20">
-                    <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                ) : filteredClips.length === 0 ? (
-                  <div className="p-10 text-center bg-white/5 rounded-3xl border border-white/5">
-                    <Search className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                    <p className="text-white/40 text-xs font-medium italic">Nenhum clip encontrado</p>
-                  </div>
-                ) : (
-                  filteredClips.map((clip) => (
-                    <motion.button
-                      key={clip.id}
-                      whileHover={{ x: 4 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        setSelectedClip(clip);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}
-                      className={`flex gap-4 p-3 rounded-2xl transition-all duration-300 border ${selectedClip?.id === clip.id ? 'bg-red-600/10 border-red-600/30' : 'bg-transparent border-transparent hover:bg-white/5'}`}
-                    >
-                      <div className="relative w-32 h-20 shrink-0 rounded-xl overflow-hidden shadow-lg">
-                        <img
-                          src={getYouTubeThumbnail(clip.youtube_url || '')}
-                          alt={clip.title}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            if (target.src.includes('hqdefault.jpg')) {
-                              target.src = target.src.replace('hqdefault.jpg', 'mqdefault.jpg');
-                            } else if (target.src.includes('mqdefault.jpg')) {
-                              target.src = target.src.replace('mqdefault.jpg', 'default.jpg');
-                            }
+                  return (
+                    <div key={cat} className="space-y-4 group/row">
+                      <h3 className="text-xl md:text-2xl font-black text-white px-4 border-l-4 border-red-600 uppercase italic tracking-wider">{cat}</h3>
+
+                      <div className="relative">
+                        {/* Left Scroll Button */}
+                        <button
+                          onClick={() => {
+                            const container = document.getElementById(`scroll-cat-public-${cat}`);
+                            if (container) container.scrollBy({ left: -300, behavior: 'smooth' });
                           }}
-                        />
-                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors flex items-center justify-center">
-                          <Play className={`w-6 h-6 ${selectedClip?.id === clip.id ? 'text-red-500' : 'text-white/60'} drop-shadow-lg`} />
+                          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-12 h-12 bg-black/60 border border-white/10 rounded-full flex items-center justify-center text-white opacity-0 pointer-events-none group-hover/row:opacity-100 group-hover/row:pointer-events-auto hover:bg-red-600 hover:border-red-500 hover:scale-110 shadow-[0_0_15px_rgba(220,38,38,0.5)] transition-all hidden md:flex"
+                        >
+                          <ChevronLeft className="w-6 h-6" />
+                        </button>
+
+                        <div
+                          id={`scroll-cat-public-${cat}`}
+                          className="flex flex-nowrap w-full overflow-x-auto gap-4 pb-4 snap-x snap-mandatory scrollbar-hide px-4 sm:px-0 touch-pan-x"
+                          style={{ WebkitOverflowScrolling: 'touch' }}
+                        >
+                          {catClips.map((clip) => (
+                            <button
+                              key={clip.id}
+                              draggable={false}
+                              onClick={() => {
+                                setSelectedClip(clip);
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
+                              className={`flex-none w-[280px] sm:w-[320px] snap-center flex flex-col gap-3 p-3 rounded-2xl transition-all duration-300 border text-left cursor-pointer hover:-translate-y-1 active:scale-95 ${selectedClip?.id === clip.id ? 'bg-red-600/10 border-red-600/30 shadow-lg shadow-red-900/20' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                            >
+                              <div className="relative w-full aspect-video shrink-0 rounded-xl overflow-hidden shadow-lg bg-black">
+                                <img
+                                  draggable={false}
+                                  src={getYouTubeThumbnail(clip.youtube_url)}
+                                  alt={clip.title}
+                                  className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    if (target.src.includes('hqdefault.jpg')) {
+                                      target.src = target.src.replace('hqdefault.jpg', 'mqdefault.jpg');
+                                    } else if (target.src.includes('mqdefault.jpg')) {
+                                      target.src = target.src.replace('mqdefault.jpg', 'default.jpg');
+                                    }
+                                  }}
+                                />
+                                <div className="absolute inset-0 bg-black/20 hover:bg-black/0 transition-colors flex items-center justify-center">
+                                  <Play className={`w-10 h-10 ${selectedClip?.id === clip.id ? 'text-red-500 origin-center scale-110' : 'text-white/80'} drop-shadow-[0_0_10px_rgba(0,0,0,0.8)] transition-all`} />
+                                </div>
+                              </div>
+                              <div className="flex flex-col justify-start w-full">
+                                <h4 className={`text-sm font-black uppercase italic leading-tight line-clamp-2 ${selectedClip?.id === clip.id ? 'text-red-500' : 'text-white'}`}>
+                                  {clip.title}
+                                </h4>
+                                <div className="mt-2 text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center justify-between">
+                                  <span>{new Date(clip.created_at).toLocaleDateString('pt-BR')}</span>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
                         </div>
+
+                        {/* Right Scroll Button */}
+                        <button
+                          onClick={() => {
+                            const container = document.getElementById(`scroll-cat-public-${cat}`);
+                            if (container) container.scrollBy({ left: 300, behavior: 'smooth' });
+                          }}
+                          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-12 h-12 bg-black/60 border border-white/10 rounded-full flex items-center justify-center text-white opacity-0 pointer-events-none group-hover/row:opacity-100 group-hover/row:pointer-events-auto hover:bg-red-600 hover:border-red-500 hover:scale-110 shadow-[0_0_15px_rgba(220,38,38,0.5)] transition-all hidden md:flex"
+                        >
+                          <ChevronRight className="w-6 h-6" />
+                        </button>
                       </div>
-                      <div className="flex flex-col justify-center min-w-0 pr-2">
-                        <h4 className={`text-sm font-black uppercase italic leading-tight line-clamp-2 ${selectedClip?.id === clip.id ? 'text-red-500' : 'text-white'}`}>
-                          {clip.title}
-                        </h4>
-                        <div className="mt-1 flex items-center gap-2">
-                          <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest">
-                            {new Date(clip.created_at).toLocaleDateString('pt-BR')}
-                          </span>
-                        </div>
-                      </div>
-                    </motion.button>
-                  ))
-                )}
-              </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
-
         </div>
       </main>
       <Footer />
