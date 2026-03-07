@@ -128,7 +128,7 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId }) => {
   }, [isConnected, streamId, on, off, playVipSound]);
 
   return (
-    <div className="absolute bottom-16 sm:bottom-24 left-2 sm:left-4 z-[100] flex flex-col items-start gap-3 sm:gap-4 pointer-events-none max-w-[calc(100vw-1rem)]">
+    <div className="fixed bottom-6 sm:bottom-24 left-4 z-[9999] flex flex-col items-start gap-2 sm:gap-4 pointer-events-none max-w-[calc(100vw-2rem)]">
       <AnimatePresence>
         {alerts.map((alert) => (
           <motion.div
@@ -148,7 +148,7 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId }) => {
             <div className="absolute -inset-1 bg-gradient-to-r from-yellow-600 via-amber-400 to-yellow-600 rounded-2xl sm:rounded-3xl blur-md opacity-50 group-hover:opacity-100 transition duration-1000 animate-pulse" />
 
             {/* Main Premium Card */}
-            <div className="relative flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 bg-slate-950/95 backdrop-blur-2xl rounded-2xl sm:rounded-[1.5rem] border border-yellow-500/50 shadow-2xl overflow-hidden min-w-[240px] sm:min-w-[280px]">
+            <div className="relative flex items-center gap-2 sm:gap-4 px-3 sm:px-6 py-2 sm:py-4 bg-slate-950/95 backdrop-blur-2xl rounded-xl sm:rounded-[1.5rem] border border-yellow-500/50 shadow-2xl overflow-hidden min-w-[180px] sm:min-w-[280px]">
 
               {/* Shiny Sweep Effect */}
               <motion.div
@@ -163,9 +163,9 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId }) => {
                 <motion.div
                   animate={{ rotateY: [0, 360] }}
                   transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                  className="relative p-3 bg-gradient-to-br from-yellow-400 to-amber-600 rounded-2xl shadow-lg ring-1 ring-yellow-300/50"
+                  className="relative p-2 sm:p-3 bg-gradient-to-br from-yellow-400 to-amber-600 rounded-xl sm:rounded-2xl shadow-lg ring-1 ring-yellow-300/50"
                 >
-                  <Crown className="w-7 h-7 text-slate-950 fill-slate-900" strokeWidth={2.5} />
+                  <Crown className="w-5 h-5 sm:w-7 sm:h-7 text-slate-950 fill-slate-900" strokeWidth={2.5} />
                 </motion.div>
 
                 {/* Floating stars around icon */}
@@ -195,7 +195,7 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId }) => {
                     ))}
                   </div>
                 </div>
-                <h3 className="text-2xl font-black text-white italic tracking-tight drop-shadow-[0_2px_4px_rgba(255,255,255,0.1)] uppercase">
+                <h3 className="text-lg sm:text-2xl font-black text-white italic tracking-tight drop-shadow-[0_2px_4px_rgba(255,255,255,0.1)] uppercase leading-tight">
                   {alert.user_name}
                 </h3>
               </div>
