@@ -120,14 +120,30 @@ export const useSocketChat = (options: UseSocketChatOptions): UseSocketChatRetur
       setMessages(prev => prev.filter(m => m.id !== id));
     };
 
+    const handleStreamEnded = (data: any) => {
+      console.log('🛑 useSocketChat: Transmissão encerrada:', data);
+      const systemMessage: ChatMessage = {
+        id: `system-ended-${Date.now()}`,
+        stream_id: streamId,
+        user_id: 'system',
+        user_name: 'SISTEMA',
+        message: 'Transmissão encerrada. Obrigado por assistir! A transmissão chegou ao fim. Fique atento para as próximas lives!',
+        created_at: new Date().toISOString(),
+        message_type: 'text'
+      };
+      setMessages(prev => [...prev, systemMessage]);
+    };
+
     on('new-message', handleNewMessage);
     on('message-updated', handleMessageUpdated);
     on('message-deleted', handleMessageDeleted);
+    on('stream-ended', handleStreamEnded);
 
     return () => {
       off('new-message', handleNewMessage);
       off('message-updated', handleMessageUpdated);
       off('message-deleted', handleMessageDeleted);
+      off('stream-ended', handleStreamEnded);
     };
   }, [isConnected, on, off]);
 

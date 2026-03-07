@@ -112,7 +112,7 @@ const SpotifyPage: React.FC = () => {
                 <span className="text-green-500 text-[10px] font-black uppercase tracking-[0.3em]">ZK Spotify Experience</span>
               </motion.div>
               <h1 className="text-4xl md:text-7xl font-black italic tracking-tighter uppercase leading-none drop-shadow-2xl">
-                Capitão <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600">ZK</span>
+                Músicas <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600">ZK</span>
               </h1>
             </div>
 

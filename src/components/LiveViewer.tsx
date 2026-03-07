@@ -100,7 +100,8 @@ export function LiveViewer({
 
   const renderContent = () => {
     // Live encerrada — overlay imediato (Realtime sincroniza com backend)
-    if (!isActuallyLive && showOfflineMessage) {
+    // Se for admin, não mostramos o overlay de encerrada para permitir a visualização prévia (offline)
+    if (!isActuallyLive && showOfflineMessage && !isAdmin) {
       return (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zinc-950/95 backdrop-blur-sm">
           <div className="flex flex-col items-center space-y-6 animate-in fade-in duration-500 slide-in-from-bottom-4">

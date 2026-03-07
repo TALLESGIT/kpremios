@@ -24,25 +24,52 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId, isAdmin = f
       if (!AudioContextClass) return;
 
       const ctx = new AudioContextClass();
-      const frequencies = [523.25, 659.25, 783.99, 1046.5, 1318.5]; // Escala ascendente mais longa
 
-      frequencies.forEach((freq, i) => {
+      // Fanfarra premium: C4, E4, G4, C5 (Acorde de Dó Maior ascendente rápido)
+      const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
+
+      notes.forEach((freq, i) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain);
         gain.connect(ctx.destination);
 
         osc.frequency.value = freq;
-        osc.type = i === frequencies.length - 1 ? 'square' : 'sine'; // Final mais brilhante
+        // Transição de triângulo suave para quadrado brilhante no final
+        osc.type = i > 4 ? 'square' : 'triangle';
 
         const startTime = ctx.currentTime + i * 0.12;
         gain.gain.setValueAtTime(0, startTime);
-        gain.gain.linearRampToValueAtTime(0.3, startTime + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+        gain.gain.linearRampToValueAtTime(0.2, startTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.6);
 
         osc.start(startTime);
-        osc.stop(startTime + 0.5);
+        osc.stop(startTime + 0.8);
       });
+
+      // Efeito de "Brilho" final (Ruído branco com filtro)
+      const bufferSize = ctx.sampleRate * 1.5;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const output = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+      }
+
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'highpass';
+      filter.frequency.value = 2000;
+
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0, ctx.currentTime + 0.6);
+      noiseGain.gain.linearRampToValueAtTime(0.05, ctx.currentTime + 0.8);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+
+      noise.connect(filter);
+      filter.connect(noiseGain);
+      noiseGain.connect(ctx.destination);
+      noise.start(ctx.currentTime + 0.6);
     } catch (e) {
       console.warn('Erro ao reproduzir som VIP:', e);
     }
@@ -78,10 +105,10 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId, isAdmin = f
           // Adicionar novo alerta à fila
           setAlerts((prev) => [...prev, newAlert]);
 
-          // Remover o alerta após 3 segundos
+          // Remover o alerta após 12 segundos (conforme solicitado: "demorar um pouco mais")
           setTimeout(() => {
             setAlerts((prev) => prev.filter((a) => a.id !== newAlert.id));
-          }, 3000);
+          }, 12000);
         }
       )
       .subscribe();
@@ -108,7 +135,7 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId, isAdmin = f
 
       setTimeout(() => {
         setAlerts((prev) => prev.filter((a) => a.id !== newAlert.id));
-      }, 5000);
+      }, 12000);
     };
 
     on('vip-alert-received', handleVipAlert);

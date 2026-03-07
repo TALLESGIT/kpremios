@@ -100,8 +100,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
     sendMessage: socketSendMessage,
     emit: socketEmit,
     on,
-    off,
-    handleNewMessage
+    off
   } = useSocketChat({
     streamId,
     enabled: isActive !== false || isAdmin // Sempre habilitar se for admin ou se isActive não for false
@@ -672,7 +671,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
         messageType: 'tts',
         ttsText: msg,
         audioDuration: estimatedDuration,
-        vipColor: vipCustomColor
+        vip_color: vipCustomColor
       });
 
       // Atualizar contador de áudios restantes
@@ -763,7 +762,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
       // Enviar via Socket.io (backend vai salvar no Supabase e broadcastar)
       socketSendMessage(msg, {
         messageType: 'text',
-        vipColor: isVip ? vipCustomColor : undefined
+        vip_color: isVip ? vipCustomColor : undefined
       });
 
       // ✅ Mensagem será adicionada automaticamente via Socket.io quando o backend broadcastar

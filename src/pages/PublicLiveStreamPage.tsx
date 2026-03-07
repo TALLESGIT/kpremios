@@ -519,7 +519,7 @@ const PublicLiveStreamPage: React.FC = () => {
                   {stream.is_active && (
                     <>
                       {/* Top-Left Info Bar (Viewer Count) */}
-                      <div className={`absolute left-4 top-4 z-20 pointer-events-none transition-all duration-500 ${showControls || isFullscreen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+                      <div className={`absolute left-4 top-4 z-20 pointer-events-none transition-all duration-500 ${showControls ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
                         }`}>
                         <div className="pointer-events-auto inline-block">
                           <ViewerCountDisplay
