@@ -19,6 +19,7 @@ import { DEFAULT_LIVE_CHANNEL } from '../config/constants';
 import { LiveViewer } from '../components/LiveViewer';
 import AdminLivePanel from '../components/live/AdminLivePanel';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
+import VipAlertOverlay from '../components/live/VipAlertOverlay';
 import PoolManager from '../components/pool/PoolManager';
 import PollManager from '../components/live/PollManager';
 import ChatModerationControls from '../components/live/ChatModerationControls';
@@ -389,6 +390,7 @@ const AdminLiveStreamPage = () => {
                     isAdmin={true}
                   />
                   <VipMessageOverlay streamId={selectedStream.id} isActive={selectedStream.is_active} />
+                  <VipAlertOverlay streamId={selectedStream.id} isAdmin={true} />
                 </div>
                 <AdminLivePanel
                   streamId={selectedStream.id}

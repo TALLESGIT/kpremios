@@ -69,7 +69,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
   const [isAdmin, setIsAdmin] = useState(false);
   const [isVip, setIsVip] = useState(false);
   const [isBanned, setIsBanned] = useState(false);
-  const [userRoles, setUserRoles] = useState<{ [userId: string]: { isAdmin: boolean; isVip: boolean; isModerator: boolean } }>({});
+  const [userRoles, setUserRoles] = useState<{ [userId: string]: { isAdmin: boolean; isVip: boolean; isModerator: boolean; vipColor?: string } }>({});
   const [slowModeSecondsRemaining, setSlowModeSecondsRemaining] = useState(0);
   const [showPinLinkModal, setShowPinLinkModal] = useState(false);
   const [linkToPin, setLinkToPin] = useState('');
@@ -321,7 +321,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
       // Buscar admins e VIPs
       const { data: usersData } = await supabase
         .from('users')
-        .select('id, is_admin, is_vip')
+        .select('id, is_admin, is_vip, vip_color')
         .in('id', userIds);
 
       // Buscar moderadores
@@ -333,13 +333,13 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
 
       const moderatorIds = new Set(moderatorsData?.map(m => m.user_id) || []);
 
-      const roles: { [userId: string]: { isAdmin: boolean; isVip: boolean; isModerator: boolean } } = {};
-
+      const roles: { [key: string]: { isAdmin: boolean; isVip: boolean; isModerator: boolean; vipColor?: string } } = {};
       usersData?.forEach(u => {
         roles[u.id] = {
           isAdmin: u.is_admin || false,
           isVip: u.is_vip || false,
-          isModerator: moderatorIds.has(u.id)
+          isModerator: moderatorIds.has(u.id),
+          vipColor: u.vip_color || 'purple'
         };
       });
 
@@ -530,9 +530,17 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
   };
 
   // Função para obter estilos da mensagem baseado no role
-  const getMessageStyles = (msg: ChatMessage) => {
+  const getMessageStyles = (msg: any) => {
     const hasLink = containsLink(msg.message);
-    const roles = userRoles[msg.user_id || ''] || { isAdmin: false, isVip: false, isModerator: false };
+    const cachedRoles = userRoles[msg.user_id || ''];
+
+    // Mesclar cache com flags da própria mensagem (prioridade para a mensagem se o cache não existir)
+    const roles = {
+      isAdmin: cachedRoles?.isAdmin || msg.is_admin || msg.user_is_admin || false,
+      isVip: cachedRoles?.isVip || msg.is_vip || msg.user_is_vip || false,
+      isModerator: cachedRoles?.isModerator || msg.is_moderator || msg.user_is_moderator || false,
+      vipColor: msg.vip_color || cachedRoles?.vipColor || 'purple'
+    };
 
     if (roles.isAdmin) {
       return {
@@ -553,7 +561,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
         isHighlighted: hasLink
       };
     } else if (roles.isVip) {
-      const colorToUse = msg.vip_color || 'purple';
+      const colorToUse = roles.vipColor || 'purple';
       const colorClasses = getVipColorClasses(colorToUse);
 
       return {

@@ -28,12 +28,8 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
   const [currentMessage, setCurrentMessage] = useState<VipMessage | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [queueWaitTime, setQueueWaitTime] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const userRolesRef = useRef<{ [userId: string]: { isVip: boolean; vipColor?: string } }>({});
-
-  // Estado para Animação Global de Novo VIP
-  const [showVipGlobalAnimation, setShowVipGlobalAnimation] = useState({ show: false, username: '' });
 
   // FILA DE MENSAGENS VIP - Processa uma de cada vez
   const messageQueueRef = useRef<VipMessage[]>([]);
@@ -181,10 +177,10 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
           finishMessage();
         }
       } else {
-        // Se for apenas texto, aguardar 7 segundos (conforme plano)
+        // Se for apenas texto, aguardar 5 segundos
         setTimeout(() => {
           finishMessage();
-        }, 7000);
+        }, 5000);
       }
     }
   };
@@ -226,11 +222,16 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
               isVip: profile?.is_vip || false,
               vipColor: profile?.vip_color || 'purple'
             };
+          } else {
+            // Se já está no cache, mas a mensagem trouxe uma cor diferente, atualizar cache
+            if (newMsg.vip_color && userRolesRef.current[newMsg.user_id].vipColor !== newMsg.vip_color) {
+              userRolesRef.current[newMsg.user_id].vipColor = newMsg.vip_color;
+            }
           }
 
           const role = userRolesRef.current[newMsg.user_id];
 
-          if (role.isVip) {
+          if (role.isVip || newMsg.is_vip) {
             debug('Nova mensagem VIP recebida:', newMsg.message);
             const vipMsg: VipMessage = {
               id: newMsg.id,
@@ -239,7 +240,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
               message: newMsg.message,
               created_at: newMsg.created_at,
               message_type: newMsg.message_type || 'text',
-              vip_color: role.vipColor || 'purple'
+              vip_color: newMsg.vip_color || role.vipColor || 'purple'
             };
 
             messageQueueRef.current.push(vipMsg);
@@ -301,11 +302,7 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
 
     // ✅ Listener para overlay "Novo VIP!" disparado pelo admin
     const handleNewVipSubscriber = (data: { name: string; streamId: string }) => {
-      debug('Novo VIP anunciado pelo admin (Global Anim):', data.name);
-
-      // Ativar animação "WOW" central
-      setShowVipGlobalAnimation({ show: true, username: data.name });
-      setTimeout(() => setShowVipGlobalAnimation({ show: false, username: '' }), 7000);
+      debug('Novo VIP anunciado pelo admin:', data.name);
 
       // Tocar som épico
       try {
@@ -340,25 +337,14 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
     };
   }, [streamId, isActive, on, off]);
 
-  // Efeito para calcular tempo de espera estimado na fila
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (messageQueueRef.current.length > 0) {
-        setQueueWaitTime(messageQueueRef.current.length * 10);
-      } else {
-        setQueueWaitTime(null);
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [currentMessage]);
 
-  if ((!currentMessage && !showVipGlobalAnimation.show) || isMobile) {
+  if ((!currentMessage) || isMobile) {
     return null;
   }
 
   return (
-    <div className="absolute inset-0 pointer-events-none z-[99999]">
-      {/* Overlay de Mensagem VIP Individual (Topo) */}
+    <div className="absolute inset-x-0 top-16 pointer-events-none z-[99999] flex justify-center">
+      {/* Overlay de Mensagem VIP Individual (Topo-Centro) */}
       <AnimatePresence mode="wait">
         {currentMessage && (() => {
           const vipColor = currentMessage.vip_color || 'purple';
@@ -367,99 +353,51 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
           return (
             <motion.div
               key={currentMessage.id}
-              initial={{ opacity: 0, x: -50, y: 50, scale: 0.8, filter: 'blur(10px)' }}
-              animate={{ opacity: 1, x: 0, y: 0, scale: 1, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, x: -50, y: 20, scale: 0.8, filter: 'blur(10px)' }}
+              initial={{ opacity: 0, y: -50, scale: 0.9, filter: 'blur(10px)' }}
+              animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: -20, scale: 0.9, filter: 'blur(10px)' }}
               transition={{
-                duration: 0.6,
+                duration: 0.5,
                 ease: "easeOut"
               }}
-              className="absolute bottom-32 left-4 flex justify-start z-[60]"
+              className="px-4"
             >
-              <div className={`bg-gradient-to-r ${colorClasses.bg} backdrop-blur-md border border-white/20 md:border-2 ${colorClasses.border} rounded-xl md:rounded-2xl px-2.5 py-1.5 md:px-4 md:py-2 shadow-2xl w-full max-w-[280px] md:max-w-[320px] pointer-events-auto relative`}>
+              <div className={`bg-gradient-to-r ${colorClasses.bg} backdrop-blur-md border border-white/20 md:border-2 ${colorClasses.border} rounded-xl md:rounded-2xl px-3 py-2 md:px-5 md:py-2.5 shadow-2xl w-full max-w-[280px] md:max-w-[340px] pointer-events-auto relative`}>
                 <div className="absolute -top-2 -right-2 transform rotate-12">
                   <div className="bg-yellow-400 p-1 rounded-lg shadow-lg">
-                    <Crown className="w-3 h-3 text-black" />
+                    <Crown className="w-3.5 h-3.5 text-black" />
                   </div>
                 </div>
                 <div className="flex items-center gap-3 mb-1.5">
-                  <span className={`${colorClasses.text} text-[10px] font-black uppercase tracking-wider flex items-center gap-1`}>
-                    VIP
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className={`${colorClasses.text} text-[10px] font-black uppercase tracking-wider`}>
+                      VIP
+                    </span>
+                    <Sparkles className="w-2.5 h-2.5 text-yellow-300 animate-pulse" />
+                  </div>
                   {currentMessage.message_type === 'tts' && (
                     <span className={`${colorClasses.textLight} text-[10px] font-bold flex items-center gap-1`}>
                       <Volume2 className={`w-2.5 h-2.5 ${isPlayingAudio ? 'animate-pulse' : ''}`} />
                     </span>
                   )}
-                  <span className="text-white text-[11px] md:text-xs font-bold truncate max-w-[120px]">
+                  <span className="text-white text-[12px] md:text-sm font-black italic truncate max-w-[140px]">
                     {currentMessage.user_name}
                   </span>
                   {messageQueueRef.current.length > 0 && (
-                    <span className={`${colorClasses.text} text-[9px] font-bold flex items-center gap-1`}>
-                      <span>+{messageQueueRef.current.length}</span>
-                    </span>
+                    <div className="ml-auto bg-black/20 px-1.5 py-0.5 rounded-full">
+                      <span className={`${colorClasses.text} text-[9px] font-black`}>
+                        +{messageQueueRef.current.length}
+                      </span>
+                    </div>
                   )}
                 </div>
-                <p className="text-white text-[11px] md:text-xs font-medium leading-tight break-words line-clamp-2">
+                <p className="text-white text-[12px] md:text-sm font-bold leading-tight break-words line-clamp-2 drop-shadow-sm">
                   {currentMessage.message}
                 </p>
               </div>
             </motion.div>
           );
         })()}
-      </AnimatePresence>
-
-      {/* Animação Global VIP (WOW - Centro) */}
-      <AnimatePresence>
-        {showVipGlobalAnimation.show && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            className="fixed inset-0 flex items-center justify-center z-[100000] pointer-events-none"
-          >
-            <div className="relative pointer-events-auto">
-              {/* Efeito de Brilho Giratório */}
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                className="absolute inset-[-100px] bg-[conic-gradient(from_0deg,transparent_0_340deg,rgba(250,204,21,0.4)_360deg)] rounded-full blur-3xl"
-              />
-
-              <motion.div
-                initial={{ y: 20 }}
-                animate={{ y: 0 }}
-                className="relative bg-slate-900/90 backdrop-blur-xl border-2 md:border-4 border-yellow-400 p-6 md:p-10 rounded-[24px] md:rounded-[40px] shadow-[0_0_80px_rgba(250,204,21,0.4)] flex flex-col items-center gap-4 md:gap-6 text-center overflow-hidden max-w-[90vw]"
-              >
-                {/* Partículas de Brilho */}
-                <div className="absolute top-4 left-4"><Sparkles className="w-6 h-6 text-yellow-300 animate-pulse" /></div>
-                <div className="absolute bottom-4 right-4"><Sparkles className="w-6 h-6 text-yellow-300 animate-pulse" /></div>
-
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1], rotate: [0, 5, -5, 0] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <Crown className="w-16 h-16 md:w-28 md:h-28 text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.6)]" />
-                </motion.div>
-
-                <div className="space-y-2">
-                  <h2 className="text-xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-200 uppercase tracking-tighter italic">
-                    Novo VIP na Área!
-                  </h2>
-                  <div className="h-1 w-24 bg-gradient-to-r from-transparent via-yellow-400 to-transparent mx-auto" />
-                </div>
-
-                <p className="text-3xl md:text-6xl font-black text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] tracking-tight">
-                  {showVipGlobalAnimation.username}
-                </p>
-
-                <p className="text-yellow-200/80 font-bold uppercase tracking-widest text-sm">
-                  Bem-vindo ao Time de Elite 💎
-                </p>
-              </motion.div>
-            </div>
-          </motion.div>
-        )}
       </AnimatePresence>
     </div >
   );
