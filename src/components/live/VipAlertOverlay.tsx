@@ -128,14 +128,14 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId }) => {
   }, [isConnected, streamId, on, off, playVipSound]);
 
   return (
-    <div className="absolute bottom-24 left-4 z-[100] flex flex-col items-start gap-4 pointer-events-none">
+    <div className="absolute bottom-16 sm:bottom-24 left-2 sm:left-4 z-[100] flex flex-col items-start gap-3 sm:gap-4 pointer-events-none max-w-[calc(100vw-1rem)]">
       <AnimatePresence>
         {alerts.map((alert) => (
           <motion.div
             key={alert.id}
-            initial={{ opacity: 0, x: -150, scale: 0.8, filter: 'blur(10px)' }}
+            initial={{ opacity: 0, x: -100, scale: 0.8, filter: 'blur(10px)' }}
             animate={{ opacity: 1, x: 0, scale: 1, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, x: -50, scale: 0.9, filter: 'blur(10px)' }}
+            exit={{ opacity: 0, x: -30, scale: 0.9, filter: 'blur(10px)' }}
             transition={{
               type: "spring",
               stiffness: 260,
@@ -145,10 +145,10 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId }) => {
             className="relative group"
           >
             {/* Outer Premium Glow */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-yellow-600 via-amber-400 to-yellow-600 rounded-3xl blur-md opacity-50 group-hover:opacity-100 transition duration-1000 animate-pulse" />
+            <div className="absolute -inset-1 bg-gradient-to-r from-yellow-600 via-amber-400 to-yellow-600 rounded-2xl sm:rounded-3xl blur-md opacity-50 group-hover:opacity-100 transition duration-1000 animate-pulse" />
 
             {/* Main Premium Card */}
-            <div className="relative flex items-center gap-4 px-6 py-4 bg-slate-950/95 backdrop-blur-2xl rounded-[1.5rem] border border-yellow-500/50 shadow-2xl overflow-hidden min-w-[280px]">
+            <div className="relative flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 bg-slate-950/95 backdrop-blur-2xl rounded-2xl sm:rounded-[1.5rem] border border-yellow-500/50 shadow-2xl overflow-hidden min-w-[240px] sm:min-w-[280px]">
 
               {/* Shiny Sweep Effect */}
               <motion.div
