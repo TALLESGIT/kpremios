@@ -79,6 +79,18 @@ const AdminLiveStreamPage = () => {
   }, [selectedStream]);
 
   useEffect(() => {
+    // Executa a limpeza de bolões com mais de 7 dias automaticamente ao abrir o painel
+    const cleanOldPools = async () => {
+      try {
+        await supabase.rpc('delete_old_pools');
+      } catch (err) {
+        console.error('Erro ao limpar bolões antigos', err);
+      }
+    };
+    cleanOldPools();
+  }, []);
+
+  useEffect(() => {
     if (!user) {
       navigate('/login');
       return;

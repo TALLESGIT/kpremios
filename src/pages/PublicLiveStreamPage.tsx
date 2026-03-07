@@ -491,25 +491,23 @@ const PublicLiveStreamPage: React.FC = () => {
                       showPerf={showPerf}
                     />
                   ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center z-30">
-                      <div className="text-center px-6 max-w-2xl animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                        <div className="mb-8 relative">
-                          <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full"></div>
-                          <div className="relative text-8xl animate-pulse">📺</div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center z-30">
+                      <div className="text-center px-6 max-w-md animate-in fade-in zoom-in duration-700">
+                        <div className="w-20 h-20 mx-auto bg-slate-800/50 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-black/50 border border-white/5">
+                          <Tv className="w-10 h-10 text-slate-400" />
                         </div>
-                        <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-4 tracking-tight">
-                          Aguardando Transmissão
+                        <h2 className="text-2xl sm:text-3xl font-black text-white mb-3">
+                          {stream.is_active ? 'Sinal Indisponível' : 'Transmissão Encerrada'}
                         </h2>
-                        <p className="text-lg sm:text-xl text-blue-200 mb-8 leading-relaxed">
-                          O sinal ainda não foi iniciado. 📡<br />
-                          Aguarde alguns instantes! ⏳✨
+                        <p className="text-slate-400 mb-8 max-w-[300px] mx-auto text-sm sm:text-base">
+                          {stream.is_active ? 'O sinal da transmissão está sendo restabelecido. Aguarde.' : 'A transmissão ao vivo foi finalizada ou ainda não começou.'}
                         </p>
-                        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                        <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
                           <button
                             onClick={() => window.location.reload()}
-                            className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl transition-all shadow-xl shadow-blue-600/30 hover:scale-105"
+                            className="px-6 py-3 w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 hover:scale-105 text-sm flex items-center justify-center gap-2"
                           >
-                            🔄 Recarregar Página
+                            🔄 Atualizar
                           </button>
                         </div>
                       </div>

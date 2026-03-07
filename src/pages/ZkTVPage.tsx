@@ -451,7 +451,7 @@ const ZkTVPage: React.FC = () => {
                                 }
                                 return; // Não tentar recriar a cada erro
                             }
-                            
+
                             if (isZkTVDebug()) console.warn('⚠️ Heartbeat RPC falhou, recriando sessão:', error.message);
                             heartbeatInitializedRef.current = false;
                             await trackViewer(activeStream.id);
@@ -472,7 +472,7 @@ const ZkTVPage: React.FC = () => {
                 // ✅ CORREÇÃO: Não quebrar a live por erros de heartbeat
                 if (isZkTVDebug()) console.warn('⚠️ Erro no heartbeat (não crítico):', error?.message || error);
                 heartbeatErrorCountRef.current++;
-                
+
                 // Apenas recriar sessão se muitos erros consecutivos
                 if (heartbeatErrorCountRef.current > 5) {
                     if (isZkTVDebug()) console.log('🔄 Muitos erros de heartbeat, tentando recriar sessão...');
@@ -613,7 +613,7 @@ const ZkTVPage: React.FC = () => {
         try {
             // ✅ OTIMIZAÇÃO: Usar cache do backend Socket.IO (reduz 99% das requisições ao Supabase)
             const { getActiveLiveStreams, getLiveStreamByChannel } = await import('../services/cachedLiveService');
-            
+
             // Primeiro, tentar buscar stream ativa do cache
             const activeStreams = await getActiveLiveStreams();
             let data = activeStreams.length > 0 ? activeStreams[0] : null;
@@ -622,7 +622,7 @@ const ZkTVPage: React.FC = () => {
             if (!data) {
                 if (isZkTVDebug()) console.log('⚠️ Nenhuma stream ativa encontrada, buscando stream ZkOficial...');
                 data = await getLiveStreamByChannel('ZkOficial');
-                
+
                 if (data && isZkTVDebug()) {
                     console.log('✅ Stream ZkOficial encontrada:', data);
                 }
@@ -1060,47 +1060,33 @@ const ZkTVPage: React.FC = () => {
                                 ) : activeStream && !activeStream.is_active ? (
                                     <>
                                         {/* Transmissão encerrada - placeholder sem carregar o player */}
-                                            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center z-30">
-                                                <div className="text-center px-6 max-w-2xl animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                                                    {/* Icon */}
-                                                    <div className="mb-8 relative">
-                                                        <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full"></div>
-                                                        <div className="relative text-8xl animate-pulse">📺</div>
-                                                    </div>
-
-                                                    {/* Title */}
-                                                    <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-4 tracking-tight">
-                                                        Transmissão Encerrada
-                                                    </h2>
-
-                                                    {/* Message */}
-                                                    <p className="text-lg sm:text-xl text-blue-200 mb-8 leading-relaxed">
-                                                        A transmissão ao vivo foi finalizada. 🎬<br />
-                                                        Obrigado por assistir! ⚽✨
-                                                    </p>
-
-                                                    {/* CTA */}
-                                                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                                                        <button
-                                                            onClick={() => window.location.reload()}
-                                                            className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl transition-all shadow-xl shadow-blue-600/30 hover:scale-105"
-                                                        >
-                                                            🔄 Recarregar Página
-                                                        </button>
-                                                        <a
-                                                            href="/"
-                                                            className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl transition-all border border-white/20"
-                                                        >
-                                                            🏠 Voltar ao Início
-                                                        </a>
-                                                    </div>
-
-                                                    {/* Footer */}
-                                                    <p className="mt-8 text-sm text-slate-400">
-                                                        Fique ligado nas próximas transmissões! 🔔
-                                                    </p>
+                                        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center z-30">
+                                            <div className="text-center px-6 max-w-md animate-in fade-in zoom-in duration-700">
+                                                <div className="w-20 h-20 mx-auto bg-slate-800/50 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-black/50 border border-white/5">
+                                                    <Tv className="w-10 h-10 text-slate-400" />
+                                                </div>
+                                                <h2 className="text-2xl sm:text-3xl font-black text-white mb-3">
+                                                    Transmissão Encerrada
+                                                </h2>
+                                                <p className="text-slate-400 mb-8 max-w-[300px] mx-auto text-sm sm:text-base">
+                                                    Obrigado por nos acompanhar! Fique ligado nas próximas transmissões.
+                                                </p>
+                                                <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                                                    <button
+                                                        onClick={() => window.location.reload()}
+                                                        className="px-6 py-3 w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 hover:scale-105 text-sm flex items-center justify-center gap-2"
+                                                    >
+                                                        🔄 Atualizar
+                                                    </button>
+                                                    <a
+                                                        href="/"
+                                                        className="px-6 py-3 w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all border border-slate-700 text-sm flex items-center justify-center gap-2"
+                                                    >
+                                                        🏠 Início
+                                                    </a>
                                                 </div>
                                             </div>
+                                        </div>
                                     </>
                                 ) : (
                                     settings?.live_url && settings.live_url.includes('/live/') ? (
@@ -1289,7 +1275,7 @@ const ZkTVPage: React.FC = () => {
                                     {/* Header com botão de fechar */}
                                     <div className="p-3 border-b border-white/10 flex items-center justify-between shrink-0">
                                         <span className="text-xs font-black text-white uppercase italic tracking-wider">Chat</span>
-                                        <button 
+                                        <button
                                             onClick={() => setIsDockedChat(false)}
                                             className="p-1.5 hover:bg-white/10 rounded-lg transition-all"
                                         >
