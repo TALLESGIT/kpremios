@@ -608,8 +608,8 @@ io.on('connection', (socket) => {
     const { streamId } = data || {};
     if (!streamId) return;
     console.log(`💎 Admin lançou promoção VIP na stream ${streamId}`);
-    // Retransmite para todos os viewers na sala
-    io.to(`stream:${streamId}`).emit('vip-promo-launched', { streamId });
+    // Retransmite para TODOS (Global)
+    io.emit('vip-promo-launched', { streamId });
   });
 
   // ✅ Admin anuncia novo VIP com nome (overlay animado para todos)
@@ -617,8 +617,8 @@ io.on('connection', (socket) => {
     const { streamId, name } = data || {};
     if (!streamId || !name) return;
     console.log(`🎉 Novo VIP anunciado na stream ${streamId}: ${name}`);
-    // Retransmite para TODOS (incluindo o admin) na sala
-    io.to(`stream:${streamId}`).emit('vip-new-subscriber', { streamId, name });
+    // Retransmite para TODOS (incluindo o admin) - Global
+    io.emit('vip-new-subscriber', { streamId, name });
   });
 
   // ✅ Admin lança alerta VIP manual (overlay animado para todos)
@@ -626,8 +626,8 @@ io.on('connection', (socket) => {
     const { streamId, name } = data || {};
     if (!streamId || !name) return;
     console.log(`💎 Alerta VIP manual retransmitido na stream ${streamId}: ${name}`);
-    // Retransmite para TODOS na sala
-    io.to(`stream:${streamId}`).emit('vip-alert-received', { streamId, name });
+    // Retransmite para TODOS - Global
+    io.emit('vip-alert-received', { streamId, name });
   });
 
   // Chat: Viewer envia mensagem (Write-Behind + Read-Through Cache)
