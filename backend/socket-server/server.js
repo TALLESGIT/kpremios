@@ -51,6 +51,8 @@ const corsOrigin = (origin, callback) => {
     ...frontendOrigins,
     'https://www.zkoficial.com.br',
     'https://zkoficial.com.br',
+    'https://localhost',
+    'http://localhost',
     'http://localhost:5173',
     'http://localhost:3000',
     'http://127.0.0.1:5173',
@@ -72,8 +74,8 @@ const corsOrigin = (origin, callback) => {
     return callback(null, true);
   }
 
-  // Em desenvolvimento, permitir qualquer localhost
-  if (!isProduction && /^http:\/\/localhost:\d+$/.test(origin)) {
+  // Em desenvolvimento, permitir qualquer localhost (http ou https)
+  if (!isProduction && /^(http|https):\/\/localhost(:\d+)?$/.test(origin)) {
     return callback(null, true);
   }
 
