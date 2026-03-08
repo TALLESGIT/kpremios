@@ -1439,7 +1439,7 @@ const ZkTVPage: React.FC = () => {
                                                                     {new Date(game.date).toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase()}
                                                                 </div>
                                                                 <div className="min-w-0 flex-1">
-                                                                    <div className="text-xs sm:text-sm font-bold text-blue-500 mb-1 truncate">{game.competition}</div>
+                                                                    <div className="text-xs sm:text-sm font-bold text-blue-500 mb-1">{game.competition}</div>
                                                                     {/* Mobile: duas linhas | Desktop: uma linha */}
                                                                     <div className="text-sm sm:text-base lg:text-xl font-black text-center sm:text-left">
                                                                         <span className="block sm:inline">Cruzeiro</span>
@@ -1450,7 +1450,7 @@ const ZkTVPage: React.FC = () => {
                                                             </div>
                                                             <div className="text-right flex-shrink-0">
                                                                 <div className="text-xs sm:text-sm font-bold text-slate-300">{new Date(game.date).toLocaleDateString('pt-BR')}</div>
-                                                                <div className="text-[10px] sm:text-xs text-slate-500 truncate max-w-[80px] sm:max-w-none">{game.venue}</div>
+                                                                <div className="text-[10px] sm:text-xs text-slate-500 max-w-[80px] sm:max-w-none break-words">{game.venue}</div>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -1476,9 +1476,9 @@ const ZkTVPage: React.FC = () => {
                                                                         <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[9px] sm:text-[10px] font-black uppercase rounded-full border border-emerald-500/30 tracking-widest shrink-0">
                                                                             BOLÃO
                                                                         </span>
-                                                                        <div className="text-[10px] sm:text-xs font-bold text-emerald-400/80 uppercase truncate w-full">{lastPoolResult.match_title}</div>
+                                                                        <div className="text-[10px] sm:text-xs font-bold text-emerald-400/80 uppercase w-full">{lastPoolResult.match_title}</div>
                                                                     </div>
-                                                                    <div className="text-sm sm:text-base font-bold text-white truncate w-full mt-1">
+                                                                    <div className="text-sm sm:text-base font-bold text-white w-full mt-1">
                                                                         {lastPoolResult.home_team} <span className="text-slate-500 mx-1 font-normal text-xs sm:text-sm">vs</span> {lastPoolResult.away_team}
                                                                     </div>
                                                                 </div>
@@ -1499,7 +1499,7 @@ const ZkTVPage: React.FC = () => {
                                                             <div key={game.id} className="flex items-center justify-between p-3 sm:p-4 lg:p-6 bg-slate-950 border border-slate-900 rounded-xl sm:rounded-2xl gap-2 sm:gap-4">
                                                                 <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 min-w-0 flex-1">
                                                                     <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500 flex-shrink-0" />
-                                                                    <span className="text-xs sm:text-sm font-bold truncate">{game.opponent}</span>
+                                                                    <span className="text-xs sm:text-sm font-bold">{game.opponent}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 font-black flex-shrink-0">
                                                                     <div className="px-2 sm:px-3 py-0.5 sm:py-1 bg-slate-900 rounded-md sm:rounded-lg text-xs sm:text-sm">{game.score_home}</div>

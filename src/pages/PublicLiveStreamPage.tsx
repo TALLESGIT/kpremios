@@ -608,7 +608,7 @@ const PublicLiveStreamPage: React.FC = () => {
                         size="sm"
                         showName={false}
                       />
-                      <span className="text-white text-sm font-bold uppercase tracking-tight truncate">{g.opponent}</span>
+                      <span className="text-white text-sm font-bold uppercase tracking-tight">{g.opponent}</span>
                     </div>
                     <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
                       <span>{new Date(g.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>
