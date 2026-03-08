@@ -633,53 +633,74 @@ const PublicLiveStreamPage: React.FC = () => {
             )}
           </div>
 
-          {/* New Section: Últimos Resultados do Bolão */}
-          {lastPoolResult && (
-            <div className="mt-8 bg-gradient-to-br from-slate-900/60 to-slate-800/20 p-6 sm:p-8 rounded-[2rem] border border-emerald-500/20 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[80px] rounded-full pointer-events-none" />
+          {/* New Section: Últimos Resultados */}
+          {(lastPoolResult || recentGames.length > 0) && (
+            <div className="mt-8 bg-gradient-to-br from-slate-900/60 to-slate-800/20 p-6 sm:p-8 rounded-[2rem] border border-white/5 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 blur-[80px] rounded-full pointer-events-none" />
               <div className="relative z-10">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center border border-emerald-500/30 shadow-lg shadow-emerald-500/10">
-                      <Target className="w-5 h-5 text-emerald-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-white font-black uppercase text-xs italic tracking-widest leading-none">Último Resultado</h3>
-                      <p className="text-emerald-400/60 text-[10px] font-bold uppercase tracking-wider mt-1">{lastPoolResult.match_title || 'Bolão ZK Oficial'}</p>
-                    </div>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center border border-blue-500/30">
+                    <Target className="w-5 h-5 text-blue-400" />
                   </div>
-                  <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                    <span className="text-[10px] font-black text-emerald-400 tracking-widest uppercase">CONCLUÍDO</span>
-                  </div>
+                  <h3 className="text-white font-black uppercase text-xs italic tracking-widest leading-none">Últimos Resultados</h3>
                 </div>
 
-                <div className="flex flex-col md:flex-row items-center justify-between gap-8 bg-black/20 p-6 rounded-2xl border border-white/5">
-                  <div className="flex items-center gap-6 flex-1 justify-center md:justify-start">
-                    <div className="text-center">
-                      <TeamLogo teamName={lastPoolResult.home_team} size="md" className="mx-auto mb-2" />
-                      <span className="text-xs font-bold text-slate-300 block">{lastPoolResult.home_team}</span>
-                    </div>
-                    <div className="text-slate-600 font-black text-xl italic uppercase">VS</div>
-                    <div className="text-center">
-                      <TeamLogo teamName={lastPoolResult.away_team} size="md" className="mx-auto mb-2" />
-                      <span className="text-xs font-bold text-slate-300 block">{lastPoolResult.away_team}</span>
-                    </div>
-                  </div>
+                <div className="grid gap-4">
+                  {lastPoolResult ? (
+                    <div className="bg-black/20 p-6 rounded-2xl border border-emerald-500/20 group">
+                      <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+                        <div className="flex items-center gap-6 flex-1 justify-center md:justify-start">
+                          <div className="text-center">
+                            <TeamLogo teamName={lastPoolResult.home_team} size="md" className="mx-auto mb-2" />
+                            <span className="text-xs font-bold text-slate-300 block">{lastPoolResult.home_team}</span>
+                          </div>
+                          <div className="text-slate-600 font-black text-xl italic uppercase">VS</div>
+                          <div className="text-center">
+                            <TeamLogo teamName={lastPoolResult.away_team} size="md" className="mx-auto mb-2" />
+                            <span className="text-xs font-bold text-slate-300 block">{lastPoolResult.away_team}</span>
+                          </div>
+                        </div>
 
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-slate-900 border border-emerald-500/30 rounded-2xl flex items-center justify-center text-3xl font-black text-emerald-400 shadow-inner">
-                      {lastPoolResult.result_home_score}
+                        <div className="flex items-center gap-4">
+                          <div className="w-16 h-16 bg-slate-900 border border-emerald-500/30 rounded-2xl flex items-center justify-center text-3xl font-black text-emerald-400 shadow-inner">
+                            {lastPoolResult.result_home_score ?? 0}
+                          </div>
+                          <div className="text-emerald-500/30 font-black text-xl">-</div>
+                          <div className="w-16 h-16 bg-slate-900 border border-emerald-500/30 rounded-2xl flex items-center justify-center text-3xl font-black text-emerald-400 shadow-inner">
+                            {lastPoolResult.result_away_score ?? 0}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-4 text-center">
+                        <p className="text-emerald-500/40 text-[10px] font-bold uppercase tracking-widest">Resultado do Bolão: {lastPoolResult.match_title}</p>
+                      </div>
                     </div>
-                    <div className="text-emerald-500/30 font-black text-xl">-</div>
-                    <div className="w-16 h-16 bg-slate-900 border border-emerald-500/30 rounded-2xl flex items-center justify-center text-3xl font-black text-emerald-400 shadow-inner">
-                      {lastPoolResult.result_away_score}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 text-center">
-                  <p className="text-slate-500 text-[10px] font-medium uppercase tracking-widest">{lastPoolResult.match_title}</p>
+                  ) : (
+                    recentGames.slice(0, 2).map(game => (
+                      <div key={game.id} className="bg-black/20 p-4 rounded-2xl border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 flex-1 justify-center sm:justify-start">
+                          <div className="flex items-center gap-2">
+                            <TeamLogo teamName={game.is_home ? 'Cruzeiro' : game.opponent} customLogo={game.is_home ? undefined : game.opponent_logo} size="xs" />
+                            <span className="text-xs font-bold text-slate-300">{game.is_home ? 'Cruzeiro' : game.opponent}</span>
+                          </div>
+                          <span className="text-slate-600 font-black text-[10px] italic">VS</span>
+                          <div className="flex items-center gap-2">
+                            <TeamLogo teamName={game.is_home ? game.opponent : 'Cruzeiro'} customLogo={game.is_home ? game.opponent_logo : undefined} size="xs" />
+                            <span className="text-xs font-bold text-slate-300">{!game.is_home ? 'Cruzeiro' : game.opponent}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-slate-900 border border-white/10 rounded-xl flex items-center justify-center text-lg font-black text-white">
+                            {game.score_home ?? 0}
+                          </div>
+                          <div className="text-slate-700 font-black">-</div>
+                          <div className="w-10 h-10 bg-slate-900 border border-white/10 rounded-xl flex items-center justify-center text-lg font-black text-white">
+                            {game.score_away ?? 0}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>

@@ -1496,15 +1496,39 @@ const ZkTVPage: React.FC = () => {
                                                     ) : (
                                                         // Se não houver resultado do bolão, mostrar jogos finalizados do Cruzeiro
                                                         recentGames.map(game => (
-                                                            <div key={game.id} className="flex items-center justify-between p-3 sm:p-4 lg:p-6 bg-slate-950 border border-slate-900 rounded-xl sm:rounded-2xl gap-2 sm:gap-4">
-                                                                <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 min-w-0 flex-1">
-                                                                    <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500 flex-shrink-0" />
-                                                                    <span className="text-xs sm:text-sm font-bold">{game.opponent}</span>
+                                                            <div key={game.id} className="p-3 sm:p-4 bg-slate-950/40 border border-slate-900 rounded-xl sm:rounded-2xl transition-all hover:bg-slate-900/40">
+                                                                <div className="flex items-center justify-between gap-3">
+                                                                    <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+                                                                        <div className="flex items-center gap-2 min-w-0">
+                                                                            <TeamLogo teamName={game.is_home ? 'Cruzeiro' : game.opponent} customLogo={game.is_home ? undefined : game.opponent_logo} size="xs" />
+                                                                            <span className={`text-[10px] sm:text-xs font-bold truncate ${game.is_home ? 'text-blue-400' : 'text-slate-300'}`}>
+                                                                                {game.is_home ? 'Cruzeiro' : game.opponent}
+                                                                            </span>
+                                                                        </div>
+
+                                                                        <span className="text-[10px] text-slate-600 font-black italic">VS</span>
+
+                                                                        <div className="flex items-center gap-2 min-w-0">
+                                                                            <TeamLogo teamName={game.is_home ? game.opponent : 'Cruzeiro'} customLogo={game.is_home ? game.opponent_logo : undefined} size="xs" />
+                                                                            <span className={`text-[10px] sm:text-xs font-bold truncate ${!game.is_home ? 'text-blue-400' : 'text-slate-300'}`}>
+                                                                                {!game.is_home ? 'Cruzeiro' : game.opponent}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="flex items-center gap-1.5 sm:gap-2 font-black flex-shrink-0">
+                                                                        <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center bg-slate-900 border border-slate-800 rounded-md text-xs sm:text-sm text-white">
+                                                                            {game.score_home ?? 0}
+                                                                        </div>
+                                                                        <span className="text-slate-700 text-[10px] sm:text-xs">-</span>
+                                                                        <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center bg-slate-900 border border-slate-800 rounded-md text-xs sm:text-sm text-white">
+                                                                            {game.score_away ?? 0}
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 font-black flex-shrink-0">
-                                                                    <div className="px-2 sm:px-3 py-0.5 sm:py-1 bg-slate-900 rounded-md sm:rounded-lg text-xs sm:text-sm">{game.score_home}</div>
-                                                                    <span className="text-slate-700 text-sm sm:text-base">-</span>
-                                                                    <div className="px-2 sm:px-3 py-0.5 sm:py-1 bg-slate-900 rounded-md sm:rounded-lg text-xs sm:text-sm">{game.score_away}</div>
+                                                                <div className="mt-2 text-[8px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-wider flex justify-between items-center opacity-60">
+                                                                    <span>{game.competition}</span>
+                                                                    <span>{new Date(game.date).toLocaleDateString('pt-BR')}</span>
                                                                 </div>
                                                             </div>
                                                         ))
