@@ -136,7 +136,7 @@ export function LiveViewer({
     if (whepBaseUrl && !fallbackToHls && !isNativeApp) {
       return (
         <WhepPlayer
-          channelName={channelName}
+          channelName={DEFAULT_LIVE_CHANNEL}
           fitMode={fitMode}
           pathPrefix="live"
           isAdmin={isAdmin}
