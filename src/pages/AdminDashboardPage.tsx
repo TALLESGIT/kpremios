@@ -68,11 +68,11 @@ export default function AdminDashboardPage() {
       try {
         console.log('AdminDashboardPage - Carregando todos os dados do dashboard...');
 
-        // Carregar participantes do bolão ativo
+        // Carregar participantes do bolão mais recente que ainda não teve resultado
         const { data: activePool } = await supabase
           .from('match_pools')
           .select('id, total_participants')
-          .eq('is_active', true)
+          .is('result_home_score', null)
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -133,11 +133,11 @@ export default function AdminDashboardPage() {
       try {
         console.log('AdminDashboardPage - Atualizando contadores em tempo real...');
 
-        // Carregar participantes do bolão ativo
+        // Carregar participantes do bolão mais recente que ainda não teve resultado
         const { data: activePool } = await supabase
           .from('match_pools')
           .select('id, total_participants')
-          .eq('is_active', true)
+          .is('result_home_score', null)
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
