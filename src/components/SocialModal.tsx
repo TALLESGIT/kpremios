@@ -22,11 +22,12 @@ interface SocialModalProps {
 
 const SocialModal: React.FC<SocialModalProps> = ({ isOpen, onClose, socialLinks }) => {
   const platforms = [
-    { id: 'instagram', icon: Instagram, label: 'Instagram', subtitle: 'Siga no Insta', color: 'from-pink-500 to-purple-500', url: socialLinks.instagram },
-    { id: 'youtube', icon: Youtube, label: 'YouTube', subtitle: 'Canal Oficial', color: 'from-red-500 to-red-700', url: socialLinks.youtube },
-    { id: 'spotify', icon: Music, label: 'Spotify', subtitle: 'Ouvir no Spotify', color: 'from-green-500 to-green-700', url: socialLinks.spotify },
-    { id: 'facebook', icon: Facebook, label: 'Facebook', subtitle: 'Página Oficial', color: 'from-blue-500 to-blue-700', url: socialLinks.facebook },
-    { id: 'whatsapp', icon: MessageCircle, label: 'WhatsApp', subtitle: 'Canal de Novidades', color: 'from-emerald-500 to-emerald-700', url: socialLinks.whatsapp },
+    { id: 'instagram', icon: Instagram, label: 'Instagram', subtitle: 'Siga no Insta', color: 'from-pink-500 to-purple-500', url: socialLinks.instagram || 'https://www.instagram.com/itallozkoficial' },
+    { id: 'youtube', icon: Youtube, label: 'YouTube', subtitle: 'Canal Oficial', color: 'from-red-500 to-red-700', url: socialLinks.youtube || 'https://www.youtube.com/channel/UCyP-ZyjtM-I-J2mfI-utNtw' },
+    { id: 'spotify', icon: Music, label: 'Spotify', subtitle: 'Ouvir no Spotify', color: 'from-green-500 to-green-700', url: socialLinks.spotify || 'https://open.spotify.com/artist/0yP-ZyjtM-I-J2mfI-utNtw' },
+    { id: 'facebook', icon: Facebook, label: 'Facebook', subtitle: 'Página Oficial', color: 'from-blue-500 to-blue-700', url: socialLinks.facebook || 'https://www.facebook.com/itallozkoficial' },
+    { id: 'soundcloud', icon: Globe, label: 'SoundCloud', subtitle: 'Ouça no SoundCloud', color: 'from-orange-500 to-orange-700', url: socialLinks.soundcloud || 'https://soundcloud.com/itallo-zk' },
+    { id: 'whatsapp', icon: MessageCircle, label: 'WhatsApp', subtitle: 'Canal de Novidades', color: 'from-emerald-500 to-emerald-700', url: socialLinks.whatsapp || 'https://wa.me/5531972393341' },
   ].filter(p => p.url);
 
   return (

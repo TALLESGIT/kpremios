@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "196036738098",
+    "project_id": "zkoficial-d1c52",
+    "storage_bucket": "zkoficial-d1c52.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:196036738098:android:402556f6953c9a7147502b",
+        "android_client_info": {
+          "package_name": "com.zkoficial.premios"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEkyVJ6ahp5OHoYmF4E9Xv2h3qejP14Ks"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

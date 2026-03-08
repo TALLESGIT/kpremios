@@ -60,6 +60,13 @@ import { ChatProvider } from './features/chat/ChatProvider';
 import { ChatHost } from './features/chat/ChatHost';
 import { StreamRegistryProvider, useRegisteredStreamId } from './features/chat/StreamRegistryProvider';
 import { PollOverlay } from './features/polls/PollOverlay';
+import MobileNavigation from './components/shared/MobileNavigation';
+import MenuPage from './pages/MenuPage';
+import TermsOfUsePage from './pages/TermsOfUsePage';
+import NotificationsPage from './pages/NotificationsPage';
+import { usePushNotifications } from './hooks/usePushNotifications';
+import { App as CapacitorApp } from '@capacitor/app';
+import { useEffect } from 'react';
 
 // Componente interno que usa o streamId do registry global
 // As páginas (ZkTVPage, PublicLiveStreamPage) registram seu streamId via useRegisterStreamId
@@ -77,6 +84,24 @@ function GlobalChatAndPollOverlay() {
 
 function AppContentInner() {
   const { user, loading } = useAuth();
+
+  // Ativar Notificações Push (Nativo)
+  usePushNotifications();
+
+  // Tratamento do Botão de Voltar (Android Nativo)
+  useEffect(() => {
+    const backButtonListener = CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+      if (canGoBack) {
+        window.history.back();
+      } else {
+        CapacitorApp.exitApp();
+      }
+    });
+
+    return () => {
+      backButtonListener.then(l => l.remove());
+    };
+  }, []);
 
   // Rotas públicas que podem ser acessadas durante o loading
   const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password', '/forgot-email'];
@@ -336,6 +361,11 @@ function AppContentInner() {
               }
             />
 
+            {/* Rotas de navegação mobile */}
+            <Route path="/menu" element={<MenuPage />} />
+            <Route path="/termos" element={<TermsOfUsePage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+
             {/* Rotas públicas de live streaming */}
             <Route path="/live/:channelName" element={<PublicLiveStreamPage />} />
             {/* <Route path="/reporter" element={<ReporterPage />} /> */}
@@ -348,6 +378,9 @@ function AppContentInner() {
           </Routes>
           {/* ChatHost e PollOverlay - renderizados dentro do StreamRegistryProvider e Router */}
           <GlobalChatAndPollOverlay />
+
+          {/* Navegação Mobile Inferior */}
+          <MobileNavigation />
         </StreamRegistryProvider>
       </Router>
     </DataProvider>

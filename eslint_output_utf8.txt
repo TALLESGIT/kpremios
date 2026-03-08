@@ -1,0 +1,101 @@
+﻿node.exe : 
+No linha:1 
+caractere:1
++ & "C:\Program File
+s\nodejs/node.exe" "
+C:\Users\Talle\AppDa
+ta\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~
+    + CategoryInfo  
+            : NotS  
+  pecified: (:Str   
+ ing) [], Remote    
+Exception
+    + FullyQualifie 
+   dErrorId : Nati  
+  veCommandError
+ 
+Oops! Something 
+went wrong! :(
+
+ESLint: 9.35.0
+
+TypeError: Error 
+while loading rule '
+@typescript-eslint/n
+o-unused-expressions
+': Cannot read 
+properties of 
+undefined (reading 
+'allowShortCircuit')
+Occurred while 
+linting C:\Users\Tal
+le\Desktop\zkOfical\
+src\pages\LoginPage.
+tsx
+    at 
+Object.create (C:\Us
+ers\Talle\Desktop\zk
+Ofical\node_modules\
+eslint\lib\rules\no-
+unused-expressions.j
+s:85:5)
+    at create (C:\Us
+ers\Talle\Desktop\zk
+Ofical\node_modules\
+@typescript-eslint\e
+slint-plugin\dist\ru
+les\no-unused-expres
+sions.js:28:32)
+    at 
+Object.create (C:\Us
+ers\Talle\Desktop\zk
+Ofical\node_modules\
+@typescript-eslint\u
+tils\dist\eslint-uti
+ls\RuleCreator.js:31
+:20)
+    at 
+createRuleListeners 
+(C:\Users\Talle\Desk
+top\zkOfical\node_mo
+dules\eslint\lib\lin
+ter\linter.js:1019:1
+5)
+    at C:\Users\Tall
+e\Desktop\zkOfical\n
+ode_modules\eslint\l
+ib\linter\linter.js:
+1151:7
+    at 
+Array.forEach 
+(<anonymous>)
+    at runRules (C:\
+Users\Talle\Desktop\
+zkOfical\node_module
+s\eslint\lib\linter\
+linter.js:1085:31)
+    at #flatVerifyWi
+thoutProcessors (C:\
+Users\Talle\Desktop\
+zkOfical\node_module
+s\eslint\lib\linter\
+linter.js:2101:4)
+    at Linter._verif
+yWithFlatConfigArray
+AndWithoutProcessors
+ (C:\Users\Talle\Des
+ktop\zkOfical\node_m
+odules\eslint\lib\li
+nter\linter.js:2189:
+43)
+    at Linter._verif
+yWithFlatConfigArray
+ (C:\Users\Talle\Des
+ktop\zkOfical\node_m
+odules\eslint\lib\li
+nter\linter.js:2292:
+15)

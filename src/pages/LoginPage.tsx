@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { useData } from '../context/DataContext';
-import { Mail, Lock, ArrowRight, AlertCircle, Shield, Trophy, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, ArrowRight, AlertCircle, Shield, Trophy, Loader2, Eye, EyeOff, Fingerprint } from 'lucide-react';
+import { NativeBiometric } from "@capgo/capacitor-native-biometric";
+import { toast } from "react-hot-toast";
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import VipGrantedModal from '../components/vip/VipGrantedModal';
@@ -19,6 +22,61 @@ const LoginPage: React.FC = () => {
   const location = useLocation();
   const returnTo = (location.state as any)?.returnTo;
   const { reloadUserData } = useData();
+  const [canUseBiometrics, setCanUseBiometrics] = useState(false);
+  const [showBioPrompt, setShowBioPrompt] = useState(false);
+
+  useEffect(() => {
+    checkBiometrics();
+  }, []);
+
+  const checkBiometrics = async () => {
+    try {
+      const result = await NativeBiometric.isAvailable();
+      if (result.isAvailable) {
+        // Check if user has previously opted-in/saved biometrics for this app
+        const hasBioSet = localStorage.getItem('zk_biometrics_active') === 'true';
+        setCanUseBiometrics(hasBioSet);
+      }
+    } catch (e) {
+      console.log('Biometrics not available');
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    try {
+      setLoading(true);
+      await NativeBiometric.verifyIdentity({
+        reason: "Para entrar no ZK Oficial",
+        title: "Login Biométrico",
+        subtitle: "Use sua digital ou face para entrar",
+        description: "Confirme sua identidade para continuar",
+      });
+
+      const credentials = await NativeBiometric.getCredentials({
+        server: "zk_oficial_auth",
+      });
+
+      if (credentials && credentials.username && credentials.password) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: credentials.username,
+          password: credentials.password,
+        });
+
+        if (error) throw error;
+        if (data.user) {
+          toast.success("Login realizado com sucesso!");
+          navigate(returnTo || "/");
+        }
+      } else {
+        toast.error("Erro ao recuperar credenciais biométricas.");
+      }
+    } catch (error: any) {
+      console.error('Biometric error:', error);
+      toast.error("Falha na biometria. Use sua senha.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,18 +124,18 @@ const LoginPage: React.FC = () => {
           });
           if (vipGranted && !vipError) {
             console.log('✅ VIP grátis concedido no login!');
-            
+
             // Buscar data de expiração do VIP
             const { data: userData } = await supabase
               .from('users')
               .select('vip_expires_at')
               .eq('id', data.user.id)
               .single();
-            
+
             if (userData?.vip_expires_at) {
               setVipExpiresAt(userData.vip_expires_at);
             }
-            
+
             // Mostrar modal de VIP concedido
             setShowVipModal(true);
           }
@@ -105,7 +163,15 @@ const LoginPage: React.FC = () => {
         } else if (profile?.is_admin) {
           navigate('/admin/dashboard');
         } else {
-          navigate('/'); // Redirecionar para home após login
+          // Check if biometrics is available but not active
+          const bioAvailable = await NativeBiometric.isAvailable();
+          const bioActive = localStorage.getItem('zk_biometrics_active') === 'true';
+
+          if (bioAvailable.isAvailable && !bioActive) {
+            setShowBioPrompt(true);
+          } else {
+            navigate('/');
+          }
         }
       }
     } catch (error: any) {
@@ -232,6 +298,18 @@ const LoginPage: React.FC = () => {
                     </>
                   )}
                 </button>
+
+                {canUseBiometrics && (
+                  <button
+                    type="button"
+                    onClick={handleBiometricLogin}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-3 p-4 rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10 active:scale-95 transition-all group"
+                  >
+                    <Fingerprint className="w-5 h-5 text-accent group-hover:scale-110 transition-transform" />
+                    <span className="font-bold uppercase tracking-tight italic">Entrar com Biometria</span>
+                  </button>
+                )}
               </form>
 
               <div className="mt-8 text-center border-t border-white/5 pt-6 space-y-2">
@@ -284,6 +362,65 @@ const LoginPage: React.FC = () => {
         }}
         expiresAt={vipExpiresAt}
       />
+      {/* Modal de Promoção de Biometria */}
+      <AnimatePresence>
+        {showBioPrompt && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-slate-900 border border-white/10 p-8 rounded-[2.5rem] shadow-2xl text-center"
+            >
+              <div className="w-20 h-20 bg-accent/20 rounded-3xl flex items-center justify-center text-accent mb-6 mx-auto">
+                <Fingerprint className="w-10 h-10" />
+              </div>
+              <h2 className="text-2xl font-black text-white mb-2 uppercase italic">Ativar Biometria?</h2>
+              <p className="text-blue-200/60 mb-8">
+                Deseja usar sua digital ou reconhecimento facial para entrar mais rápido nas próximas vezes?
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={async () => {
+                    try {
+                      await NativeBiometric.setCredentials({
+                        username: email,
+                        password: password,
+                        server: "zk_oficial_auth",
+                      });
+                      localStorage.setItem('zk_biometrics_active', 'true');
+                      toast.success("Biometria ativada!");
+                    } catch (e) {
+                      toast.error("Erro ao ativar biometria.");
+                    } finally {
+                      setShowBioPrompt(false);
+                      navigate('/');
+                    }
+                  }}
+                  className="w-full bg-accent hover:bg-white text-primary font-black py-4 rounded-2xl transition-all shadow-lg"
+                >
+                  SIM, ATIVAR AGORA
+                </button>
+                <button
+                  onClick={() => {
+                    setShowBioPrompt(false);
+                    navigate('/');
+                  }}
+                  className="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-4 rounded-2xl transition-all"
+                >
+                  DEPOIS
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

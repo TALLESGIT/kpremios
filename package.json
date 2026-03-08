@@ -14,9 +14,12 @@
     "docker:down": "docker-compose down"
   },
   "dependencies": {
+    "@capacitor/app": "^8.0.1",
+    "@capacitor/push-notifications": "^8.0.2",
+    "@capgo/capacitor-native-biometric": "^8.4.2",
     "@supabase/supabase-js": "^2.57.4",
     "agora-rtc-sdk-ng": "^4.24.2",
-    "framer-motion": "^12.23.25",
+    "framer-motion": "^12.35.1",
     "hls.js": "^1.6.15",
     "html-to-image": "^1.11.13",
     "lucide-react": "^0.344.0",
@@ -29,6 +32,10 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.2.0",
+    "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
+    "@capacitor/ios": "^8.2.0",
     "@eslint/js": "^9.9.1",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",

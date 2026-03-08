@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ZK Oficial</string>
+    <string name="title_activity_main">ZK Oficial</string>
+    <string name="package_name">com.zkoficial.premios</string>
+    <string name="custom_url_scheme">com.zkoficial.premios</string>
+</resources>

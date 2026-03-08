@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
-import { Link, useNavigate } from 'react-router-dom';
-import { X, Gift, Calendar, Bell, Trophy, Zap, Gamepad2, Ticket, Phone, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, Gift, Calendar, Bell, Trophy, Zap, Ticket, Phone, AlertCircle, CreditCard, Settings, ChevronRight, Fingerprint } from 'lucide-react';
+import { NativeBiometric } from "@capgo/capacitor-native-biometric";
+import { toast } from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 
@@ -25,7 +28,7 @@ interface RecentActivity {
 
 const UserDashboardPage: React.FC = () => {
   const { user } = useAuth();
-  const { currentUser: currentAppUser, loadCurrentUser } = useData();
+  const { currentUser: currentAppUser } = useData();
   const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats>({
     totalRaffles: 0,
@@ -36,13 +39,48 @@ const UserDashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showNoRafflesModal, setShowNoRafflesModal] = useState(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
-  const [whatsapp, setWhatsapp] = useState('');
-  const [updatingWhatsApp, setUpdatingWhatsApp] = useState(false);
+  const [whatsappNumber, setWhatsappNumber] = useState('');
+  const [updating, setUpdating] = useState(false);
+  const [isBioActive, setIsBioActive] = useState(localStorage.getItem('zk_biometrics_active') === 'true');
+  const [bioAvailable, setBioAvailable] = useState(false);
 
   useEffect(() => {
     loadUserStats();
     loadRecentActivity();
+    checkBioAvailability();
   }, [user]);
+
+  const checkBioAvailability = async () => {
+    try {
+      const result = await NativeBiometric.isAvailable();
+      setBioAvailable(result.isAvailable);
+    } catch (e) {
+      setBioAvailable(false);
+    }
+  };
+
+  const handleToggleBiometrics = async () => {
+    if (!isBioActive) {
+      // Activating needs verification
+      try {
+        await NativeBiometric.verifyIdentity({
+          reason: "Para ativar o login biométrico",
+          title: "Ativar Biometria",
+        });
+
+        localStorage.setItem('zk_biometrics_active', 'true');
+        setIsBioActive(true);
+        toast.success("Biometria ativada!");
+      } catch (e) {
+        toast.error("Falha ao verificar identidade.");
+      }
+    } else {
+      // Deactivating
+      localStorage.removeItem('zk_biometrics_active');
+      setIsBioActive(false);
+      toast.success("Biometria desativada.");
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -159,93 +197,86 @@ const UserDashboardPage: React.FC = () => {
     }
   };
 
-  const handleViewRaffles = () => {
-    if (stats.currentRaffles > 0) {
-      navigate('/');
-    } else {
-      setShowNoRafflesModal(true);
-    }
-  };
+
 
   const formatWhatsApp = (value: string): string => {
     return value.replace(/\D/g, '');
   };
 
-  const handleWhatsAppUpdate = async () => {
-    if (!whatsapp.trim() || whatsapp.length < 10) {
+  const handleUpdateWhatsapp = async () => {
+    if (!whatsappNumber.trim() || whatsappNumber.length < 10) {
       return;
     }
 
     if (!user) return;
 
-    setUpdatingWhatsApp(true);
+    setUpdating(true);
     try {
-      const cleanWhatsapp = formatWhatsApp(whatsapp);
-      
-      // Atualizar na tabela users
-      const { error: updateError } = await supabase
-        .from('users')
+      const cleanWhatsapp = formatWhatsApp(whatsappNumber);
+
+      const { error } = await supabase
+        .from('profiles')
         .update({ whatsapp: cleanWhatsapp })
         .eq('id', user.id);
 
-      if (updateError) {
-        console.error('Erro ao atualizar WhatsApp:', updateError);
-        // Tentar na tabela profiles se não encontrar em users
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({ whatsapp: cleanWhatsapp })
-          .eq('id', user.id);
-
-        if (profileError) {
-          throw profileError;
-        }
-      }
-
-      // Recarregar dados do usuário
-      if (loadCurrentUser) {
-        await loadCurrentUser();
-      }
-      
+      if (error) throw error;
+      // await loadCurrentUser(); // Removed to fix missing prop in DataContext
       setShowWhatsAppModal(false);
-      setWhatsapp('');
-    } catch (error: any) {
-      console.error('Erro ao atualizar WhatsApp:', error);
+    } catch (err) {
+      console.error('Error updating WhatsApp:', err);
     } finally {
-      setUpdatingWhatsApp(false);
+      setUpdating(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-[#030712] pt-16 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-accent"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-[#030712] relative overflow-hidden pt-16">
+      {/* Background Decorative Elements */}
+      <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-blue-600/10 to-transparent pointer-events-none" />
+      <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/5 blur-[120px] rounded-full pointer-events-none" />
+
       <Header />
 
       {/* Hero Section */}
-      <div className="relative py-12 md:py-16 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary-dark via-primary to-primary-dark opacity-90"></div>
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
+      <div className="relative py-16 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-blue-900/20"></div>
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
 
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-3xl md:text-5xl font-black text-white mb-2 uppercase tracking-tight">
-            Área do Torcedor
-          </h1>
-          <p className="text-blue-100 text-lg">
-            Bem-vindo de volta, <span className="text-accent font-bold">{currentAppUser?.name || user?.email?.split('@')[0]}</span>!
-          </p>
+        {/* Decorative elements */}
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px]" />
+        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-blue-600/10 rounded-full blur-[80px]" />
+
+        <div className="relative max-w-5xl mx-auto px-6 text-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-600/20 border border-blue-500/30 rounded-full mb-6">
+              <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+              <span className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em]">Painel do Torcedor</span>
+            </div>
+            <h1 className="text-4xl md:text-7xl font-black text-white mb-2 uppercase italic tracking-tighter leading-none">
+              Área do <span className="text-blue-500">Sócio.</span>
+            </h1>
+            <p className="text-blue-200/60 text-lg font-medium">
+              Bem-vindo à sua central de torcedor, <span className="text-accent font-bold uppercase italic">{currentAppUser?.name || user?.email?.split('@')[0]}</span>
+            </p>
+          </motion.div>
         </div>
       </div>
 
       <div className="flex-grow max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full relative z-10 -mt-8">
         {/* Aviso se não tiver WhatsApp */}
         {currentAppUser && (!currentAppUser.whatsapp || currentAppUser.whatsapp.trim() === '') && (
-          <div className="mb-6 glass-panel p-6 rounded-3xl border border-yellow-500/30 bg-yellow-500/10">
+          <div className="mb-6 bg-yellow-500/10 backdrop-blur-xl p-6 rounded-3xl border border-yellow-500/30">
             <div className="flex items-start gap-4">
               <AlertCircle className="h-6 w-6 text-yellow-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
@@ -255,10 +286,10 @@ const UserDashboardPage: React.FC = () => {
                 </p>
                 <button
                   onClick={() => {
-                    setWhatsapp(currentAppUser.whatsapp || '');
+                    setWhatsappNumber(currentAppUser.whatsapp || '');
                     setShowWhatsAppModal(true);
                   }}
-                  className="btn btn-primary text-sm py-2 px-4"
+                  className="bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold py-2 px-4 rounded-xl transition-all"
                 >
                   Adicionar WhatsApp
                 </button>
@@ -268,85 +299,147 @@ const UserDashboardPage: React.FC = () => {
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          {/* Total Participations */}
-          <div className="glass-panel p-6 rounded-3xl relative overflow-hidden group hover:scale-[1.02] transition-transform">
-            <div className="absolute top-0 left-0 w-2 h-full bg-blue-500"></div>
-            <div className="flex justify-between items-start">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
+          <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] relative overflow-hidden group backdrop-blur-xl transition-all hover:bg-white/10 shadow-2xl">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 -mr-16 -mt-16 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all" />
+            <div className="flex justify-between items-center relative z-10">
               <div>
-                <p className="text-blue-200 text-sm font-bold uppercase tracking-wider mb-1">Participações</p>
-                <p className="text-4xl font-black text-white">{stats.totalRaffles}</p>
+                <p className="text-blue-200/20 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Participações</p>
+                <p className="text-5xl font-black text-white italic tracking-tighter">{stats.totalRaffles}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-500/20 rounded-2xl flex items-center justify-center text-blue-400">
-                <Ticket className="w-6 h-6" />
+              <div className="w-16 h-16 bg-blue-600/20 rounded-2xl flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform shadow-lg border border-blue-500/20">
+                <Ticket className="w-8 h-8" />
               </div>
             </div>
           </div>
 
-          {/* Wins */}
-          <div className="glass-panel p-6 rounded-3xl relative overflow-hidden group hover:scale-[1.02] transition-transform">
-            <div className="absolute top-0 left-0 w-2 h-full bg-accent"></div>
-            <div className="flex justify-between items-start">
+          <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] relative overflow-hidden group backdrop-blur-xl transition-all hover:bg-white/10 shadow-2xl">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 -mr-16 -mt-16 rounded-full blur-3xl group-hover:bg-yellow-500/20 transition-all" />
+            <div className="flex justify-between items-center relative z-10">
               <div>
-                <p className="text-yellow-200 text-sm font-bold uppercase tracking-wider mb-1">Vitórias</p>
-                <p className="text-4xl font-black text-white">{stats.wonRaffles}</p>
+                <p className="text-yellow-200/20 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Vitórias</p>
+                <p className="text-5xl font-black text-white italic tracking-tighter">{stats.wonRaffles}</p>
               </div>
-              <div className="w-12 h-12 bg-accent/20 rounded-2xl flex items-center justify-center text-accent">
-                <Trophy className="w-6 h-6" />
+              <div className="w-16 h-16 bg-yellow-600/20 rounded-2xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform shadow-lg border border-yellow-500/20">
+                <Trophy className="w-8 h-8" />
               </div>
             </div>
           </div>
 
-          {/* Active Raffles */}
-          <div className="glass-panel p-6 rounded-3xl relative overflow-hidden group hover:scale-[1.02] transition-transform">
-            <div className="absolute top-0 left-0 w-2 h-full bg-green-500"></div>
-            <div className="flex justify-between items-start">
+          <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] relative overflow-hidden group backdrop-blur-xl transition-all hover:bg-white/10 shadow-2xl">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 -mr-16 -mt-16 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all" />
+            <div className="flex justify-between items-center relative z-10">
               <div>
-                <p className="text-green-200 text-sm font-bold uppercase tracking-wider mb-1">Sorteios Ativos</p>
-                <p className="text-4xl font-black text-white">{stats.currentRaffles}</p>
+                <p className="text-emerald-200/20 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Sócio VIP</p>
+                <p className="text-5xl font-black text-white italic tracking-tighter">{currentAppUser?.is_vip ? 'ATIVO' : 'FREE'}</p>
               </div>
-              <div className="w-12 h-12 bg-green-500/20 rounded-2xl flex items-center justify-center text-green-400">
-                <Zap className="w-6 h-6" />
+              <div className="w-16 h-16 bg-emerald-600/20 rounded-2xl flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform shadow-lg border border-emerald-500/20">
+                <Zap className="w-8 h-8" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          {/* Live Game Action */}
-          <div className="glass-panel p-8 rounded-3xl relative overflow-hidden text-center group">
-            <div className="absolute inset-0 bg-primary-dark/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div className="relative z-10">
-              <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-600 to-blue-800 rounded-full flex items-center justify-center mb-6 shadow-xl border border-white/10 group-hover:scale-110 transition-transform">
-                <Gamepad2 className="w-10 h-10 text-white" />
+        {/* Biometrics Toggle (App Only) */}
+        {bioAvailable && (
+          <div className="mb-6 bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-xl shadow-xl flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-accent/20 rounded-2xl flex items-center justify-center text-accent">
+                <Fingerprint className="w-6 h-6" />
               </div>
-              <h3 className="text-2xl font-bold text-white mb-2">Restam Poucos!</h3>
-              <p className="text-blue-200 mb-6 max-w-md mx-auto">Participe do sorteio ao vivo e mostre que você tem sorte de campeão.</p>
-              <Link to="/live-raffle" className="btn btn-primary w-full max-w-xs mx-auto shadow-blue-900/50">
-                Participar Agora
-              </Link>
+              <div>
+                <h3 className="text-white font-bold">Login Biométrico</h3>
+                <p className="text-blue-200/40 text-sm">Entre com sua digital ou face</p>
+              </div>
             </div>
+            <button
+              onClick={handleToggleBiometrics}
+              className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${isBioActive ? 'bg-accent' : 'bg-white/10'
+                }`}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${isBioActive ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+              />
+            </button>
           </div>
+        )}
 
-          {/* Free Raffles Action */}
-          <div className="glass-panel p-8 rounded-3xl relative overflow-hidden text-center group">
-            <div className="absolute inset-0 bg-primary-dark/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div className="relative z-10">
-              <div className="w-20 h-20 mx-auto bg-gradient-to-br from-accent to-yellow-600 rounded-full flex items-center justify-center mb-6 shadow-xl border border-white/10 group-hover:scale-110 transition-transform">
-                <Gift className="w-10 h-10 text-white" />
+        {/* Menu Items */}
+        <div className="space-y-4 mb-20">
+          {[
+            {
+              icon: Ticket,
+              label: 'Meus Bolões',
+              description: 'Histórico de participações e resultados',
+              path: '/my-numbers',
+              color: 'text-blue-400',
+              bg: 'bg-blue-500/10'
+            },
+            {
+              icon: Gift,
+              label: 'Indicar Amigo',
+              description: 'Ganhe prêmios indicando novos torcedores',
+              path: '/indicar',
+              color: 'text-yellow-400',
+              bg: 'bg-yellow-500/10'
+            },
+            {
+              icon: CreditCard,
+              label: 'Minha Carteira',
+              description: 'Extrato de depósitos e prêmios',
+              path: '/transacoes',
+              color: 'text-emerald-400',
+              bg: 'bg-emerald-500/10'
+            },
+            {
+              icon: Phone,
+              label: 'Suporte VIP',
+              description: 'Fale diretamente com nossa equipe',
+              path: 'https://wa.me/5531972393341',
+              color: 'text-accent',
+              bg: 'bg-accent/10',
+              isExternal: true
+            },
+            {
+              icon: Settings,
+              label: 'Minha Conta',
+              description: 'Segurança e dados pessoais',
+              path: '/configuracoes',
+              color: 'text-slate-400',
+              bg: 'bg-white/5'
+            },
+          ].map((item: any, index) => (
+            <motion.button
+              key={item.label}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
+              onClick={() => {
+                if (item.isExternal) {
+                  window.open(item.path, '_blank');
+                } else {
+                  navigate(item.path);
+                }
+              }}
+              className="w-full flex items-center justify-between p-6 bg-white/5 border border-white/10 rounded-[2rem] hover:bg-white/10 hover:border-blue-500/50 transition-all group shadow-xl"
+            >
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 ${item.bg} rounded-2xl flex items-center justify-center ${item.color} group-hover:scale-110 transition-transform`}>
+                  <item.icon className="w-6 h-6" />
+                </div>
+                <div className="text-left">
+                  <h3 className="text-white font-bold text-lg">{item.label}</h3>
+                  <p className="text-blue-200/40 text-sm">{item.description}</p>
+                </div>
               </div>
-              <h3 className="text-2xl font-bold text-white mb-2">Sorteios Gratuitos</h3>
-              <p className="text-blue-200 mb-6 max-w-md mx-auto">Não perca a chance de ganhar prêmios incríveis totalmente na faixa.</p>
-              <button onClick={handleViewRaffles} className="btn btn-outline border-white/20 hover:bg-white/10 text-white w-full max-w-xs mx-auto">
-                Ver Sorteios
-              </button>
-            </div>
-          </div>
+              <ChevronRight className="w-5 h-5 text-blue-200/20 group-hover:text-blue-400 transition-colors" />
+            </motion.button>
+          ))}
         </div>
 
         {/* Recent Activity */}
-        <div className="glass-panel p-8 rounded-3xl">
+        <div className="bg-white/5 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/10 shadow-2xl">
           <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
             <Calendar className="w-5 h-5 text-accent" />
             Histórico de Atividades
@@ -384,19 +477,14 @@ const UserDashboardPage: React.FC = () => {
             )}
           </div>
         </div>
-
       </div>
 
       {/* Modal - Nenhum Sorteio Ativo */}
       {showNoRafflesModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="glass-panel-dark max-w-md w-full p-0 rounded-3xl overflow-hidden shadow-2xl border border-white/10">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-primary to-primary-dark p-6 text-center relative">
-              <button
-                onClick={() => setShowNoRafflesModal(false)}
-                className="absolute top-4 right-4 text-white/60 hover:text-white"
-              >
+          <div className="bg-slate-900 max-w-md w-full p-0 rounded-3xl overflow-hidden shadow-2xl border border-white/10">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6 text-center relative">
+              <button onClick={() => setShowNoRafflesModal(false)} className="absolute top-4 right-4 text-white/60 hover:text-white">
                 <X className="w-6 h-6" />
               </button>
               <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md border border-white/20">
@@ -404,27 +492,15 @@ const UserDashboardPage: React.FC = () => {
               </div>
               <h3 className="text-2xl font-black text-white">Ops! Sem Sorteios</h3>
             </div>
-
-            {/* Content */}
             <div className="p-8 text-center">
               <p className="text-blue-200 mb-8 leading-relaxed">
-                No momento não estamos com sorteios ativos. Mas não se preocupe, a nação azul não para! Fique ligado nas nossas redes.
+                No momento não estamos com sorteios ativos. Mas não se preocupe, a nação azul não para!
               </p>
-
               <div className="flex gap-3">
-                <button
-                  onClick={() => setShowNoRafflesModal(false)}
-                  className="flex-1 btn btn-outline border-white/10 hover:bg-white/5 text-white py-3 rounded-xl"
-                >
+                <button onClick={() => setShowNoRafflesModal(false)} className="flex-1 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl font-bold">
                   Fechar
                 </button>
-                <button
-                  onClick={() => {
-                    setShowNoRafflesModal(false);
-                    navigate('/');
-                  }}
-                  className="flex-1 btn btn-primary py-3 rounded-xl"
-                >
+                <button onClick={() => { setShowNoRafflesModal(false); navigate('/'); }} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold transition-all shadow-lg shadow-blue-900/40">
                   Ir para Home
                 </button>
               </div>
@@ -432,6 +508,54 @@ const UserDashboardPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* WhatsApp Modal */}
+      <AnimatePresence>
+        {showWhatsAppModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowWhatsAppModal(false)}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-slate-900 border border-white/10 p-8 rounded-[2.5rem] shadow-2xl"
+            >
+              <div className="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400 mb-6 mx-auto">
+                <Phone className="w-8 h-8" />
+              </div>
+              <h2 className="text-2xl font-black text-white text-center mb-2 uppercase italic">
+                Atualizar <span className="text-emerald-400">WhatsApp</span>
+              </h2>
+              <p className="text-blue-200/60 text-center mb-8">
+                Informe seu número para receber notificações exclusivas e suporte.
+              </p>
+              <div className="space-y-4">
+                <input
+                  type="tel"
+                  value={whatsappNumber}
+                  onChange={(e) => setWhatsappNumber(e.target.value)}
+                  placeholder="(00) 00000-0000"
+                  className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 text-white placeholder:text-blue-200/20 focus:border-emerald-500/50 outline-none transition-all"
+                />
+                <div className="flex gap-3 pt-2">
+                  <button onClick={() => setShowWhatsAppModal(false)} className="flex-1 bg-white/5 hover:bg-white/10 text-white font-bold py-4 rounded-2xl transition-all">
+                    Cancelar
+                  </button>
+                  <button onClick={handleUpdateWhatsapp} disabled={updating} className="flex-1 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-black py-4 rounded-2xl transition-all uppercase italic">
+                    {updating ? 'Salvando...' : 'Confirmar'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <Footer />
     </div>

@@ -1,44 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
 import ModernPitchView from '../components/lineup/ModernPitchView';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import { supabase } from '../lib/supabase';
 
-interface CruzeiroGame {
-  opponent?: string;
-  opponent_logo?: string;
-}
+// No generic interface needed if not used
 
 const EscalacaoPage: React.FC = () => {
-  const navigate = useNavigate();
-  const [nextGame, setNextGame] = useState<CruzeiroGame | null>(null);
 
   useEffect(() => {
     const fetchNextGame = async () => {
-      const { data } = await supabase
+      await supabase
         .from('cruzeiro_games')
         .select('opponent, opponent_logo')
-        .in('status', ['upcoming', 'live'])
+        .eq('status', 'upcoming')
         .order('date', { ascending: true })
         .limit(1)
         .maybeSingle();
 
-      if (data) {
-        setNextGame(data);
-      } else {
-        // Fallback para o último jogo finalizado
-        const { data: recent } = await supabase
-          .from('cruzeiro_games')
-          .select('opponent, opponent_logo')
-          .eq('status', 'finished')
-          .order('date', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (recent) setNextGame(recent);
-      }
     };
     fetchNextGame();
   }, []);
@@ -47,7 +27,7 @@ const EscalacaoPage: React.FC = () => {
     <div className="flex flex-col min-h-screen">
       <Header />
 
-      <main className="flex-1 pt-24 pb-12 px-4 overflow-x-hidden">
+      <main className="flex-1 pt-[calc(6rem+env(safe-area-inset-top,0px))] pb-12 px-4 overflow-x-hidden">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import NumberSelection from '../components/user/NumberSelection';
-import RegistrationForm from '../components/user/RegistrationForm';
 import SuccessModal from '../components/shared/SuccessModal';
 import VipGrantedModal from '../components/vip/VipGrantedModal';
 import { useAuth } from '../context/AuthContext';
@@ -22,11 +20,10 @@ import Footer from '../components/shared/Footer';
 function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { currentUser, selectFreeNumber, numbers } = useData();
+  const { currentUser, numbers } = useData();
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successNumber, setSuccessNumber] = useState<number | null>(null);
-  const [hasActiveRaffle, setHasActiveRaffle] = useState(false);
   const [activePoolsCount, setActivePoolsCount] = useState(0);
   const [poolWinnersCount, setPoolWinnersCount] = useState(0);
   const [nextGame, setNextGame] = useState<CruzeiroGame | null>(null);
@@ -45,7 +42,7 @@ function HomePage() {
   // Verificar se é admin
   const isAdmin = currentUser?.is_admin || false;
 
-  const { socket, isConnected, on, off, joinStream, leaveStream } = useSocket({
+  const { socket, isConnected, on, off, joinStream } = useSocket({
     streamId: activeStreamId || undefined,
     autoConnect: !!activeStreamId
   });
@@ -258,10 +255,10 @@ function HomePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-[#030712] text-white pb-32">
       <Header />
-      <main className="flex-grow w-full relative bg-slate-900 overflow-x-hidden">
-        <div className="relative min-h-[90vh] flex flex-col items-center justify-center pt-20 pb-16">
+      <main className="flex-grow w-full relative bg-[#030712] overflow-x-hidden pt-[calc(4rem+env(safe-area-inset-top,0px))]">
+        <div className="relative min-h-[90vh] flex flex-col items-center justify-center pb-16">
           <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
             <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] animate-pulse"></div>
             <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-emerald-600/10 rounded-full blur-[120px]"></div>
@@ -637,8 +634,6 @@ function HomePage() {
               matchTitle={activePool.match_title}
               homeTeam={activePool.home_team}
               awayTeam={activePool.away_team}
-              homeTeamLogo={activePool.home_team_logo}
-              awayTeamLogo={activePool.away_team_logo}
             />
           )
         }

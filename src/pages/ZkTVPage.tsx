@@ -905,7 +905,7 @@ const ZkTVPage: React.FC = () => {
     }, [isFullscreen, isMobile, isChatOpen, isDockedChat, isLandscape, isLiveActive, activeStream]);
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-blue-500/30">
+        <div className="min-h-screen bg-[#030712] flex flex-col pt-16 text-white font-sans selection:bg-blue-500/30">
             <Header />
 
             {/* Hero Section / Live Stream */}

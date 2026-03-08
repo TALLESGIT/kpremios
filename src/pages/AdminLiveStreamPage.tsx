@@ -232,10 +232,11 @@ const AdminLiveStreamPage = () => {
         started_at: new Date().toISOString(),
       };
 
-      // Canal fixo ZkOficial: ZK Studio sempre transmite para o mesmo canal, independente do jogo
+      // Canal fixo ou Dinâmico: O terminal do MediaMTX deve bater com o que foi configurado no OBS/ZK Studio
       if (mediaMtxBase) {
-        // Redireciona o HLS para o endpoint transformado via FFmpeg (com áudio AAC) no VPS
-        updatePayload.hls_url = `${mediaMtxBase.replace(/\/$/, '')}/live/${DEFAULT_LIVE_CHANNEL}_mobile/index.m3u8`;
+        // ✅ CORREÇÃO: Removemos o sufixo '_mobile' que causava 404 e usamos o channel_name da stream
+        const channelPath = selectedStream.channel_name || DEFAULT_LIVE_CHANNEL;
+        updatePayload.hls_url = `${mediaMtxBase.replace(/\/$/, '')}/live/${channelPath}/index.m3u8`;
       }
 
       const { data, error } = await supabase
@@ -400,7 +401,7 @@ const AdminLiveStreamPage = () => {
                     className={!isStreaming ? 'blur-sm grayscale-[0.3]' : ''}
                   />
                   <VipMessageOverlay streamId={selectedStream.id} isActive={selectedStream.is_active} />
-                  <VipAlertOverlay streamId={selectedStream.id} isAdmin={true} />
+                  <VipAlertOverlay streamId={selectedStream.id} />
 
                   {/* Overlay de Preview para o Admin */}
                   {!isStreaming && (

@@ -128,7 +128,7 @@ function Header() {
 
   return (
     <>
-      <header className="bg-gradient-to-r from-primary via-primary to-primary-dark shadow-2xl sticky top-0 z-50 border-b border-primary-light/30">
+      <header className="fixed top-0 left-0 w-full bg-[#030712]/80 backdrop-blur-xl border-b border-white/5 z-[100] shadow-2xl pt-[env(safe-area-inset-top,20px)] md:pt-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
@@ -307,35 +307,35 @@ function Header() {
               }`} />
 
             {/* Slide-out Menu */}
-            <div className={`absolute right-0 top-0 h-full w-80 max-w-sm bg-primary-dark shadow-2xl border-l border-white/10 transform transition-all duration-300 ease-out ${isMenuOpen ? 'translate-x-0 opacity-100 scale-100' : 'translate-x-full opacity-0 scale-95'
+            <div className={`absolute right-0 top-0 h-full w-80 max-w-[85%] bg-[#030712]/95 backdrop-blur-2xl shadow-2xl border-l border-white/10 transform transition-all duration-500 ease-[cubic-bezier(0.32,0,0.67,0)] ${isMenuOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
               }`}>
               {/* Menu Header */}
-              <div className="flex items-center justify-between p-6 border-b border-white/10 bg-primary">
+              <div className="flex items-center justify-between p-6 border-b border-white/5 bg-gradient-to-r from-blue-600/20 to-transparent pt-[calc(env(safe-area-inset-top,20px)+1.5rem)]">
                 <div className="flex items-center">
-                  <ZKLogo size="sm" className="mr-3" />
-                  <span className="text-xl font-display font-black text-white">
-                    ZK Oficial
+                  <ZKLogo size="sm" className="mr-3 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
+                  <span className="text-xl font-display font-black text-white tracking-tight uppercase italic">
+                    Menu <span className="text-blue-500">ZK.</span>
                   </span>
                 </div>
                 <button
                   onClick={closeMenu}
-                  className="p-2 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-all duration-300"
+                  className="p-2.5 rounded-xl text-white/50 hover:text-white hover:bg-white/10 transition-all duration-300 border border-white/5"
                 >
                   <X className="h-6 w-6" />
                 </button>
               </div>
 
               {/* Menu Items */}
-              <nav className="p-4 space-y-2 overflow-y-auto max-h-[calc(100vh-80px)]">
+              <nav className="p-5 space-y-2.5 overflow-y-auto max-h-[calc(100vh-140px)] custom-scrollbar">
                 <Link
                   to={currentAppUser?.is_admin ? "/admin/dashboard" : "/"}
-                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all duration-300 ${(currentAppUser?.is_admin ? location.pathname === '/admin/dashboard' : location.pathname === '/')
-                    ? 'bg-white text-primary shadow-lg'
-                    : 'text-white hover:bg-white/10'
+                  className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${(currentAppUser?.is_admin ? location.pathname === '/admin/dashboard' : location.pathname === '/')
+                    ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] translate-x-1'
+                    : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
                     }`}
                   onClick={closeMenu}
                 >
-                  <span className="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-current/10">
+                  <span className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10 group-hover:bg-white/20 transition-colors">
                     🏠
                   </span>
                   Início
@@ -343,13 +343,13 @@ function Header() {
 
                 <Link
                   to="/winners"
-                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all duration-300 ${location.pathname === '/winners'
-                    ? 'bg-white text-primary shadow-lg'
-                    : 'text-white hover:bg-white/10'
+                  className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname === '/winners'
+                    ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] translate-x-1'
+                    : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
                     }`}
                   onClick={closeMenu}
                 >
-                  <span className="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-current/10">
+                  <span className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10 transition-colors">
                     🏆
                   </span>
                   Ganhadores
@@ -357,13 +357,13 @@ function Header() {
 
                 <Link
                   to="/escalacao"
-                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all duration-300 ${location.pathname === '/escalacao'
-                    ? 'bg-white text-primary shadow-lg'
-                    : 'text-white hover:bg-white/10'
+                  className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname === '/escalacao'
+                    ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] translate-x-1'
+                    : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
                     }`}
                   onClick={closeMenu}
                 >
-                  <span className="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-current/10">
+                  <span className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10 transition-colors">
                     ⚽
                   </span>
                   Escalar Time
@@ -375,13 +375,13 @@ function Header() {
                     {hasActiveLive ? (
                       <Link
                         to="/zk-tv"
-                        className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all duration-300 border border-red-500/50 ${location.pathname.startsWith('/zk-tv')
-                          ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg'
-                          : 'text-white bg-gradient-to-r from-red-600/80 to-red-700/80 hover:from-red-500 hover:to-red-600'
+                        className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 border border-red-500/30 ${location.pathname.startsWith('/zk-tv')
+                          ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-[0_0_20px_rgba(220,38,38,0.4)] translate-x-1'
+                          : 'text-white bg-gradient-to-r from-red-600/40 to-red-700/40 hover:from-red-600 hover:to-red-700 hover:translate-x-1'
                           }`}
                         onClick={closeMenu}
                       >
-                        <span className="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-current/10">
+                        <span className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10">
                           <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
                         </span>
                         Ao Vivo
@@ -389,13 +389,13 @@ function Header() {
                     ) : (
                       <Link
                         to="/live-games"
-                        className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all duration-300 ${location.pathname.startsWith('/live-games')
-                          ? 'bg-white text-primary shadow-lg'
-                          : 'text-white hover:bg-white/10'
+                        className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname.startsWith('/live-games')
+                          ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] translate-x-1'
+                          : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
                           }`}
                         onClick={closeMenu}
                       >
-                        <span className="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-current/10">
+                        <span className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10 transition-colors">
                           🎮
                         </span>
                         Lives Premiadas
@@ -405,33 +405,33 @@ function Header() {
                 )}
 
                 {/* Mobile Admin and Public Links */}
-                <div className="py-2 space-y-2 border-t border-white/10 mt-2 pt-4">
-                  <p className="px-4 text-xs font-bold uppercase text-white/50 tracking-wider mb-2">Conteúdo</p>
-                  <Link to="/spotify" onClick={closeMenu} className="flex items-center px-4 py-2 text-white/80 hover:text-white hover:bg-white/5 rounded-lg">
-                    <span className="mr-3">🎵</span> Músicas
+                <div className="py-4 space-y-2 border-t border-white/5 mt-4 pt-6">
+                  <p className="px-5 text-[10px] font-black uppercase text-blue-400/50 tracking-[0.2em] mb-3 leading-none italic">Social & Conteúdo</p>
+                  <Link to="/spotify" onClick={closeMenu} className="flex items-center px-5 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-all hover:translate-x-1 font-bold uppercase tracking-tight italic">
+                    <span className="mr-4 text-xl">🎵</span> Músicas
                   </Link>
-                  <Link to="/zk-clips" onClick={closeMenu} className="flex items-center px-4 py-2 text-white/80 hover:text-white hover:bg-white/5 rounded-lg">
-                    <span className="mr-3">🎬</span> Clipes
+                  <Link to="/zk-clips" onClick={closeMenu} className="flex items-center px-5 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-all hover:translate-x-1 font-bold uppercase tracking-tight italic">
+                    <span className="mr-4 text-xl">🎬</span> Clipes
                   </Link>
                   {currentAppUser?.is_admin && (
-                    <Link to="/admin/live-stream" onClick={closeMenu} className="flex items-center px-4 py-2 text-white/80 hover:text-white hover:bg-white/5 rounded-lg">
-                      <span className="mr-3">📡</span> Transmitir ao Vivo
+                    <Link to="/admin/live-stream" onClick={closeMenu} className="flex items-center px-5 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-all hover:translate-x-1 font-bold uppercase tracking-tight italic border border-blue-500/20 bg-blue-500/5">
+                      <span className="mr-4 text-xl">📡</span> Transmitir ao Vivo
                     </Link>
                   )}
                 </div>
 
                 {!user && !currentAppUser && (
-                  <div className="pt-4 mt-4 border-t border-white/10 space-y-3">
+                  <div className="pt-6 mt-6 border-t border-white/5 space-y-3">
                     <Link
                       to="/login"
-                      className="flex items-center justify-center px-4 py-3 rounded-xl text-base font-bold text-white border border-white/20 hover:bg-white/10 transition-all"
+                      className="flex items-center justify-center px-4 py-4 rounded-2xl text-sm font-black uppercase italic text-white border border-white/10 hover:bg-white/10 transition-all tracking-wider"
                       onClick={closeMenu}
                     >
                       Entrar
                     </Link>
                     <Link
                       to="/register"
-                      className="flex items-center justify-center px-4 py-3 rounded-xl text-base font-bold bg-white text-primary shadow-lg hover:bg-gray-100 transition-all"
+                      className="flex items-center justify-center px-4 py-4 rounded-2xl text-sm font-black uppercase italic bg-blue-600 text-white shadow-[0_0_25px_rgba(37,99,235,0.4)] hover:bg-blue-500 transition-all tracking-wider"
                       onClick={closeMenu}
                     >
                       Cadastrar
@@ -440,13 +440,15 @@ function Header() {
                 )}
 
                 {currentAppUser && (
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center px-4 py-3 mt-4 rounded-xl text-base font-bold text-red-100 hover:text-white hover:bg-red-500/20 transition-all border border-red-500/20"
-                  >
-                    <LogOut className="h-5 w-5 mr-3" />
-                    Sair
-                  </button>
+                  <div className="pt-6 mt-6 border-t border-white/5">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic text-red-400 hover:text-white hover:bg-red-500/20 transition-all border border-red-500/10 active:scale-95"
+                    >
+                      <LogOut className="h-5 w-5 mr-4" />
+                      Sair da Conta
+                    </button>
+                  </div>
                 )}
               </nav>
             </div>

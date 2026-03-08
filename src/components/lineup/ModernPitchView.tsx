@@ -261,25 +261,25 @@ const ModernPitchView: React.FC = () => {
       {/* Controles */}
       <div className="grid grid-cols-2 sm:flex sm:flex-nowrap items-center justify-center gap-2 w-full px-2">
         {/* Formação */}
-        <div className="relative col-span-2 sm:col-span-1 border-2 border-white/20 rounded-lg overflow-hidden">
+        <div className="relative col-span-2 sm:col-span-1 border border-white/10 rounded-2xl overflow-hidden shadow-lg backdrop-blur-xl">
           <select
             value={formation}
             onChange={(e) => setFormation(e.target.value as FormationKey)}
-            className="w-full appearance-none bg-[#0055ff] px-3 py-2.5 pr-8 text-white font-black text-xs outline-none cursor-pointer shadow-xl"
+            className="w-full appearance-none bg-white/5 px-4 py-2.5 pr-8 text-white font-bold text-xs outline-none cursor-pointer"
           >
             {Object.keys(FORMATIONS).map((f) => (
-              <option key={f} value={f}>{f}</option>
+              <option key={f} value={f} className="bg-slate-900">{f}</option>
             ))}
           </select>
-          <ChevronDown className="w-4 h-4 text-white absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <ChevronDown className="w-4 h-4 text-white/40 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
 
         {/* Limpar */}
         <button
           onClick={() => setSelectedPlayers({})}
-          className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#0055ff] text-white rounded-lg font-black text-[10px] uppercase shadow-xl border-2 border-white/20 hover:bg-blue-700 transition-colors group"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold text-[10px] uppercase shadow-lg border border-white/10 transition-all group active:scale-95"
         >
-          <img src="/logos/cruzeiro.png" alt="" className="w-5 h-5 object-contain brightness-110 group-hover:scale-110 transition-transform" />
+          <img src="/logos/cruzeiro.png" alt="" className="w-4 h-4 object-contain brightness-110 opacity-60 group-hover:opacity-100 transition-opacity" />
           Limpar
         </button>
 
@@ -287,17 +287,17 @@ const ModernPitchView: React.FC = () => {
         <button
           onClick={handleShare}
           disabled={sharing || !isTeamComplete}
-          className={`col-span-2 sm:flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-black text-[10px] uppercase shadow-xl border-2 border-white/20 transition-all group ${isTeamComplete && !sharing
-            ? 'bg-[#0055ff] hover:bg-blue-700 text-white'
-            : 'bg-white/10 text-white/30 cursor-not-allowed'
+          className={`col-span-2 sm:flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase shadow-xl border transition-all active:scale-95 ${isTeamComplete && !sharing
+            ? 'bg-blue-600 border-blue-500 text-white shadow-blue-900/40'
+            : 'bg-white/5 border-white/10 text-white/20 cursor-not-allowed'
             }`}
         >
           {sharing ? (
             <><div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Gerando...</>
           ) : (
             <>
-              <img src="/logos/cruzeiro.png" alt="" className={`w-5 h-5 object-contain brightness-110 group-hover:scale-110 transition-transform ${!isTeamComplete ? 'opacity-30 grayscale' : ''}`} />
-              {isTeamComplete ? 'Compartilhar' : 'Escalar 11 para Compartilhar'}
+              <Share2 size={14} className={!isTeamComplete ? 'opacity-20' : ''} />
+              {isTeamComplete ? 'Compartilhar' : 'Escalar 11'}
             </>
           )}
         </button>
@@ -306,10 +306,10 @@ const ModernPitchView: React.FC = () => {
       {/* CAMPO — printado pelo html-to-image */}
       <div
         ref={pitchRef}
-        className="w-full bg-[#0055ff] rounded-2xl overflow-hidden shadow-2xl border-4 border-white/10 flex flex-col relative"
+        className="w-full bg-[#030712] rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white/10 flex flex-col relative"
       >
         {/* Banner superior */}
-        <div className="w-full bg-[#0033aa] py-3 px-4 z-30 flex flex-col items-center shadow-lg border-b-2 border-blue-900/50">
+        <div className="w-full bg-slate-900/90 backdrop-blur-md py-4 px-5 z-30 flex flex-col items-center border-b border-white/5">
           <div className="flex items-center justify-between w-full max-w-md gap-2">
             {/* Logo Cruzeiro */}
             <div className="flex flex-col items-center gap-1">
@@ -400,14 +400,16 @@ const ModernPitchView: React.FC = () => {
 
         {/* Gramado */}
         <div className="relative w-full aspect-[3/4]">
-          {/* Fundo azul listrado */}
+          {/* Fundo azul profundo estético */}
           <div
             className="absolute inset-0"
             style={{
-              background: 'linear-gradient(to bottom, #0055ff 0%, #0055ff 50%, #0066ff 50%, #0066ff 100%)',
-              backgroundSize: '100% 40px',
+              background: 'linear-gradient(to bottom, #0f172a 0%, #0f172a 50%, #1e293b 50%, #1e293b 100%)',
+              backgroundSize: '100% 60px',
             }}
           />
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10" />
+          <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 to-transparent" />
 
           {/* Linhas do campo */}
           <div className="absolute inset-0 p-4 sm:p-6 pointer-events-none">

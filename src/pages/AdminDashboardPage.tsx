@@ -659,27 +659,30 @@ export default function AdminDashboardPage() {
       )}
 
       <main className="flex-grow w-full overflow-x-hidden">
-        {/* Modern Header */}
-        <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 py-6 sm:py-8 lg:py-10 relative overflow-hidden">
-          <div className="absolute inset-0 opacity-20">
-            <div className="absolute top-0 left-1/4 w-96 h-96 bg-white rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-yellow-300 rounded-full blur-3xl"></div>
+        {/* Modern Header - Adjusted for fixed Header component */}
+        <div className="bg-gradient-to-br from-[#0c1222] via-[#1a2333] to-[#0c1222] py-12 sm:py-16 lg:py-20 relative overflow-hidden border-b border-white/5 pt-[calc(6rem+env(safe-area-inset-top,0px))]">
+          <div className="absolute inset-0 opacity-30">
+            <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px]"></div>
+            <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] bg-blue-500/5 rounded-full blur-[100px]"></div>
           </div>
 
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-white mb-2 sm:mb-4 tracking-tight" style={{
-                textShadow: '2px 2px 0px rgba(251, 191, 36, 0.8)'
-              }}>PAINEL ADMINISTRATIVO</h1>
-              <p className="text-blue-100 text-sm sm:text-base lg:text-lg xl:text-xl font-medium">Gerencie o sistema de bolões ZK Oficial</p>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+            <div className="opacity-100 scale-100">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-4 tracking-tighter italic uppercase leading-tight">
+                Painel<span className="text-blue-500">.</span>Admin
+              </h1>
+              <div className="flex items-center justify-center gap-2">
+                <div className="h-1 w-12 bg-blue-500 rounded-full" />
+                <p className="text-blue-200/40 text-[10px] font-black uppercase tracking-[0.4em]">ZK OFICIAL SYSTEM</p>
+                <div className="h-1 w-12 bg-blue-500 rounded-full" />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="max-w-3xl mx-auto px-2 sm:px-4 lg:px-8 pt-4 sm:pt-6">
-
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 mb-12 relative z-20">
           {/* Enhanced Stats Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {[
               {
                 label: 'Participantes',
