@@ -232,10 +232,10 @@ const AdminLiveStreamPage = () => {
         started_at: new Date().toISOString(),
       };
 
-      // Canal fixo ou Dinâmico: O terminal do MediaMTX deve bater com o que foi configurado no OBS/ZK Studio
+      // Canal fixo: O terminal do MediaMTX deve bater com o que foi configurado no OBS/ZK Studio
       if (mediaMtxBase) {
-        // ✅ CORREÇÃO: Removemos o sufixo '_mobile' que causava 404 e usamos o channel_name da stream
-        const channelPath = selectedStream.channel_name || DEFAULT_LIVE_CHANNEL;
+        // ✅ EMERGÊNCIA: Forçamos o uso do canal padrão 'ZkOficial' para bater com o OBS do usuário
+        const channelPath = DEFAULT_LIVE_CHANNEL;
         updatePayload.hls_url = `${mediaMtxBase.replace(/\/$/, '')}/live/${channelPath}/index.m3u8`;
       }
 

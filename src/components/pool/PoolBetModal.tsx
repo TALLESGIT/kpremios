@@ -48,16 +48,16 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
   // Restaurar dados de pagamento do localStorage se houver
   const restorePaymentFromStorage = () => {
     if (!user) return;
-    
+
     const storageKey = `pool_payment_${poolId}_${user.id}`;
     const storedData = localStorage.getItem(storageKey);
-    
+
     if (storedData) {
       try {
         const { qrCode, pixCode, startTime } = JSON.parse(storedData);
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         const remaining = Math.max(0, 300 - elapsed);
-        
+
         if (remaining > 0 && qrCode && pixCode) {
           // Ainda está dentro dos 5 minutos
           setPixQrCode(qrCode);
@@ -99,13 +99,13 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
               // Limpar localStorage
               const storageKey = `pool_payment_${poolId}_${user.id}`;
               localStorage.removeItem(storageKey);
-              
+
               // Fechar modal de pagamento
               setShowPixPayment(false);
               setPixQrCode(null);
               setPixCode(null);
               setPaymentStartTime(null);
-              
+
               toast.error('Tempo de pagamento expirado. A aposta foi cancelada. Você pode fazer uma nova aposta.');
             })
             .catch((err) => {
@@ -138,7 +138,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
     try {
       // Verificar se há apostas pendentes antigas (mais de 5 minutos) e cancelá-las
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-      
+
       // Cancelar apostas pendentes antigas deste usuário neste bolão
       await supabase
         .from('pool_bets')
@@ -163,7 +163,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
         setHasBet(true);
         setHomeScore(mostRecentBet.predicted_home_score.toString());
         setAwayScore(mostRecentBet.predicted_away_score.toString());
-        
+
         // Limpar localStorage se a aposta foi aprovada
         const storageKey = `pool_payment_${poolId}_${user.id}`;
         localStorage.removeItem(storageKey);
@@ -179,20 +179,20 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
   const handleBet = async () => {
     if (!user) {
       toast.custom((t) => (
-        <CustomToast 
+        <CustomToast
           type="warning"
           title="LOGIN NECESSÁRIO"
           message="Faça login ou cadastre-se para participar do bolão."
         />
       ), { duration: 4000 });
-      
+
       // Pequeno delay para mostrar a mensagem antes de redirecionar
       setTimeout(() => {
-        navigate('/login', { 
-          state: { 
+        navigate('/login', {
+          state: {
             returnTo: window.location.pathname,
             message: 'Faça login para participar do bolão'
-          } 
+          }
         });
         onClose(); // Fechar modal antes de redirecionar
       }, 1500);
@@ -225,7 +225,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 
       // Verificar e gerenciar apostas existentes
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-      
+
       // Buscar todas as apostas existentes deste usuário neste bolão
       const { data: existingBets } = await supabase
         .from('pool_bets')
@@ -247,7 +247,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
         // Deletar apostas pendentes antigas (mais de 5 minutos), canceladas ou falhadas
         // Isso permite que o usuário faça novas apostas
         const betsToDelete = existingBets.filter(
-          bet => 
+          bet =>
             bet.payment_status === 'cancelled' ||
             bet.payment_status === 'failed' ||
             (bet.payment_status === 'pending' && new Date(bet.created_at) <= new Date(fiveMinutesAgo))
@@ -286,7 +286,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
       // Criar pagamento PIX via Edge Function
       let paymentData: any;
       let paymentError: any;
-      
+
       try {
         const result = await supabase.functions.invoke('create-pool-payment', {
           body: {
@@ -298,14 +298,14 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
             amount: 2.00
           }
         });
-        
+
         paymentData = result.data;
         paymentError = result.error;
-        
+
         // Se houver erro, tentar obter mais detalhes da resposta
         if (paymentError) {
           console.error('Erro retornado pelo Supabase SDK:', paymentError);
-          
+
           // Tentar fazer uma chamada direta para obter mais detalhes
           try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -327,7 +327,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
                   amount: 2.00
                 })
               });
-              
+
               if (!response.ok) {
                 let errorBody: any;
                 try {
@@ -335,13 +335,13 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
                 } catch {
                   errorBody = await response.text();
                 }
-                
+
                 console.error('Resposta HTTP de erro:', {
                   status: response.status,
                   statusText: response.statusText,
                   body: errorBody
                 });
-                
+
                 // Adicionar detalhes ao erro
                 if (errorBody) {
                   paymentError = {
@@ -367,15 +367,15 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
         console.error('Erro na Edge Function:', paymentError);
         console.error('Tipo do erro:', typeof paymentError);
         console.error('Detalhes completos do erro:', JSON.stringify(paymentError, Object.getOwnPropertyNames(paymentError), 2));
-        
+
         // Tentar extrair detalhes do erro
         let errorMessage = 'Erro ao criar pagamento';
         let errorDetails: any = {};
-        
+
         if (paymentError.message) {
           errorMessage = paymentError.message;
         }
-        
+
         if (paymentError.context) {
           errorDetails = paymentError.context;
           if (paymentError.context.message) {
@@ -385,28 +385,28 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
             errorMessage = paymentError.context.error;
           }
         }
-        
+
         if (paymentError.error) {
           errorMessage = paymentError.error;
         }
-        
+
         if (paymentError.details) {
           errorDetails = { ...errorDetails, ...paymentError.details };
         }
-        
+
         console.error('Mensagem de erro extraída:', errorMessage);
         console.error('Detalhes adicionais:', errorDetails);
-        
+
         // Se der erro no pagamento, remover a aposta criada
         await supabase.from('pool_bets').delete().eq('id', betData.id);
-        
+
         // Construir mensagem de erro mais informativa
         if (errorDetails.message) {
           errorMessage = errorDetails.message;
         } else if (errorDetails.error) {
           errorMessage = errorDetails.error;
         }
-        
+
         throw new Error(errorMessage || 'Erro ao criar pagamento');
       }
 
@@ -424,7 +424,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
         setPaymentStartTime(startTime);
         setTimeRemaining(300);
         setShowPixPayment(true);
-        
+
         // Salvar no localStorage para recuperar depois
         if (user) {
           const storageKey = `pool_payment_${poolId}_${user.id}`;
@@ -434,9 +434,9 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
             startTime: startTime
           }));
         }
-        
+
         toast.custom((t) => (
-          <CustomToast 
+          <CustomToast
             type="success"
             title="QR CODE PIX GERADO!"
             message="Complete o pagamento para confirmar sua aposta."
@@ -453,7 +453,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
         response: error.response,
         data: error.data
       });
-      
+
       // Mensagem de erro mais detalhada
       let errorMessage = 'Erro ao participar do bolão. Tente novamente.';
       if (error.message) {
@@ -463,7 +463,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       }
-      
+
       toast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -492,8 +492,8 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 
   if (hasBet) {
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4">
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-blue-500/30 shadow-2xl max-w-[90vw] sm:max-w-sm w-full overflow-hidden">
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4" onClick={onClose}>
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-blue-500/30 shadow-2xl max-w-[90vw] sm:max-w-[340px] w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Target className="w-6 h-6 text-yellow-300" />
@@ -527,8 +527,8 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 
   if (paymentCompleted) {
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4">
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-green-500/30 shadow-2xl max-w-[90vw] sm:max-w-sm w-full overflow-hidden">
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4" onClick={onClose}>
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-green-500/30 shadow-2xl max-w-[90vw] sm:max-w-[340px] w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
           <div className="bg-gradient-to-r from-green-600 to-green-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <CheckCircle className="w-6 h-6 text-white" />
@@ -568,8 +568,12 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 
   if (showPixPayment) {
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4">
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-blue-500/30 shadow-2xl max-w-[90vw] sm:max-w-sm w-full overflow-hidden max-h-[95vh] overflow-y-auto">
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4" onClick={() => {
+        setShowPixPayment(false);
+        onClose();
+        navigate('/');
+      }}>
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-blue-500/30 shadow-2xl max-w-[90vw] sm:max-w-[340px] w-full overflow-hidden max-h-[95vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <QrCode className="w-6 h-6 text-yellow-300" />
@@ -577,10 +581,8 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
             </div>
             <button
               onClick={() => {
-                // Ao clicar no X, fecha o modal e redireciona para home (sem recarregar)
                 setShowPixPayment(false);
                 onClose();
-                // Redirecionar para home usando React Router (sem recarregar página)
                 navigate('/');
               }}
               className="p-2 hover:bg-white/10 rounded-lg transition-all"
@@ -589,7 +591,6 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
             </button>
           </div>
           <div className="p-4 sm:p-5 space-y-2 sm:space-y-3">
-            {/* Contador de tempo - dentro do modal */}
             {paymentStartTime && (
               <div className="bg-amber-500/10 border-2 border-amber-500/30 rounded-lg p-3 flex items-center justify-center gap-2">
                 <Clock className="w-5 h-5 text-amber-400 animate-pulse" />
@@ -599,7 +600,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
                 <span className="text-xs sm:text-sm text-amber-300">para completar o pagamento</span>
               </div>
             )}
-            
+
             <div className="text-center space-y-2 sm:space-y-3">
               <div className="flex items-center justify-center gap-2 mb-1 sm:mb-2">
                 <QrCode className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
@@ -610,9 +611,9 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 
               {pixQrCode && (
                 <div className="bg-white p-2 sm:p-3 rounded-lg sm:rounded-xl mx-auto w-fit">
-                  <img 
-                    src={`data:image/png;base64,${pixQrCode}`} 
-                    alt="QR Code PIX" 
+                  <img
+                    src={`data:image/png;base64,${pixQrCode}`}
+                    alt="QR Code PIX"
                     className="w-40 h-40 sm:w-48 sm:h-48"
                   />
                 </div>
@@ -648,8 +649,6 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
                   ⏱️ Após o pagamento, sua aposta será confirmada automaticamente
                 </p>
               </div>
-
-              {/* Botão "Voltar" removido - apenas o X está disponível durante o pagamento pendente */}
             </div>
           </div>
         </div>
@@ -658,8 +657,8 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4">
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-blue-500/30 shadow-2xl max-w-[90vw] sm:max-w-sm w-full overflow-hidden max-h-[95vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4" onClick={onClose}>
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-blue-500/30 shadow-2xl max-w-[90vw] sm:max-w-[340px] w-full overflow-hidden max-h-[95vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3">
             <Target className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-300" />
@@ -673,28 +672,28 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
           </button>
         </div>
 
-        <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
+        <div className="p-4 sm:p-6 space-y-2 sm:space-y-4">
           <div className="text-center">
             <p className="text-sm text-slate-400 mb-2">{matchTitle}</p>
-            <div className="flex items-center justify-center gap-4 text-lg font-black text-white">
+            <div className="flex items-center justify-center gap-4 text-sm sm:text-lg font-black text-white">
               <span>{homeTeam}</span>
               <span className="text-blue-400">vs</span>
               <span>{awayTeam}</span>
             </div>
           </div>
 
-                <div className="bg-slate-700/50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-blue-500/20">
-                  <p className="text-xs text-slate-400 text-center mb-2 sm:mb-3">
-                    💰 Valor da aposta: <span className="text-green-400 font-black">R$ 2,00</span>
-                  </p>
-                  <p className="text-xs text-slate-400 text-center">
-                    🎯 Acerte o placar exato e divida o prêmio com outros ganhadores!
-                  </p>
-                </div>
+          <div className="bg-slate-700/50 rounded-lg sm:rounded-xl p-2.5 sm:p-4 border border-blue-500/20">
+            <p className="text-[10px] sm:text-xs text-slate-400 text-center mb-1 sm:mb-3">
+              💰 Valor da aposta: <span className="text-green-400 font-black">R$ 2,00</span>
+            </p>
+            <p className="text-[10px] sm:text-xs text-slate-400 text-center">
+              🎯 Acerte o placar e divida o prêmio!
+            </p>
+          </div>
 
           <div className="space-y-3 sm:space-y-4">
             <div>
-              <label className="block text-xs font-black text-blue-300 uppercase mb-1.5 sm:mb-2">
+              <label className="block text-[10px] font-black text-blue-300 uppercase mb-1 sm:mb-2">
                 Placar - {homeTeam}
               </label>
               <input
@@ -702,15 +701,15 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
                 min="0"
                 value={homeScore}
                 onChange={(e) => setHomeScore(e.target.value)}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-800 border border-blue-500/30 rounded-lg sm:rounded-xl text-white text-center text-xl sm:text-2xl font-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-slate-800 border border-blue-500/30 rounded-lg sm:rounded-xl text-white text-center text-lg sm:text-2xl font-black focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />
             </div>
 
-            <div className="text-center text-blue-400 font-black text-lg sm:text-xl">x</div>
+            <div className="text-center text-blue-400 font-black text-sm sm:text-xl">x</div>
 
             <div>
-              <label className="block text-xs font-black text-blue-300 uppercase mb-1.5 sm:mb-2">
+              <label className="block text-[10px] font-black text-blue-300 uppercase mb-1 sm:mb-2">
                 Placar - {awayTeam}
               </label>
               <input
@@ -718,7 +717,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
                 min="0"
                 value={awayScore}
                 onChange={(e) => setAwayScore(e.target.value)}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-800 border border-blue-500/30 rounded-lg sm:rounded-xl text-white text-center text-xl sm:text-2xl font-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-slate-800 border border-blue-500/30 rounded-lg sm:rounded-xl text-white text-center text-lg sm:text-2xl font-black focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />
             </div>
@@ -727,7 +726,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
           <button
             onClick={handleBet}
             disabled={loading || !homeScore || !awayScore}
-            className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-black rounded-lg sm:rounded-xl uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20 text-sm sm:text-base"
+            className="w-full px-4 sm:px-6 py-2.5 sm:py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-black rounded-lg sm:rounded-xl uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20 text-xs sm:text-base"
           >
             {loading ? (
               <>
