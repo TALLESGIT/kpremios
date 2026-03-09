@@ -59,7 +59,6 @@ import UserProtectedRoute from './components/ProtectedRoute';
 import { ChatProvider } from './features/chat/ChatProvider';
 import { ChatHost } from './features/chat/ChatHost';
 import { StreamRegistryProvider, useRegisteredStreamId } from './features/chat/StreamRegistryProvider';
-import { PollOverlay } from './features/polls/PollOverlay';
 import MobileNavigation from './components/shared/MobileNavigation';
 import MenuPage from './pages/MenuPage';
 import TermsOfUsePage from './pages/TermsOfUsePage';
@@ -71,13 +70,10 @@ import { useEffect } from 'react';
 // Componente interno que usa o streamId do registry global
 // As páginas (ZkTVPage, PublicLiveStreamPage) registram seu streamId via useRegisterStreamId
 function GlobalChatAndPollOverlay() {
-  const currentStreamId = useRegisteredStreamId();
   return (
     <>
       {/* ChatHost global - renderiza chat no slot ativo usando streamId do registry */}
       <ChatHost />
-      {/* PollOverlay global - overlay temporário para enquetes */}
-      <PollOverlay streamId={currentStreamId} />
     </>
   );
 }

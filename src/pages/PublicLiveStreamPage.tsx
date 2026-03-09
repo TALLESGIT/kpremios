@@ -12,7 +12,6 @@ import { ViewerCountDisplay } from '../components/live/ViewerCountDisplay';
 import { ChatSlot } from '../features/chat/ChatSlot';
 import { FloatingChatButton } from '../features/chat/FloatingChatButton';
 import { ChatDrawer } from '../features/chat/ChatDrawer';
-import PollDisplay from '../components/live/PollDisplay';
 import PinnedLinkOverlay from '../components/live/PinnedLinkOverlay';
 import MobileLiveControls from '../components/live/MobileLiveControls';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
@@ -518,7 +517,6 @@ const PublicLiveStreamPage: React.FC = () => {
                             <ChatSlot id="public-desktop-fullscreen-chat" priority={100} className="h-full" showHeader={false} isActive={stream.is_active} />
                           </div>
                           <div className="flex-[1] min-h-0 pointer-events-auto bg-black/80 backdrop-blur-md rounded-2xl p-3 space-y-2 overflow-y-auto border border-white/10 custom-scrollbar shadow-2xl">
-                            <PollDisplay streamId={stream.id} compact={true} />
                             <PinnedLinkOverlay streamId={stream.id} />
                           </div>
                         </div>
@@ -584,7 +582,6 @@ const PublicLiveStreamPage: React.FC = () => {
                       <ChatSlot id="public-mobile-landscape-docked-chat" priority={90} className="h-full" showHeader={true} onClose={() => setIsDockedChat(false)} isActive={stream.is_active} />
                     </div>
                     <div className="px-3 py-2 border-t border-white/10 bg-black/40">
-                      <PollDisplay streamId={stream.id} compact={true} />
                       <PinnedLinkOverlay streamId={stream.id} />
                     </div>
                   </div>

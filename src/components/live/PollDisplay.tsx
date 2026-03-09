@@ -285,10 +285,11 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId, compact = false }) 
             )}
             <button
               onClick={handleDismiss}
-              className="p-1 hover:bg-white/10 rounded-md transition-colors text-slate-400 hover:text-white"
+              className={`flex items-center justify-center hover:bg-white/10 rounded-xl transition-all text-slate-400 hover:text-white ${compact ? 'p-2' : 'p-2.5'
+                }`}
               title="Fechar enquete"
             >
-              <X className={compact ? "w-3 h-3" : "w-4 h-4"} />
+              <X className={compact ? "w-4 h-4" : "w-5 h-5"} />
             </button>
           </div>
         </div>

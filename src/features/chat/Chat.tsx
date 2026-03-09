@@ -827,7 +827,7 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
       </div>
 
       <div className="p-4 bg-slate-800/40 border-t border-white/5">
-        {isActive && user && (
+        {user && (
           <PollDisplay streamId={streamId} compact={true} />
         )}
         {!user ? (

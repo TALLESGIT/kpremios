@@ -247,6 +247,7 @@ const PollManager: React.FC<PollManagerProps> = ({ streamId }) => {
         pollId,
         streamId,
         updates: {
+          is_active: true, // Garante que a enquete esteja ativa ao fixar
           is_pinned: !currentPinStatus
         }
       });

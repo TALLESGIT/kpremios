@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { useSocketChat, type ChatMessage } from '../../hooks/useSocketChat';
-
+import PollDisplay from './PollDisplay';
 
 interface LiveChatProps {
   streamId: string;
@@ -990,6 +990,9 @@ const LiveChat: React.FC<LiveChatProps> = ({ streamId, isActive = true, classNam
       </div>
 
       <div className="p-4 bg-slate-800/40 border-t border-white/5">
+        {user && (
+          <PollDisplay streamId={streamId} compact={true} />
+        )}
         {!user ? (
           <button
             onClick={() => navigate('/login', { state: { returnTo: window.location.pathname } })}

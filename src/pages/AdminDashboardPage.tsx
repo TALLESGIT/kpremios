@@ -39,16 +39,31 @@ export default function AdminDashboardPage() {
   const [paidVipCount, setPaidVipCount] = useState(0);
   const [expiredVipCount, setExpiredVipCount] = useState(0);
   const [activePoolParticipants, setActivePoolParticipants] = useState(0);
+  const [activePoolId, setActivePoolId] = useState<string | null>(null);
   const [vipPromo103Count, setVipPromo103Count] = useState(0);
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
   const [poolParticipants, setPoolParticipants] = useState<any[]>([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
-  const [activePoolId, setActivePoolId] = useState<string | null>(null);
-  // ✅ Modal VIPs Completos (ativos + expirados para renovação)
   const [showVipListModal, setShowVipListModal] = useState(false);
   const [allVips, setAllVips] = useState<any[]>([]);
   const [loadingVips, setLoadingVips] = useState(false);
   const [vipFilter, setVipFilter] = useState<'all' | 'active' | 'expired'>('all');
+
+  const fetchVips = async () => {
+    setLoadingVips(true);
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, name, whatsapp, is_vip, vip_expires_at, vip_granted_at, vip_type')
+        .eq('is_vip', true)
+        .order('created_at', { ascending: false });
+      if (!error) setAllVips(data || []);
+    } catch (err) {
+      console.error('Erro ao carregar VIPs:', err);
+    } finally {
+      setLoadingVips(false);
+    }
+  };
 
   // Load taken numbers count
   useEffect(() => {
@@ -658,20 +673,30 @@ export default function AdminDashboardPage() {
                 }
               },
               {
-                label: 'Total VIPs', value: vipPromo103Count, icon: Hash, color: 'from-emerald-600 to-emerald-400', shadow: 'shadow-emerald-500/20',
+                label: 'VIPs Ativos', value: activeVipCount, icon: CheckCircle, color: 'from-emerald-600 to-emerald-400', shadow: 'shadow-emerald-500/20',
                 clickable: true,
-                onClick: async () => {
+                onClick: () => {
+                  setVipFilter('active');
                   setShowVipListModal(true);
-                  setLoadingVips(true);
-                  try {
-                    const { data, error } = await supabase
-                      .from('users')
-                      .select('id, name, whatsapp, is_vip, vip_expires_at, vip_granted_at, vip_type')
-                      .eq('is_vip', true)
-                      .order('created_at', { ascending: false });
-                    if (!error) setAllVips(data || []);
-                  } catch (err) { console.error('Erro ao carregar VIPs:', err); }
-                  finally { setLoadingVips(false); }
+                  fetchVips();
+                }
+              },
+              {
+                label: 'VIPs Expirados', value: expiredVipCount, icon: AlertTriangle, color: 'from-amber-600 to-amber-400', shadow: 'shadow-amber-500/20',
+                clickable: true,
+                onClick: () => {
+                  setVipFilter('expired');
+                  setShowVipListModal(true);
+                  fetchVips();
+                }
+              },
+              {
+                label: 'Total VIPs', value: vipPromo103Count, icon: Hash, color: 'from-blue-600 to-blue-400', shadow: 'shadow-blue-500/20',
+                clickable: true,
+                onClick: () => {
+                  setVipFilter('all');
+                  setShowVipListModal(true);
+                  fetchVips();
                 }
               },
               { label: 'Selecionados', value: takenNumbersCount, icon: Trophy, color: 'from-amber-600 to-amber-400', shadow: 'shadow-amber-500/20', progress: (takenNumbersCount / totalRaffleNumbers) * 100 },

@@ -1,5 +1,4 @@
 import React from 'react';
-import PollDisplay from './PollDisplay';
 import LiveChat from './LiveChat';
 
 interface SideOverlayProps {
@@ -21,7 +20,6 @@ const SideOverlay: React.FC<SideOverlayProps> = ({ streamId, isActive = true, pi
         />
       </div>
       <div className="flex-[1] min-h-0 space-y-2 overflow-y-auto custom-scrollbar">
-        <PollDisplay streamId={streamId} compact={true} />
         {pinnedLinkSlot}
       </div>
     </div>
