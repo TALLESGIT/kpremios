@@ -1,0 +1,10 @@
+{
+  "importMap": "import_map.json",
+  "lint": {
+    "rules": {
+      "exclude": [
+        "no-explicit-any"
+      ]
+    }
+  }
+}

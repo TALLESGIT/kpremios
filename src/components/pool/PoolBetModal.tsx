@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { X, Target, Copy, QrCode, Loader2, CheckCircle, Clock } from 'lucide-react';
+import { X, Target, Copy, QrCode, Loader2, CheckCircle, Clock, DollarSign } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import CustomToast from '../shared/CustomToast';
@@ -14,6 +14,8 @@ interface PoolBetModalProps {
   matchTitle: string;
   homeTeam: string;
   awayTeam: string;
+  accumulatedAmount?: number;
+  totalPoolAmount?: number;
 }
 
 const PoolBetModal: React.FC<PoolBetModalProps> = ({
@@ -22,7 +24,9 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
   poolId,
   matchTitle,
   homeTeam,
-  awayTeam
+  awayTeam,
+  accumulatedAmount = 0,
+  totalPoolAmount = 0
 }) => {
   const { user } = useAuth();
   const { currentUser } = useData();
@@ -301,7 +305,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
             user_name: currentUser?.name || user.email?.split('@')[0] || 'Usuário',
             bet_id: betData.id,
             pool_id: poolId,
-            amount: 2.00
+            amount: 5.00
           }
         });
 
@@ -316,13 +320,11 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
           try {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.access_token) {
-              const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-              const response = await fetch(`${supabaseUrl}/functions/v1/create-pool-payment`, {
+              const response = await fetch(`${(supabase as any).supabaseUrl}/functions/v1/create-pool-payment`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                   'Authorization': `Bearer ${session.access_token}`,
-                  'apikey': (import.meta as any).env.VITE_SUPABASE_ANON_KEY || ''
                 },
                 body: JSON.stringify({
                   user_id: user.id,
@@ -330,7 +332,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
                   user_name: currentUser?.name || user.email?.split('@')[0] || 'Usuário',
                   bet_id: betData.id,
                   pool_id: poolId,
-                  amount: 2.00
+                  amount: 5.00
                 })
               });
 
@@ -611,7 +613,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
               <div className="flex items-center justify-center gap-2 mb-1 sm:mb-2">
                 <QrCode className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
                 <h3 className="text-sm sm:text-base font-black text-blue-300 uppercase">
-                  Valor: R$ 2,00
+                  Valor: R$ 5,00
                 </h3>
               </div>
 
@@ -688,13 +690,32 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
             </div>
           </div>
 
-          <div className="bg-slate-700/50 rounded-lg sm:rounded-xl p-2.5 sm:p-4 border border-blue-500/20">
-            <p className="text-[10px] sm:text-xs text-slate-400 text-center mb-1 sm:mb-3">
-              💰 Valor da aposta: <span className="text-green-400 font-black">R$ 2,00</span>
-            </p>
-            <p className="text-[10px] sm:text-xs text-slate-400 text-center">
-              🎯 Acerte o placar e divida o prêmio!
-            </p>
+          <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-lg sm:rounded-xl p-3 sm:p-5 border-2 border-blue-500/40 shadow-inner">
+            <div className="flex flex-col items-center justify-center gap-1 sm:gap-2">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-green-400 animate-bounce" />
+                <p className="text-xs sm:text-sm font-black text-blue-300 uppercase tracking-wider">
+                  Prêmio Estimado
+                </p>
+              </div>
+              <p className="text-3xl sm:text-4xl font-black text-white drop-shadow-[0_2px_10px_rgba(34,197,94,0.5)]">
+                R$ {((totalPoolAmount * 0.70) + accumulatedAmount).toFixed(2)}
+              </p>
+              <div className="flex items-center gap-4 mt-1">
+                <div className="bg-blue-500/20 px-2 py-0.5 rounded border border-blue-500/30">
+                  <p className="text-[10px] text-blue-300">
+                    Aposta: <span className="text-white font-bold">R$ 5,00</span>
+                  </p>
+                </div>
+                {accumulatedAmount > 0 && (
+                  <div className="bg-green-500/20 px-2 py-0.5 rounded border border-green-500/30">
+                    <p className="text-[10px] text-green-400">
+                      Acumulado!
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="space-y-3 sm:space-y-4">
@@ -742,7 +763,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
             ) : (
               <>
                 <Target className="w-5 h-5" />
-                Apostar R$ 2,00
+                Apostar R$ 5,00
               </>
             )}
           </button>

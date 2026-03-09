@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { useSocket } from '../hooks/useSocket';
@@ -10,7 +11,6 @@ import {
     Play,
     Clock,
     MapPin,
-    Zap,
     Maximize2,
     Minimize2,
     Eye,
@@ -27,7 +27,6 @@ import MobileLiveControls from '../components/live/MobileLiveControls';
 import { ChatSlot } from '../features/chat/ChatSlot';
 import { FloatingChatButton } from '../features/chat/FloatingChatButton';
 import { ChatDrawer } from '../features/chat/ChatDrawer';
-import PollDisplay from '../components/live/PollDisplay';
 import PinnedLinkOverlay from '../components/live/PinnedLinkOverlay';
 import VipAlertOverlay from '../components/live/VipAlertOverlay';
 import VipMessageOverlay from '../components/live/VipMessageOverlay';
@@ -60,6 +59,8 @@ const isZkTVDebug = () => (import.meta as any).env?.DEV === true || (import.meta
 
 const ZkTVPage: React.FC = () => {
     const { user } = useAuth();
+    const [searchParams] = useSearchParams();
+    const urlChannel = searchParams.get('channel');
 
     // Estados principais
     const [settings, setSettings] = useState<CruzeiroSettings | null>(null);
@@ -106,8 +107,7 @@ const ZkTVPage: React.FC = () => {
     // Isso permite que o ChatHost global encontre o streamId desta página
     useRegisterStreamId(activeStream?.id);
 
-    // ✅ MIGRAÇÃO: Usar Socket.io para atualizações de bolões quando houver stream ativa
-    const { socket, isConnected, on, off, joinStream, leaveStream } = useSocket({
+    const { isConnected, on, off, joinStream, leaveStream } = useSocket({
         streamId: activeStream?.id || undefined,
         autoConnect: !!activeStream?.id && activeStream?.is_active
     });
@@ -617,10 +617,21 @@ const ZkTVPage: React.FC = () => {
             const { getActiveLiveStreams, getLiveStreamByChannel } = await import('../services/cachedLiveService');
 
             // Primeiro, tentar buscar stream ativa do cache
-            const activeStreams = await getActiveLiveStreams();
-            let data = activeStreams.length > 0 ? activeStreams[0] : null;
+            let activeStreams = await getActiveLiveStreams();
+            let data = null;
 
-            // Se não encontrar stream ativa, buscar a stream padrão ZkOficial (mesmo que inativa)
+            // PRIORIDADE 1: Se houver canal na URL, buscar ESSE canal (mesmo que inativo ou cacheado)
+            if (urlChannel) {
+                if (isZkTVDebug()) console.log(`🔍 ZkTVPage: Buscando canal da URL: ${urlChannel}`);
+                data = await getLiveStreamByChannel(urlChannel);
+            }
+
+            // PRIORIDADE 2: Se não houver canal na URL ou não foi encontrado, pegar a primeira ativa
+            if (!data && activeStreams.length > 0) {
+                data = activeStreams[0];
+            }
+
+            // PRIORIDADE 3: Se ainda não encontrar nada, buscar a stream padrão ZkOficial (mesmo que inativa)
             if (!data) {
                 if (isZkTVDebug()) console.log('⚠️ Nenhuma stream ativa encontrada, buscando stream ZkOficial...');
                 data = await getLiveStreamByChannel('ZkOficial');
@@ -1602,6 +1613,8 @@ const ZkTVPage: React.FC = () => {
                     matchTitle={activePool.match_title}
                     homeTeam={activePool.home_team}
                     awayTeam={activePool.away_team}
+                    accumulatedAmount={activePool.accumulated_amount || 0}
+                    totalPoolAmount={activePool.total_pool_amount || 0}
                 />
             )}
         </div>

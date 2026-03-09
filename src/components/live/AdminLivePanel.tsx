@@ -87,9 +87,9 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
   }, [streamId, socket, isConnected, on, off]);
 
   useEffect(() => {
-    // Gerar link da transmissão
+    // Gerar link da transmissão - Agora apontando para ZK TV
     const baseUrl = window.location.origin;
-    setStreamLink(`${baseUrl}/live/${channelName}`);
+    setStreamLink(`${baseUrl}/zk-tv?channel=${channelName}`);
 
     // Carregar estatísticas e contagem inicial
     loadStats();

@@ -19,7 +19,14 @@ import AdminLiveGamesPage from './pages/AdminLiveGamesPage';
 import AdminLiveControlPage from './pages/AdminLiveControlPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminLiveStreamPage from './pages/AdminLiveStreamPage';
-import PublicLiveStreamPage from './pages/PublicLiveStreamPage';
+import AdminZkTVPage from './pages/admin/AdminZkTVPage';
+import { useParams } from 'react-router-dom';
+
+// Componente simples para redirecionar lives antigas para o ZK TV com o parâmetro de canal adequado
+const ChannelRedirect = () => {
+  const { channelName } = useParams<{ channelName: string }>();
+  return <Navigate to={`/zk-tv?channel=${channelName}`} replace />;
+};
 // import DiagnosticoAgoraPage from './pages/DiagnosticoAgoraPage';
 // import ReporterPage from './pages/ReporterPage';
 
@@ -35,7 +42,6 @@ import ForgotEmailPage from './pages/ForgotEmailPage';
 
 // ZK TV
 import ZkTVPage from './pages/ZkTVPage';
-import AdminZkTVPage from './pages/admin/AdminZkTVPage';
 
 // Banners
 import AdminBannersPage from './pages/admin/AdminBannersPage';
@@ -362,8 +368,8 @@ function AppContentInner() {
             <Route path="/termos" element={<TermsOfUsePage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
 
-            {/* Rotas públicas de live streaming */}
-            <Route path="/live/:channelName" element={<PublicLiveStreamPage />} />
+            {/* Rotas públicas de live streaming - Redirecionando para ZK TV */}
+            <Route path="/live/:channelName" element={<ChannelRedirect />} />
             {/* <Route path="/reporter" element={<ReporterPage />} /> */}
 
             {/* Rota de diagnóstico do Agora.io */}
