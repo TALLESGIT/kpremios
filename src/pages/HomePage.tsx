@@ -630,10 +630,14 @@ function HomePage() {
             <PoolBetModal
               isOpen={showPoolModal}
               onClose={() => setShowPoolModal(false)}
-              poolId={activePool.id}
-              matchTitle={activePool.match_title}
-              homeTeam={activePool.home_team}
-              awayTeam={activePool.away_team}
+              poolId={activePool?.id || ""}
+              matchTitle={activePool?.match_title || ""}
+              homeTeam={activePool?.home_team || ""}
+              awayTeam={activePool?.away_team || ""}
+              homeTeamLogo={activePool?.home_team_logo || ""}
+              awayTeamLogo={activePool?.away_team_logo || ""}
+              accumulatedAmount={activePool?.accumulated_amount || 0}
+              totalPoolAmount={activePool?.total_pool_amount || 0}
             />
           )
         }

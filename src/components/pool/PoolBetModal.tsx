@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { X, Target, Copy, QrCode, Loader2, CheckCircle, Clock, DollarSign } from 'lucide-react';
+import { X, Target, Copy, QrCode, Loader2, CheckCircle, Clock, DollarSign, Trophy } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import CustomToast from '../shared/CustomToast';
@@ -14,6 +14,8 @@ interface PoolBetModalProps {
   matchTitle: string;
   homeTeam: string;
   awayTeam: string;
+  homeTeamLogo?: string;
+  awayTeamLogo?: string;
   accumulatedAmount?: number;
   totalPoolAmount?: number;
 }
@@ -25,6 +27,8 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
   matchTitle,
   homeTeam,
   awayTeam,
+  homeTeamLogo,
+  awayTeamLogo,
   accumulatedAmount = 0,
   totalPoolAmount = 0
 }) => {
@@ -42,6 +46,8 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
   const [paymentStartTime, setPaymentStartTime] = useState<number | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(300); // 5 minutos em segundos
   const timeoutTriggered = useRef(false);
+
+  const totalPrize = (totalPoolAmount * 0.70) + accumulatedAmount;
 
   useEffect(() => {
     if (isOpen && user) {
@@ -232,6 +238,25 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 
     try {
       setLoading(true);
+
+      // 🛑 Verificar se o usuário já tem uma aposta APROVADA com este MESMO PLACAR
+      const { data: duplicateBet, error: checkError } = await supabase
+        .from('pool_bets')
+        .select('id')
+        .eq('pool_id', poolId)
+        .eq('user_id', user.id)
+        .eq('predicted_home_score', home)
+        .eq('predicted_away_score', away)
+        .eq('payment_status', 'approved')
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (duplicateBet) {
+        toast.error('Você já fez uma aposta com este placar!');
+        setLoading(false);
+        return;
+      }
 
       // Verificar e gerenciar apostas existentes
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
@@ -535,24 +560,27 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 
   if (paymentCompleted) {
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4" onClick={onClose}>
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-green-500/30 shadow-2xl max-w-[90vw] sm:max-w-[340px] w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
-          <div className="bg-gradient-to-r from-green-600 to-green-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <CheckCircle className="w-6 h-6 text-white" />
-              <h2 className="text-xl font-black text-white uppercase">Aposta Confirmada!</h2>
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-2 md:p-4" onClick={onClose}>
+        <div
+          className="relative w-full md:max-w-[420px] bg-slate-900 rounded-[2rem] border border-white/10 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header - Success */}
+          <div className="relative p-2 md:p-3 border-b border-green-500/20 bg-gradient-to-br from-green-600/20 to-transparent flex-shrink-0">
+            <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-green-500" />
+                <h2 className="text-sm md:text-base font-black text-white uppercase italic">Aposta Confirmada!</h2>
+              </div>
+              <button onClick={onClose} className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors">
+                <X className="w-4 h-4 text-slate-400 hover:text-white" />
+              </button>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white/10 rounded-lg transition-all"
-            >
-              <X className="w-5 h-5 text-white" />
-            </button>
           </div>
-          <div className="p-4 sm:p-6 text-center space-y-3 sm:space-y-4">
-            <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16 text-green-400 mx-auto animate-pulse" />
-            <h3 className="text-xl sm:text-2xl font-black text-white">Obrigado por participar!</h3>
-            <p className="text-sm sm:text-base text-slate-300">Sua aposta foi registrada com sucesso.</p>
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 text-center space-y-4">
+            <CheckCircle className="w-12 h-12 text-green-400 mx-auto animate-pulse" />
+            <h3 className="text-lg md:text-xl font-black text-white">Obrigado por participar!</h3>
+            <p className="text-xs md:text-sm text-slate-300">Sua aposta foi registrada com sucesso.</p>
             <div className="bg-slate-700/50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-green-500/20">
               <p className="text-xs sm:text-sm text-slate-400 mb-2">Sua aposta:</p>
               <div className="text-2xl sm:text-3xl font-black text-green-400">
@@ -665,86 +693,91 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4" onClick={onClose}>
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-blue-500/30 shadow-2xl max-w-[90vw] sm:max-w-[340px] w-full overflow-hidden max-h-[95vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Target className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-300" />
-            <h2 className="text-base sm:text-xl font-black text-white uppercase">Participar do Bolão</h2>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-2 md:p-4" onClick={onClose}>
+      <div
+        className="relative w-full md:max-w-[420px] bg-slate-900 rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header - Ultra compact */}
+        <div className="relative p-2 md:p-3 border-b border-white/5 bg-gradient-to-br from-blue-600/20 to-transparent flex-shrink-0">
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
+                <Trophy className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h2 className="text-sm md:text-lg font-black text-white uppercase italic leading-none">Bolão Pro</h2>
+                <p className="text-[9px] md:text-[10px] text-blue-400 font-bold uppercase tracking-wider">{matchTitle}</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors group"
+            >
+              <X className="w-4 h-4 md:w-5 md:h-5 text-slate-400 group-hover:text-white" />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-all"
-          >
-            <X className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-          </button>
         </div>
 
-        <div className="p-4 sm:p-6 space-y-2 sm:space-y-4">
-          <div className="text-center">
-            <p className="text-sm text-slate-400 mb-2">{matchTitle}</p>
-            <div className="flex items-center justify-center gap-4 text-sm sm:text-lg font-black text-white">
-              <span>{homeTeam}</span>
-              <span className="text-blue-400">vs</span>
-              <span>{awayTeam}</span>
+        <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4">
+          {/* Prize Section - Compact */}
+          <div className="bg-slate-800/50 p-2 md:p-3 rounded-2xl border border-white/5">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[9px] md:text-[11px] font-bold text-slate-400 uppercase tracking-widest">Prêmio Estimado</span>
+              <div className="px-1.5 py-0.5 bg-green-500/10 rounded-md">
+                <span className="text-[8px] md:text-[9px] text-green-400 font-black uppercase">Acumulado</span>
+              </div>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-lg md:text-2xl font-black text-white italic">R$ {totalPrize.toFixed(2)}</span>
+            </div>
+            <p className="text-[8px] md:text-[9px] text-slate-500 mt-1">
+              Sendo R$ {(totalPoolAmount * 0.70).toFixed(2)} arrecadado + R$ {accumulatedAmount.toFixed(2)} acumulado
+            </p>
+          </div>
+
+          {/* Teams - Small Logos */}
+          <div className="flex items-center justify-center gap-4 md:gap-8 py-1 md:py-2 relative">
+            <div className="text-center group">
+              <div className="w-10 h-10 md:w-14 md:h-14 bg-slate-800 rounded-xl md:rounded-2xl border border-white/5 flex items-center justify-center mb-1 group-hover:border-blue-500/50 transition-all shadow-xl p-1.5 md:p-2">
+                <img src={homeTeamLogo} alt={homeTeam} className="w-full h-full object-contain" />
+              </div>
+              <p className="text-[9px] md:text-[10px] font-black text-white uppercase truncate w-14 md:w-16">{homeTeam}</p>
+            </div>
+
+            <div className="flex flex-col items-center">
+              <span className="text-lg md:text-xl font-black text-blue-500 italic">VS</span>
+            </div>
+
+            <div className="text-center group">
+              <div className="w-10 h-10 md:w-14 md:h-14 bg-slate-800 rounded-xl md:rounded-2xl border border-white/5 flex items-center justify-center mb-1 group-hover:border-blue-500/50 transition-all shadow-xl p-1.5 md:p-2">
+                <img src={awayTeamLogo} alt={awayTeam} className="w-full h-full object-contain" />
+              </div>
+              <p className="text-[9px] md:text-[10px] font-black text-white uppercase truncate w-14 md:w-16">{awayTeam}</p>
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-lg sm:rounded-xl p-3 sm:p-5 border-2 border-blue-500/40 shadow-inner">
-            <div className="flex flex-col items-center justify-center gap-1 sm:gap-2">
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-green-400 animate-bounce" />
-                <p className="text-xs sm:text-sm font-black text-blue-300 uppercase tracking-wider">
-                  Prêmio Estimado
-                </p>
-              </div>
-              <p className="text-3xl sm:text-4xl font-black text-white drop-shadow-[0_2px_10px_rgba(34,197,94,0.5)]">
-                R$ {((totalPoolAmount * 0.70) + accumulatedAmount).toFixed(2)}
-              </p>
-              <div className="flex items-center gap-4 mt-1">
-                <div className="bg-blue-500/20 px-2 py-0.5 rounded border border-blue-500/30">
-                  <p className="text-[10px] text-blue-300">
-                    Aposta: <span className="text-white font-bold">R$ 5,00</span>
-                  </p>
-                </div>
-                {accumulatedAmount > 0 && (
-                  <div className="bg-green-500/20 px-2 py-0.5 rounded border border-green-500/30">
-                    <p className="text-[10px] text-green-400">
-                      Acumulado!
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3 sm:space-y-4">
-            <div>
-              <label className="block text-[10px] font-black text-blue-300 uppercase mb-1 sm:mb-2">
-                Placar - {homeTeam}
-              </label>
+          {/* Inputs - Compact Grid */}
+          <div className="grid grid-cols-2 gap-3 md:gap-4 bg-slate-800/30 p-3 md:p-4 rounded-2xl border border-white/5">
+            <div className="space-y-1">
+              <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase text-center truncate">{homeTeam}</p>
               <input
                 type="number"
                 min="0"
                 value={homeScore}
                 onChange={(e) => setHomeScore(e.target.value)}
-                className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-slate-800 border border-blue-500/30 rounded-lg sm:rounded-xl text-white text-center text-lg sm:text-2xl font-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-slate-900/50 border border-white/5 rounded-xl py-2 md:py-3 text-center text-lg md:text-2xl font-black text-white focus:border-blue-500/50 outline-none"
                 placeholder="0"
               />
             </div>
-
-            <div className="text-center text-blue-400 font-black text-sm sm:text-xl">x</div>
-
-            <div>
-              <label className="block text-[10px] font-black text-blue-300 uppercase mb-1 sm:mb-2">
-                Placar - {awayTeam}
-              </label>
+            <div className="space-y-1">
+              <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase text-center truncate">{awayTeam}</p>
               <input
                 type="number"
                 min="0"
                 value={awayScore}
                 onChange={(e) => setAwayScore(e.target.value)}
-                className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-slate-800 border border-blue-500/30 rounded-lg sm:rounded-xl text-white text-center text-lg sm:text-2xl font-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-slate-900/50 border border-white/5 rounded-xl py-2 md:py-3 text-center text-lg md:text-2xl font-black text-white focus:border-blue-500/50 outline-none"
                 placeholder="0"
               />
             </div>
@@ -753,26 +786,21 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
           <button
             onClick={handleBet}
             disabled={loading || !homeScore || !awayScore}
-            className="w-full px-4 sm:px-6 py-2.5 sm:py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-black rounded-lg sm:rounded-xl uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20 text-xs sm:text-base"
+            className="w-full group relative flex-shrink-0"
           >
-            {loading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Processando...
-              </>
-            ) : (
-              <>
-                <Target className="w-5 h-5" />
-                Apostar R$ 5,00
-              </>
-            )}
-          </button>
-
-          <button
-            onClick={onClose}
-            className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-slate-700/50 hover:bg-slate-700 text-slate-300 font-bold rounded-lg sm:rounded-xl transition-all text-sm sm:text-base"
-          >
-            Cancelar
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+            <div className="relative flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-black py-3 md:py-4 rounded-xl transition-all shadow-xl shadow-blue-600/20 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100">
+              {loading ? (
+                <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  <span className="uppercase italic tracking-wider text-xs md:text-sm">Fazer Aposta Agora</span>
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 bg-white/10 rounded-md">
+                    <span className="text-[10px] md:text-xs">R$ 5,00</span>
+                  </div>
+                </>
+              )}
+            </div>
           </button>
         </div>
       </div>
