@@ -35,6 +35,9 @@ export default function AdminDashboardPage() {
   const [showDrawResult, setShowDrawResult] = useState(false);
   const [winnerData, setWinnerData] = useState<any>(null);
   const [countdown, setCountdown] = useState(0);
+  const [activeVipCount, setActiveVipCount] = useState(0);
+  const [paidVipCount, setPaidVipCount] = useState(0);
+  const [expiredVipCount, setExpiredVipCount] = useState(0);
   const [activePoolParticipants, setActivePoolParticipants] = useState(0);
   const [vipPromo103Count, setVipPromo103Count] = useState(0);
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
@@ -62,139 +65,67 @@ export default function AdminDashboardPage() {
     loadTakenNumbersCount();
   }, [getTakenNumbersCount]);
 
-  // Load all dashboard data on component mount
-  useEffect(() => {
-    const loadAllData = async () => {
-      try {
-        console.log('AdminDashboardPage - Carregando todos os dados do dashboard...');
+  const fetchDashboardStats = async () => {
+    try {
+      // 1. Participant count for the latest pool without result
+      const { data: activePool } = await supabase
+        .from('match_pools')
+        .select('id, total_participants')
+        .is('result_home_score', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-        // Carregar participantes do bolão mais recente que ainda não teve resultado
-        const { data: activePool } = await supabase
-          .from('match_pools')
-          .select('id, total_participants')
-          .is('result_home_score', null)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (activePool) {
-          setActivePoolParticipants(activePool.total_participants || 0);
-          setActivePoolId(activePool.id);
-        } else {
-          setActivePoolParticipants(0);
-          setActivePoolId(null);
-        }
-
-        // Carregar contagem da promoção VIP 103 (quantos slots ainda disponíveis)
-        // A promoção é para 103 primeiros usuários até 01/02/2026
-        // Mostrar: 103 - (quantos já receberam VIP grátis até 01/02/2026)
-        const { count: vipGrantedCount, error: vipError } = await supabase
-          .from('users')
-          .select('*', { count: 'exact', head: true })
-          .eq('is_vip', true)
-          .not('vip_expires_at', 'is', null)
-          .lte('vip_expires_at', '2026-02-01T23:59:59.999Z');
-
-        if (!vipError && vipGrantedCount !== null) {
-          // Calcular quantos slots ainda estão disponíveis (103 - quantos já receberam)
-          const availableSlots = Math.max(0, 103 - vipGrantedCount);
-          setVipPromo103Count(availableSlots);
-        } else {
-          // Se houver erro, assumir que todos os 103 slots estão disponíveis
-          setVipPromo103Count(103);
-        }
-
-        const [availableCount, takenCount, pendingCount] = await Promise.all([
-          getAvailableNumbersCount(),
-          getTakenNumbersCount(),
-          getPendingRequestsCount()
-        ]);
-
-        setTakenNumbersCount(takenCount);
-
-        console.log('AdminDashboardPage - Dados carregados:', {
-          activePoolParticipants: activePool?.total_participants || 0,
-          vipPromo103Count: vipPromo103Count || 0,
-          availableCount,
-          takenCount,
-          pendingCount
-        });
-      } catch (error) {
-        console.error('AdminDashboardPage - Erro ao carregar dados:', error);
+      if (activePool) {
+        setActivePoolParticipants(activePool.total_participants || 0);
+        setActivePoolId(activePool.id);
+      } else {
+        setActivePoolParticipants(0);
+        setActivePoolId(null);
       }
-    };
 
-    loadAllData();
-  }, [getAvailableNumbersCount, getTakenNumbersCount, getPendingRequestsCount]);
+      // 2. VIP Detailed Statistics
+      const { data: allVipUsers, error: vipError } = await supabase
+        .from('users')
+        .select('id, is_vip, vip_type, vip_expires_at')
+        .eq('is_vip', true);
 
-  // Real-time updates for counters every 5 seconds
-  useEffect(() => {
-    const updateCounters = async () => {
-      try {
-        console.log('AdminDashboardPage - Atualizando contadores em tempo real...');
+      if (!vipError && allVipUsers) {
+        const now = new Date();
+        const active = allVipUsers.filter(u => !u.vip_expires_at || new Date(u.vip_expires_at) > now).length;
+        const paid = allVipUsers.filter(u => u.vip_type === 'paid' && (!u.vip_expires_at || new Date(u.vip_expires_at) > now)).length;
+        const expired = allVipUsers.filter(u => u.vip_expires_at && new Date(u.vip_expires_at) <= now).length;
 
-        // Carregar participantes do bolão mais recente que ainda não teve resultado
-        const { data: activePool } = await supabase
-          .from('match_pools')
-          .select('id, total_participants')
-          .is('result_home_score', null)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (activePool) {
-          setActivePoolParticipants(activePool.total_participants || 0);
-          setActivePoolId(activePool.id);
-        } else {
-          setActivePoolParticipants(0);
-          setActivePoolId(null);
-        }
-
-        // Carregar contagem da promoção VIP 103 (quantos slots ainda disponíveis)
-        const { count: vipGrantedCount, error: vipError } = await supabase
-          .from('users')
-          .select('*', { count: 'exact', head: true })
-          .eq('is_vip', true)
-          .not('vip_expires_at', 'is', null)
-          .lte('vip_expires_at', '2026-02-01T23:59:59.999Z');
-
-        if (!vipError && vipGrantedCount !== null) {
-          // Calcular quantos slots ainda estão disponíveis (103 - quantos já receberam)
-          const availableSlots = Math.max(0, 103 - vipGrantedCount);
-          setVipPromo103Count(availableSlots);
-        } else {
-          // Se houver erro, assumir que todos os 103 slots estão disponíveis
-          setVipPromo103Count(103);
-        }
-
-        const [availableCount, takenCount, pendingCount] = await Promise.all([
-          getAvailableNumbersCount(),
-          getTakenNumbersCount(),
-          getPendingRequestsCount()
-        ]);
-
-        setTakenNumbersCount(takenCount);
-
-        console.log('AdminDashboardPage - Contadores atualizados:', {
-          activePoolParticipants: activePool?.total_participants || 0,
-          vipPromo103Count: vipPromo103Count || 0,
-          availableCount,
-          takenCount,
-          pendingCount
-        });
-      } catch (error) {
-        console.error('AdminDashboardPage - Erro ao atualizar contadores:', error);
+        setActiveVipCount(active);
+        setPaidVipCount(paid);
+        setExpiredVipCount(expired);
+        // O valor total de VIPs (Ativos + Expirados) é o tamanho do array allVipUsers
+        setVipPromo103Count(allVipUsers.length);
       }
-    };
 
-    // Atualizar imediatamente
-    updateCounters();
+      // 3. Global counters
+      const [availableCount, takenCount, pendingCount] = await Promise.all([
+        getAvailableNumbersCount(),
+        getTakenNumbersCount(),
+        getPendingRequestsCount()
+      ]);
 
-    // Configurar intervalo de atualização a cada 5 segundos
-    const interval = setInterval(updateCounters, 5000);
+      setTakenNumbersCount(takenCount);
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+    }
+  };
 
+  // Initial load
+  useEffect(() => {
+    fetchDashboardStats();
+  }, []);
+
+  // Interval updates
+  useEffect(() => {
+    const interval = setInterval(fetchDashboardStats, 5000);
     return () => clearInterval(interval);
-  }, [getAvailableNumbersCount, getTakenNumbersCount, getPendingRequestsCount]);
+  }, []);
 
   // Real-time subscription for dashboard updates
   useEffect(() => {
@@ -727,7 +658,7 @@ export default function AdminDashboardPage() {
                 }
               },
               {
-                label: 'Disponíveis', value: vipPromo103Count, icon: Hash, color: 'from-emerald-600 to-emerald-400', shadow: 'shadow-emerald-500/20',
+                label: 'Total VIPs', value: vipPromo103Count, icon: Hash, color: 'from-emerald-600 to-emerald-400', shadow: 'shadow-emerald-500/20',
                 clickable: true,
                 onClick: async () => {
                   setShowVipListModal(true);
@@ -736,8 +667,8 @@ export default function AdminDashboardPage() {
                     const { data, error } = await supabase
                       .from('users')
                       .select('id, name, whatsapp, is_vip, vip_expires_at, vip_granted_at, vip_type')
-                      .not('vip_granted_at', 'is', null)
-                      .order('vip_granted_at', { ascending: false });
+                      .eq('is_vip', true)
+                      .order('created_at', { ascending: false });
                     if (!error) setAllVips(data || []);
                   } catch (err) { console.error('Erro ao carregar VIPs:', err); }
                   finally { setLoadingVips(false); }
@@ -1566,22 +1497,21 @@ Obrigado por participar! 🙏`;
                     const wpp = v.whatsapp ? v.whatsapp.replace(/\D/g, '') : null;
                     const wppMsg = encodeURIComponent(`Olá ${v.name}! 👋 Seu VIP na ZK Oficial ${isActive ? 'expira em breve' : 'está expirado'}. Renove agora e continue com todos os benefícios! 💎`);
                     return (
-                      <div key={v.id} className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${isActive ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 font-black text-sm ${isActive ? 'bg-gradient-to-br from-emerald-400 to-green-500 text-black' : 'bg-gradient-to-br from-red-400 to-red-600 text-white'}`}>
+                      <div key={v.id} className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${isActive ? (v.vip_type === 'paid' ? 'bg-blue-500/5 border-blue-500/20' : 'bg-emerald-500/5 border-emerald-500/20') : 'bg-red-500/5 border-red-500/20'}`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 font-black text-sm ${isActive ? (v.vip_type === 'paid' ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-white' : 'bg-gradient-to-br from-emerald-400 to-green-500 text-black') : 'bg-gradient-to-br from-red-400 to-red-600 text-white'}`}>
                           {(v.name || '?').charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-white font-black text-sm truncate">{v.name || 'Sem nome'}</p>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-[10px] font-bold uppercase ${isActive ? 'text-emerald-400' : 'text-red-400'}`}>
-                              {isActive ? '✅ Ativo' : '⚠️ Expirado'}
+                            <span className={`text-[10px] font-bold uppercase ${isActive ? (v.vip_type === 'paid' ? 'text-blue-400' : 'text-emerald-400') : 'text-red-400'}`}>
+                              {isActive ? (v.vip_type === 'paid' ? '💎 VIP Pago' : '✅ VIP Ativo') : '⚠️ Expirado'}
                             </span>
                             {expiresDate && (
                               <span className="text-[10px] text-slate-500 font-bold">
                                 {isActive && daysUntilExpiry !== null ? `vence em ${daysUntilExpiry}d` : `expirou ${expiresDate.toLocaleDateString('pt-BR')}`}
                               </span>
                             )}
-                            {v.vip_type && <span className="text-[10px] text-slate-600 font-bold capitalize">{v.vip_type}</span>}
                           </div>
                         </div>
                         {wpp && (
