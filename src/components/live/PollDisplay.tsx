@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { BarChart3, CheckCircle2 } from 'lucide-react';
+import { BarChart3, CheckCircle2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../../hooks/useSocket';
 
@@ -34,6 +34,28 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId, compact = false }) 
   const [hasVoted, setHasVoted] = useState(false);
   const [userVote, setUserVote] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
+
+  // ✅ Persistência do fechamento na sessão
+  useEffect(() => {
+    if (activePoll?.id) {
+      const dismissedPolls = JSON.parse(sessionStorage.getItem('dismissed_polls') || '{}');
+      if (dismissedPolls[activePoll.id]) {
+        setIsDismissed(true);
+      } else {
+        setIsDismissed(false);
+      }
+    }
+  }, [activePoll?.id]);
+
+  const handleDismiss = () => {
+    setIsDismissed(true);
+    if (activePoll?.id) {
+      const dismissedPolls = JSON.parse(sessionStorage.getItem('dismissed_polls') || '{}');
+      dismissedPolls[activePoll.id] = true;
+      sessionStorage.setItem('dismissed_polls', JSON.stringify(dismissedPolls));
+    }
+  };
 
   // ✅ MIGRAÇÃO: Usar Socket.io em vez de Supabase Realtime
   const { isConnected, on, off, emit } = useSocket({
@@ -229,7 +251,7 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId, compact = false }) 
     });
   };
 
-  if (!activePoll) return null;
+  if (!activePoll || isDismissed) return null;
 
   const getPercentage = (votes: number) => {
     if (totalVotes === 0) return 0;
@@ -242,8 +264,8 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId, compact = false }) 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
-        className={`bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl ${compact ? 'p-3 mb-0' : 'p-5 mb-6'
-          } shadow-2xl relative overflow-hidden group`}
+        className={`bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-2xl ${compact ? 'p-3 mb-2' : 'p-5 mb-6'
+          } shadow-2xl relative overflow-hidden group w-full`}
       >
         {/* Glow de fundo sutil */}
         <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 blur-[60px] pointer-events-none group-hover:bg-blue-500/20 transition-colors" />
@@ -255,11 +277,20 @@ const PollDisplay: React.FC<PollDisplayProps> = ({ streamId, compact = false }) 
             </div>
             <h4 className={`text-white font-black uppercase italic tracking-wider ${compact ? 'text-[9px]' : 'text-xs'}`}>Enquete</h4>
           </div>
-          {totalVotes > 0 && (
-            <span className={`text-slate-500 font-bold ${compact ? 'text-[8px]' : 'text-[10px]'}`}>
-              {totalVotes} votos
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {totalVotes > 0 && (
+              <span className={`text-slate-500 font-bold ${compact ? 'text-[8px]' : 'text-[10px]'}`}>
+                {totalVotes} votos
+              </span>
+            )}
+            <button
+              onClick={handleDismiss}
+              className="p-1 hover:bg-white/10 rounded-md transition-colors text-slate-400 hover:text-white"
+              title="Fechar enquete"
+            >
+              <X className={compact ? "w-3 h-3" : "w-4 h-4"} />
+            </button>
+          </div>
         </div>
 
         <h3 className={`text-white font-bold leading-tight ${compact ? 'text-[11px] mb-3' : 'text-base mb-5'}`}>{activePoll.question}</h3>

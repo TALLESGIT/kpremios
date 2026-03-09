@@ -131,6 +131,7 @@ const PollManager: React.FC<PollManagerProps> = ({ streamId }) => {
         .from('stream_polls')
         .select('*')
         .eq('stream_id', streamId)
+        .eq('is_deleted', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -361,10 +362,10 @@ const PollManager: React.FC<PollManagerProps> = ({ streamId }) => {
                       onClick={() => handleTogglePin(poll.id, poll.is_pinned)}
                       disabled={processingPolls.has(poll.id)}
                       className={`p-2 rounded-lg transition-all ${processingPolls.has(poll.id)
-                          ? 'opacity-50 cursor-not-allowed'
-                          : poll.is_pinned
-                            ? 'bg-blue-600/20 text-blue-400'
-                            : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
+                        ? 'opacity-50 cursor-not-allowed'
+                        : poll.is_pinned
+                          ? 'bg-blue-600/20 text-blue-400'
+                          : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
                         }`}
                       title={poll.is_pinned ? 'Desfixar do chat' : 'Fixar no chat'}
                     >

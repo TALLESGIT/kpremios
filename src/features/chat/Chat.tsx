@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { useChatSession, useChat } from './ChatProvider';
+import PollDisplay from '../../components/live/PollDisplay';
 import type { ChatMessage } from '../../hooks/useSocketChat';
 
 interface ChatProps {
@@ -826,6 +827,9 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
       </div>
 
       <div className="p-4 bg-slate-800/40 border-t border-white/5">
+        {isActive && user && (
+          <PollDisplay streamId={streamId} compact={true} />
+        )}
         {!user ? (
           <button
             onClick={() => navigate('/login', { state: { returnTo: window.location.pathname } })}

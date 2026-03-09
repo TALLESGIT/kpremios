@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -33,10 +33,11 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
   const [pixQrCode, setPixQrCode] = useState<string | null>(null);
   const [pixCode, setPixCode] = useState<string | null>(null);
   const [showPixPayment, setShowPixPayment] = useState(false);
-  const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [paymentCompleted] = useState(false);
   const [hasBet, setHasBet] = useState(false);
   const [paymentStartTime, setPaymentStartTime] = useState<number | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(300); // 5 minutos em segundos
+  const timeoutTriggered = useRef(false);
 
   useEffect(() => {
     if (isOpen && user) {
@@ -80,45 +81,50 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
   useEffect(() => {
     if (!showPixPayment || !paymentStartTime) return;
 
-    const interval = setInterval(() => {
+    timeoutTriggered.current = false;
+
+    const interval = setInterval(async () => {
       const elapsed = Math.floor((Date.now() - paymentStartTime) / 1000);
       const remaining = Math.max(0, 300 - elapsed);
       setTimeRemaining(remaining);
 
-      if (remaining === 0) {
+      if (remaining === 0 && !timeoutTriggered.current) {
+        timeoutTriggered.current = true;
+        clearInterval(interval);
+
         // Timeout atingido - cancelar aposta pendente
         if (user) {
-          // Cancelar aposta pendente no banco de dados
-          supabase
-            .from('pool_bets')
-            .update({ payment_status: 'cancelled' })
-            .eq('pool_id', poolId)
-            .eq('user_id', user.id)
-            .eq('payment_status', 'pending')
-            .then(() => {
-              // Limpar localStorage
-              const storageKey = `pool_payment_${poolId}_${user.id}`;
-              localStorage.removeItem(storageKey);
+          try {
+            // Cancelar aposta pendente no banco de dados
+            await supabase
+              .from('pool_bets')
+              .update({ payment_status: 'cancelled' })
+              .eq('pool_id', poolId)
+              .eq('user_id', user.id)
+              .eq('payment_status', 'pending');
 
-              // Fechar modal de pagamento
-              setShowPixPayment(false);
-              setPixQrCode(null);
-              setPixCode(null);
-              setPaymentStartTime(null);
+            // Limpar localStorage
+            const storageKey = `pool_payment_${poolId}_${user.id}`;
+            localStorage.removeItem(storageKey);
 
-              toast.error('Tempo de pagamento expirado. A aposta foi cancelada. Você pode fazer uma nova aposta.');
-            })
-            .catch((err) => {
-              console.error('Erro ao cancelar aposta:', err);
-              // Mesmo com erro, limpar o estado local
-              setShowPixPayment(false);
-              setPixQrCode(null);
-              setPixCode(null);
-              setPaymentStartTime(null);
-              const storageKey = `pool_payment_${poolId}_${user.id}`;
-              localStorage.removeItem(storageKey);
-              toast.error('Tempo de pagamento expirado. Você pode fazer uma nova aposta.');
-            });
+            // Fechar modal de pagamento
+            setShowPixPayment(false);
+            setPixQrCode(null);
+            setPixCode(null);
+            setPaymentStartTime(null);
+
+            toast.error('Tempo de pagamento expirado. A aposta foi cancelada. Você pode fazer uma nova aposta.');
+          } catch (err) {
+            console.error('Erro ao cancelar aposta:', err);
+            // Mesmo com erro, limpar o estado local
+            setShowPixPayment(false);
+            setPixQrCode(null);
+            setPixCode(null);
+            setPaymentStartTime(null);
+            const storageKey = `pool_payment_${poolId}_${user.id}`;
+            localStorage.removeItem(storageKey);
+            toast.error('Tempo de pagamento expirado. Você pode fazer uma nova aposta.');
+          }
         } else {
           // Se não houver usuário, apenas limpar o estado
           setShowPixPayment(false);
@@ -178,7 +184,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 
   const handleBet = async () => {
     if (!user) {
-      toast.custom((t) => (
+      toast.custom(() => (
         <CustomToast
           type="warning"
           title="LOGIN NECESSÁRIO"
@@ -310,13 +316,13 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
           try {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.access_token) {
-              const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+              const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
               const response = await fetch(`${supabaseUrl}/functions/v1/create-pool-payment`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                   'Authorization': `Bearer ${session.access_token}`,
-                  'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+                  'apikey': (import.meta as any).env.VITE_SUPABASE_ANON_KEY || ''
                 },
                 body: JSON.stringify({
                   user_id: user.id,
@@ -435,7 +441,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
           }));
         }
 
-        toast.custom((t) => (
+        toast.custom(() => (
           <CustomToast
             type="success"
             title="QR CODE PIX GERADO!"

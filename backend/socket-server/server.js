@@ -1121,6 +1121,13 @@ io.on('connection', (socket) => {
         console.log(`🔄 Backend: Desativando e desfixando enquete ${pollId}`);
       }
 
+      // Se for marcar como deletada (soft delete), desativar e desfixar também
+      if (updates.is_deleted === true) {
+        updates.is_active = false;
+        updates.is_pinned = false;
+        console.log(`🗑️ Backend: Marcando enquete ${pollId} como deletada`);
+      }
+
       // Atualizar enquete
       const { data: updatedPoll, error } = await supabase
         .from('stream_polls')
@@ -1215,12 +1222,16 @@ io.on('connection', (socket) => {
 
       const finalStreamId = streamId || currentPoll.stream_id;
 
-      console.log(`🗑️ Backend deletando enquete ${pollId} da stream ${finalStreamId}`);
+      console.log(`🗑️ Backend deletando (LOGICAMENTE) enquete ${pollId} da stream ${finalStreamId}`);
 
-      // Deletar enquete (votos serão deletados em cascata via DB)
+      // Deletar enquete LOGICAMENTE para preservar votos
       const { error } = await supabase
         .from('stream_polls')
-        .delete()
+        .update({
+          is_deleted: true,
+          is_active: false,
+          is_pinned: false
+        })
         .eq('id', pollId);
 
       if (error) {
@@ -1284,6 +1295,7 @@ io.on('connection', (socket) => {
         .eq('stream_id', streamId)
         .eq('is_active', true)
         .eq('is_pinned', true)
+        .eq('is_deleted', false)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();

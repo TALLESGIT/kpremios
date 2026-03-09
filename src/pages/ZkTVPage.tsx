@@ -1148,7 +1148,6 @@ const ZkTVPage: React.FC = () => {
                                             <ChatSlot id="zktv-desktop-fullscreen-chat" priority={100} className="h-full" />
                                         </div>
                                         <div className="flex-[1] min-h-0 pointer-events-auto bg-black/80 backdrop-blur-md rounded-2xl p-3 space-y-2 overflow-y-auto border border-white/10 custom-scrollbar shadow-2xl">
-                                            <PollDisplay streamId={activeStream.id} compact={true} />
                                             <PinnedLinkOverlay streamId={activeStream.id} />
                                         </div>
                                     </div>
@@ -1260,9 +1259,8 @@ const ZkTVPage: React.FC = () => {
                                         <div className="flex-1 overflow-hidden">
                                             <ChatSlot id="zktv-mobile-landscape-docked-chat" priority={90} className="h-full" />
                                         </div>
-                                        {/* Enquete em destaque no mobile landscape - Estilo CazéTV */}
+                                        {/* Enquete e Link Fixado em destaque no mobile landscape */}
                                         <div className="px-3 py-2 border-t border-white/10 bg-black/40">
-                                            <PollDisplay streamId={activeStream.id} compact={true} />
                                             <PinnedLinkOverlay streamId={activeStream.id} />
                                         </div>
                                     </div>

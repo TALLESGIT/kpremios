@@ -28,7 +28,7 @@ interface PollOverlayProps {
   streamId: string | null;
 }
 
-const DEFAULT_DURATION = 12000; // 12 segundos padrão
+const DEFAULT_DURATION = 15000; // 15 segundos padrão
 
 export function PollOverlay({ streamId }: PollOverlayProps) {
   const { user } = useAuth();
@@ -45,6 +45,22 @@ export function PollOverlay({ streamId }: PollOverlayProps) {
     streamId: streamId || undefined,
     autoConnect: !!streamId
   });
+
+  // Verificar se a enquete já foi dispensada pelo usuário
+  const isPollDismissed = (pollId: string) => {
+    if (typeof window === 'undefined') return false;
+    const dismissed = JSON.parse(localStorage.getItem('zk_dismissed_polls') || '[]');
+    return dismissed.includes(pollId);
+  };
+
+  const markPollAsDismissed = (pollId: string) => {
+    if (typeof window === 'undefined') return;
+    const dismissed = JSON.parse(localStorage.getItem('zk_dismissed_polls') || '[]');
+    if (!dismissed.includes(pollId)) {
+      dismissed.push(pollId);
+      localStorage.setItem('zk_dismissed_polls', JSON.stringify(dismissed));
+    }
+  };
 
   const getSessionId = () => {
     if (typeof window !== 'undefined') {
@@ -71,10 +87,15 @@ export function PollOverlay({ streamId }: PollOverlayProps) {
     const handlePollActive = (data: any) => {
       const poll = data.poll;
       if (poll && poll.stream_id === streamId) {
+        // Se já foi dispensada, não mostrar novamente
+        if (isPollDismissed(poll.id)) {
+          return;
+        }
+
         setActivePoll(poll);
         setIsVisible(true);
         setIsDismissed(false);
-        
+
         // Carregar resultados e verificar voto
         emit('poll-get-results', { pollId: poll.id });
         const sessionId = getSessionId();
@@ -112,7 +133,7 @@ export function PollOverlay({ streamId }: PollOverlayProps) {
     const handlePollUpdated = (data: any) => {
       const updatedPoll = data.poll;
       if (updatedPoll?.stream_id === streamId) {
-        if (data.eventType === 'DELETE' || !updatedPoll.is_active || !updatedPoll.is_pinned) {
+        if (data.eventType === 'DELETE' || !updatedPoll.is_active || !updatedPoll.is_pinned || updatedPoll.is_deleted) {
           // Enquete foi deletada ou desativada
           setActivePoll(null);
           setIsVisible(false);
@@ -125,7 +146,9 @@ export function PollOverlay({ streamId }: PollOverlayProps) {
           // Re-buscar resultados
           emit('poll-get-results', { pollId: updatedPoll.id });
         } else {
-          // Nova enquete ativa
+          // Nova enquete ativa - verificar se já foi dispensada (improvável para nova)
+          if (isPollDismissed(updatedPoll.id)) return;
+
           setActivePoll(updatedPoll);
           setIsVisible(true);
           setIsDismissed(false);
@@ -136,6 +159,15 @@ export function PollOverlay({ streamId }: PollOverlayProps) {
             userId: user?.id || null,
             sessionId: user?.id ? null : sessionId
           });
+
+          // Reset timer
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+          }
+          const duration = updatedPoll.duration_seconds ? updatedPoll.duration_seconds * 1000 : DEFAULT_DURATION;
+          timeoutRef.current = setTimeout(() => {
+            setIsVisible(false);
+          }, duration);
         }
       }
     };
@@ -232,6 +264,9 @@ export function PollOverlay({ streamId }: PollOverlayProps) {
   };
 
   const handleDismiss = () => {
+    if (activePoll) {
+      markPollAsDismissed(activePoll.id);
+    }
     setIsDismissed(true);
     setIsVisible(false);
     if (timeoutRef.current) {
@@ -249,38 +284,43 @@ export function PollOverlay({ streamId }: PollOverlayProps) {
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, y: -50 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -50 }}
-        className="fixed top-4 left-1/2 -translate-x-1/2 z-[10000] w-full max-w-md px-4"
+        initial={{ opacity: 0, x: 100, scale: 0.9 }}
+        animate={{ opacity: 1, x: 0, scale: 1 }}
+        exit={{ opacity: 0, x: 100, scale: 0.9 }}
+        transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+        className="fixed top-24 right-4 z-[10000] w-[320px]"
       >
-        <div className="bg-slate-900/95 backdrop-blur-md border border-white/20 rounded-2xl p-4 shadow-2xl relative">
+        <div className="bg-slate-900/90 backdrop-blur-xl border border-blue-500/30 rounded-3xl p-5 shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden relative group">
+          {/* Decoração Background */}
+          <div className="absolute -top-12 -right-12 w-24 h-24 bg-blue-600/20 blur-[40px] rounded-full pointer-events-none" />
+          <div className="absolute -bottom-12 -left-12 w-24 h-24 bg-blue-400/10 blur-[40px] rounded-full pointer-events-none" />
+
           {/* Botão fechar */}
           <button
             onClick={handleDismiss}
-            className="absolute top-2 right-2 p-1 hover:bg-white/10 rounded-lg transition-all"
+            className="absolute top-4 right-4 p-1.5 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/5"
           >
-            <X className="w-4 h-4 text-slate-400" />
+            <X className="w-3.5 h-3.5 text-slate-400" />
           </button>
 
           {/* Header */}
-          <div className="flex items-center gap-2 mb-3">
-            <div className="p-1.5 bg-blue-500/20 rounded-lg">
-              <BarChart3 className="w-4 h-4 text-blue-400" />
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="p-2 bg-gradient-to-br from-blue-600 to-blue-400 rounded-xl shadow-lg shadow-blue-600/20">
+              <BarChart3 className="w-4 h-4 text-white" />
             </div>
-            <h4 className="text-xs font-black text-white uppercase italic tracking-wider">Enquete</h4>
-            {totalVotes > 0 && (
-              <span className="text-slate-500 font-bold text-[10px] ml-auto">
-                {totalVotes} votos
+            <div className="flex flex-col">
+              <h4 className="text-[10px] font-black text-blue-400 uppercase italic tracking-[0.2em] leading-none mb-1">Live Poll</h4>
+              <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+                {totalVotes} votos registrados
               </span>
-            )}
+            </div>
           </div>
 
           {/* Pergunta */}
-          <h3 className="text-sm font-bold text-white mb-4 leading-tight">{activePoll.question}</h3>
+          <h3 className="text-sm font-black text-white mb-5 leading-tight tracking-tight uppercase italic">{activePoll.question}</h3>
 
           {/* Opções */}
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {activePoll.options.map((option: any) => {
               const result = results.find(r => r.option_id === option.id);
               const votes = result?.votes || 0;
@@ -292,35 +332,39 @@ export function PollOverlay({ streamId }: PollOverlayProps) {
                   key={option.id}
                   onClick={() => handleVote(option.id)}
                   disabled={hasVoted}
-                  className={`w-full text-left rounded-xl border transition-all relative overflow-hidden p-3 ${
-                    hasVoted
+                  className={`w-full text-left rounded-2xl border transition-all relative overflow-hidden group/opt ${hasVoted
                       ? isUserChoice
-                        ? 'bg-blue-600/20 border-blue-500/40 cursor-default'
-                        : 'bg-white/5 border-white/5 cursor-default opacity-60'
-                      : 'bg-white/5 border-white/5 hover:border-blue-500/40 hover:bg-white/10 cursor-pointer active:scale-[0.98]'
-                  }`}
+                        ? 'bg-blue-600/20 border-blue-500/40 p-3'
+                        : 'bg-white/5 border-white/5 p-3 opacity-60'
+                      : 'bg-white/5 border-white/5 hover:border-blue-500/40 hover:bg-white/10 p-3.5 active:scale-[0.97]'
+                    }`}
                 >
-                  <div className={`flex items-center justify-between ${hasVoted ? 'mb-1' : ''}`}>
-                    <span className="text-xs font-bold text-white">{option.text}</span>
-                    {isUserChoice && (
-                      <CheckCircle2 className="w-4 h-4 text-blue-400 fill-blue-400" />
+                  <div className="flex items-center justify-between relative z-10">
+                    <span className={`text-xs font-bold ${isUserChoice ? 'text-blue-200' : 'text-slate-100'}`}>
+                      {option.text}
+                    </span>
+                    {hasVoted && (
+                      <span className="text-[10px] font-black text-blue-400">{percentage}%</span>
                     )}
                   </div>
 
                   {hasVoted && (
-                    <div className="space-y-1 mt-2">
-                      <div className="flex items-center justify-between text-[10px] mb-1">
-                        <span className="text-slate-400 font-medium">{percentage}%</span>
-                        <span className="text-blue-400 font-bold uppercase tracking-tighter">{votes} votos</span>
-                      </div>
-                      <div className="w-full bg-slate-700/50 rounded-full overflow-hidden h-1.5">
+                    <div className="mt-2.5 relative z-10">
+                      <div className="w-full bg-slate-800/50 rounded-full h-1.5 overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${percentage}%` }}
-                          transition={{ duration: 0.5 }}
-                          className="h-full bg-gradient-to-r from-blue-500 to-blue-400"
+                          transition={{ duration: 0.8, ease: "easeOut" }}
+                          className={`h-full ${isUserChoice ? 'bg-gradient-to-r from-blue-500 to-blue-300' : 'bg-slate-600'}`}
                         />
                       </div>
+                    </div>
+                  )}
+
+                  {/* Feedback Visual ao Votar */}
+                  {isUserChoice && (
+                    <div className="absolute top-2 right-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 fill-blue-400" />
                     </div>
                   )}
                 </button>
@@ -328,10 +372,10 @@ export function PollOverlay({ streamId }: PollOverlayProps) {
             })}
           </div>
 
-          {hasVoted && (
-            <div className="mt-3 pt-3 border-t border-white/10">
-              <p className="text-slate-400 text-[9px] text-center">
-                Total de votos: <span className="text-blue-400 font-bold">{totalVotes}</span>
+          {!hasVoted && (
+            <div className="mt-4 flex flex-center justify-center">
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest animate-pulse">
+                Vote agora para ver resultados
               </p>
             </div>
           )}
