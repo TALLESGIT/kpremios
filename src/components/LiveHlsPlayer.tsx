@@ -124,8 +124,8 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "", showPerf
               .play()
               .then(() => {
                 setStatus("playing");
-                setNeedsInteraction(true); // ✅ Mostrar botão para ativar áudio mesmo se tocar automático
                 reconnectAttempts.current = 0;
+                // ✅ Vídeo toca mutado — NÃO forçar overlay. Só aparece se play() falhar.
               })
               .catch(() => {
                 setNeedsInteraction(true);
@@ -179,9 +179,9 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "", showPerf
             .play()
             .then(() => {
               setStatus("playing");
-              setNeedsInteraction(true); // ✅ Mostrar botão para ativar áudio
               reconnectAttempts.current = 0;
               waitingHlsAttempts.current = 0;
+              // ✅ Vídeo toca mutado — NÃO forçar overlay
             })
             .catch(() => {
               setNeedsInteraction(true);
@@ -363,9 +363,9 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "", showPerf
             onClick={handleUserInteraction}
             className="flex flex-col items-center justify-center gap-3 px-12 py-8 bg-white/15 border-2 border-white/40 rounded-2xl text-white font-semibold text-lg transition-all hover:bg-white/25 hover:border-white/60 hover:scale-105 active:scale-100 shadow-2xl min-w-[200px]"
           >
-            <span className="text-6xl leading-none drop-shadow-lg">▶</span>
-            <span className="text-xl font-bold tracking-wide">Toque para assistir</span>
-            <small className="text-sm opacity-80 font-normal mt-1">Clique para ativar o áudio</small>
+            <span className="text-6xl leading-none drop-shadow-lg">🔊</span>
+            <span className="text-xl font-bold tracking-wide">Toque para ativar o áudio</span>
+            <small className="text-sm opacity-80 font-normal mt-1">O vídeo já está rodando (mutado)</small>
           </button>
         </div>
       )}

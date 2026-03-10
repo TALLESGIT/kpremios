@@ -89,7 +89,7 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
   useEffect(() => {
     // Gerar link da transmissão - Agora apontando para ZK TV
     const baseUrl = window.location.origin;
-    setStreamLink(`${baseUrl}/zk-tv?channel=${channelName}`);
+    setStreamLink(`${baseUrl}/live/${channelName}`);
 
     // Carregar estatísticas e contagem inicial
     loadStats();
@@ -305,8 +305,8 @@ const AdminLivePanel: React.FC<AdminLivePanelProps> = ({ streamId, channelName, 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Transmissão ao Vivo',
-          text: 'Assista à transmissão ao vivo!',
+          title: '🔴 ZK Oficial AO VIVO!',
+          text: 'Assista à transmissão ao vivo do ZK Oficial!',
           url: streamLink,
         });
       } catch (error) {

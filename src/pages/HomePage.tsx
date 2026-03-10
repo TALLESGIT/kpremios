@@ -297,8 +297,19 @@ function HomePage() {
                   to="/zk-tv"
                   className="px-6 sm:px-10 py-3 sm:py-5 bg-gradient-to-br from-blue-600/20 via-blue-600/10 to-transparent hover:from-blue-600/30 text-blue-100 rounded-xl sm:rounded-2xl font-black text-xs sm:text-lg transition-all duration-300 backdrop-blur-md border border-blue-500/30 flex items-center justify-center gap-2 sm:gap-3 overflow-hidden relative group active:scale-95 shadow-lg shadow-blue-900/40"
                 >
+                  {hasActiveLive && (
+                    <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 z-10">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white/20" />
+                    </span>
+                  )}
                   <Tv className="w-4 h-4 sm:w-6 sm:h-6 text-blue-400 group-hover:scale-110 transition-transform" />
                   ASSISTIR LIVES
+                  {hasActiveLive && (
+                    <span className="ml-1 px-2 py-0.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 text-[9px] sm:text-[10px] font-black uppercase tracking-wider animate-pulse">
+                      AO VIVO
+                    </span>
+                  )}
                 </Link>
                 <button
                   onClick={() => {

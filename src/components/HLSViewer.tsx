@@ -16,7 +16,7 @@ interface HLSViewerProps {
 export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initialInteracted = false, showPerf = false, isAdmin = false, onError }: HLSViewerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [needsInteraction, setNeedsInteraction] = useState(true);
+  const [needsInteraction, setNeedsInteraction] = useState(false);
   const [userInteracted, setUserInteracted] = useState(false);
   const [hasVideo, setHasVideo] = useState(false);
 
