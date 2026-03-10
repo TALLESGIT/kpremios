@@ -13,12 +13,21 @@ interface HLSViewerProps {
   onError?: (error: string) => void;
 }
 
+// ✅ Detectar app nativo Capacitor
+const isCapacitorNative = () =>
+  typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
+
 export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initialInteracted = false, showPerf = false, isAdmin = false, onError }: HLSViewerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [needsInteraction, setNeedsInteraction] = useState(false);
   const [userInteracted, setUserInteracted] = useState(false);
   const [hasVideo, setHasVideo] = useState(false);
+
+  // ✅ Usar ref para onError evitar que mudança de referência cause re-render infinito
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
+  const hlsInstanceRef = useRef<Hls | null>(null);
 
   // Debug Logs State
   const [logs, setLogs] = useState<string[]>([]);
@@ -51,40 +60,65 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     const video = videoRef.current;
     if (!video || !hlsUrl) return;
 
+    // ✅ Evitar re-inicialização se já está rodando com a mesma URL
+    if (hlsInstanceRef.current) {
+      addLog('HLS já inicializado, ignorando re-init.');
+      return;
+    }
+
     video.muted = true;
     video.playsInline = true;
+    // ✅ Atributos extras para mobile nativo
+    video.setAttribute('webkit-playsinline', 'true');
+    video.setAttribute('playsinline', 'true');
 
     addLog(`Inicializando HLS URL: ${hlsUrl}`);
 
     const handleError = (e: any) => {
       addLog(`Erro no elemento de vídeo nativo: ${e?.type}`);
-      if (onError) onError('Falha na reprodução nativa HLS');
+      onErrorRef.current?.('Falha na reprodução nativa HLS');
+    };
+
+    // ✅ Função para tentar play com retry para mobile
+    const attemptPlay = async () => {
+      try {
+        await video.play();
+        addLog('Autoplay (mutado) funcionou.');
+        setHasVideo(true);
+        // ✅ No app nativo, não mostrar overlay — vídeo toca mudo automaticamente
+        if (!isCapacitorNative()) {
+          // Na web, oferecer botão para ativar áudio
+          setNeedsInteraction(true);
+        }
+      } catch (e: any) {
+        addLog(`Autoplay (mutado) bloqueado: ${e?.message}`);
+        setNeedsInteraction(true);
+        setHasVideo(true);
+      }
     };
 
     let hls: Hls | null = null;
 
-    // Utilize hls.js por padrão na web (zkOfical)
     if (Hls.isSupported()) {
       addLog('Iniciando HLS.js...');
       hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
-        backBufferLength: 60,
+        backBufferLength: 30,
         liveSyncDurationCount: 3,
         liveMaxLatencyDurationCount: 5,
         maxLiveSyncPlaybackRate: 1.5,
+        maxBufferLength: 15,
+        maxMaxBufferLength: 30,
       });
 
+      hlsInstanceRef.current = hls;
       hls.loadSource(hlsUrl);
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         addLog('Manifest parsed via hls.js. Iniciando vídeo...');
-        setHasVideo(true);
-        video.play().then(() => addLog('Autoplay (mutado) funcionou.')).catch((e) => {
-          addLog(`Autoplay (mutado) bloqueado: ${e.message}`);
-          setNeedsInteraction(true);
-        });
+        attemptPlay();
       });
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -101,7 +135,8 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
             default:
               addLog(`Erro fatal irrecuperável: ${data.details}`);
               hls?.destroy();
-              if (onError) onError('Falha fatal HLS');
+              hlsInstanceRef.current = null;
+              onErrorRef.current?.('Falha fatal HLS');
               break;
           }
         }
@@ -111,11 +146,7 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
       video.src = hlsUrl;
       video.addEventListener('loadedmetadata', () => {
         addLog('Metadados carregados via Player Nativo. Iniciando...');
-        setHasVideo(true);
-        video.play().then(() => addLog('Autoplay (mutado) funcionou.')).catch((e) => {
-          addLog(`Autoplay (mutado) bloqueado: ${e.message}`);
-          setNeedsInteraction(true);
-        });
+        attemptPlay();
       });
       video.addEventListener('error', handleError);
     } else {
@@ -125,10 +156,11 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     return () => {
       if (hls) {
         hls.destroy();
+        hlsInstanceRef.current = null;
       }
       video.removeEventListener('error', handleError);
     };
-  }, [hlsUrl, onError, addLog]);
+  }, [hlsUrl, addLog]); // ✅ Removido onError das deps — usa ref
 
   useEffect(() => {
     if (initialInteracted && hasVideo && !userInteracted) {
@@ -212,17 +244,17 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
 
       {needsInteraction && hasVideo && !initialInteracted && (
         <div
-          className="absolute inset-0 flex items-center justify-center bg-black/85 backdrop-blur-sm z-10"
+          className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-10"
           onClick={handleUserInteraction}
         >
           <button
             onClick={handleUserInteraction}
             className="flex flex-col items-center justify-center gap-3 px-12 py-8 bg-white/15 border-2 border-white/40 rounded-2xl text-white font-semibold text-lg cursor-pointer transition-all hover:bg-white/25 hover:border-white/60 hover:scale-105 active:scale-100 shadow-2xl min-w-[200px]"
-            aria-label="Tocar para assistir"
+            aria-label="Toque para ativar o áudio"
           >
-            <span className="text-6xl leading-none drop-shadow-lg">▶</span>
-            <span className="text-xl font-bold tracking-wide">Toque para assistir</span>
-            <small className="text-sm opacity-80 font-normal mt-1">Clique para ativar o áudio</small>
+            <span className="text-6xl leading-none drop-shadow-lg">🔊</span>
+            <span className="text-xl font-bold tracking-wide">Toque para ativar o áudio</span>
+            <small className="text-sm opacity-80 font-normal mt-1">O vídeo já está rodando (mutado)</small>
           </button>
         </div>
       )}

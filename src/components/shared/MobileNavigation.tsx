@@ -1,11 +1,35 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, Tv, Layout, Play, MoreHorizontal, ChevronLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { supabase } from '../../lib/supabase';
 
 const MobileNavigation: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [hasActiveLive, setHasActiveLive] = useState(false);
+
+  // ✅ Verificar se há live ativa e escutar mudanças em tempo real
+  useEffect(() => {
+    const checkLive = async () => {
+      const { data } = await supabase
+        .from('live_streams')
+        .select('id')
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+      setHasActiveLive(!!data);
+    };
+
+    checkLive();
+
+    const channel = supabase
+      .channel('mobile-nav-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, () => checkLive())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const navItems = [
     { id: 'home', label: 'Início', icon: Home, path: '/' },
@@ -35,6 +59,7 @@ const MobileNavigation: React.FC = () => {
         {navItems.map((item) => {
           const isActive = activeTab === item.id;
           const Icon = item.icon;
+          const showLiveDot = item.id === 'live' && hasActiveLive;
 
           return (
             <button
@@ -47,8 +72,15 @@ const MobileNavigation: React.FC = () => {
                 <div className="relative">
                   <Icon
                     size={22}
-                    className={`transition-all duration-500 ${isActive ? "text-blue-500 scale-110 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]" : "text-white/30"}`}
+                    className={`transition-all duration-500 ${isActive ? "text-blue-500 scale-110 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]" : showLiveDot ? "text-red-400" : "text-white/30"}`}
                   />
+                  {/* ✅ Ponto vermelho pulsante quando live ativa */}
+                  {showLiveDot && (
+                    <span className="absolute -top-1 -right-1.5 flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                    </span>
+                  )}
                   {isActive && (
                     <motion.div
                       layoutId="activeTabGlow"
@@ -58,8 +90,8 @@ const MobileNavigation: React.FC = () => {
                     />
                   )}
                 </div>
-                <span className={`text-[9px] uppercase font-black tracking-[0.15em] transition-colors duration-500 ${isActive ? "text-blue-500" : "text-white/20"}`}>
-                  {item.label}
+                <span className={`text-[9px] uppercase font-black tracking-[0.15em] transition-colors duration-500 ${isActive ? "text-blue-500" : showLiveDot ? "text-red-400" : "text-white/20"}`}>
+                  {showLiveDot && !isActive ? '🔴 Ao Vivo' : item.label}
                 </span>
               </div>
 
