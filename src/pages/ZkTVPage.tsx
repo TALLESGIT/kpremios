@@ -206,6 +206,12 @@ const ZkTVPage: React.FC = () => {
         checkMobile();
         window.addEventListener('resize', checkMobile);
 
+        // Handle tab parameter
+        const tab = searchParams.get('tab');
+        if (tab === 'standings') {
+            setActiveTab('standings');
+        }
+
         // Detectar orientação
         const checkOrientation = () => {
             const landscape = window.innerWidth > window.innerHeight;
@@ -255,7 +261,7 @@ const ZkTVPage: React.FC = () => {
             window.removeEventListener('orientationchange', checkOrientation);
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
         };
-    }, [isMobile, isFullscreen]);
+    }, [isMobile, isFullscreen, searchParams, joinStream, leaveStream, isConnected, on, off, user?.id, updateViewerCount, trackViewer]);
 
     // Log quando VipMessageOverlay deve ser renderizado
     useEffect(() => {

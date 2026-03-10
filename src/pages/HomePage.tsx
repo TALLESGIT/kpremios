@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { useSocket } from '../hooks/useSocket';
-import { Play, Trophy, MonitorPlay, Target, MessageCircle, DollarSign, Instagram, Users } from 'lucide-react';
+import { Play, Trophy, MonitorPlay, Target, MessageCircle, DollarSign, Instagram, Users, Tv } from 'lucide-react';
 import { CruzeiroGame } from '../types';
 import PoolBetModal from '../components/pool/PoolBetModal';
 import AdvertisementCarousel from '../components/shared/AdvertisementCarousel';
@@ -36,6 +36,7 @@ function HomePage() {
   const [activeStreamId, setActiveStreamId] = useState<string | null>(null);
   const [showSocialModal, setShowSocialModal] = useState(false);
   const [socialLinks, setSocialLinks] = useState<any>({});
+  const [viewerCount, setViewerCount] = useState<number>(0);
 
   // Verificar se o usuário está logado
   const isLoggedIn = !!(user && currentUser);
@@ -96,6 +97,7 @@ function HomePage() {
 
     let poolUpdateHandler: ((data: any) => void) | null = null;
     let poolBetUpdateHandler: ((data: any) => void) | null = null;
+    let viewerCountHandler: ((data: any) => void) | null = null;
 
     if (activeStreamId && isConnected) {
       joinStream(activeStreamId);
@@ -119,8 +121,15 @@ function HomePage() {
         loadPoolWinnersCount();
       };
 
+      viewerCountHandler = (data: { streamId: string; count: number }) => {
+        if (data.streamId === activeStreamId) {
+          setViewerCount(data.count);
+        }
+      };
+
       on('pool-updated', poolUpdateHandler);
       on('pool-bet-updated', poolBetUpdateHandler);
+      on('viewer-count-updated', viewerCountHandler);
     }
 
     return () => {
@@ -129,6 +138,7 @@ function HomePage() {
       supabase.removeChannel(poolBetsChannel);
       if (poolUpdateHandler) off('pool-updated', poolUpdateHandler);
       if (poolBetUpdateHandler) off('pool-bet-updated', poolBetUpdateHandler);
+      if (viewerCountHandler) off('viewer-count-updated', viewerCountHandler);
     };
   }, [activeStreamId, isConnected]);
 
@@ -281,7 +291,7 @@ function HomePage() {
                 Acompanhe o <span className="text-white font-bold">Cruzeiro</span> em tempo real, participe de bolões exclusivos e concorra a prêmios incríveis toda semana!
               </p>
 
-              <div className="flex flex-wrap justify-center gap-5">
+              <div className="flex flex-wrap justify-center gap-3 sm:gap-5">
                 {activePool && activePool.is_active && (
                   <button
                     onClick={() => setShowPoolModal(true)}
@@ -293,22 +303,17 @@ function HomePage() {
                 )}
                 <Link
                   to="/zk-tv"
-                  className={`btn px-10 py-4 text-lg border-white/40 hover:bg-white/10 relative overflow-hidden group/live ${hasActiveLive ? 'bg-blue-600/20 border-blue-500/50' : 'btn-outline'}`}
+                  className="px-6 sm:px-10 py-3 sm:py-5 bg-gradient-to-br from-blue-600/20 via-blue-600/10 to-transparent hover:from-blue-600/30 text-blue-100 rounded-xl sm:rounded-2xl font-black text-xs sm:text-lg transition-all duration-300 backdrop-blur-md border border-blue-500/30 flex items-center justify-center gap-2 sm:gap-3 overflow-hidden relative group active:scale-95 shadow-lg shadow-blue-900/40"
                 >
-                  <div className="flex items-center gap-3">
-                    {hasActiveLive && (
-                      <div className="flex items-center gap-1.5">
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                        </span>
-                        <span className="text-[10px] font-black text-red-400 uppercase tracking-tighter animate-pulse">
-                          AO VIVO
-                        </span>
-                      </div>
-                    )}
-                    <span>ASSISTIR LIVES</span>
-                  </div>
+                  <Tv className="w-4 h-4 sm:w-6 sm:h-6 text-blue-400 group-hover:scale-110 transition-transform" />
+                  ASSISTIR LIVES
+                </Link>
+                <Link
+                  to="/competicoes"
+                  className="px-6 sm:px-10 py-3 sm:py-5 bg-gradient-to-br from-white/10 to-transparent hover:bg-white/15 text-white rounded-xl sm:rounded-2xl font-black text-xs sm:text-lg transition-all duration-300 backdrop-blur-md border border-white/10 flex items-center justify-center gap-2 sm:gap-3 overflow-hidden relative group active:scale-95 sm:hidden"
+                >
+                  <Target className="w-4 h-4 sm:w-6 sm:h-6 text-slate-400 group-hover:scale-110 transition-transform" />
+                  VER CLASSIFICAÇÃO
                 </Link>
               </div>
 
@@ -335,77 +340,79 @@ function HomePage() {
           </div>
 
           {/* Admin Managed Game Banner */}
-          {!loadingGame && nextGame && (
-            <div className="mt-12 w-full max-w-4xl mx-auto px-4 z-20 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-              <div className="relative group overflow-hidden rounded-[2.5rem] sm:rounded-[3rem] border border-white/10 shadow-2xl shadow-blue-500/10 bg-slate-900/40 backdrop-blur-xl min-h-[280px] sm:min-h-[220px]">
-                {/* Background Banner Image */}
-                {nextGame.banner_url && (
-                  <>
-                    <img
-                      src={nextGame.banner_url}
-                      alt="Banner do Jogo"
-                      className="absolute inset-0 w-full h-full object-cover sm:object-cover object-center transition-transform duration-1000 group-hover:scale-110 opacity-40"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-br from-slate-950/95 via-slate-950/80 to-blue-900/30 sm:from-slate-950/90 sm:via-slate-950/70 sm:to-blue-900/40"></div>
-                  </>
-                )}
+          {
+            !loadingGame && nextGame && (
+              <div className="mt-12 w-full max-w-4xl mx-auto px-4 z-20 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                <div className="relative group overflow-hidden rounded-[2.5rem] sm:rounded-[3rem] border border-white/10 shadow-2xl shadow-blue-500/10 bg-slate-900/40 backdrop-blur-xl min-h-[280px] sm:min-h-[220px]">
+                  {/* Background Banner Image */}
+                  {nextGame.banner_url && (
+                    <>
+                      <img
+                        src={nextGame.banner_url}
+                        alt="Banner do Jogo"
+                        className="absolute inset-0 w-full h-full object-cover sm:object-cover object-center transition-transform duration-1000 group-hover:scale-110 opacity-40"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-br from-slate-950/95 via-slate-950/80 to-blue-900/30 sm:from-slate-950/90 sm:via-slate-950/70 sm:to-blue-900/40"></div>
+                    </>
+                  )}
 
-                {/* Dynamic Glow */}
-                <div
-                  className="absolute -top-24 -right-24 w-64 h-64 blur-[120px] opacity-10 group-hover:opacity-30 transition-all duration-700"
-                  style={{ backgroundColor: getTeamColors(nextGame.opponent).primary }}
-                ></div>
+                  {/* Dynamic Glow */}
+                  <div
+                    className="absolute -top-24 -right-24 w-64 h-64 blur-[120px] opacity-10 group-hover:opacity-30 transition-all duration-700"
+                    style={{ backgroundColor: getTeamColors(nextGame.opponent).primary }}
+                  ></div>
 
-                <div className="relative z-20 p-6 sm:p-12 flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-8 h-full">
-                  <div className="flex flex-col items-center sm:items-start text-center sm:text-left w-full sm:w-auto">
-                    <span className={`px-3 py-1 rounded-full backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-white mb-6 sm:mb-4 shadow-lg ${nextGame.status === 'live' ? 'bg-red-600/80 shadow-red-500/20' :
-                      nextGame.status === 'finished' ? 'bg-emerald-600/80 shadow-emerald-500/20' :
-                        'bg-blue-600/80 shadow-blue-500/20'
-                      }`}>
-                      {nextGame.status === 'live' ? 'Partida Ao Vivo' :
-                        nextGame.status === 'finished' ? 'Partida Finalizada' :
-                          'Próxima Partida'}
-                    </span>
+                  <div className="relative z-20 p-6 sm:p-12 flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-8 h-full">
+                    <div className="flex flex-col items-center sm:items-start text-center sm:text-left w-full sm:w-auto">
+                      <span className={`px-3 py-1 rounded-full backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-white mb-6 sm:mb-4 shadow-lg ${nextGame.status === 'live' ? 'bg-red-600/80 shadow-red-500/20' :
+                        nextGame.status === 'finished' ? 'bg-emerald-600/80 shadow-emerald-500/20' :
+                          'bg-blue-600/80 shadow-blue-500/20'
+                        }`}>
+                        {nextGame.status === 'live' ? 'Partida Ao Vivo' :
+                          nextGame.status === 'finished' ? 'Partida Finalizada' :
+                            'Próxima Partida'}
+                      </span>
 
-                    <div className="flex items-center justify-center sm:justify-start gap-4 sm:gap-6 w-full">
-                      <div className="flex flex-col items-center gap-2 group/team cursor-pointer transition-transform hover:scale-105">
-                        <TeamLogo teamName="Cruzeiro" size="lg" showName={false} />
-                        <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-tighter">Cruzeiro</span>
-                      </div>
+                      <div className="flex items-center justify-center sm:justify-start gap-4 sm:gap-6 w-full">
+                        <div className="flex flex-col items-center gap-2 group/team cursor-pointer transition-transform hover:scale-105">
+                          <TeamLogo teamName="Cruzeiro" size="lg" showName={false} />
+                          <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-tighter">Cruzeiro</span>
+                        </div>
 
-                      <div className="flex flex-col items-center justify-center">
-                        <div className="text-xl sm:text-2xl font-black italic text-white/20">VS</div>
-                        <div className="h-[1px] w-8 bg-gradient-to-r from-transparent via-white/10 to-transparent mt-1" />
-                      </div>
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="text-xl sm:text-2xl font-black italic text-white/20">VS</div>
+                          <div className="h-[1px] w-8 bg-gradient-to-r from-transparent via-white/10 to-transparent mt-1" />
+                        </div>
 
-                      <div className="flex flex-col items-center gap-2 group/team cursor-pointer transition-transform hover:scale-105">
-                        <TeamLogo
-                          teamName={nextGame.opponent}
-                          customLogo={nextGame.opponent_logo}
-                          size="lg"
-                          showName={false}
-                        />
-                        <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-tighter text-center line-clamp-1 max-w-[100px] sm:max-w-[120px]">{nextGame.opponent}</span>
+                        <div className="flex flex-col items-center gap-2 group/team cursor-pointer transition-transform hover:scale-105">
+                          <TeamLogo
+                            teamName={nextGame.opponent}
+                            customLogo={nextGame.opponent_logo}
+                            size="lg"
+                            showName={false}
+                          />
+                          <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-tighter text-center line-clamp-1 max-w-[100px] sm:max-w-[120px]">{nextGame.opponent}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex flex-col items-center sm:items-end gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-                    <div className="flex items-center gap-2 text-blue-400 font-black">
-                      <span className="text-base sm:text-lg bg-blue-500/20 px-5 py-2.5 rounded-2xl border border-blue-400/30 backdrop-blur-md text-blue-300 shadow-xl shadow-black/20">
-                        {new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} • {new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-950/40 px-4 py-1.5 rounded-full border border-white/5 backdrop-blur-sm">
-                        {nextGame.competition}
-                      </span>
+                    <div className="flex flex-col items-center sm:items-end gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                      <div className="flex items-center gap-2 text-blue-400 font-black">
+                        <span className="text-base sm:text-lg bg-blue-500/20 px-5 py-2.5 rounded-2xl border border-blue-400/30 backdrop-blur-md text-blue-300 shadow-xl shadow-black/20">
+                          {new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} • {new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-950/40 px-4 py-1.5 rounded-full border border-white/5 backdrop-blur-sm">
+                          {nextGame.competition}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )
+          }
         </div>
 
         {/* Stats / Info Bar */}
@@ -473,7 +480,9 @@ function HomePage() {
                       </div>
                     ))}
                     <div className="w-12 h-12 rounded-full border-2 border-slate-900 bg-blue-600 flex items-center justify-center text-[10px] font-black text-white shadow-xl">
-                      +1.2k
+                      {viewerCount > 0
+                        ? (viewerCount >= 1000 ? `+${(viewerCount / 1000).toFixed(1)}k` : viewerCount)
+                        : '+1.2k'}
                     </div>
                   </div>
                   <button
@@ -482,15 +491,6 @@ function HomePage() {
                   >
                     {hasActiveLive ? 'Entrar na Live' : 'Acessar ZK TV'}
                   </button>
-                  {activePool && activePool.is_active && (
-                    <button
-                      onClick={() => setShowPoolModal(true)}
-                      className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:from-emerald-500 hover:to-emerald-400 transition-all shadow-xl shadow-emerald-600/20 active:scale-95 duration-200 flex items-center gap-2 w-full justify-center"
-                    >
-                      <Target className="w-4 h-4" />
-                      Participar do Bolão
-                    </button>
-                  )}
                 </div>
               </div>
               <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,255,0.02))] bg-[length:100%_2px,3px_100%] opacity-20"></div>
@@ -611,7 +611,7 @@ function HomePage() {
           <section className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
             <AdvertisementCarousel position="homepage" autoPlay={true} autoPlayInterval={5000} />
           </section>
-        </div >
+        </div>
 
         <SuccessModal
           isOpen={showSuccess}
@@ -634,8 +634,8 @@ function HomePage() {
               matchTitle={activePool?.match_title || ""}
               homeTeam={activePool?.home_team || ""}
               awayTeam={activePool?.away_team || ""}
-              homeTeamLogo={activePool?.home_team_logo || ""}
-              awayTeamLogo={activePool?.away_team_logo || ""}
+              homeLogo={activePool?.home_team_logo || ""}
+              awayLogo={activePool?.away_team_logo || ""}
               accumulatedAmount={activePool?.accumulated_amount || 0}
               totalPoolAmount={activePool?.total_pool_amount || 0}
             />

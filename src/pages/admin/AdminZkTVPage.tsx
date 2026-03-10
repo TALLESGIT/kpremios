@@ -98,6 +98,17 @@ const isoToDatetimeLocal = (isoString: string | undefined): string => {
     }
 };
 
+const generateStreamSlug = (title: string): string => {
+    return title
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim() + '-' + Date.now().toString().slice(-4);
+};
+
 const AdminZkTVPage: React.FC = () => {
     const { currentUser } = useData();
     const [activeTab, setActiveTab] = useState<'games' | 'standings' | 'clips' | 'squad'>('games');
@@ -122,6 +133,7 @@ const AdminZkTVPage: React.FC = () => {
 
     // Games State
     const [games, setGames] = useState<CruzeiroGame[]>([]);
+    const [activePoolsCount, setActivePoolsCount] = useState(0);
     const [isAddingGame, setIsAddingGame] = useState(false);
     const [editingGame, setEditingGame] = useState<CruzeiroGame | null>(null);
     const [createPoolToggle, setCreatePoolToggle] = useState(false);
@@ -258,7 +270,19 @@ const AdminZkTVPage: React.FC = () => {
             .select('*')
             .order('date', { ascending: true });
 
-        if (gamesData) setGames(gamesData);
+        if (gamesData) {
+            setGames(gamesData);
+
+            // Buscar bolões ativos
+            const { count, error } = await supabase
+                .from('match_pools')
+                .select('*', { count: 'exact', head: true })
+                .eq('is_active', true);
+
+            if (!error && count !== null) {
+                setActivePoolsCount(count);
+            }
+        }
     };
 
     const loadClips = async () => {
@@ -428,21 +452,15 @@ const AdminZkTVPage: React.FC = () => {
 
                         // 1) Create a live_stream first (required FK for match_pools)
                         const streamTitle = `Transmissão: ${matchTitle}`;
-                        const channelSlug = streamTitle
-                            .toLowerCase()
-                            .normalize('NFD')
-                            .replace(/[\u0300-\u036f]/g, '')
-                            .replace(/[^a-z0-9\s-]/g, '')
-                            .replace(/\s+/g, '-')
-                            .replace(/-+/g, '-')
-                            .trim() + '-' + Date.now().toString().slice(-4);
+                        const channelSlug = generateStreamSlug(streamTitle);
 
                         const { data: streamData, error: streamError } = await supabase
                             .from('live_streams')
                             .insert([{
                                 title: streamTitle,
                                 channel_name: channelSlug,
-                                is_active: false
+                                is_active: false,
+                                created_by: currentUser?.id
                             }])
                             .select()
                             .single();
@@ -497,12 +515,17 @@ const AdminZkTVPage: React.FC = () => {
             setSaving(true);
 
             // 1. Criar Live Stream (Sem definir ID manual, deixa o Supabase gerar o UUID)
+            const streamTitle = `Cruzeiro x ${game.opponent}`;
+            const channelSlug = generateStreamSlug(streamTitle);
+
             const { data: lsData, error: lsError } = await supabase.from('live_streams').insert([{
-                title: `Cruzeiro x ${game.opponent}`,
+                title: streamTitle,
+                channel_name: channelSlug,
                 status: 'upcoming',
                 match_id: game.id,
                 stream_url: '',
-                is_live: false
+                is_live: false,
+                created_by: currentUser?.id
             }]).select('id').single();
 
             if (lsError || !lsData) throw lsError || new Error('Falha ao criar stream');
@@ -1264,14 +1287,50 @@ const AdminZkTVPage: React.FC = () => {
 
                                                             {game.status === 'upcoming' && (
                                                                 <div className="mt-3 pt-3 border-t border-slate-800/50">
-                                                                    <button
-                                                                        onClick={() => handleActivatePool(game)}
-                                                                        disabled={saving}
-                                                                        className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-500/30 rounded-xl text-[10px] font-black uppercase text-emerald-400 hover:text-white transition-all"
-                                                                    >
-                                                                        <Zap className="w-3 h-3" />
-                                                                        {saving ? 'Ativando...' : 'Ativar Bolão'}
-                                                                    </button>
+                                                                    {(() => {
+                                                                        const hasAnyActivePool = activePoolsCount > 0;
+                                                                        const upcomingGames = games
+                                                                            .filter(g => g.status === 'upcoming')
+                                                                            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+                                                                        const isNextInLine = upcomingGames.length > 0 && upcomingGames[0].id === game.id;
+
+                                                                        let buttonText = 'Ativar Bolão';
+                                                                        let isDisabled = saving;
+                                                                        let tooltipText = '';
+
+                                                                        if (hasAnyActivePool) {
+                                                                            isDisabled = true;
+                                                                            buttonText = 'Bolão já ativo';
+                                                                            tooltipText = 'Finalize o bolão atual antes de ativar um novo.';
+                                                                        } else if (!isNextInLine) {
+                                                                            isDisabled = true;
+                                                                            buttonText = 'Bloqueado';
+                                                                            tooltipText = 'Só é possível ativar o próximo jogo cronológico.';
+                                                                        }
+
+                                                                        return (
+                                                                            <div className="space-y-2">
+                                                                                <button
+                                                                                    onClick={() => handleActivatePool(game)}
+                                                                                    disabled={isDisabled}
+                                                                                    title={tooltipText}
+                                                                                    className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${isDisabled
+                                                                                            ? 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed'
+                                                                                            : 'bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-500/30 text-emerald-400 hover:text-white'
+                                                                                        }`}
+                                                                                >
+                                                                                    <Zap className={`w-3 h-3 ${isDisabled ? 'text-slate-600' : ''}`} />
+                                                                                    {saving && !isDisabled ? 'Ativando...' : buttonText}
+                                                                                </button>
+                                                                                {tooltipText && (
+                                                                                    <p className="text-[9px] text-slate-500 text-center font-medium italic">
+                                                                                        {tooltipText}
+                                                                                    </p>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })()}
                                                                 </div>
                                                             )}
                                                         </div>
