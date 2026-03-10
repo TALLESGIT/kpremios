@@ -6,6 +6,7 @@ import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import { motion } from 'framer-motion';
 import { CruzeiroStanding } from '../types';
+import TeamLogo from '../components/TeamLogo';
 
 const StandingsPage: React.FC = () => {
   const { competitionName } = useParams<{ competitionName: string }>();
@@ -149,9 +150,11 @@ const StandingsPage: React.FC = () => {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              {team.logo && (
-                                <img src={team.logo} alt={team.team} className="w-8 h-8 object-contain drop-shadow-lg" />
-                              )}
+                              <TeamLogo
+                                teamName={team.team}
+                                customLogo={team.logo}
+                                size="sm"
+                              />
                               <span className={`text-sm font-bold uppercase italic ${isCruzeiro ? 'text-blue-400' : 'text-white'
                                 }`}>
                                 {team.team}
@@ -206,9 +209,11 @@ const StandingsPage: React.FC = () => {
                             }`}>
                             {team.position}
                           </div>
-                          {team.logo && (
-                            <img src={team.logo} alt={team.team} className="w-10 h-10 object-contain drop-shadow-md" />
-                          )}
+                          <TeamLogo
+                            teamName={team.team}
+                            customLogo={team.logo}
+                            size="md"
+                          />
                           <div className="flex flex-col">
                             <span className={`text-sm font-black uppercase italic ${isCruzeiro ? 'text-blue-400' : 'text-white'
                               }`}>

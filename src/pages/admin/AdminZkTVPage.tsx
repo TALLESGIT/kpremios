@@ -24,15 +24,21 @@ import Footer from '../../components/shared/Footer';
 import TeamLogo from '../../components/TeamLogo';
 import { CruzeiroGame, CruzeiroStanding, YouTubeClip, CruzeiroPlayer } from '../../types';
 import { useMemo } from 'react';
-import { getTeamColors } from '../../utils/teamLogos';
+import { getTeamLogo, getTeamColors } from '../../utils/teamLogos';
 
 const COMPETITIONS = [
     'Campeonato Brasileiro - Série A',
-    'Copa Conmebol Libertadores',
-    'Copa do Brasil',
     'Campeonato Mineiro',
+    'Copa Conmebol Libertadores',
     'Copa Conmebol Sul-Americana',
+    'Copa do Brasil',
     'Amistoso'
+];
+
+const TEAMS_BRASIL_SERIE_A = [
+    'Cruzeiro', 'Flamengo', 'Palmeiras', 'São Paulo', 'Corinthians', 'Internacional', 'Grêmio',
+    'Bahia', 'Fortaleza', 'Fluminense', 'Vasco', 'Botafogo', 'Red Bull Bragantino', 'RB Bragantino',
+    'Athletico-PR', 'Athletico Paranaense', 'Cuiabá', 'Juventude', 'Vitória', 'Criciúma', 'Atlético-GO'
 ];
 
 const TEAMS_LIBERTADORES = [
@@ -41,22 +47,16 @@ const TEAMS_LIBERTADORES = [
     'Independiente del Valle', 'LDU Quito', 'Olimpia', 'Cerro Porteño', 'Bolívar', 'The Strongest'
 ];
 
-const TEAMS_BRASIL_SERIE_A = [
-    'Flamengo', 'Palmeiras', 'São Paulo', 'Corinthians', 'Internacional', 'Grêmio',
-    'Bahia', 'Fortaleza', 'Fluminense', 'Vasco', 'Botafogo', 'Red Bull Bragantino',
-    'Athletico-PR', 'Cuiabá', 'Juventude', 'Vitória', 'Criciúma', 'Atlético-GO'
-];
-
 const TEAMS_MINEIRO = [
-    'Atlético-MG', 'América-MG', 'Athletic Club', 'Villa Nova', 'Pouso Alegre',
-    'Tombense', 'Ipatinga', 'Uberlândia', 'Democrata-GV', 'Itabirito'
+    'Atlético-MG', 'Atletico-MG', 'América-MG', 'America Mineiro', 'Athletic Club', 'Villa Nova', 'Pouso Alegre',
+    'Tombense', 'Ipatinga', 'Uberlândia', 'Democrata-GV', 'Itabirito', 'Betim', 'North Esporte', 'Uniao Trabalhadores'
 ];
 
 const TEAMS_BY_COMPETITION: Record<string, string[]> = {
     'Campeonato Brasileiro - Série A': TEAMS_BRASIL_SERIE_A,
-    'Copa Conmebol Libertadores': [...TEAMS_LIBERTADORES, 'Flamengo', 'Palmeiras', 'São Paulo', 'Botafogo', 'Fortaleza'],
-    'Copa Conmebol Sul-Americana': [...TEAMS_LIBERTADORES, 'Corinthians', 'Internacional', 'Athletico-PR'],
     'Campeonato Mineiro': TEAMS_MINEIRO,
+    'Copa Conmebol Libertadores': [...TEAMS_LIBERTADORES, 'Flamengo', 'Palmeiras', 'São Paulo', 'Botafogo', 'Fortaleza', 'Atlético-MG', 'Fluminense', 'Grêmio'],
+    'Copa Conmebol Sul-Americana': [...TEAMS_LIBERTADORES, 'Corinthians', 'Internacional', 'Athletico-PR', 'Cruzeiro', 'Cuiabá', 'Fortaleza'],
     'Copa do Brasil': [...TEAMS_BRASIL_SERIE_A, ...TEAMS_MINEIRO],
     'Amistoso': [...TEAMS_BRASIL_SERIE_A, ...TEAMS_MINEIRO, ...TEAMS_LIBERTADORES]
 };
@@ -221,11 +221,34 @@ const AdminZkTVPage: React.FC = () => {
                 loadPlayers()
             ]);
 
+            // Silent automatic cleanup on load
+            autoCleanupOldGames();
+
         } catch (error) {
             console.error('Error loading ZK TV data:', error);
             toast.error('Erro ao carregar dados da ZK TV');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const autoCleanupOldGames = async () => {
+        try {
+            const threeDaysAgo = new Date();
+            threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+            const { error, count } = await supabase
+                .from('cruzeiro_games')
+                .delete({ count: 'exact' })
+                .eq('status', 'finished')
+                .lt('date', threeDaysAgo.toISOString());
+
+            if (!error && count && count > 0) {
+                console.log(`[Auto Cleanup] ${count} games older than 3 days removed.`);
+                loadGames();
+            }
+        } catch (error) {
+            console.error('[Auto Cleanup Error]:', error);
         }
     };
 
@@ -464,6 +487,83 @@ const AdminZkTVPage: React.FC = () => {
         } catch (error) {
             console.error('Error saving game:', error);
             toast.error('Erro ao salvar jogo');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleActivatePool = async (game: CruzeiroGame) => {
+        try {
+            setSaving(true);
+
+            // 1. Criar Live Stream (Sem definir ID manual, deixa o Supabase gerar o UUID)
+            const { data: lsData, error: lsError } = await supabase.from('live_streams').insert([{
+                title: `Cruzeiro x ${game.opponent}`,
+                status: 'upcoming',
+                match_id: game.id,
+                stream_url: '',
+                is_live: false
+            }]).select('id').single();
+
+            if (lsError || !lsData) throw lsError || new Error('Falha ao criar stream');
+            const liveStreamId = lsData.id;
+
+            // 2. Definir times e logos
+            const cruzeiroLogo = getTeamLogo('Cruzeiro');
+            const home_team = game.is_home ? 'Cruzeiro' : game.opponent;
+            const away_team = game.is_home ? game.opponent : 'Cruzeiro';
+            const home_team_logo = game.is_home ? cruzeiroLogo : game.opponent_logo;
+            const away_team_logo = game.is_home ? game.opponent_logo : cruzeiroLogo;
+
+            // 3. Criar Match Pool
+            const { error: poolError } = await supabase.from('match_pools').insert([{
+                live_stream_id: liveStreamId,
+                match_id: game.id,
+                match_title: `Bolão: Cruzeiro x ${game.opponent}`,
+                home_team,
+                away_team,
+                home_team_logo,
+                away_team_logo,
+                is_active: true,
+                accumulated_amount: 0,
+                total_pool_amount: 0
+            }]);
+
+            if (poolError) throw poolError;
+
+            toast.success('Bolão ativado com sucesso! 🚀');
+            loadData();
+        } catch (error) {
+            console.error('Error activating pool:', error);
+            toast.error('Erro ao ativar bolão');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleCleanupOldGames = async () => {
+        if (!window.confirm('Deseja realmente excluir todos os jogos finalizados há mais de 3 dias? Esta ação removerá também os bolões e históricos associados.')) {
+            return;
+        }
+
+        try {
+            setSaving(true);
+            const threeDaysAgo = new Date();
+            threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+            const { error, count } = await supabase
+                .from('cruzeiro_games')
+                .delete({ count: 'exact' })
+                .eq('status', 'finished')
+                .lt('date', threeDaysAgo.toISOString());
+
+            if (error) throw error;
+
+            toast.success(`${count || 0} jogos antigos foram removidos com sucesso!`);
+            loadData();
+        } catch (error) {
+            console.error('Error cleaning up games:', error);
+            toast.error('Erro ao limpar jogos antigos');
         } finally {
             setSaving(false);
         }
@@ -752,27 +852,39 @@ const AdminZkTVPage: React.FC = () => {
                                 >
                                     <div className="flex justify-between items-center">
                                         <h3 className="text-xl font-bold">Gerenciamento de Jogos</h3>
-                                        <button
-                                            onClick={() => {
-                                                setEditingGame(null);
-                                                setGameForm({
-                                                    opponent: '',
-                                                    date: new Date().toISOString(),
-                                                    venue: '',
-                                                    competition: 'Campeonato Mineiro',
-                                                    is_home: true,
-                                                    banner_url: '',
-                                                    status: 'upcoming',
-                                                    score_home: 0,
-                                                    score_away: 0
-                                                });
-                                                setIsAddingGame(true);
-                                            }}
-                                            className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20"
-                                        >
-                                            <Plus className="w-5 h-5" />
-                                            Novo Jogo
-                                        </button>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={handleCleanupOldGames}
+                                                disabled={saving}
+                                                className="flex items-center gap-2 px-4 py-3 bg-red-600/10 hover:bg-red-600 border border-red-500/20 rounded-xl text-xs font-black uppercase text-red-500 hover:text-white transition-all shadow-lg"
+                                                title="Limpar jogos finalizados há mais de 3 dias"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                                Limpar Antigos
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setEditingGame(null);
+                                                    setGameForm({
+                                                        opponent: '',
+                                                        opponent_logo: '',
+                                                        date: new Date().toISOString(),
+                                                        venue: '',
+                                                        competition: 'Campeonato Mineiro',
+                                                        is_home: true,
+                                                        banner_url: '',
+                                                        status: 'upcoming',
+                                                        score_home: 0,
+                                                        score_away: 0
+                                                    });
+                                                    setIsAddingGame(true);
+                                                }}
+                                                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20"
+                                            >
+                                                <Plus className="w-5 h-5" />
+                                                Novo Jogo
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {isAddingGame && (
@@ -1149,6 +1261,19 @@ const AdminZkTVPage: React.FC = () => {
                                                                     </>
                                                                 )}
                                                             </div>
+
+                                                            {game.status === 'upcoming' && (
+                                                                <div className="mt-3 pt-3 border-t border-slate-800/50">
+                                                                    <button
+                                                                        onClick={() => handleActivatePool(game)}
+                                                                        disabled={saving}
+                                                                        className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-500/30 rounded-xl text-[10px] font-black uppercase text-emerald-400 hover:text-white transition-all"
+                                                                    >
+                                                                        <Zap className="w-3 h-3" />
+                                                                        {saving ? 'Ativando...' : 'Ativar Bolão'}
+                                                                    </button>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1373,9 +1498,11 @@ const AdminZkTVPage: React.FC = () => {
                                                                 ) : `${team.position}º`}
                                                             </td>
                                                             <td className="px-6 py-4 font-bold flex items-center gap-3">
-                                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs ${team.is_cruzeiro ? 'bg-blue-600' : 'bg-slate-800'}`}>
-                                                                    {team.is_cruzeiro ? 'CRU' : team.team.substring(0, 3).toUpperCase()}
-                                                                </div>
+                                                                <TeamLogo
+                                                                    teamName={team.team}
+                                                                    size="sm"
+                                                                    showName={false}
+                                                                />
                                                                 {isBulkEditing ? (
                                                                     <input
                                                                         type="text"

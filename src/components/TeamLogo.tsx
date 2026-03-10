@@ -30,9 +30,9 @@ const TeamLogo: React.FC<TeamLogoProps> = ({
   };
 
   return (
-    <div className={`flex flex-col items-center gap-2 ${className}`}>
+    <div className={`inline-flex justify-center ${showName ? 'flex-col items-center gap-2' : 'items-center'} ${className}`}>
       <div
-        className={`${sizeClasses[size]} rounded-full flex items-center justify-center overflow-hidden border border-white/10 shadow-lg relative bg-white/5 backdrop-blur-sm`}
+        className={`${sizeClasses[size]} rounded-full flex items-center justify-center overflow-hidden border border-white/10 shadow-lg relative bg-white/5 backdrop-blur-sm shrink-0`}
         style={{
           background: !logoUrl || imageError ? `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` : undefined
         }}

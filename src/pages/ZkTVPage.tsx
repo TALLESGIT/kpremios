@@ -57,6 +57,15 @@ interface QuickStats {
 
 const isZkTVDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
 
+const COMPETITIONS = [
+    'Campeonato Brasileiro - Série A',
+    'Campeonato Mineiro',
+    'Copa Conmebol Libertadores',
+    'Copa Conmebol Sul-Americana',
+    'Copa do Brasil',
+    'Amistoso'
+];
+
 const ZkTVPage: React.FC = () => {
     const { user } = useAuth();
     const [searchParams] = useSearchParams();
@@ -74,6 +83,7 @@ const ZkTVPage: React.FC = () => {
         topScorer: 'N/A'
     });
     const [activeTab, setActiveTab] = useState<'games' | 'standings' | 'stats'>('games');
+    const [selectedComp, setSelectedComp] = useState<string>('Campeonato Brasileiro - Série A');
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [isLandscape, setIsLandscape] = useState(false);
@@ -1556,38 +1566,126 @@ const ZkTVPage: React.FC = () => {
                                             initial={{ opacity: 0, x: -20 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             exit={{ opacity: 0, x: 20 }}
+                                            className="space-y-6"
                                         >
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-left">
+                                            {/* Seletor de Competição - Estilo Pill com Scroll Horizontal */}
+                                            <div className="relative group">
+                                                <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2 scroll-smooth">
+                                                    {COMPETITIONS.map((comp) => (
+                                                        <button
+                                                            key={comp}
+                                                            onClick={() => setSelectedComp(comp)}
+                                                            className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-300 border ${selectedComp === comp
+                                                                ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-600/30 scale-105'
+                                                                : 'bg-slate-800/40 border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-slate-200 hover:border-slate-600'
+                                                                }`}
+                                                        >
+                                                            {comp}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                {/* Gradientes de indicação de scroll */}
+                                                <div className="absolute left-0 top-0 bottom-4 w-8 bg-gradient-to-r from-slate-950 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                <div className="absolute right-0 top-0 bottom-4 w-8 bg-gradient-to-l from-slate-950 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            </div>
+
+                                            <div className="overflow-x-auto rounded-2xl border border-slate-800/50 bg-slate-900/20 backdrop-blur-sm shadow-2xl">
+                                                <table className="w-full text-left border-collapse">
                                                     <thead>
-                                                        <tr className="border-b border-slate-800 bg-slate-900/50">
-                                                            <th className="px-8 py-5 text-sm font-bold text-slate-400">POS</th>
-                                                            <th className="px-8 py-5 text-sm font-bold text-slate-400">TIME</th>
-                                                            <th className="px-8 py-5 text-sm font-bold text-slate-400 text-center">PTS</th>
-                                                            <th className="px-8 py-5 text-sm font-bold text-slate-400 text-center">PJ</th>
-                                                            <th className="px-8 py-5 text-sm font-bold text-slate-400 text-center">V</th>
-                                                            <th className="px-8 py-5 text-sm font-bold text-slate-400 text-center">SG</th>
+                                                        <tr className="border-b border-slate-800 bg-slate-900/80 sticky top-0 z-10">
+                                                            <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest">POS</th>
+                                                            <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest">TIME</th>
+                                                            <th className="px-4 py-5 text-xs font-black text-slate-500 uppercase tracking-widest text-center">PTS</th>
+                                                            <th className="px-4 py-5 text-xs font-black text-slate-500 uppercase tracking-widest text-center">PJ</th>
+                                                            <th className="px-4 py-5 text-xs font-black text-slate-500 uppercase tracking-widest text-center">V</th>
+                                                            <th className="px-4 py-5 text-xs font-black text-slate-500 uppercase tracking-widest text-center">SG</th>
                                                         </tr>
                                                     </thead>
-                                                    <tbody className="divide-y divide-slate-800/50">
-                                                        {standings.map((team) => (
-                                                            <tr key={team.id} className={`${team.is_cruzeiro ? 'bg-blue-600/10 border-l-4 border-l-blue-500' : ''} hover:bg-slate-800/30 transition-colors`}>
-                                                                <td className="px-8 py-5 font-black text-slate-500">{team.position}º</td>
-                                                                <td className="px-8 py-5 font-bold flex items-center gap-3">
-                                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-[10px] ${team.is_cruzeiro ? 'bg-blue-600' : 'bg-slate-800'}`}>
-                                                                        {team.is_cruzeiro ? 'CRU' : team.team.substring(0, 3).toUpperCase()}
-                                                                    </div>
-                                                                    {team.team}
-                                                                </td>
-                                                                <td className="px-8 py-5 text-center font-black text-white">{team.points}</td>
-                                                                <td className="px-8 py-5 text-center text-slate-400">{team.played}</td>
-                                                                <td className="px-8 py-5 text-center text-slate-400">{team.won}</td>
-                                                                <td className="px-8 py-5 text-center text-slate-400">{team.goals_for - team.goals_against}</td>
-                                                            </tr>
-                                                        ))}
+                                                    <tbody className="divide-y divide-slate-800/30">
+                                                        {standings
+                                                            .filter(team => team.competition === selectedComp)
+                                                            .map((team) => {
+                                                                const isSerieA = selectedComp === 'Campeonato Brasileiro - Série A';
+                                                                const pos = team.position;
+
+                                                                // Cores de qualificação para Série A
+                                                                let posColorClass = "text-slate-400";
+                                                                let posBgClass = "";
+
+                                                                if (isSerieA) {
+                                                                    if (pos <= 4) {
+                                                                        posColorClass = "text-green-400"; // Libertadores
+                                                                        posBgClass = "border-l-4 border-l-green-500 bg-green-500/5";
+                                                                    } else if (pos <= 6) {
+                                                                        posColorClass = "text-blue-400"; // Pré-Libertadores
+                                                                        posBgClass = "border-l-4 border-l-blue-500 bg-blue-500/5";
+                                                                    } else if (pos <= 12) {
+                                                                        posColorClass = "text-orange-400"; // Sul-Americana
+                                                                        posBgClass = "border-l-4 border-l-orange-500/50";
+                                                                    } else if (pos >= 17) {
+                                                                        posColorClass = "text-red-400"; // Rebaixamento
+                                                                        posBgClass = "border-l-4 border-l-red-500/50 bg-red-500/5";
+                                                                    }
+                                                                }
+
+                                                                return (
+                                                                    <tr key={team.id} className={`${team.is_cruzeiro ? 'bg-blue-600/10' : posBgClass} hover:bg-slate-800/40 transition-all duration-200 group`}>
+                                                                        <td className={`px-6 py-4 font-black ${posColorClass} text-sm sm:text-base`}>
+                                                                            {pos}º
+                                                                        </td>
+                                                                        <td className="px-6 py-4 font-bold flex items-center gap-4 whitespace-nowrap">
+                                                                            <TeamLogo
+                                                                                teamName={team.team}
+                                                                                customLogo={team.logo}
+                                                                                size="sm"
+                                                                                className="group-hover:scale-110 transition-transform duration-300"
+                                                                            />
+                                                                            <span className={`text-sm sm:text-base ${team.is_cruzeiro ? 'text-blue-400' : 'text-slate-200'}`}>
+                                                                                {team.team}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className={`px-4 py-4 text-center font-black ${team.is_cruzeiro ? 'text-blue-400' : 'text-white'} text-sm sm:text-base`}>
+                                                                            {team.points}
+                                                                        </td>
+                                                                        <td className="px-4 py-4 text-center text-slate-400 text-xs sm:text-sm font-medium">{team.played}</td>
+                                                                        <td className="px-4 py-4 text-center text-slate-400 text-xs sm:text-sm font-medium">{team.won}</td>
+                                                                        <td className={`px-4 py-4 text-center text-xs sm:text-sm font-bold ${team.goals_for - team.goals_against >= 0 ? 'text-slate-400' : 'text-red-400/70'}`}>
+                                                                            {team.goals_for - team.goals_against}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
                                                     </tbody>
                                                 </table>
+                                                {standings.filter(team => team.competition === selectedComp).length === 0 && (
+                                                    <div className="py-20 text-center bg-slate-900/40">
+                                                        <Activity className="w-16 h-16 text-slate-800 mx-auto mb-4 animate-pulse opacity-20" />
+                                                        <p className="text-slate-500 text-sm font-bold tracking-widest uppercase">Classificação em breve...</p>
+                                                    </div>
+                                                )}
                                             </div>
+
+                                            {/* Legenda para Série A */}
+                                            {selectedComp === 'Campeonato Brasileiro - Série A' && (
+                                                <div className="flex flex-wrap gap-4 pt-2 px-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-3 h-3 rounded-full bg-green-500" />
+                                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Libertadores</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-3 h-3 rounded-full bg-blue-500" />
+                                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Pré-Libertadores</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-3 h-3 rounded-full bg-orange-500" />
+                                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Sul-Americana</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-3 h-3 rounded-full bg-red-500" />
+                                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Rebaixamento</span>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
@@ -1613,6 +1711,8 @@ const ZkTVPage: React.FC = () => {
                     matchTitle={activePool.match_title}
                     homeTeam={activePool.home_team}
                     awayTeam={activePool.away_team}
+                    homeLogo={activePool.home_team_logo}
+                    awayLogo={activePool.away_team_logo}
                     accumulatedAmount={activePool.accumulated_amount || 0}
                     totalPoolAmount={activePool.total_pool_amount || 0}
                 />

@@ -113,61 +113,62 @@ const CompetitionsPage: React.FC = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {COMPETITIONS_2026.map((competition, index) => {
-                const hasData = competitionsWithData.has(competition.name);
+              {COMPETITIONS_2026
+                .map((competition, index) => {
+                  const hasData = competitionsWithData.has(competition.name);
 
-                return (
-                  <motion.div
-                    key={competition.name}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    onClick={() => handleCompetitionClick(competition.name)}
-                    className={`bg-white/5 backdrop-blur-xl p-8 rounded-[2rem] cursor-pointer group hover:bg-white/10 transition-all duration-500 hover:-translate-y-2 border border-white/10 shadow-2xl relative overflow-hidden ${!hasData ? 'opacity-50' : ''
-                      }`}
-                  >
-                    {/* Glow effect on hover */}
-                    <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/0 via-blue-600/0 to-blue-600/0 group-hover:from-blue-600/5 group-hover:via-blue-600/10 group-hover:to-blue-600/5 transition-all duration-500 rounded-[2rem]" />
+                  return (
+                    <motion.div
+                      key={competition.name}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      onClick={() => handleCompetitionClick(competition.name)}
+                      className={`bg-white/5 backdrop-blur-xl p-8 rounded-[2rem] cursor-pointer group hover:bg-white/10 transition-all duration-500 hover:-translate-y-2 border border-white/10 shadow-2xl relative overflow-hidden ${!hasData ? 'opacity-50' : ''
+                        }`}
+                    >
+                      {/* Glow effect on hover */}
+                      <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/0 via-blue-600/0 to-blue-600/0 group-hover:from-blue-600/5 group-hover:via-blue-600/10 group-hover:to-blue-600/5 transition-all duration-500 rounded-[2rem]" />
 
-                    <div className="relative z-10">
-                      <div className="flex items-start justify-between mb-6">
-                        <div className="text-6xl drop-shadow-2xl group-hover:scale-110 transition-transform duration-500">{competition.icon}</div>
-                        <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center group-hover:bg-blue-600 transition-all duration-500">
-                          <ChevronRight className="w-5 h-5 text-white/40 group-hover:text-white transition-colors" />
-                        </div>
-                      </div>
-
-                      <h3 className="text-2xl font-black text-white mb-3 uppercase italic leading-tight group-hover:text-blue-400 transition-colors">
-                        {competition.name}
-                      </h3>
-
-                      <div className="flex items-center gap-2 text-xs font-bold text-blue-200/40 uppercase tracking-widest">
-                        <Calendar className="w-4 h-4" />
-                        <span>Temporada {competition.year}</span>
-                      </div>
-
-                      {!hasData && (
-                        <div className="mt-6 pt-6 border-t border-white/5">
-                          <p className="text-[10px] text-white/20 font-black uppercase tracking-[0.2em] italic">
-                            Tabela disponível em breve
-                          </p>
-                        </div>
-                      )}
-
-                      {hasData && (
-                        <div className="mt-6 pt-6 border-t border-white/5">
-                          <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-                            <p className="text-[10px] text-blue-400 font-black uppercase tracking-[0.2em]">
-                              Tabela Ativa
-                            </p>
+                      <div className="relative z-10">
+                        <div className="flex items-start justify-between mb-6">
+                          <div className="text-6xl drop-shadow-2xl group-hover:scale-110 transition-transform duration-500">{competition.icon}</div>
+                          <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center group-hover:bg-blue-600 transition-all duration-500">
+                            <ChevronRight className="w-5 h-5 text-white/40 group-hover:text-white transition-colors" />
                           </div>
                         </div>
-                      )}
-                    </div>
-                  </motion.div>
-                );
-              })}
+
+                        <h3 className="text-2xl font-black text-white mb-3 uppercase italic leading-tight group-hover:text-blue-400 transition-colors">
+                          {competition.name}
+                        </h3>
+
+                        <div className="flex items-center gap-2 text-xs font-bold text-blue-200/40 uppercase tracking-widest">
+                          <Calendar className="w-4 h-4" />
+                          <span>Temporada {competition.year}</span>
+                        </div>
+
+                        {!hasData && (
+                          <div className="mt-6 pt-6 border-t border-white/5">
+                            <p className="text-[10px] text-white/20 font-black uppercase tracking-[0.2em] italic">
+                              Tabela disponível em breve
+                            </p>
+                          </div>
+                        )}
+
+                        {hasData && (
+                          <div className="mt-6 pt-6 border-t border-white/5">
+                            <div className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+                              <p className="text-[10px] text-blue-400 font-black uppercase tracking-[0.2em]">
+                                Tabela Ativa
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
             </div>
           )}
 

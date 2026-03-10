@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { X, Target, Copy, QrCode, Loader2, CheckCircle, Clock, DollarSign, Trophy } from 'lucide-react';
+import { X, Target, Copy, QrCode, CheckCircle, Clock, Trophy, Calendar, MapPin, Zap, Info, CheckCircle2, ChevronRight, AlertCircle, Share2, Wallet, Plus, Minus, Search } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import CustomToast from '../shared/CustomToast';
+import TeamLogo from '../TeamLogo';
 
 interface PoolBetModalProps {
   isOpen: boolean;
@@ -14,8 +15,8 @@ interface PoolBetModalProps {
   matchTitle: string;
   homeTeam: string;
   awayTeam: string;
-  homeTeamLogo?: string;
-  awayTeamLogo?: string;
+  homeLogo?: string;
+  awayLogo?: string;
   accumulatedAmount?: number;
   totalPoolAmount?: number;
 }
@@ -27,8 +28,8 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
   matchTitle,
   homeTeam,
   awayTeam,
-  homeTeamLogo,
-  awayTeamLogo,
+  homeLogo,
+  awayLogo,
   accumulatedAmount = 0,
   totalPoolAmount = 0
 }) => {
@@ -740,7 +741,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
           <div className="flex items-center justify-center gap-4 md:gap-8 py-1 md:py-2 relative">
             <div className="text-center group">
               <div className="w-10 h-10 md:w-14 md:h-14 bg-slate-800 rounded-xl md:rounded-2xl border border-white/5 flex items-center justify-center mb-1 group-hover:border-blue-500/50 transition-all shadow-xl p-1.5 md:p-2">
-                <img src={homeTeamLogo} alt={homeTeam} className="w-full h-full object-contain" />
+                <TeamLogo teamName={homeTeam} customLogo={homeLogo} className="w-full h-full object-contain" />
               </div>
               <p className="text-[9px] md:text-[10px] font-black text-white uppercase truncate w-14 md:w-16">{homeTeam}</p>
             </div>
@@ -751,7 +752,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 
             <div className="text-center group">
               <div className="w-10 h-10 md:w-14 md:h-14 bg-slate-800 rounded-xl md:rounded-2xl border border-white/5 flex items-center justify-center mb-1 group-hover:border-blue-500/50 transition-all shadow-xl p-1.5 md:p-2">
-                <img src={awayTeamLogo} alt={awayTeam} className="w-full h-full object-contain" />
+                <TeamLogo teamName={awayTeam} customLogo={awayLogo} className="w-full h-full object-contain" />
               </div>
               <p className="text-[9px] md:text-[10px] font-black text-white uppercase truncate w-14 md:w-16">{awayTeam}</p>
             </div>
