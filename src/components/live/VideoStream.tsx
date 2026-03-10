@@ -116,6 +116,11 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const screenAudioTrackRef = useRef<any | null>(null); // Áudio da tela compartilhada
   const remoteVideoTrackRef = useRef<any | null>(null);
   const remoteAudioTrackRef = useRef<any>(null); // Ref para o track de áudio remoto
+  const persistentAudioTrackRef = useRef<any>(null); // Guardar track de áudio entre reconexões para persistência
+  const audioContextResumeRef = useRef<any>(null);
+
+  const [isChannelNotFound, setIsChannelNotFound] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const remoteVideoContainerRef = useRef<HTMLDivElement>(null);
@@ -639,12 +644,15 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       // Verificações de segurança
       if (!role || role !== 'audience') return;
       if (!clientRef.current || !appId || !channelName) return;
-      if (isStreaming || joiningRef.current) return;
+      if (isStreaming || joiningRef.current || isConnecting) return;
       // Só conectar se a transmissão estiver ativa
       if (!isActive) {
-        console.log('⏸️ Transmissão não está ativa, aguardando...');
+        console.log('⏸️ Transmissão não está ativa para o canal:', channelName);
         return;
       }
+
+      setIsConnecting(true);
+      setIsChannelNotFound(false);
 
       // Verificar se já está conectado
       const connectionState = clientRef.current.connectionState;
@@ -673,6 +681,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           token,
           uid || null
         );
+
+        setIsConnecting(false);
+        setIsChannelNotFound(false);
 
 
         console.log('✅ Audience: Conectado ao canal com sucesso! UID:', joinedUid);
@@ -823,7 +834,15 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
         console.error('Erro ao fazer join como audience:', error);
         if (isMounted) {
-          toast.error(`Erro ao conectar: ${error.message || 'Tente atualizar a página'}`);
+          // Detectar erro 404/Canal não encontrado
+          if (error.code === 'INVALID_CHANNEL_NAME' ||
+            error.message?.includes('not found') ||
+            error.message?.includes('invalid')) {
+            setIsChannelNotFound(true);
+            console.warn('⚠️ Canal não encontrado no Agora:', channelName);
+          } else {
+            toast.error(`Erro ao conectar: ${error.message || 'Tente atualizar a página'}`);
+          }
         }
       } finally {
         if (isMounted) {
@@ -981,6 +1000,28 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             throw subscribeError;
           }
           console.log('ℹ️ Já estava subscrito, continuando...');
+        }
+      }
+
+      if (mediaType === 'audio') {
+        const audioTrack = user.audioTrack;
+        if (audioTrack) {
+          console.log('🔊 Áudio remoto detectado, salvando ref e tentando reproduzir...');
+          remoteAudioTrackRef.current = audioTrack;
+          persistentAudioTrackRef.current = audioTrack; // Salvar para persistência
+          setHasAudioAvailable(true);
+
+          // Se o áudio já estava ativado antes de cair a conexão, tentar reativar
+          if (audioActivated) {
+            console.log('🔄 Reativando áudio automaticamente (estado persistente)');
+            try {
+              await audioTrack.play();
+              console.log('✅ Áudio reativado com sucesso');
+            } catch (err) {
+              console.warn('⚠️ Falha ao reativar áudio automaticamente:', err);
+              // Não resetar audioActivated aqui, deixar o usuário tentar clicar se necessário
+            }
+          }
         }
       }
 
@@ -2468,6 +2509,24 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                       <div>
                         <Video className="w-16 h-16 mx-auto mb-2 opacity-50" />
                         <p className="text-sm">Aguardando transmissão...</p>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (isChannelNotFound) {
+                  return (
+                    <div className="text-red-400 text-center absolute inset-0 flex items-center justify-center z-20 bg-slate-900/90 backdrop-blur-sm">
+                      <div className="p-6">
+                        <MonitorSpeaker className="w-16 h-16 mx-auto mb-4 opacity-70" />
+                        <h3 className="text-xl font-bold mb-2">Transmissão Indisponível</h3>
+                        <p className="text-sm max-w-xs mx-auto">Não foi possível localizar este canal de transmissão no momento.</p>
+                        <button
+                          onClick={() => window.location.reload()}
+                          className="mt-6 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm transition-colors border border-slate-700"
+                        >
+                          Tentar Novamente
+                        </button>
                       </div>
                     </div>
                   );

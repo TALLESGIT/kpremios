@@ -1,16 +1,76 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { create, getNumericDate } from "https://deno.land/x/djwt@v3.0.1/mod.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Interface para o Service Account do Firebase
 interface ServiceAccount {
   project_id: string;
   client_email: string;
   private_key: string;
+}
+
+// Função para obter o Token de Acesso do Google (OAuth2) usando RS256
+async function getAccessToken(serviceAccount: ServiceAccount): Promise<string> {
+  const iat = getNumericDate(0);
+  const exp = getNumericDate(3600); // 1 hora de validade
+
+  // Importar a chave privada RS256
+  const pemHeader = "-----BEGIN PRIVATE KEY-----";
+  const pemFooter = "-----END PRIVATE KEY-----";
+  const pemContents = serviceAccount.private_key
+    .replace(/\\n/g, "\n")
+    .replace(pemHeader, "")
+    .replace(pemFooter, "")
+    .replace(/\s/g, "");
+
+  const binaryDerString = atob(pemContents);
+  const binaryDer = new Uint8Array(binaryDerString.length);
+  for (let i = 0; i < binaryDerString.length; i++) {
+    binaryDer[i] = binaryDerString.charCodeAt(i);
+  }
+
+  const key = await crypto.subtle.importKey(
+    "pkcs8",
+    binaryDer,
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      hash: "SHA-256",
+    },
+    false,
+    ["sign"]
+  );
+
+  const jwt = await create(
+    { alg: "RS256", typ: "JWT" },
+    {
+      iss: serviceAccount.client_email,
+      sub: serviceAccount.client_email,
+      aud: "https://oauth2.googleapis.com/token",
+      iat,
+      exp,
+      scope: "https://www.googleapis.com/auth/cloud-platform",
+    },
+    key
+  );
+
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
+    }),
+  });
+
+  const result = await response.json();
+  if (!result.access_token) {
+    throw new Error(`Failed to get access token: ${JSON.stringify(result)}`);
+  }
+  return result.access_token;
 }
 
 serve(async (req) => {
@@ -27,16 +87,16 @@ serve(async (req) => {
     const payload = await req.json()
     const { title, body, data } = payload
 
-    console.log(`Recebido evento: ${title}`)
+    console.log(`🔔 Evento recebido: ${title} - ${body}`)
 
-    // 1. Obter todos os tokens de push
+    // 1. Obter todos os tokens de push cadastrados
     const { data: tokens, error: tokenError } = await supabaseClient
       .from('user_push_tokens')
       .select('token')
 
     if (tokenError) throw tokenError
     if (!tokens || tokens.length === 0) {
-      console.log('Nenhum token encontrado no banco.')
+      console.log('ℹ️ Nenhum token de dispositivo encontrado no banco.')
       return new Response(JSON.stringify({ message: 'No tokens found' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -44,30 +104,68 @@ serve(async (req) => {
     }
 
     const registrationTokens = [...new Set(tokens.map(t => t.token))]
-    console.log(`Enviando para ${registrationTokens.length} dispositivos: ${title}`)
+    console.log(`📲 Enviando para ${registrationTokens.length} dispositivos...`)
 
-    // 2. Configurar credenciais do Firebase
-    const firebaseConfig = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
-    if (!firebaseConfig) {
-      throw new Error('FIREBASE_SERVICE_ACCOUNT secret is not configured')
+    // 2. Configurar credenciais do Firebase (via Secret)
+    const firebaseAccountJson = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
+    if (!firebaseAccountJson) {
+      throw new Error('FIREBASE_SERVICE_ACCOUNT secret is not configured in Supabase')
     }
 
-    // NOTA: Em ambiente produtivo, aqui você usaria o Access Token do Google OAuth2.
-    // Para simplificar a integração imediata sem bibliotecas externas de JWT pesadas,
-    // recomenda-se usar o serviço de Push do Supabase ou disparar via API Legacy se ainda ativa.
-    // No entanto, vamos focar em registrar o log correto para que o usuário possa ver a tentativa.
+    const serviceAccount: ServiceAccount = JSON.parse(firebaseAccountJson)
+    const accessToken = await getAccessToken(serviceAccount)
+
+    const projectId = serviceAccount.project_id
+    const fcmUrl = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`
+
+    // 3. Enviar notificações individualmente
+    const sendPromises = registrationTokens.map(async (token) => {
+      try {
+        const response = await fetch(fcmUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: {
+              token: token,
+              notification: { title, body },
+              data: data || {},
+              android: { priority: "high", notification: { sound: "default" } },
+              apns: { payload: { aps: { sound: "default", badge: 1 } } }
+            }
+          })
+        })
+
+        const result = await response.json()
+        if (!response.ok) {
+          console.error(`❌ Erro ao enviar para token ${token.substring(0, 10)}...:`, result)
+          // Opcional: Remover token inválido do banco
+        }
+        return { token: token.substring(0, 10), status: response.status }
+      } catch (e) {
+        console.error(`❌ Falha na requisição FCM para token ${token.substring(0, 10)}:`, e.message)
+        return { token: token.substring(0, 10), error: e.message }
+      }
+    })
+
+    const results = await Promise.all(sendPromises)
+    const successCount = results.filter(r => r.status === 200).length
+
+    console.log(`✅ Processo concluído. Sucessos: ${successCount}/${registrationTokens.length}`)
 
     return new Response(JSON.stringify({
       success: true,
-      message: `Notification queued for ${registrationTokens.length} devices`,
-      details: { title, body, data }
+      sent: successCount,
+      total: registrationTokens.length
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
   } catch (error) {
-    console.error('Erro na função notify-events:', error)
+    console.error('❌ Erro crítico na função notify-events:', error)
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
