@@ -6,6 +6,18 @@ import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import { Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, Settings, CheckCircle, MessageSquare, Trash2, Video, Tv, Image as ImageIcon, X, Phone } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart as ReBarChart,
+  Bar,
+  Cell
+} from 'recharts';
 
 import UserManagementPanel from '../components/admin/UserManagementPanel';
 import SocialSettingsPanel from '../components/admin/SocialSettingsPanel';
@@ -37,10 +49,8 @@ export default function AdminDashboardPage() {
   const [countdown, setCountdown] = useState(0);
   const [activeVipCount, setActiveVipCount] = useState(0);
   const [paidVipCount, setPaidVipCount] = useState(0);
-  const [expiredVipCount, setExpiredVipCount] = useState(0);
   const [activePoolParticipants, setActivePoolParticipants] = useState(0);
   const [activePoolId, setActivePoolId] = useState<string | null>(null);
-  const [vipPromo103Count, setVipPromo103Count] = useState(0);
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
   const [poolParticipants, setPoolParticipants] = useState<any[]>([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
@@ -48,6 +58,11 @@ export default function AdminDashboardPage() {
   const [allVips, setAllVips] = useState<any[]>([]);
   const [loadingVips, setLoadingVips] = useState(false);
   const [vipFilter, setVipFilter] = useState<'all' | 'active' | 'expired'>('all');
+
+  // Analytics State
+  const [analyticsData, setAnalyticsData] = useState<any[]>([]);
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<7 | 15 | 30>(7);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
   const fetchVips = async () => {
     setLoadingVips(true);
@@ -109,13 +124,8 @@ export default function AdminDashboardPage() {
         const now = new Date();
         const active = allVipUsers.filter(u => !u.vip_expires_at || new Date(u.vip_expires_at) > now).length;
         const paid = allVipUsers.filter(u => u.vip_type === 'paid' && (!u.vip_expires_at || new Date(u.vip_expires_at) > now)).length;
-        const expired = allVipUsers.filter(u => u.vip_expires_at && new Date(u.vip_expires_at) <= now).length;
-
         setActiveVipCount(active);
         setPaidVipCount(paid);
-        setExpiredVipCount(expired);
-        // O valor total de VIPs (Ativos + Expirados) é o tamanho do array allVipUsers
-        setVipPromo103Count(allVipUsers.length);
       }
 
       // 3. Global counters
@@ -131,10 +141,76 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const fetchAnalyticsData = async (days: number) => {
+    setLoadingAnalytics(true);
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      const startDateStr = startDate.toISOString();
+
+      // 1. Fetch Registrations
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('created_at')
+        .gte('created_at', startDateStr)
+        .order('created_at', { ascending: true });
+
+      // 2. Fetch Visitors (last_heartbeat as a proxy for activity)
+      const { data: visitorData, error: visitorError } = await supabase
+        .from('viewer_sessions')
+        .select('created_at, session_id')
+        .gte('created_at', startDateStr)
+        .order('created_at', { ascending: true });
+
+      if (userError || visitorError) throw userError || visitorError;
+
+      // Process data for the chart
+      const dailyMap = new Map();
+
+      // Initialize days
+      for (let i = 0; i <= days; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - (days - i));
+        const dateStr = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        dailyMap.set(dateStr, { date: dateStr, users: 0, sessions: 0 });
+      }
+
+      // Aggregate registrations
+      userData?.forEach(u => {
+        const dateStr = new Date(u.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        if (dailyMap.has(dateStr)) {
+          dailyMap.get(dateStr).users += 1;
+        }
+      });
+
+      // Aggregate visitors (unique sessions per day)
+      const visitorDailyTracker = new Map();
+      visitorData?.forEach(v => {
+        const dateStr = new Date(v.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        if (dailyMap.has(dateStr)) {
+          if (!visitorDailyTracker.has(dateStr)) visitorDailyTracker.set(dateStr, new Set());
+          visitorDailyTracker.get(dateStr).add(v.session_id);
+          dailyMap.get(dateStr).sessions = visitorDailyTracker.get(dateStr).size;
+        }
+      });
+
+      setAnalyticsData(Array.from(dailyMap.values()));
+    } catch (err) {
+      console.error('Erro ao carregar analytics:', err);
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  };
+
   // Initial load
   useEffect(() => {
     fetchDashboardStats();
+    fetchAnalyticsData(analyticsPeriod);
   }, []);
+
+  useEffect(() => {
+    fetchAnalyticsData(analyticsPeriod);
+  }, [analyticsPeriod]);
 
   // Interval updates
   useEffect(() => {
@@ -628,7 +704,7 @@ export default function AdminDashboardPage() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 mb-12 relative z-20">
           {/* Enhanced Stats Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {[
               {
                 label: 'Participantes',
@@ -681,24 +757,6 @@ export default function AdminDashboardPage() {
                   fetchVips();
                 }
               },
-              {
-                label: 'VIPs Expirados', value: expiredVipCount, icon: AlertTriangle, color: 'from-amber-600 to-amber-400', shadow: 'shadow-amber-500/20',
-                clickable: true,
-                onClick: () => {
-                  setVipFilter('expired');
-                  setShowVipListModal(true);
-                  fetchVips();
-                }
-              },
-              {
-                label: 'Total VIPs', value: vipPromo103Count, icon: Hash, color: 'from-blue-600 to-blue-400', shadow: 'shadow-blue-500/20',
-                clickable: true,
-                onClick: () => {
-                  setVipFilter('all');
-                  setShowVipListModal(true);
-                  fetchVips();
-                }
-              },
               { label: 'Selecionados', value: takenNumbersCount, icon: Trophy, color: 'from-amber-600 to-amber-400', shadow: 'shadow-amber-500/20', progress: (takenNumbersCount / totalRaffleNumbers) * 100 },
               { label: 'Conversão', value: `${takenNumbersCount > 0 ? ((takenNumbersCount / totalRaffleNumbers) * 100).toFixed(1) : '0'}%`, icon: BarChart, color: 'from-purple-600 to-purple-400', shadow: 'shadow-purple-500/20' },
             ].map((stat, idx) => (
@@ -731,6 +789,163 @@ export default function AdminDashboardPage() {
               </div>
             ))}
           </div>
+
+          {/* 📊 Análise de Audiência */}
+          <section className="mt-12 mb-16">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 px-2">
+              <div className="flex items-center gap-4">
+                <div className="w-1.5 h-10 bg-gradient-to-b from-blue-500 to-indigo-700 rounded-full"></div>
+                <div>
+                  <h2 className="text-2xl font-black text-white italic uppercase tracking-tight">Análise de Audiência</h2>
+                  <p className="text-blue-300/40 text-[10px] font-black uppercase tracking-[0.3em]">Métricas de Acesso e Crescimento</p>
+                </div>
+              </div>
+
+              <div className="flex items-center bg-slate-900/50 rounded-xl p-1 border border-white/5">
+                {[7, 15, 30].map((days) => (
+                  <button
+                    key={days}
+                    onClick={() => setAnalyticsPeriod(days as any)}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${analyticsPeriod === days
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                      }`}
+                  >
+                    {days} Dias
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="glass-panel p-6 rounded-[2rem] border border-white/5 bg-slate-800/40 relative overflow-hidden group">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Users className="w-5 h-5 text-blue-500" />
+                    Visitantes Diários
+                  </h3>
+                  <div className="px-3 py-1 bg-blue-500/10 rounded-full border border-blue-500/10">
+                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Sessões Ativas</span>
+                  </div>
+                </div>
+
+                <div className="h-[300px] w-full">
+                  {loadingAnalytics ? (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={analyticsData}>
+                        <defs>
+                          <linearGradient id="colorSessions" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                        <XAxis
+                          dataKey="date"
+                          stroke="#ffffff30"
+                          fontSize={10}
+                          tickLine={false}
+                          axisLine={false}
+                          dy={10}
+                        />
+                        <YAxis
+                          stroke="#ffffff30"
+                          fontSize={10}
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(value) => `${value}`}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#0f172a',
+                            borderColor: '#1e293b',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            color: '#fff'
+                          }}
+                          itemStyle={{ color: '#3b82f6' }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="sessions"
+                          stroke="#3b82f6"
+                          strokeWidth={3}
+                          fillOpacity={1}
+                          fill="url(#colorSessions)"
+                          animationDuration={1500}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </div>
+
+              <div className="glass-panel p-6 rounded-[2rem] border border-white/5 bg-slate-800/40 relative overflow-hidden group">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-emerald-500" />
+                    Novos Usuários
+                  </h3>
+                  <div className="px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/10">
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Cadastros</span>
+                  </div>
+                </div>
+
+                <div className="h-[300px] w-full">
+                  {loadingAnalytics ? (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ReBarChart data={analyticsData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                        <XAxis
+                          dataKey="date"
+                          stroke="#ffffff30"
+                          fontSize={10}
+                          tickLine={false}
+                          axisLine={false}
+                          dy={10}
+                        />
+                        <YAxis
+                          stroke="#ffffff30"
+                          fontSize={10}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#0f172a',
+                            borderColor: '#1e293b',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            color: '#fff'
+                          }}
+                          itemStyle={{ color: '#10b981' }}
+                          cursor={{ fill: '#ffffff05' }}
+                        />
+                        <Bar
+                          dataKey="users"
+                          fill="#10b981"
+                          radius={[4, 4, 0, 0]}
+                          animationDuration={1500}
+                        >
+                          {analyticsData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fillOpacity={0.8 + (index / analyticsData.length) * 0.2} />
+                          ))}
+                        </Bar>
+                      </ReBarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
 
           {/* DASHBOARD SECTIONS */}
           <div className="space-y-16 pb-20">
