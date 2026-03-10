@@ -1,29 +1,35 @@
-const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
 
-// Carregamento simples de .env sem dependência externa
-const envPath = path.resolve(process.cwd(), '.env');
-if (!fs.existsSync(envPath)) {
-  console.error('❌ Erro: Arquivo .env não encontrado em:', envPath);
-  process.exit(1);
+// 1. Tentar ler do .env como fallback
+const env = {};
+try {
+  const envPath = path.resolve(process.cwd(), '.env');
+  if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, 'utf8');
+    envContent.split('\n').forEach(line => {
+      const [key, ...value] = line.split('=');
+      if (key && value && key.trim() && !key.trim().startsWith('#')) {
+        env[key.trim()] = value.join('=').trim().replace(/^'(.*)'$/, '$1').replace(/^"(.*)"$/, '$1');
+      }
+    });
+  }
+} catch (e) {
+  console.warn('⚠️  Aviso: Falha ao ler arquivo .env opcional.');
 }
 
-const envContent = fs.readFileSync(envPath, 'utf8');
-const env = {};
-envContent.split('\n').forEach(line => {
-  const [key, ...value] = line.split('=');
-  if (key && value && key.trim()) {
-    env[key.trim()] = value.join('=').trim().replace(/^"(.*)"$/, '$1');
-  }
-});
-
-const supabaseUrl = env.VITE_SUPABASE_URL;
-const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY || env.VITE_SUPABASE_ANON_KEY;
-const footballApiKey = env.VITE_FOOTBALL_API_KEY;
+// 2. Priorizar process.env (passado pelo server.js ou shell)
+const supabaseUrl = process.env.VITE_SUPABASE_URL || env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY ||
+  env.SUPABASE_SERVICE_ROLE_KEY || env.VITE_SUPABASE_ANON_KEY;
+const footballApiKey = process.env.VITE_FOOTBALL_API_KEY || env.VITE_FOOTBALL_API_KEY;
 
 if (!supabaseUrl || !supabaseKey || !footballApiKey) {
-  console.error('Erro: Variáveis de ambiente faltando no .env');
+  console.error('❌ Erro: Variáveis de ambiente faltando.');
+  if (!supabaseUrl) console.error('- VITE_SUPABASE_URL não definida');
+  if (!supabaseKey) console.error('- SUPABASE_SERVICE_ROLE_KEY / VITE_SUPABASE_ANON_KEY não definida');
+  if (!footballApiKey) console.error('- VITE_FOOTBALL_API_KEY não definida');
   process.exit(1);
 }
 
