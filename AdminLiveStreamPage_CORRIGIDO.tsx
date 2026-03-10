@@ -103,7 +103,7 @@ const AdminLiveStreamPage: React.FC = () => {
         const { error: clearError } = await supabase.rpc('clear_stream_data', {
           p_stream_id: previousStreamId
         });
-        
+
         if (clearError) {
           console.error('Erro ao limpar dados anteriores:', clearError);
           toast.error('Erro ao limpar dados da transmissão anterior');
@@ -114,7 +114,7 @@ const AdminLiveStreamPage: React.FC = () => {
 
       // Gerar channel_name personalizado baseado no título
       let titleSlug = generateSlugFromTitle(newStreamTitle.trim());
-      
+
       // Se o slug estiver vazio, usar um padrão
       if (!titleSlug) {
         titleSlug = `stream_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -125,19 +125,19 @@ const AdminLiveStreamPage: React.FC = () => {
           .select('channel_name')
           .eq('channel_name', titleSlug)
           .limit(1);
-        
+
         // Se já existir, adicionar um sufixo numérico
         if (existingStreams && existingStreams.length > 0) {
           let counter = 1;
           let newSlug = `${titleSlug}${counter}`;
-          
+
           while (true) {
             const { data: checkStreams } = await supabase
               .from('live_streams')
               .select('channel_name')
               .eq('channel_name', newSlug)
               .limit(1);
-            
+
             if (!checkStreams || checkStreams.length === 0) {
               titleSlug = newSlug;
               break;
@@ -147,7 +147,7 @@ const AdminLiveStreamPage: React.FC = () => {
           }
         }
       }
-      
+
       const channelName = titleSlug;
 
       const { data, error } = await supabase
@@ -230,7 +230,15 @@ const AdminLiveStreamPage: React.FC = () => {
       console.log('✅ Transmissão marcada como ativa. O ZK Studio Pro deve iniciar a transmissão via Agora.io.');
     } catch (error: any) {
       console.error('Erro ao atualizar transmissão:', error);
-      toast.error(error.message || 'Erro ao atualizar transmissão');
+
+      // Se for erro 404, a transmissão pode ter sido deletada
+      if (error.code === 'PGRST116' || error.message?.includes('404')) {
+        toast.error('Esta transmissão não foi encontrada. Recarregando lista...');
+        await loadStreams();
+        setSelectedStream(null);
+      } else {
+        toast.error(error.message || 'Erro ao atualizar transmissão');
+      }
     }
   };
 
@@ -258,7 +266,7 @@ const AdminLiveStreamPage: React.FC = () => {
       const { error: cleanupError } = await supabase.rpc('cleanup_chat_on_stream_end', {
         p_stream_id: selectedStream.id
       });
-      
+
       if (cleanupError) {
         console.error('Erro ao limpar chat:', cleanupError);
       }
@@ -266,7 +274,7 @@ const AdminLiveStreamPage: React.FC = () => {
       // Atualizar viewer_count para 0
       const { data: updatedStream, error: updateError } = await supabase
         .from('live_streams')
-        .update({ 
+        .update({
           is_active: false,
           viewer_count: 0
         })
@@ -423,7 +431,7 @@ const AdminLiveStreamPage: React.FC = () => {
           <div className="bg-slate-800 rounded-lg p-6 w-full max-w-md border border-slate-700">
             <h2 className="text-xl font-bold text-white mb-4">Limpar Dados da Transmissão Anterior?</h2>
             <p className="text-slate-300 mb-6">
-              Existe uma transmissão anterior com dados (viewers, mensagens, etc). 
+              Existe uma transmissão anterior com dados (viewers, mensagens, etc).
               Deseja limpar todos os dados da transmissão anterior antes de criar a nova?
             </p>
             <div className="flex gap-3">
@@ -465,58 +473,58 @@ const AdminLiveStreamPage: React.FC = () => {
           /* Lista de Transmissões */
           <div className="max-w-4xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {streams.length === 0 ? (
-              <div className="col-span-full text-center py-12">
-                <Video className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                <p className="text-slate-400 text-lg">Nenhuma transmissão criada ainda</p>
-                <p className="text-slate-500 text-sm mt-2">
-                  Clique em "Nova Transmissão" para começar
-                </p>
-              </div>
-            ) : (
-              streams.map((stream) => (
-                <div
-                  key={stream.id}
-                  className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-amber-500/50 transition-all cursor-pointer"
-                  onClick={() => setSelectedStream(stream)}
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-white mb-1">{stream.title}</h3>
-                      {stream.description && (
-                        <p className="text-sm text-slate-400 line-clamp-2">
-                          {stream.description}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteStream(stream.id);
-                      }}
-                      className="text-red-400 hover:text-red-300 transition-colors"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {stream.is_active ? (
-                        <>
-                          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                          <span className="text-sm text-red-400 font-medium">AO VIVO</span>
-                        </>
-                      ) : (
-                        <span className="text-sm text-slate-500">Inativa</span>
-                      )}
-                    </div>
-                    <span className="text-xs text-slate-500">
-                      {new Date(stream.created_at).toLocaleDateString('pt-BR')}
-                    </span>
-                  </div>
+              {streams.length === 0 ? (
+                <div className="col-span-full text-center py-12">
+                  <Video className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+                  <p className="text-slate-400 text-lg">Nenhuma transmissão criada ainda</p>
+                  <p className="text-slate-500 text-sm mt-2">
+                    Clique em "Nova Transmissão" para começar
+                  </p>
                 </div>
-              ))
-            )}
+              ) : (
+                streams.map((stream) => (
+                  <div
+                    key={stream.id}
+                    className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-amber-500/50 transition-all cursor-pointer"
+                    onClick={() => setSelectedStream(stream)}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-white mb-1">{stream.title}</h3>
+                        {stream.description && (
+                          <p className="text-sm text-slate-400 line-clamp-2">
+                            {stream.description}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteStream(stream.id);
+                        }}
+                        className="text-red-400 hover:text-red-300 transition-colors"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {stream.is_active ? (
+                          <>
+                            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                            <span className="text-sm text-red-400 font-medium">AO VIVO</span>
+                          </>
+                        ) : (
+                          <span className="text-sm text-slate-500">Inativa</span>
+                        )}
+                      </div>
+                      <span className="text-xs text-slate-500">
+                        {new Date(stream.created_at).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         ) : (

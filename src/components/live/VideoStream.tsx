@@ -101,6 +101,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const [isPictureInPicture, setIsPictureInPicture] = useState(false);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const reconnectTimeoutRef = useRef<number | null>(null);
+  const streamingTimeoutRef = useRef<any>(null);
   const maxReconnectAttempts = 6;
   const lastChannelInfoRef = useRef<{ channelName: string; appId: string; token: string | null; uid: number | null } | null>(null);
   const [showAudioControls, setShowAudioControls] = useState(false);
@@ -991,6 +992,11 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
           // Atualizar estado quando vídeo for recebido
           if (role === 'audience') {
+            // Limpar qualquer timeout de queda de stream pendente
+            if (streamingTimeoutRef.current) {
+              clearTimeout(streamingTimeoutRef.current);
+              streamingTimeoutRef.current = null;
+            }
             setHasRemoteUsers(true);
             setIsStreaming(true); // Marcar como streaming quando receber vídeo
           }
@@ -1024,10 +1030,18 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                     pointer-events: auto !important;
                   `;
 
+                  // Forçar atributos para Autoplay no Mobile/Capacitor
+                  videoElement.muted = true;
+                  videoElement.autoplay = true;
+                  videoElement.controls = false;
+                  videoElement.setAttribute('playsinline', 'true');
+                  videoElement.setAttribute('webkit-playsinline', 'true');
+                  videoElement.setAttribute('x5-playsinline', 'true');
+
                   // Forçar play se estiver pausado
                   if (videoElement.paused) {
                     videoElement.play().catch((err: unknown) => {
-                      console.error('Erro ao forçar play do vídeo:', err);
+                      console.warn('⚠️ Autoplay bloqueado ou falhou:', err);
                     });
                   }
 
@@ -1131,13 +1145,21 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       remoteVideoTrackRef.current?.stop();
       remoteVideoTrackRef.current = null;
 
-      // Atualizar estado quando vídeo for removido
+      // Atualizar estado quando vídeo for removido - com debounce para evitar oscilações
       if (role === 'audience' && clientRef.current) {
         const hasOtherUsers = clientRef.current.remoteUsers.some((u: any) => u.uid !== user.uid && u.hasVideo);
 
         if (!hasOtherUsers) {
-          setHasRemoteUsers(false);
-          setIsStreaming(false);
+          console.log('⏳ Vídeo removido, aguardando 3s antes de fechar a live (debounce)...');
+
+          if (streamingTimeoutRef.current) clearTimeout(streamingTimeoutRef.current);
+
+          streamingTimeoutRef.current = setTimeout(() => {
+            console.log('🔴 Encerrando live após timeout de estabilidade');
+            setHasRemoteUsers(false);
+            setIsStreaming(false);
+            streamingTimeoutRef.current = null;
+          }, 3000); // 3 segundos de tolerância para oscilações de rede
         }
       }
     }
