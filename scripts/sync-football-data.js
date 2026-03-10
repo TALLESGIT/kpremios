@@ -5,8 +5,15 @@ const { createClient } = require('@supabase/supabase-js');
 // 1. Tentar ler do .env como fallback
 const env = {};
 try {
-  const envPath = path.resolve(process.cwd(), '.env');
-  if (fs.existsSync(envPath)) {
+  const possibleEnvPaths = [
+    path.resolve(process.cwd(), '.env'),
+    path.resolve(__dirname, '.env'),
+    path.resolve(__dirname, '..', '.env')
+  ];
+
+  const envPath = possibleEnvPaths.find(p => fs.existsSync(p));
+  if (envPath) {
+    console.log(`📝 [Automação] Carregando configurações de: ${envPath}`);
     const envContent = fs.readFileSync(envPath, 'utf8');
     envContent.split('\n').forEach(line => {
       const [key, ...value] = line.split('=');
@@ -14,9 +21,11 @@ try {
         env[key.trim()] = value.join('=').trim().replace(/^'(.*)'$/, '$1').replace(/^"(.*)"$/, '$1');
       }
     });
+  } else {
+    console.warn('⚠️  Aviso: Arquivo .env não encontrado nos locais padrão.');
   }
 } catch (e) {
-  console.warn('⚠️  Aviso: Falha ao ler arquivo .env opcional.');
+  console.warn('⚠️  Aviso: Falha ao ler arquivo .env:', e.message);
 }
 
 // 2. Priorizar process.env (passado pelo server.js ou shell)
