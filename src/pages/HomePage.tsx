@@ -300,6 +300,23 @@ function HomePage() {
                   <Tv className="w-4 h-4 sm:w-6 sm:h-6 text-blue-400 group-hover:scale-110 transition-transform" />
                   ASSISTIR LIVES
                 </Link>
+                <button
+                  onClick={() => {
+                    if (activePool) {
+                      setShowPoolModal(true);
+                    } else {
+                      const section = document.getElementById('bolao-section');
+                      if (section) {
+                        section.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }
+                  }}
+                  className="px-6 sm:px-10 py-3 sm:py-5 bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white rounded-xl sm:rounded-2xl font-black text-xs sm:text-lg transition-all duration-300 backdrop-blur-md border border-emerald-400/50 flex items-center justify-center gap-2 sm:gap-3 overflow-hidden relative group active:scale-95 shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:shadow-[0_0_30px_rgba(16,185,129,0.6)] animate-pulse-subtle"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer" />
+                  <Trophy className="w-4 h-4 sm:w-6 sm:h-6 text-white group-hover:scale-110 transition-transform drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
+                  PARTICIPAR DO BOLÃO
+                </button>
                 <Link
                   to="/competicoes"
                   className="px-6 sm:px-10 py-3 sm:py-5 bg-gradient-to-br from-white/10 to-transparent hover:bg-white/15 text-white rounded-xl sm:rounded-2xl font-black text-xs sm:text-lg transition-all duration-300 backdrop-blur-md border border-white/10 flex items-center justify-center gap-2 sm:gap-3 overflow-hidden relative group active:scale-95 sm:hidden"
@@ -500,7 +517,7 @@ function HomePage() {
           </section>
 
           {/* Cards Grid */}
-          <section className={`grid grid-cols-1 md:grid-cols-2 ${activePool && activePool.is_active ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-8`}>
+          <section id="bolao-section" className={`grid grid-cols-1 md:grid-cols-2 ${activePool && activePool.is_active ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-8`}>
             {activePool && activePool.is_active && (
               <div className="glass-panel p-6 rounded-3xl text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 hover:-translate-y-2 border-2 border-emerald-500/30 shadow-2xl shadow-emerald-900/30">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600 animate-pulse"></div>

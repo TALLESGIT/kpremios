@@ -61,7 +61,7 @@ export default function AdminDashboardPage() {
 
   // Analytics State
   const [analyticsData, setAnalyticsData] = useState<any[]>([]);
-  const [analyticsPeriod, setAnalyticsPeriod] = useState<7 | 15 | 30>(7);
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<1 | 7 | 15 | 30>(7);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
   const fetchVips = async () => {
@@ -167,32 +167,65 @@ export default function AdminDashboardPage() {
       // Process data for the chart
       const dailyMap = new Map();
 
-      // Initialize days
-      for (let i = 0; i <= days; i++) {
-        const d = new Date();
-        d.setDate(d.getDate() - (days - i));
-        const dateStr = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-        dailyMap.set(dateStr, { date: dateStr, users: 0, sessions: 0 });
+      if (days === 1) {
+        // Initialize hours for the last 24 hours
+        for (let i = 0; i <= 24; i++) {
+          const d = new Date();
+          d.setHours(d.getHours() - (24 - i), 0, 0, 0);
+          const hourStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          dailyMap.set(hourStr, { date: hourStr, users: 0, sessions: 0 });
+        }
+
+        // Aggregate registrations by hour
+        userData?.forEach(u => {
+          const d = new Date(u.created_at);
+          d.setMinutes(0, 0, 0);
+          const hourStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          if (dailyMap.has(hourStr)) {
+            dailyMap.get(hourStr).users += 1;
+          }
+        });
+
+        // Aggregate visitors by hour
+        const visitorHourTracker = new Map();
+        visitorData?.forEach(v => {
+          const d = new Date(v.created_at);
+          d.setMinutes(0, 0, 0);
+          const hourStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          if (dailyMap.has(hourStr)) {
+            if (!visitorHourTracker.has(hourStr)) visitorHourTracker.set(hourStr, new Set());
+            visitorHourTracker.get(hourStr).add(v.session_id);
+            dailyMap.get(hourStr).sessions = visitorHourTracker.get(hourStr).size;
+          }
+        });
+      } else {
+        // Initialize days
+        for (let i = 0; i <= days; i++) {
+          const d = new Date();
+          d.setDate(d.getDate() - (days - i));
+          const dateStr = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+          dailyMap.set(dateStr, { date: dateStr, users: 0, sessions: 0 });
+        }
+
+        // Aggregate registrations
+        userData?.forEach(u => {
+          const dateStr = new Date(u.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+          if (dailyMap.has(dateStr)) {
+            dailyMap.get(dateStr).users += 1;
+          }
+        });
+
+        // Aggregate visitors (unique sessions per day)
+        const visitorDailyTracker = new Map();
+        visitorData?.forEach(v => {
+          const dateStr = new Date(v.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+          if (dailyMap.has(dateStr)) {
+            if (!visitorDailyTracker.has(dateStr)) visitorDailyTracker.set(dateStr, new Set());
+            visitorDailyTracker.get(dateStr).add(v.session_id);
+            dailyMap.get(dateStr).sessions = visitorDailyTracker.get(dateStr).size;
+          }
+        });
       }
-
-      // Aggregate registrations
-      userData?.forEach(u => {
-        const dateStr = new Date(u.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-        if (dailyMap.has(dateStr)) {
-          dailyMap.get(dateStr).users += 1;
-        }
-      });
-
-      // Aggregate visitors (unique sessions per day)
-      const visitorDailyTracker = new Map();
-      visitorData?.forEach(v => {
-        const dateStr = new Date(v.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-        if (dailyMap.has(dateStr)) {
-          if (!visitorDailyTracker.has(dateStr)) visitorDailyTracker.set(dateStr, new Set());
-          visitorDailyTracker.get(dateStr).add(v.session_id);
-          dailyMap.get(dateStr).sessions = visitorDailyTracker.get(dateStr).size;
-        }
-      });
 
       setAnalyticsData(Array.from(dailyMap.values()));
     } catch (err) {
@@ -802,7 +835,7 @@ export default function AdminDashboardPage() {
               </div>
 
               <div className="flex items-center bg-slate-900/50 rounded-xl p-1 border border-white/5">
-                {[7, 15, 30].map((days) => (
+                {[1, 7, 15, 30].map((days) => (
                   <button
                     key={days}
                     onClick={() => setAnalyticsPeriod(days as any)}
@@ -811,7 +844,7 @@ export default function AdminDashboardPage() {
                       : 'text-slate-400 hover:text-white hover:bg-white/5'
                       }`}
                   >
-                    {days} Dias
+                    {days === 1 ? '24 Horas' : `${days} Dias`}
                   </button>
                 ))}
               </div>
