@@ -1,10 +1,13 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import AgoraRTC from 'agora-rtc-sdk-ng';
-import { Video, VideoOff, Mic, MicOff, Volume2, MonitorSpeaker, Square } from 'lucide-react';
+import { Video, VideoOff, Volume2, MonitorSpeaker, Square } from 'lucide-react';
+
 import { toast } from 'react-hot-toast';
 import MobileVideoPlayer from './MobileVideoPlayer';
 
-const FIXED_CHANNEL = 'ZkPremios';
+// Removendo canal fixo para usar o dinâmico
+// const FIXED_CHANNEL = 'ZkPremios';
+
 
 // interfaces locais para evitar conflitos de namespace
 interface ILocalVideoTrack {
@@ -12,7 +15,7 @@ interface ILocalVideoTrack {
   enabled: boolean;
   isPlaying: boolean;
   muted: boolean;
-  play(element: HTMLElement, config?: any): Promise<void>;
+  play(element: HTMLElement | string, config?: any): void; // Alterado de Promise<void> para void
   stop(): void;
   close(): void;
   setEnabled(enabled: boolean): Promise<void>;
@@ -21,11 +24,12 @@ interface ILocalVideoTrack {
   on(event: string, callback: (...args: any[]) => void): void;
 }
 
+
 interface ILocalAudioTrack {
   getTrackId(): string;
   enabled: boolean;
   muted: boolean;
-  play(): Promise<void>;
+  play(): void; // Alterado de Promise<void> para void
   stop(): void;
   close(): void;
   setEnabled(enabled: boolean): Promise<void>;
@@ -34,10 +38,12 @@ interface ILocalAudioTrack {
   setVolume?(volume: number): void;
 }
 
+
 interface IRemoteVideoTrack {
   stop(): void;
-  play(element: HTMLElement, config?: any): Promise<void>;
+  play(element: HTMLElement | string, config?: any): void; // Alterado de Promise<void> para void
 }
+
 
 interface IAgoraRTCRemoteUser {
   uid: number | string;
@@ -49,20 +55,9 @@ interface IAgoraRTCRemoteUser {
 
 type ConnectionState = 'CONNECTED' | 'CONNECTING' | 'RECONNECTING' | 'DISCONNECTING' | 'DISCONNECTED' | 'FAILED';
 
-interface IAgoraRTCClient {
-  connectionState: ConnectionState;
-  role?: 'host' | 'audience';
-  localTracks: Array<ILocalVideoTrack | ILocalAudioTrack>;
-  remoteUsers: IAgoraRTCRemoteUser[];
-  join(appId: string, channel: string, token: string | null, uid: number | string | null): Promise<number | string>;
-  leave(): Promise<void>;
-  publish(track: ILocalVideoTrack | ILocalAudioTrack | any): Promise<void>;
-  unpublish(track: ILocalVideoTrack | ILocalAudioTrack | any): Promise<void>;
-  subscribe(user: IAgoraRTCRemoteUser, mediaType: 'audio' | 'video'): Promise<void>;
-  setClientRole(role: 'host' | 'audience', options?: { level: number }): Promise<void>;
-  on(event: string, callback: (...args: any[]) => void): void;
-  removeAllListeners(): void;
-}
+
+
+
 
 interface VideoStreamProps {
   channelName: string;
@@ -95,7 +90,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const [selectedCamera, setSelectedCamera] = useState<string | null>(cameraDeviceId || null);
   const [availableMicrophones, setAvailableMicrophones] = useState<MediaDeviceInfo[]>([]);
   const [selectedMicrophone, setSelectedMicrophone] = useState<string | null>(null);
-  const [previewTrack, setPreviewTrack] = useState<ILocalVideoTrack | null>(null);
+  const [previewTrack, setPreviewTrack] = useState<any | null>(null);
+
   // Controles de volume para múltiplos áudios
   const [cameraAudioVolume, setCameraAudioVolume] = useState(100);
   const [screenAudioVolume, setScreenAudioVolume] = useState(100);
@@ -113,12 +109,13 @@ const VideoStream: React.FC<VideoStreamProps> = ({
   const [audioActivated, setAudioActivated] = useState(false); // Se o usuário ativou o áudio manualmente
   const [hasAudioAvailable, setHasAudioAvailable] = useState(false); // Se há áudio disponível para reproduzir
 
-  const clientRef = useRef<IAgoraRTCClient | null>(null);
-  const localVideoTrackRef = useRef<ILocalVideoTrack | null>(null);
-  const localAudioTrackRef = useRef<ILocalAudioTrack | null>(null);
-  const screenAudioTrackRef = useRef<ILocalAudioTrack | null>(null); // Áudio da tela compartilhada
-  const remoteVideoTrackRef = useRef<IRemoteVideoTrack | null>(null);
+  const clientRef = useRef<any | null>(null);
+  const localVideoTrackRef = useRef<any | null>(null);
+  const localAudioTrackRef = useRef<any | null>(null);
+  const screenAudioTrackRef = useRef<any | null>(null); // Áudio da tela compartilhada
+  const remoteVideoTrackRef = useRef<any | null>(null);
   const remoteAudioTrackRef = useRef<any>(null); // Ref para o track de áudio remoto
+
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const remoteVideoContainerRef = useRef<HTMLDivElement>(null);
 
@@ -172,7 +169,9 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         }
 
         // Fazer join novamente
-        const uidResponse = await clientRef.current.join(appId, FIXED_CHANNEL, token, uid || null);
+        // Fazer join novamente
+        const uidResponse = await clientRef.current.join(appId, channelName, token, uid || null);
+
 
         // Configurar role
         if (role === 'host') {
@@ -441,7 +440,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       if (microphones.length > 0 && !selectedMicrophone) {
         setSelectedMicrophone(microphones[0].deviceId);
       }
-    } catch (error) {
+    } catch (error: any) {
+
       console.error('Erro ao carregar dispositivos:', error);
       toast.error('Erro ao carregar dispositivos de vídeo/áudio');
     }
@@ -557,9 +557,10 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           setIsStreaming(false);
 
           // Desconectar do canal
-          clientRef.current.leave().catch(err => {
+          clientRef.current.leave().catch((err: any) => {
             console.error('Erro ao sair do canal:', err);
           });
+
         }
       }
     }
@@ -579,10 +580,11 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
         await clientRef.current!.join(
           appId,
-          FIXED_CHANNEL,
+          channelName,
           token,
           uid || null
         );
+
 
         if (!isMounted) {
           await clientRef.current!.leave();
@@ -666,10 +668,11 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         // Fazer join no canal
         const joinedUid = await clientRef.current.join(
           appId,
-          FIXED_CHANNEL,
+          channelName,
           token,
           uid || null
         );
+
 
         console.log('✅ Audience: Conectado ao canal com sucesso! UID:', joinedUid);
 
@@ -716,7 +719,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               if (remoteUser.hasVideo) {
                 if (remoteUser.videoTrack) {
                   console.log('📹 Vídeo já está publicado, fazendo subscribe...');
-                  handleUserPublished(remoteUser, 'video').catch(err => {
+                  handleUserPublished(remoteUser, 'video').catch((err: any) => {
+
                     console.error('Erro ao fazer subscribe do vídeo:', err);
                   });
                 } else {
@@ -728,14 +732,15 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                     setTimeout(() => {
                       if (remoteUser.videoTrack) {
                         console.log('✅ Track de vídeo apareceu após subscribe!');
-                        handleUserPublished(remoteUser, 'video').catch(err => {
+                        handleUserPublished(remoteUser, 'video').catch((err: any) => {
                           console.error('Erro ao reproduzir vídeo após subscribe:', err);
                         });
                       }
                     }, 1000);
-                  }).catch(err => {
+                  }).catch((err: any) => {
                     console.error('Erro ao fazer subscribe de vídeo:', err);
                   });
+
                 }
               } else {
                 console.log('ℹ️ Usuário remoto não tem vídeo ainda (hasVideo=false)');
@@ -751,7 +756,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
                 if (remoteUser.audioTrack) {
                   console.log('✅ Track de áudio encontrado, fazendo subscribe...');
-                  handleUserPublished(remoteUser, 'audio').catch(err => {
+                  handleUserPublished(remoteUser, 'audio').catch((err: any) => {
+
                     console.error('❌ Erro ao fazer subscribe de áudio:', err);
                   });
                 } else {
@@ -760,7 +766,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                   setTimeout(() => {
                     if (remoteUser.audioTrack) {
                       console.log('✅ Track de áudio apareceu, fazendo subscribe...');
-                      handleUserPublished(remoteUser, 'audio').catch(err => {
+                      handleUserPublished(remoteUser, 'audio').catch((err: any) => {
+
                         console.error('❌ Erro ao fazer subscribe de áudio (retry):', err);
                       });
                     } else {
@@ -861,7 +868,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         try {
           remoteAudioTrack.setVolume(100); // Volume máximo
           console.log('🔊 Volume do áudio remoto ajustado para 100%');
-        } catch (volError) {
+        } catch (volError: any) {
+
           console.warn('⚠️ Não foi possível ajustar volume:', volError);
         }
       }
@@ -1058,7 +1066,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                     console.log('✅ Vídeo remoto reproduzido após retry');
                     setHasVideoElement(true);
                   }
-                } catch (retryError) {
+                } catch (retryError: any) {
+
                   console.error('❌ Erro no retry de reprodução:', retryError);
                 }
               }, 1000);
@@ -1072,7 +1081,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                   await remoteVideoTrackRef.current.play(remoteVideoContainerRef.current);
                   console.log('✅ Vídeo remoto reproduzido após container ficar disponível');
                   setHasVideoElement(true);
-                } catch (err) {
+                } catch (err: any) {
+
                   console.error('Erro ao reproduzir após container disponível:', err);
                 }
               }
@@ -1094,7 +1104,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           if (audioActivated) {
             try {
               await playRemoteAudio(remoteAudioTrack);
-            } catch (error) {
+            } catch (error: any) {
+
               console.error('❌ Erro ao reproduzir áudio após ativação:', error);
             }
           } else {
@@ -1122,7 +1133,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
       // Atualizar estado quando vídeo for removido
       if (role === 'audience' && clientRef.current) {
-        const hasOtherUsers = clientRef.current.remoteUsers.some(u => u.uid !== user.uid && u.hasVideo);
+        const hasOtherUsers = clientRef.current.remoteUsers.some((u: any) => u.uid !== user.uid && u.hasVideo);
+
         if (!hasOtherUsers) {
           setHasRemoteUsers(false);
           setIsStreaming(false);
@@ -1156,7 +1168,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     if (user.hasVideo) {
       if (user.videoTrack) {
         console.log('📹 Usuário já tem vídeo publicado ao entrar, fazendo subscribe...');
-        handleUserPublished(user, 'video').catch(err => {
+        handleUserPublished(user, 'video').catch((err: any) => {
+
           console.error('Erro ao fazer subscribe do vídeo já publicado:', err);
         });
       } else {
@@ -1173,7 +1186,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
               if (updatedUser?.videoTrack) {
                 console.log('✅ Track de vídeo apareceu após subscribe!');
                 clearInterval(checkTrack);
-                handleUserPublished(updatedUser, 'video').catch(err => {
+                handleUserPublished(updatedUser, 'video').catch((err: any) => {
+
                   console.error('Erro ao reproduzir vídeo após track aparecer:', err);
                 });
               } else if (attempts >= 10) {
@@ -1181,7 +1195,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                 clearInterval(checkTrack);
               }
             }, 500);
-          }).catch(err => {
+          }).catch((err: any) => {
+
             console.error('Erro ao fazer subscribe de vídeo:', err);
           });
         }
@@ -1197,7 +1212,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
       if (user.audioTrack) {
         console.log('✅ Track de áudio encontrado ao entrar, fazendo subscribe...');
-        handleUserPublished(user, 'audio').catch(err => {
+        handleUserPublished(user, 'audio').catch((err: any) => {
+
           console.error('❌ Erro ao fazer subscribe do áudio já publicado:', err);
         });
       } else {
@@ -1286,10 +1302,11 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         // Conectar ao canal com role correto
         await clientRef.current.join(
           appId,
-          FIXED_CHANNEL,
+          channelName,
           token,
           uid || null
         );
+
 
         // Configurar role após join (importante para modo live)
         await clientRef.current.setClientRole('host');
@@ -1680,7 +1697,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     if (startStreaming && role === 'host' && !isStreaming && clientRef.current && appId && channelName && selectedCamera) {
       console.log('🚀 Auto-iniciando stream (startStreaming=true)...');
       const timer = setTimeout(() => {
-        startStream().catch(err => {
+        startStream().catch((err: any) => {
+
           console.error('Erro ao auto-iniciar stream:', err);
           if (onStreamError) {
             onStreamError(err);
@@ -1701,7 +1719,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         try {
           localVideoTrackRef.current.stop();
           localVideoTrackRef.current.close();
-        } catch (err) {
+        } catch (err: any) {
+
           console.error('Erro ao parar vídeo:', err);
         }
         localVideoTrackRef.current = null;
@@ -1711,7 +1730,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         try {
           localAudioTrackRef.current.stop();
           localAudioTrackRef.current.close();
-        } catch (err) {
+        } catch (err: any) {
+
           console.error('Erro ao parar áudio:', err);
         }
         localAudioTrackRef.current = null;
@@ -1721,7 +1741,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         try {
           screenAudioTrackRef.current.stop();
           screenAudioTrackRef.current.close();
-        } catch (err) {
+        } catch (err: any) {
+
           console.error('Erro ao parar áudio da tela:', err);
         }
         screenAudioTrackRef.current = null;
@@ -1732,7 +1753,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         try {
           previewTrack.stop();
           previewTrack.close();
-        } catch (err) {
+        } catch (err: any) {
+
           console.error('Erro ao parar preview:', err);
         }
         setPreviewTrack(null);
@@ -1742,7 +1764,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       if (remoteVideoTrackRef.current) {
         try {
           remoteVideoTrackRef.current.stop();
-        } catch (err) {
+        } catch (err: any) {
+
           console.error('Erro ao parar vídeo remoto:', err);
         }
         remoteVideoTrackRef.current = null;
@@ -1752,7 +1775,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       if (clientRef.current) {
         try {
           await clientRef.current.leave();
-        } catch (err) {
+        } catch (err: any) {
+
           console.error('Erro ao sair do canal:', err);
         }
       }
@@ -1761,7 +1785,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       if (desktopAudioStreamRef.current) {
         try {
           desktopAudioStreamRef.current.getTracks().forEach(track => track.stop());
-        } catch (err) {
+        } catch (err: any) {
+
           console.error('Erro ao parar stream de áudio do desktop:', err);
         }
         desktopAudioStreamRef.current = null;
@@ -1783,13 +1808,15 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           track.stop();
           console.log('🛑 Track de mídia parado:', track.kind);
         });
-      } catch (err) {
+      } catch (err: any) {
+
         // Não é um erro crítico se não houver streams ativos
         console.log('ℹ️ Nenhum stream de mídia ativo para parar');
       }
 
       toast.success('Transmissão encerrada e câmera desligada');
-    } catch (error) {
+    } catch (error: any) {
+
       console.error('Erro ao parar stream:', error);
       toast.error('Erro ao encerrar transmissão');
     }
@@ -1896,7 +1923,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       if (screenAudioTrack.setVolume && typeof screenAudioTrack.setVolume === 'function') {
         try {
           screenAudioTrack.setVolume(screenAudioVolume);
-        } catch (volError) {
+        } catch (volError: any) {
+
           console.warn('⚠️ Não foi possível ajustar volume inicial:', volError);
         }
       }
@@ -1965,7 +1993,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       setIsCapturingDesktopAudio(false);
       toast.success('Captura de áudio do sistema encerrada');
       console.log('🛑 Áudio do sistema parado');
-    } catch (error) {
+    } catch (error: any) {
+
       console.error('Erro ao parar áudio do sistema:', error);
     }
   };
@@ -1987,7 +2016,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
       try {
         await localVideoTrackRef.current.setDevice(deviceId);
         toast.success('Câmera alterada durante transmissão');
-      } catch (error) {
+      } catch (error: any) {
+
         console.error('Erro ao trocar câmera:', error);
         toast.error('Erro ao trocar câmera. Tente parar e reiniciar a transmissão.');
       }
@@ -2157,7 +2187,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
           }
           // Fallback: tentar requestFullscreen no video
           if (videoElement.requestFullscreen) {
-            videoElement.requestFullscreen().catch((err) => {
+            videoElement.requestFullscreen().catch((err: any) => {
+
               console.error('Erro ao entrar em fullscreen (iOS):', err);
             });
             return;
@@ -2172,7 +2203,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
       // Para outros navegadores, usar APIs padrão
       if (container.requestFullscreen) {
-        container.requestFullscreen().catch((err) => {
+        container.requestFullscreen().catch((err: any) => {
+
           console.error('Erro ao entrar em fullscreen:', err);
         });
       } else if ((container as any).webkitRequestFullscreen) {
@@ -2185,7 +2217,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     } else {
       // Sair do fullscreen
       if (document.exitFullscreen) {
-        document.exitFullscreen().catch((err) => {
+        document.exitFullscreen().catch((err: any) => {
+
           console.error('Erro ao sair do fullscreen:', err);
         });
       } else if ((document as any).webkitExitFullscreen) {
