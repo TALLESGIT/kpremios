@@ -18,8 +18,12 @@ Write-Host "[PASSO 1/3] ATUALIZANDO BACKEND..." -ForegroundColor Yellow
 Write-Host ""
 
 # Nota: O backend na VPS não é um repositório git, por isso usamos scp
-Write-Host "[INFO] Enviando server.js para a VPS..." -ForegroundColor Yellow
+Write-Host "[INFO] Enviando server.js e scripts para a VPS..." -ForegroundColor Yellow
 scp "backend\socket-server\server.js" "${VPS_USER}@${VPS_IP}:${BACKEND_PATH}/server.js"
+
+# Criar pasta scripts na VPS se não existir e enviar scripts
+ssh ${VPS_USER}@${VPS_IP} "mkdir -p ${BACKEND_PATH}/scripts"
+scp "scripts\sync-football-data.js" "${VPS_USER}@${VPS_IP}:${BACKEND_PATH}/scripts/sync-football-data.js"
 
 Write-Host ""
 Write-Host "[INFO] Instalando dependencias do backend (se necessário)..." -ForegroundColor Yellow

@@ -91,12 +91,24 @@ const corsOrigin = (origin, callback) => {
 function runFootballSync() {
   console.log('⚽ [Automação] Iniciando sincronização de dados de futebol...');
 
-  // Caminho do script de sincronização (sobe um nível para a raiz do projeto)
-  const syncScriptPath = path.join(__dirname, '..', '..', 'scripts', 'sync-football-data.js');
+  // Tentar encontrar o script em locais comuns (Local vs VPS)
+  const possiblePaths = [
+    path.join(__dirname, '..', '..', 'scripts', 'sync-football-data.js'), // Local: backend/socket-server/..
+    path.join(__dirname, 'scripts', 'sync-football-data.js'),             // VPS: ao lado do server.js
+    path.join(__dirname, '..', 'scripts', 'sync-football-data.js')        // Alternativo
+  ];
+
+  const fs = require('fs');
+  let syncScriptPath = possiblePaths.find(p => fs.existsSync(p));
+
+  if (!syncScriptPath) {
+    console.error('❌ [Automação] Erro: Script de sincronização não encontrado em nenhum dos locais:', possiblePaths);
+    return;
+  }
 
   const child = spawn('node', [syncScriptPath], {
     stdio: 'inherit',
-    env: process.env // Passar variáveis de ambiente incluindo as do .env carregadas pelo server.js
+    env: process.env
   });
 
   child.on('close', (code) => {
