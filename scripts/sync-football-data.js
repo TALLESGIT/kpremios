@@ -28,20 +28,27 @@ try {
   console.warn('⚠️  Aviso: Falha ao ler arquivo .env:', e.message);
 }
 
-// 2. Priorizar process.env (passado pelo server.js ou shell)
-const supabaseUrl = process.env.VITE_SUPABASE_URL || env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY ||
-  env.SUPABASE_SERVICE_ROLE_KEY || env.VITE_SUPABASE_ANON_KEY;
-const footballApiKey = process.env.VITE_FOOTBALL_API_KEY || env.VITE_FOOTBALL_API_KEY;
+// 2. Priorizar process.env e suportar múltiplos nomes (com e sem VITE_)
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL ||
+  env.SUPABASE_URL || env.VITE_SUPABASE_URL;
+
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY ||
+  env.SUPABASE_SERVICE_ROLE_KEY || env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
+  env.SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY;
+
+const footballApiKey = process.env.VITE_FOOTBALL_API_KEY || process.env.FOOTBALL_API_KEY ||
+  env.VITE_FOOTBALL_API_KEY || env.FOOTBALL_API_KEY;
 
 if (!supabaseUrl || !supabaseKey || !footballApiKey) {
   console.error('❌ Erro: Variáveis de ambiente faltando.');
-  if (!supabaseUrl) console.error('- VITE_SUPABASE_URL não definida');
-  if (!supabaseKey) console.error('- SUPABASE_SERVICE_ROLE_KEY / VITE_SUPABASE_ANON_KEY não definida');
-  if (!footballApiKey) console.error('- VITE_FOOTBALL_API_KEY não definida');
+  if (!supabaseUrl) console.error('- SUPABASE_URL ou VITE_SUPABASE_URL não definida');
+  if (!supabaseKey) console.error('- Chave do Supabase (SERVICE_ROLE ou ANON) não definida');
+  if (!footballApiKey) console.error('- VITE_FOOTBALL_API_KEY ou FOOTBALL_API_KEY não definida');
   process.exit(1);
 }
 
+console.log(`🔗 Conectando ao Supabase em: ${supabaseUrl}`);
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Configuração das Ligas (ID API-Football)
