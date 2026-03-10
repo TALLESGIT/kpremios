@@ -494,15 +494,17 @@ function HomePage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-center sm:items-end">
-                      <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-500/10 border border-rose-500/20 rounded-full mb-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
-                        <span className="text-[10px] font-black text-rose-500 uppercase tracking-wider">
-                          {viewerCount > 0 ? `${viewerCount} ONLINE` : 'LIVE ATIVA'}
-                        </span>
+                    {hasActiveLive && (
+                      <div className="flex flex-col items-center sm:items-end">
+                        <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-500/10 border border-rose-500/20 rounded-full mb-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                          <span className="text-[10px] font-black text-rose-500 uppercase tracking-wider">
+                            {viewerCount > 0 ? `${viewerCount} ONLINE` : 'LIVE ATIVA'}
+                          </span>
+                        </div>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Pessoas Assistindo</span>
                       </div>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Pessoas Assistindo</span>
-                    </div>
+                    )}
                   </div>
                   <button
                     onClick={() => navigate('/zk-tv')}
