@@ -482,19 +482,19 @@ function HomePage() {
                 </div>
 
                 <div className="flex flex-col items-center gap-4">
-                  <div className="flex flex-col items-center sm:items-end gap-2">
-                    <div className="flex -space-x-4 mb-1">
-                      {[...Array(3)].map((_, i) => (
-                        <div key={i} className="w-10 h-10 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center text-xs font-bold text-blue-400 shadow-xl overflow-hidden glass-panel">
-                          <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i + 10}`} alt="viewer" className="w-full h-full object-cover" />
+                  {hasActiveLive && (
+                    <div className="flex flex-col items-center sm:items-end gap-2">
+                      <div className="flex -space-x-4 mb-1">
+                        {[...Array(3)].map((_, i) => (
+                          <div key={i} className="w-10 h-10 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center text-xs font-bold text-blue-400 shadow-xl overflow-hidden glass-panel">
+                            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i + 10}`} alt="viewer" className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                        <div className="w-10 h-10 rounded-full border-2 border-slate-900 bg-blue-600 flex items-center justify-center text-[10px] font-black text-white shadow-xl">
+                          {viewerCount > 0 ? (viewerCount >= 1000 ? `+${(viewerCount / 1000).toFixed(1)}k` : viewerCount) : '0'}
                         </div>
-                      ))}
-                      <div className="w-10 h-10 rounded-full border-2 border-slate-900 bg-blue-600 flex items-center justify-center text-[10px] font-black text-white shadow-xl">
-                        {viewerCount > 0 ? (viewerCount >= 1000 ? `+${(viewerCount / 1000).toFixed(1)}k` : viewerCount) : '0'}
                       </div>
-                    </div>
 
-                    {hasActiveLive && (
                       <div className="flex flex-col items-center sm:items-end">
                         <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-500/10 border border-rose-500/20 rounded-full mb-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
@@ -504,8 +504,8 @@ function HomePage() {
                         </div>
                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Pessoas Assistindo</span>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                   <button
                     onClick={() => navigate('/zk-tv')}
                     className="bg-white text-blue-900 px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-blue-50 transition-colors shadow-xl shadow-white/5 active:scale-95 duration-200 w-full"

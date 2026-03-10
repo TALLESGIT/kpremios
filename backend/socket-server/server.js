@@ -14,6 +14,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const { createClient } = require('@supabase/supabase-js');
 const cors = require('cors');
+const { spawn } = require('child_process');
 
 // =====================================================
 // CONFIGURAÇÃO E INICIALIZAÇÃO (ORDEM CRÍTICA)
@@ -83,6 +84,36 @@ const corsOrigin = (origin, callback) => {
   console.warn(`⚠️ CORS: Origem bloqueada: ${origin}`);
   callback(new Error('Not allowed by CORS'));
 };
+
+// =====================================================
+// AUTOMAÇÃO: SINCRONIZAÇÃO DE DADOS DE FUTEBOL
+// =====================================================
+function runFootballSync() {
+  console.log('⚽ [Automação] Iniciando sincronização de dados de futebol...');
+
+  // Caminho do script de sincronização (sobe um nível para a raiz do projeto)
+  const syncScriptPath = path.join(__dirname, '..', '..', 'scripts', 'sync-football-data.js');
+
+  const child = spawn('node', [syncScriptPath], {
+    stdio: 'inherit',
+    env: process.env // Passar variáveis de ambiente incluindo as do .env carregadas pelo server.js
+  });
+
+  child.on('close', (code) => {
+    if (code === 0) {
+      console.log('✅ [Automação] Sincronização concluída com sucesso.');
+    } else {
+      console.error(`❌ [Automação] Sincronização falhou com código: ${code}`);
+    }
+  });
+}
+
+// Agendar para rodar a cada 6 horas
+const SYNC_INTERVAL = 6 * 60 * 60 * 1000;
+setInterval(runFootballSync, SYNC_INTERVAL);
+
+// Executar uma vez na inicialização após um pequeno delay para não sobrecarregar o boot
+setTimeout(runFootballSync, 10000);
 
 // Middleware de log para depurar origens e requisições Socket.IO
 app.use((req, res, next) => {

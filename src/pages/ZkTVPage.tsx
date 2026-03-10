@@ -686,20 +686,40 @@ const ZkTVPage: React.FC = () => {
         }
     };
 
-    const loadQuickStats = async () => {
+    const loadQuickStats = async (compFilter?: string) => {
         try {
-            // Usar jogos já carregados
-            const finishedGames = games.filter(g => g.status === 'finished');
+            const currentComp = compFilter || selectedComp;
 
-            // Se não há jogos carregados ainda, buscar do banco
+            // Filtrar jogos pela competição selecionada
+            const finishedGames = games.filter(g =>
+                g.status === 'finished' &&
+                (!currentComp || g.competition === currentComp)
+            );
+
+            // Se não há jogos carregados ainda (primeiro carregamento), buscar do banco com filtro
             if (finishedGames.length === 0 && games.length === 0) {
-                const { data: gamesData } = await supabase
+                let query = supabase
                     .from('cruzeiro_games')
                     .select('*')
                     .eq('status', 'finished');
 
+                if (currentComp) {
+                    query = query.eq('competition', currentComp);
+                }
+
+                const { data: gamesData } = await query;
+
                 if (!gamesData || gamesData.length === 0) {
-                    setQuickStats({ victories: 0, goalsFor: 0, winRate: 0, topScorer: 'N/A' });
+                    // Tentar buscar o artilheiro mesmo sem jogos (pode vir do sync anterior)
+                    const { data: topScorersData } = await supabase
+                        .from('site_settings')
+                        .select('value')
+                        .eq('key', 'cruzeiro_top_scorers')
+                        .maybeSingle();
+
+                    const topScorerName = topScorersData?.value?.leagues?.[currentComp]?.name || 'N/A';
+
+                    setQuickStats({ victories: 0, goalsFor: 0, winRate: 0, topScorer: topScorerName });
                     return;
                 }
 
@@ -725,30 +745,37 @@ const ZkTVPage: React.FC = () => {
                     .from('cruzeiro_standings')
                     .select('*')
                     .eq('is_cruzeiro', true)
+                    .eq('competition', currentComp)
                     .maybeSingle();
 
                 let winRate = 0;
                 if (standingsData && standingsData.played > 0) {
                     winRate = Math.round((standingsData.points / (standingsData.played * 3)) * 100);
                 } else if (gamesData.length > 0) {
-                    const draws = gamesData.filter(g => {
-                        if (g.is_home) return g.score_home === g.score_away;
-                        return g.score_away === g.score_home;
-                    }).length;
+                    const draws = gamesData.filter(g => g.score_home === g.score_away).length;
                     const totalPoints = victories * 3 + draws;
                     winRate = Math.round((totalPoints / (gamesData.length * 3)) * 100);
                 }
+
+                // Buscar artilheiro por competição do site_settings
+                const { data: topScorersData } = await supabase
+                    .from('site_settings')
+                    .select('value')
+                    .eq('key', 'cruzeiro_top_scorers')
+                    .maybeSingle();
+
+                const topScorerName = topScorersData?.value?.leagues?.[currentComp]?.name || 'N/A';
 
                 setQuickStats({
                     victories,
                     goalsFor,
                     winRate,
-                    topScorer: 'Matheus P.'
+                    topScorer: topScorerName
                 });
                 return;
             }
 
-            // Calcular com dados já carregados
+            // Calcular com dados JÁ carregados no estado 'games' e 'standings'
             const victories = finishedGames.filter(game => {
                 if (game.is_home) {
                     return game.score_home && game.score_away && game.score_home > game.score_away;
@@ -766,29 +793,42 @@ const ZkTVPage: React.FC = () => {
                 return total;
             }, 0);
 
-            const cruzeiroStanding = standings.find(s => s.is_cruzeiro);
+            const cruzeiroStanding = standings.find(s => s.is_cruzeiro && s.competition === currentComp);
             let winRate = 0;
             if (cruzeiroStanding && cruzeiroStanding.played > 0) {
                 winRate = Math.round((cruzeiroStanding.points / (cruzeiroStanding.played * 3)) * 100);
             } else if (finishedGames.length > 0) {
-                const draws = finishedGames.filter(g => {
-                    if (g.is_home) return g.score_home === g.score_away;
-                    return g.score_away === g.score_home;
-                }).length;
+                const draws = finishedGames.filter(g => g.score_home === g.score_away).length;
                 const totalPoints = victories * 3 + draws;
                 winRate = Math.round((totalPoints / (finishedGames.length * 3)) * 100);
             }
+
+            // Buscar artilheiro por liga
+            const { data: topScorersData } = await supabase
+                .from('site_settings')
+                .select('value')
+                .eq('key', 'cruzeiro_top_scorers')
+                .maybeSingle();
+
+            const topScorerName = topScorersData?.value?.leagues?.[currentComp]?.name || 'N/A';
 
             setQuickStats({
                 victories,
                 goalsFor,
                 winRate,
-                topScorer: 'Matheus P.'
+                topScorer: topScorerName
             });
         } catch (err) {
             console.error('Erro ao carregar estatísticas:', err);
         }
     };
+
+    // Recarregar estatísticas quando a competição mudar
+    useEffect(() => {
+        if (games.length > 0) {
+            loadQuickStats(selectedComp);
+        }
+    }, [selectedComp, games, standings]);
 
     const loadData = async () => {
         try {
@@ -819,7 +859,7 @@ const ZkTVPage: React.FC = () => {
             if (standingsRes.data) setStandings(standingsRes.data);
 
             // Recalcular stats após carregar todos os dados
-            setTimeout(() => loadQuickStats(), 200);
+            setTimeout(() => loadQuickStats(selectedComp), 200);
         } catch (error) {
             console.error('❌ Error loading Cruzeiro data:', error);
         }

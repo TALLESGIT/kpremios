@@ -169,9 +169,97 @@ async function syncGames() {
   }
 }
 
+async function syncTopScorers() {
+  console.log('--- Iniciando sincronização de Artilharia ---');
+
+  try {
+    console.log(`Buscando artilheiro do Cruzeiro (ID: ${CRUZEIRO_API_ID})...`);
+
+    const response = await fetch(`https://v3.football.api-sports.io/players?team=${CRUZEIRO_API_ID}&season=2026`, {
+      headers: {
+        'x-apisports-key': footballApiKey,
+        'x-rapidapi-host': 'v3.football.api-sports.io'
+      }
+    });
+
+    const result = await response.json();
+
+    if (!result.response || result.response.length === 0) {
+      console.log('Nenhum dado de jogador encontrado.');
+      return;
+    }
+
+    // Mapa para armazenar o melhor marcador de cada competição
+    // { "Campeonato Brasileiro - Série A": { name: "...", goals: 0 }, ... }
+    const topScorersPerLeague = {};
+
+    // Inicializar com as ligas oficiais
+    LEAGUES.forEach(l => {
+      topScorersPerLeague[l.name] = { name: 'A definir', goals: 0 };
+    });
+
+    for (const playerStats of result.response) {
+      const name = playerStats.player.name;
+
+      if (playerStats.statistics && Array.isArray(playerStats.statistics)) {
+        for (const stat of playerStats.statistics) {
+          const leagueName = stat.league.name;
+          const goals = stat.goals.total || 0;
+
+          // Encontrar correspondência na nossa lista de ligas oficiais
+          const officialLeague = LEAGUES.find(l =>
+            l.name.toLowerCase().includes(leagueName.toLowerCase()) ||
+            leagueName.toLowerCase().includes(l.name.toLowerCase())
+          );
+
+          if (officialLeague && goals > 0) {
+            const currentTop = topScorersPerLeague[officialLeague.name];
+            if (goals > currentTop.goals) {
+              topScorersPerLeague[officialLeague.name] = { name, goals };
+            }
+          }
+        }
+      }
+    }
+
+    console.log('Artilheiros por competição identificados:', topScorersPerLeague);
+
+    // Salvar na tabela site_settings o mapa completo
+    const { error } = await supabase
+      .from('site_settings')
+      .upsert({
+        key: 'cruzeiro_top_scorers',
+        value: {
+          leagues: topScorersPerLeague,
+          updated_at: new Date().toISOString()
+        }
+      }, { onConflict: 'key' });
+
+    if (error) console.error('Erro ao salvar artilheiros no site_settings:', error);
+
+    // Manter a chave antiga por compatibilidade temporária (opcional, mas seguro)
+    // Pegar o global (quem tem mais gols no total)
+    let globalTop = { name: 'Matheus P.', goals: 0 };
+    Object.values(topScorersPerLeague).forEach(s => {
+      if (s.goals > globalTop.goals) globalTop = s;
+    });
+
+    await supabase
+      .from('site_settings')
+      .upsert({
+        key: 'cruzeiro_top_scorer',
+        value: { name: globalTop.name, goals: globalTop.goals, updated_at: new Date().toISOString() }
+      }, { onConflict: 'key' });
+
+  } catch (error) {
+    console.error('Falha ao sincronizar artilharia:', error);
+  }
+}
+
 async function run() {
   await syncStandings();
   await syncGames();
+  await syncTopScorers();
   process.exit(0);
 }
 
