@@ -525,6 +525,7 @@ const AdminZkTVPage: React.FC = () => {
                 match_id: game.id,
                 stream_url: '',
                 is_live: false,
+                is_active: true,
                 created_by: currentUser?.id
             }]).select('id').single();
 
@@ -1316,8 +1317,8 @@ const AdminZkTVPage: React.FC = () => {
                                                                                     disabled={isDisabled}
                                                                                     title={tooltipText}
                                                                                     className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${isDisabled
-                                                                                            ? 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed'
-                                                                                            : 'bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-500/30 text-emerald-400 hover:text-white'
+                                                                                        ? 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed'
+                                                                                        : 'bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-500/30 text-emerald-400 hover:text-white'
                                                                                         }`}
                                                                                 >
                                                                                     <Zap className={`w-3 h-3 ${isDisabled ? 'text-slate-600' : ''}`} />

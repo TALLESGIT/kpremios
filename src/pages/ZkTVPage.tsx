@@ -217,6 +217,13 @@ const ZkTVPage: React.FC = () => {
             const landscape = window.innerWidth > window.innerHeight;
             setIsLandscape(landscape);
 
+            // Auto-fullscreen ao girar para landscape no mobile
+            if (isMobile && landscape && !isFullscreen && videoContainerRef.current) {
+                videoContainerRef.current.requestFullscreen().catch(err => {
+                    console.log('Programmatic fullscreen blocked or failed:', err);
+                });
+            }
+
             // Em mobile fullscreen paisagem, ativar chat docked
             if (isMobile && isFullscreen && landscape) {
                 setIsDockedChat(true);

@@ -122,6 +122,7 @@ function HomePage() {
       };
 
       viewerCountHandler = (data: { streamId: string; count: number }) => {
+        console.log('📊 HomePage: Viewer count recebido:', data);
         if (data.streamId === activeStreamId) {
           setViewerCount(data.count);
         }
@@ -292,15 +293,6 @@ function HomePage() {
               </p>
 
               <div className="flex flex-wrap justify-center gap-3 sm:gap-5">
-                {activePool && activePool.is_active && (
-                  <button
-                    onClick={() => setShowPoolModal(true)}
-                    className="btn btn-primary px-10 py-4 text-lg shadow-emerald-500/50 hover:shadow-emerald-400/60 bg-gradient-to-r from-emerald-600 to-emerald-500 border-0 relative"
-                  >
-                    <span className="relative z-10">PARTICIPAR DO BOLÃO</span>
-                    <span className="absolute inset-0 rounded-lg bg-emerald-400 opacity-20 animate-ping"></span>
-                  </button>
-                )}
                 <Link
                   to="/zk-tv"
                   className="px-6 sm:px-10 py-3 sm:py-5 bg-gradient-to-br from-blue-600/20 via-blue-600/10 to-transparent hover:from-blue-600/30 text-blue-100 rounded-xl sm:rounded-2xl font-black text-xs sm:text-lg transition-all duration-300 backdrop-blur-md border border-blue-500/30 flex items-center justify-center gap-2 sm:gap-3 overflow-hidden relative group active:scale-95 shadow-lg shadow-blue-900/40"
@@ -473,16 +465,26 @@ function HomePage() {
                 </div>
 
                 <div className="flex flex-col items-center gap-4">
-                  <div className="flex -space-x-4 mb-2">
-                    {[...Array(3)].map((_, i) => (
-                      <div key={i} className="w-12 h-12 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center text-xs font-bold text-blue-400 shadow-xl overflow-hidden glass-panel">
-                        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i + 10}`} alt="viewer" className="w-full h-full object-cover" />
+                  <div className="flex flex-col items-center sm:items-end gap-2">
+                    <div className="flex -space-x-4 mb-1">
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className="w-10 h-10 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center text-xs font-bold text-blue-400 shadow-xl overflow-hidden glass-panel">
+                          <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i + 10}`} alt="viewer" className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                      <div className="w-10 h-10 rounded-full border-2 border-slate-900 bg-blue-600 flex items-center justify-center text-[10px] font-black text-white shadow-xl">
+                        {viewerCount > 0 ? (viewerCount >= 1000 ? `+${(viewerCount / 1000).toFixed(1)}k` : viewerCount) : '0'}
                       </div>
-                    ))}
-                    <div className="w-12 h-12 rounded-full border-2 border-slate-900 bg-blue-600 flex items-center justify-center text-[10px] font-black text-white shadow-xl">
-                      {viewerCount > 0
-                        ? (viewerCount >= 1000 ? `+${(viewerCount / 1000).toFixed(1)}k` : viewerCount)
-                        : '+1.2k'}
+                    </div>
+
+                    <div className="flex flex-col items-center sm:items-end">
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-500/10 border border-rose-500/20 rounded-full mb-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                        <span className="text-[10px] font-black text-rose-500 uppercase tracking-wider">
+                          {viewerCount > 0 ? `${viewerCount} ONLINE` : 'LIVE ATIVA'}
+                        </span>
+                      </div>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Pessoas Assistindo</span>
                     </div>
                   </div>
                   <button
