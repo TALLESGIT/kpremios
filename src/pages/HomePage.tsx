@@ -266,7 +266,7 @@ function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#030712] text-white pb-32">
+    <div className="min-h-screen bg-[#030712] text-white">
       <Header />
       <main className="flex-grow w-full relative bg-[#030712] overflow-x-hidden pt-[calc(4rem+env(safe-area-inset-top,0px))]">
         <div className="relative min-h-[90vh] flex flex-col items-center justify-center pb-16">

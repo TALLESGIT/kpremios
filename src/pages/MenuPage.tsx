@@ -127,7 +127,7 @@ const MenuPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#030712] text-white pb-32 pt-[calc(7rem+env(safe-area-inset-top,0px))] px-4 relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#030712] text-white pt-[calc(7rem+env(safe-area-inset-top,0px))] px-4 relative overflow-x-hidden">
       <Header />
       {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-[500px] bg-blue-600/10 blur-[120px] -z-10" />

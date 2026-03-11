@@ -48,7 +48,7 @@ const NotificationsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#030712] text-white pb-32 pt-[calc(5rem+env(safe-area-inset-top,0px))] px-4 relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#030712] text-white pt-[calc(5rem+env(safe-area-inset-top,0px))] px-4 relative overflow-x-hidden">
       <Header />
 
       {/* Background Decor */}
