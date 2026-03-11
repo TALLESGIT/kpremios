@@ -52,7 +52,7 @@ async function getAccessToken(serviceAccount: ServiceAccount): Promise<string> {
       aud: "https://oauth2.googleapis.com/token",
       iat,
       exp,
-      scope: "https://www.googleapis.com/auth/cloud-platform",
+      scope: "https://www.googleapis.com/auth/firebase.messaging",
     },
     key
   );

@@ -130,22 +130,25 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
     };
   }, [streamId, isVip]);
 
-  // Carregar roles de usuários
-  const loadUserRoles = async () => {
-    const userIds = messages.filter(m => m.user_id).map(m => m.user_id!);
-    if (userIds.length === 0) return;
+  // Carregar roles de usuários de forma otimizada
+  const loadUserRoles = async (userIdsToLoad?: string[]) => {
+    const ids = userIdsToLoad || messages.filter(m => m.user_id).map(m => m.user_id!);
+    
+    // Filtrar apenas IDs que ainda não temos no cache
+    const missingIds = ids.filter(id => id && !userRoles[id]);
+    if (missingIds.length === 0) return;
 
     try {
       const { data: usersData } = await supabase
         .from('users')
         .select('id, is_admin, is_vip')
-        .in('id', userIds);
+        .in('id', missingIds);
 
       const { data: moderatorsData } = await supabase
         .from('stream_moderators')
         .select('user_id')
         .eq('stream_id', streamId)
-        .in('user_id', userIds);
+        .in('user_id', missingIds);
 
       const moderatorIds = new Set(moderatorsData?.map(m => m.user_id) || []);
 
@@ -165,10 +168,13 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
   };
 
 
-  // Carregar roles quando mensagens mudarem
+  // Carregar roles quando mensagens mudarem (apenas para novos IDs)
   useEffect(() => {
     if (messages.length > 0) {
-      loadUserRoles();
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.user_id) {
+        loadUserRoles([lastMessage.user_id]);
+      }
     }
   }, [messages.length]);
 
@@ -674,52 +680,17 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
                 </button>
               </div>
             )}
-            {isVip && (
-              <div className="relative" ref={colorPickerRef}>
-                <button
-                  onClick={() => setShowColorPicker(!showColorPicker)}
-                  className="p-1.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg transition-all"
-                  title="Escolher cor personalizada"
-                >
-                  <Palette className="w-3.5 h-3.5 text-purple-400" />
-                </button>
-                {showColorPicker && (
-                  <div className="absolute top-full right-0 mt-2 w-64 bg-slate-800 rounded-2xl border border-white/10 p-4 shadow-2xl z-50">
-                    <div className="mb-3">
-                      <p className="text-[10px] font-black text-purple-400 uppercase mb-3">💎 Escolher Cor VIP</p>
-                      <div className="grid grid-cols-5 gap-2">
-                        {VIP_COLOR_PRESETS.map((color) => (
-                          <button
-                            key={color.value}
-                            onClick={() => saveVipColor(color.value)}
-                            className={`w-10 h-10 rounded-lg border-2 transition-all hover:scale-110 ${vipCustomColor === color.value
-                              ? 'border-white ring-2 ring-offset-2 ring-offset-slate-800 ring-white'
-                              : 'border-white/20'
-                              }`}
-                            style={{ backgroundColor: color.hex }}
-                            title={color.name}
-                          >
-                            {vipCustomColor === color.value && (
-                              <span className="text-white text-xs">✓</span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                      <p className="text-[8px] text-slate-400 mt-3 text-center">
-                        Suas mensagens aparecerão nesta cor
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
             {onClose && !hideCloseButton && (
               <button
-                onClick={onClose}
-                className="p-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
+                className="relative z-[100] p-4 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl transition-all active:scale-90 flex items-center justify-center min-w-[50px] min-h-[50px] shadow-lg"
                 title="Fechar Chat"
+                aria-label="Fechar Chat"
               >
-                <X className="w-4 h-4 text-white" />
+                <X className="w-7 h-7 text-white" />
               </button>
             )}
           </div>
@@ -894,6 +865,42 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
                 </div>
               )}
             </div>
+            {isVip && (
+              <div className="relative" ref={colorPickerRef}>
+                <button
+                  onClick={() => setShowColorPicker(!showColorPicker)}
+                  className={`w-10 h-10 flex items-center justify-center border rounded-xl transition-all ${showColorPicker ? 'bg-purple-600 border-purple-400 text-white' : 'bg-slate-900/50 border-white/5 text-purple-400'}`}
+                  title="Escolher Cor VIP"
+                >
+                  <Palette className="w-5 h-5" />
+                </button>
+                {showColorPicker && (
+                  <div className="absolute bottom-full left-0 mb-3 w-[280px] bg-slate-800 rounded-2xl border border-white/10 p-5 shadow-2xl z-[100] animate-in fade-in slide-in-from-bottom-4 duration-200 lg:left-0 lg:-translate-x-0 -translate-x-1/4">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-[11px] font-black text-purple-400 uppercase tracking-wider">💎 Cor da sua Mensagem</p>
+                      <button onClick={() => setShowColorPicker(false)} className="p-1 hover:bg-white/5 rounded-lg">
+                        <X className="w-4 h-4 text-slate-500" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-5 gap-3">
+                      {VIP_COLOR_PRESETS.map((color) => (
+                        <button
+                          key={color.value}
+                          onClick={() => saveVipColor(color.value)}
+                          className={`w-11 h-11 rounded-xl border-2 transition-all hover:scale-110 active:scale-95 flex items-center justify-center ${vipCustomColor === color.value
+                            ? 'border-white ring-4 ring-white/10 scale-105'
+                            : 'border-white/10'
+                            }`}
+                          style={{ backgroundColor: color.hex }}
+                        >
+                          {vipCustomColor === color.value && <span className="text-white drop-shadow-md">✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="flex-1 relative">
               <input
                 type="text"

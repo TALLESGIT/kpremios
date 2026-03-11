@@ -62,14 +62,33 @@ function normalizeWhepBaseUrl(url: string | undefined): string | null {
 function buildWhepUrl(
   baseUrl: string,
   channelName: string,
-  pathPrefix: string
+  pathPrefix: string,
+  attempt: number = 0
 ): string {
   const base = baseUrl.replace(/\/+$/, '');
   const channel = channelName.replace(/^\/+|\/+$/g, '') || 'ZkOficial';
-  const path = pathPrefix
-    ? `${pathPrefix.replace(/^\/+|\/+$/g, '')}/${channel}`
-    : channel;
-  return `${base}/${path}/whep`;
+  
+  // Tentativas de URL para MediaMTX (problema de 404 reportado)
+  // 0: {base}/live/{channel}/whep  (Config atual)
+  // 1: {base}/whep/live/{channel} (Padrão MediaMTX v1+)
+  // 2: {base}/{channel}/whep      (Sem prefixo live)
+  // 3: {base}/whep/{channel}      (Sem prefixo, padrão direto)
+  
+  if (attempt === 0) {
+    const path = pathPrefix ? `${pathPrefix.replace(/^\/+|\/+$/g, '')}/${channel}` : channel;
+    return `${base}/${path}/whep`;
+  }
+  
+  if (attempt === 1) {
+    const path = pathPrefix ? `${pathPrefix.replace(/^\/+|\/+$/g, '')}/${channel}` : channel;
+    return `${base}/whep/${path}`;
+  }
+  
+  if (attempt === 2) {
+    return `${base}/${channel}/whep`;
+  }
+
+  return `${base}/whep/${channel}`;
 }
 
 // =============================================================================
@@ -107,6 +126,7 @@ function WhepPlayer({
   const reconnectAttemptRef = useRef(0);
   const initialAttemptRef = useRef(0);
   const offline404CountRef = useRef(0);
+  const urlAttemptIndexRef = useRef(0);
   const expectLiveRef = useRef(expectLive);
 
   const [status, setStatus] = useState<WhepPlayerStatus>('idle');
@@ -166,7 +186,8 @@ function WhepPlayer({
 
       setStatusSafe(isReconnect ? 'reconnecting' : 'connecting');
 
-      const whepUrl = buildWhepUrl(baseUrl, channelName, pathPrefix);
+      const whepUrl = buildWhepUrl(baseUrl, channelName, pathPrefix, urlAttemptIndexRef.current);
+      console.log(`[whep] Tentando conexão: ${whepUrl} (tentativa url: ${urlAttemptIndexRef.current})`);
       const pc = new RTCPeerConnection({
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
@@ -312,6 +333,13 @@ function WhepPlayer({
           }
           const count = offline404CountRef.current;
           offline404CountRef.current = count + 1;
+          
+          // Ciclar entre URLs alternativas (0-3) em caso de 404 persistente
+          // Só rotaciona se não estivermos esperando live agressivamente ou se já tentamos algumas vezes
+          if (response.status === 404) {
+            urlAttemptIndexRef.current = (urlAttemptIndexRef.current + 1) % 4;
+          }
+
           const expectLive = expectLiveRef.current;
           const baseMs = expectLive ? CONFIG.OFFLINE_RETRY_BASE_MS_EXPECT_LIVE : CONFIG.OFFLINE_RETRY_BASE_MS;
           const maxMs = expectLive ? CONFIG.OFFLINE_RETRY_MAX_MS_EXPECT_LIVE : CONFIG.OFFLINE_RETRY_MAX_MS;

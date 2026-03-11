@@ -60,31 +60,47 @@ const MobileVideoPlayer: React.FC<MobileVideoPlayerProps> = ({
     return Math.sqrt(dx * dx + dy * dy);
   };
 
-  // Lock de orientação em fullscreen
+  // Lock de orientação em fullscreen e auto-fullscreen no giro
   useEffect(() => {
-    if (!isMobile || !isFullscreen) return;
+    if (!isMobile) return;
 
-    const lockOrientation = async () => {
-      try {
-        if (screen.orientation && 'lock' in screen.orientation) {
-          await (screen.orientation as any).lock('landscape');
-          console.log('🔒 Orientação travada em landscape');
-        }
-      } catch (error) {
-        console.log('⚠️ Não foi possível travar orientação:', error);
-        // Fallback para iOS/Safari
-        if (window.DeviceOrientationEvent) {
-          // Usar CSS para forçar landscape
-          document.documentElement.style.setProperty('--orientation-lock', 'landscape');
-        }
+    const handleOrientationChange = () => {
+      const isLandscape = window.innerHeight < window.innerWidth;
+      
+      // ✅ Se virar para landscape e NÃO estiver em fullscreen, ativar automaticamente
+      // (Apenas se o player estiver ativo/visível)
+      if (isLandscape && !isFullscreen && isActive) {
+        console.log('🔄 Giro detectado: Ativando fullscreen automático');
+        onFullscreen();
       }
     };
 
-    lockOrientation();
+    window.addEventListener('resize', handleOrientationChange);
+    window.addEventListener('orientationchange', handleOrientationChange);
+
+    if (isFullscreen) {
+      const lockOrientation = async () => {
+        try {
+          if (screen.orientation && 'lock' in screen.orientation) {
+            await (screen.orientation as any).lock('landscape');
+            console.log('🔒 Orientação travada em landscape');
+          }
+        } catch (error) {
+          console.log('⚠️ Não foi possível travar orientação:', error);
+          if (window.DeviceOrientationEvent) {
+            document.documentElement.style.setProperty('--orientation-lock', 'landscape');
+          }
+        }
+      };
+      lockOrientation();
+    }
 
     return () => {
+      window.removeEventListener('resize', handleOrientationChange);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      
       try {
-        if (screen.orientation && 'unlock' in screen.orientation) {
+        if (isFullscreen && screen.orientation && 'unlock' in screen.orientation) {
           (screen.orientation as any).unlock();
           console.log('🔓 Orientação destravada');
         }
@@ -92,7 +108,7 @@ const MobileVideoPlayer: React.FC<MobileVideoPlayerProps> = ({
         console.log('⚠️ Erro ao destravar orientação:', error);
       }
     };
-  }, [isMobile, isFullscreen]);
+  }, [isMobile, isFullscreen, isActive, onFullscreen]);
 
   // Detectar pinch-to-zoom
   const handleTouchStart = useCallback((e: React.TouchEvent) => {

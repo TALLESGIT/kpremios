@@ -12,11 +12,23 @@ const ZkClipsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedClip, setSelectedClip] = useState<YouTubeClip | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [category] = useState<'all' | 'gol' | 'entrevista' | 'resenha'>('all');
+  
+  // ✅ Ler categoria da URL se existir
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialCat = urlParams.get('cat') as 'all' | 'clips' | 'musicas' || 'all';
+  const [category, setCategory] = useState<'all' | 'clips' | 'musicas'>(initialCat);
 
   useEffect(() => {
     fetchClips();
   }, []);
+
+  // ✅ Atualizar categoria se a URL mudar (opcional, para navegação via submenu)
+  useEffect(() => {
+    const cat = new URLSearchParams(window.location.search).get('cat');
+    if (cat && (cat === 'musicas' || cat === 'clips' || cat === 'all')) {
+      setCategory(cat as any);
+    }
+  }, [window.location.search]);
 
   const fetchClips = async () => {
     try {
@@ -41,7 +53,9 @@ const ZkClipsPage: React.FC = () => {
 
   const filteredClips = clips.filter(clip => {
     const matchesSearch = clip.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = category === 'all' || clip.category === category;
+    const matchesCategory = category === 'all' || 
+      (category === 'musicas' && clip.category?.toLowerCase() === 'musica') ||
+      (category === 'clips' && clip.category?.toLowerCase() !== 'musica');
     return matchesSearch && matchesCategory;
   });
 
@@ -70,13 +84,35 @@ const ZkClipsPage: React.FC = () => {
 
             {/* Search & Filters */}
             <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+              {/* Tabs de Categoria */}
+              <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 backdrop-blur-xl">
+                <button
+                  onClick={() => setCategory('all')}
+                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${category === 'all' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-white/40 hover:text-white'}`}
+                >
+                  Tudo
+                </button>
+                <button
+                  onClick={() => setCategory('musicas')}
+                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${category === 'musicas' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-white/40 hover:text-white'}`}
+                >
+                  Músicas
+                </button>
+                <button
+                  onClick={() => setCategory('clips')}
+                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${category === 'clips' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-white/40 hover:text-white'}`}
+                >
+                  Clips
+                </button>
+              </div>
+
               <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 group-focus-within:text-red-500 transition-colors" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 group-focus-within:text-blue-500 transition-colors" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar clip..."
+                  placeholder="Buscar..."
                   className="w-full sm:w-64 bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-blue-500/50 focus:bg-white/10 transition-all font-medium backdrop-blur-xl"
                 />
               </div>

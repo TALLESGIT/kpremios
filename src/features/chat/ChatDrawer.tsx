@@ -45,7 +45,7 @@ export function ChatDrawer({ isOpen, onClose, streamId, isActive }: ChatDrawerPr
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 h-[70vh] bg-gradient-to-t from-black via-black/90 to-black/60 backdrop-blur-md rounded-t-3xl border-t border-white/10 z-[9999] flex flex-col shadow-2xl"
+            className="fixed bottom-0 left-0 right-0 h-[85vh] bg-gradient-to-t from-black via-slate-900 to-slate-900 backdrop-blur-md rounded-t-3xl border-t border-white/10 z-[9999] flex flex-col shadow-2xl"
           >
             {/* Drag handle sutil */}
             <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto my-3 flex-shrink-0" />
@@ -58,7 +58,7 @@ export function ChatDrawer({ isOpen, onClose, streamId, isActive }: ChatDrawerPr
                 className="h-full"
                 showHeader={true}
                 onClose={onClose}
-                hideCloseButton={true}
+                hideCloseButton={false}
                 isActive={isActive}
               />
             </div>

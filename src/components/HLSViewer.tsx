@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useFpsMonitor } from '../hooks/useFpsMonitor';
 import Hls from 'hls.js';
-import { Terminal } from 'lucide-react';
+import Hls from 'hls.js';
 
 interface HLSViewerProps {
   hlsUrl: string;
@@ -29,15 +29,6 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
   onErrorRef.current = onError;
   const hlsInstanceRef = useRef<Hls | null>(null);
 
-  // Debug Logs State
-  const [logs, setLogs] = useState<string[]>([]);
-  const [showLogs, setShowLogs] = useState(false);
-
-  const addLog = useCallback((msg: string) => {
-    setLogs(prev => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`].slice(-30));
-    console.log(`[HLSViewer] ${msg}`);
-  }, []);
-
   const perf = useFpsMonitor(videoRef, showPerf && hasVideo);
 
   const handleUserInteraction = useCallback(async () => {
@@ -50,11 +41,10 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     try {
       video.muted = false;
       await video.play();
-      addLog('Áudio ativado via clique. Reproduzindo.');
     } catch (err: any) {
-      addLog(`Erro ao ativar áudio: ${err?.message || err}`);
+      console.error(`[HLSViewer] Erro ao ativar áudio: ${err?.message || err}`);
     }
-  }, [isAdmin, addLog]);
+  }, [isAdmin]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -62,17 +52,13 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
 
     // ✅ Evitar re-inicialização se já está rodando com a mesma URL
     if (hlsInstanceRef.current) {
-      addLog('HLS já inicializado, ignorando re-init.');
       return;
     }
 
     video.muted = true;
     video.playsInline = true;
     // ✅ Atributos extras para mobile nativo
-    video.setAttribute('webkit-playsinline', 'true');
-    video.setAttribute('playsinline', 'true');
-
-    addLog(`Inicializando HLS URL: ${hlsUrl}`);
+    // video.setAttribute('playsinline', 'true'); // redundante pois já está no JSX
 
     const handleError = (e: any) => {
       addLog(`Erro no elemento de vídeo nativo: ${e?.type}`);
@@ -83,15 +69,10 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     const attemptPlay = async () => {
       try {
         await video.play();
-        addLog('Autoplay (mutado) funcionou.');
         setHasVideo(true);
-        // ✅ No app nativo, não mostrar overlay — vídeo toca mudo automaticamente
-        if (!isCapacitorNative()) {
-          // Na web, oferecer botão para ativar áudio
-          setNeedsInteraction(true);
-        }
+        // ✅ Na web E no app nativo, oferecer botão para ativar áudio se estiver mutado
+        setNeedsInteraction(true);
       } catch (e: any) {
-        addLog(`Autoplay (mutado) bloqueado: ${e?.message}`);
         setNeedsInteraction(true);
         setHasVideo(true);
       }
@@ -100,7 +81,6 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     let hls: Hls | null = null;
 
     if (Hls.isSupported()) {
-      addLog('Iniciando HLS.js...');
       hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
@@ -117,7 +97,6 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        addLog('Manifest parsed via hls.js. Iniciando vídeo...');
         attemptPlay();
       });
 
@@ -142,15 +121,13 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         }
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      addLog('Iniciando player nativo da Apple (video.src)...');
       video.src = hlsUrl;
       video.addEventListener('loadedmetadata', () => {
-        addLog('Metadados carregados via Player Nativo. Iniciando...');
         attemptPlay();
       });
       video.addEventListener('error', handleError);
     } else {
-      addLog('⚠️ Navegador não suporta HLS.');
+      console.warn('⚠️ Navegador não suporta HLS.');
     }
 
     return () => {
@@ -160,7 +137,7 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
       }
       video.removeEventListener('error', handleError);
     };
-  }, [hlsUrl, addLog]); // ✅ Removido onError das deps — usa ref
+  }, [hlsUrl]); // ✅ Removido onError das deps — usa ref
 
   useEffect(() => {
     if (initialInteracted && hasVideo && !userInteracted) {
@@ -187,29 +164,6 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         }}
       />
 
-      {/* Botão de Logs */}
-      <button
-        onClick={(e) => { e.stopPropagation(); setShowLogs(!showLogs); }}
-        className="absolute top-4 right-4 z-40 bg-black/60 backdrop-blur text-white p-2 rounded hover:bg-black/80 transition-all border border-white/10"
-      >
-        <Terminal size={18} />
-      </button>
-
-      {/* Painel de Logs */}
-      {showLogs && (
-        <div className="absolute top-16 right-4 w-72 max-w-[80vw] bg-black/80 backdrop-blur-md rounded-lg border border-white/20 p-3 z-50 shadow-2xl">
-          <div className="flex justify-between items-center mb-2 border-b border-white/20 pb-1">
-            <span className="text-white text-xs font-bold uppercase">HLS Logs</span>
-            <button onClick={() => setShowLogs(false)} className="text-white/50 hover:text-white text-xs text-red-400">Fechar</button>
-          </div>
-          <div className="h-48 overflow-y-auto text-[10px] text-green-400 font-mono space-y-1">
-            {logs.map((log, i) => (
-              <div key={i} className="break-words">{log}</div>
-            ))}
-            {logs.length === 0 && <div className="text-white/50">Nenhum log ainda...</div>}
-          </div>
-        </div>
-      )}
 
       {showPerf && hasVideo && (
         <div className="absolute top-2 left-2 z-20 px-3 py-2 rounded-lg bg-black/80 text-xs font-mono text-white border border-white/20 space-y-0.5">
@@ -244,17 +198,23 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
 
       {needsInteraction && hasVideo && !initialInteracted && (
         <div
-          className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-10"
+          className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md z-[60]"
           onClick={handleUserInteraction}
         >
           <button
-            onClick={handleUserInteraction}
-            className="flex flex-col items-center justify-center gap-3 px-12 py-8 bg-white/15 border-2 border-white/40 rounded-2xl text-white font-semibold text-lg cursor-pointer transition-all hover:bg-white/25 hover:border-white/60 hover:scale-105 active:scale-100 shadow-2xl min-w-[200px]"
-            aria-label="Toque para ativar o áudio"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleUserInteraction();
+            }}
+            className="flex flex-col items-center justify-center gap-4 px-10 py-8 bg-blue-600/20 border-2 border-blue-500/50 rounded-3xl text-white transition-all hover:bg-blue-600/30 hover:scale-105 active:scale-95 shadow-[0_0_50px_rgba(37,99,235,0.3)] animate-in fade-in zoom-in duration-300"
           >
-            <span className="text-6xl leading-none drop-shadow-lg">🔊</span>
-            <span className="text-xl font-bold tracking-wide">Toque para ativar o áudio</span>
-            <small className="text-sm opacity-80 font-normal mt-1">O vídeo já está rodando (mutado)</small>
+            <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/40 animate-pulse">
+              <span className="text-4xl text-white">🔊</span>
+            </div>
+            <div className="text-center">
+              <span className="block text-xl font-black uppercase tracking-wider">Ativar Som</span>
+              <span className="block text-xs text-blue-300/80 font-bold uppercase mt-1 tracking-widest">Clique para ouvir a live</span>
+            </div>
           </button>
         </div>
       )}

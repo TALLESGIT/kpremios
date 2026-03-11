@@ -104,10 +104,30 @@ export const useSocketChat = (options: UseSocketChatOptions): UseSocketChatRetur
     const handleNewMessage = (message: ChatMessage) => {
       console.log('📩 useSocketChat: Nova mensagem via Socket.io:', message.id);
       setMessages(prev => {
-        // Evitar duplicatas
+        // 1. Evitar duplicatas por ID real
         if (prev.some(m => m.id === message.id)) return prev;
+
+        // 2. Tentar encontrar uma mensagem otimista correspondente (mesmo texto e usuário)
+        // para substituí-la pela real com ID definitivo
+        const optimisticIndex = prev.findIndex(m => 
+          m.id.startsWith('temp-') && 
+          m.user_id === message.user_id && 
+          m.message === message.message
+        );
+
+        if (optimisticIndex !== -1) {
+          const newMessages = [...prev];
+          newMessages[optimisticIndex] = message;
+          return newMessages;
+        }
+
         return [...prev, message];
       });
+    };
+
+    const handleMessageBroadcast = (message: ChatMessage) => {
+      console.log('📢 useSocketChat: Confirmação de mensagem enviada:', message.id);
+      // O handleNewMessage já cuida da substituição se o broadcast vier como 'new-message'
     };
 
     const handleMessageUpdated = (data: any) => {
@@ -136,22 +156,41 @@ export const useSocketChat = (options: UseSocketChatOptions): UseSocketChatRetur
     };
 
     on('new-message', handleNewMessage);
+    on('message-broadcast', handleMessageBroadcast);
     on('message-updated', handleMessageUpdated);
     on('message-deleted', handleMessageDeleted);
     on('stream-ended', handleStreamEnded);
 
     return () => {
       off('new-message', handleNewMessage);
+      off('message-broadcast', handleMessageBroadcast);
       off('message-updated', handleMessageUpdated);
       off('message-deleted', handleMessageDeleted);
       off('stream-ended', handleStreamEnded);
     };
-  }, [isConnected, on, off]);
+  }, [isConnected, on, off, streamId]);
 
   const sendMessage = async (message: string, options: MessageOptions = {}) => {
     if (!isConnected || !streamId) return;
 
-    // Backend espera 'chat-message' para mensagens normais
+    // Atualização Otimista Imediata
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage: ChatMessage = {
+      id: tempId,
+      stream_id: streamId,
+      user_id: user?.id || 'anonymous',
+      user_name: (user as any)?.name || user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Anônimo',
+      user_email: user?.email,
+      message,
+      message_type: options.messageType || 'text',
+      vip_color: options.vip_color || options.vipColor,
+      user_is_vip: !!options.vipColor || !!options.vip_color,
+      created_at: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+
+    // Emitir para o servidor
     emit('chat-message', {
       streamId,
       userId: user?.id || null,

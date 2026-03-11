@@ -218,16 +218,27 @@ const ZkTVPage: React.FC = () => {
             setIsLandscape(landscape);
 
             // Auto-fullscreen ao girar para landscape no mobile
-            if (isMobile && landscape && !isFullscreen && videoContainerRef.current) {
-                videoContainerRef.current.requestFullscreen().catch(err => {
-                    console.log('Programmatic fullscreen blocked or failed:', err);
-                });
+            // Apenas se houver stream ativa e não for admin
+            if (isMobile && landscape && !isFullscreen && activeStream?.is_active && videoContainerRef.current) {
+                console.log('🔄 Giro detectado: Tentando fullscreen automático');
+                const element = videoContainerRef.current;
+                const requestFs = element.requestFullscreen || (element as any).webkitRequestFullscreen || (element as any).mozRequestFullScreen || (element as any).msRequestFullscreen;
+                
+                if (requestFs) {
+                    requestFs.call(element).catch(err => {
+                        console.log('⚠️ Erro ao ativar fullscreen automático:', err);
+                        // Fallback: Setar estado manualmente caso o navegador bloqueie a API nativa mas permita simular via CSS
+                        setIsFullscreen(true);
+                    });
+                } else {
+                    setIsFullscreen(true);
+                }
             }
 
             // Em mobile fullscreen paisagem, ativar chat docked
-            if (isMobile && isFullscreen && landscape) {
+            if (isMobile && (isFullscreen || landscape)) {
                 setIsDockedChat(true);
-            } else if (!isFullscreen || !landscape) {
+            } else {
                 setIsDockedChat(false);
             }
         };
