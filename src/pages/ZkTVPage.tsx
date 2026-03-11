@@ -18,7 +18,9 @@ import {
     X,
     Crown,
     Target,
-    Bell
+    Bell,
+    Trophy,
+    ExternalLink
 } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
@@ -33,7 +35,7 @@ import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import VipSubscriptionModal from '../components/vip/VipSubscriptionModal';
 import PoolBetModal from '../components/pool/PoolBetModal';
 import { CastButton } from '../components/CastButton';
-import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding } from '../types';
+import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding, YouTubeClip } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useRegisterStreamId } from '../features/chat/useRegisterStreamId';
 import TeamLogo from '../components/TeamLogo';
@@ -82,7 +84,7 @@ const ZkTVPage: React.FC = () => {
         winRate: 0,
         topScorer: 'N/A'
     });
-    const [activeTab, setActiveTab] = useState<'games' | 'standings' | 'stats'>('games');
+    const [activeTab, setActiveTab] = useState<'games' | 'standings' | 'stats' | 'musicas' | 'clips'>('games');
     const [selectedComp, setSelectedComp] = useState<string>('Campeonato Brasileiro - Série A');
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -103,6 +105,8 @@ const ZkTVPage: React.FC = () => {
     const [showPoolModal, setShowPoolModal] = useState(false);
     const [activePool, setActivePool] = useState<any>(null);
     const [lastPoolResult, setLastPoolResult] = useState<any>(null); // Último resultado do bolão
+    const [clips, setClips] = useState<YouTubeClip[]>([]);
+    const [loadingClips, setLoadingClips] = useState(true);
 
     const [sessionId] = useState(() => {
         const key = `zk_tv_session`;
@@ -198,6 +202,7 @@ const ZkTVPage: React.FC = () => {
         checkVipStatus();
         checkActivePool(); // Verificar bolão ao carregar
         loadLastPoolResult(); // Buscar último resultado do bolão
+        loadClips(); // Carregar clips e músicas
 
         // Detectar mobile
         const checkMobile = () => {
@@ -214,33 +219,44 @@ const ZkTVPage: React.FC = () => {
 
         // Detectar orientação
         const checkOrientation = () => {
-            const landscape = window.innerWidth > window.innerHeight;
-            setIsLandscape(landscape);
+            // Usa window.screen.orientation se disponível, senão fallback para as proporções da janela
+            const isLandscapeMode = window.screen?.orientation?.type.startsWith('landscape') ?? (window.innerWidth > window.innerHeight);
+            setIsLandscape(isLandscapeMode);
 
-            // Auto-fullscreen ao girar para landscape no mobile
-            // Apenas se houver stream ativa e não for admin
-            if (isMobile && landscape && !isFullscreen && activeStream?.is_active && videoContainerRef.current) {
-                console.log('🔄 Giro detectado: Tentando fullscreen automático');
+            // Gerenciar fullscreen automaticamente ao girar o dispositivo mobile
+            if (isMobile && activeStream?.is_active && videoContainerRef.current) {
                 const element = videoContainerRef.current;
-                const requestFs = element.requestFullscreen || (element as any).webkitRequestFullscreen || (element as any).mozRequestFullScreen || (element as any).msRequestFullscreen;
-                
-                if (requestFs) {
-                    requestFs.call(element).catch(err => {
-                        console.log('⚠️ Erro ao ativar fullscreen automático:', err);
-                        // Fallback: Setar estado manualmente caso o navegador bloqueie a API nativa mas permita simular via CSS
+
+                if (isLandscapeMode && !isFullscreen) {
+                    console.log('🔄 Giro para paisagem detectado: Tentando fullscreen automático');
+                    const requestFs = element.requestFullscreen || (element as any).webkitRequestFullscreen || (element as any).mozRequestFullScreen || (element as any).msRequestFullscreen;
+                    
+                    if (requestFs) {
+                        requestFs.call(element).catch(err => {
+                            console.log('⚠️ Erro ao ativar fullscreen automático:', err);
+                            // Fallback: Setar estado manualmente caso o navegador bloqueie a API nativa
+                            setIsFullscreen(true);
+                        });
+                    } else {
                         setIsFullscreen(true);
-                    });
-                } else {
-                    setIsFullscreen(true);
+                    }
+                } else if (!isLandscapeMode && isFullscreen) {
+                    console.log('🔄 Giro para retrato detectado: Saindo do fullscreen automático');
+                    const exitFs = document.exitFullscreen || (document as any).webkitExitFullscreen || (document as any).mozCancelFullScreen || (document as any).msExitFullscreen;
+                    
+                    if (exitFs && document.fullscreenElement) {
+                        exitFs.call(document).catch(err => {
+                            console.log('⚠️ Erro ao sair do fullscreen automático:', err);
+                            setIsFullscreen(false);
+                        });
+                    } else {
+                        setIsFullscreen(false);
+                    }
                 }
             }
 
             // Em mobile fullscreen paisagem, ativar chat docked
-            if (isMobile && (isFullscreen || landscape)) {
-                setIsDockedChat(true);
-            } else {
-                setIsDockedChat(false);
-            }
+            setIsDockedChat(isMobile && (isFullscreen || isLandscapeMode));
         };
         checkOrientation();
         window.addEventListener('resize', checkOrientation);
@@ -362,6 +378,24 @@ const ZkTVPage: React.FC = () => {
             }
         } catch (err) {
             console.error('Erro ao buscar último resultado do bolão:', err);
+        }
+    };
+
+    const loadClips = async () => {
+        try {
+            setLoadingClips(true);
+            const { data, error } = await supabase
+                .from('youtube_clips')
+                .select('*')
+                .eq('is_active', true)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            setClips(data || []);
+        } catch (error) {
+            console.error('Erro ao carregar clips:', error);
+        } finally {
+            setLoadingClips(false);
         }
     };
 
@@ -1496,6 +1530,20 @@ const ZkTVPage: React.FC = () => {
                                 >
                                     Tabela
                                 </button>
+                                <button
+                                    onClick={() => setActiveTab('musicas')}
+                                    className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === 'musicas' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
+                                        }`}
+                                >
+                                    Música
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('clips')}
+                                    className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === 'clips' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
+                                        }`}
+                                >
+                                    Clips
+                                </button>
                             </div>
 
                             {/* Tab Panels */}
@@ -1632,122 +1680,165 @@ const ZkTVPage: React.FC = () => {
                                             exit={{ opacity: 0, x: 20 }}
                                             className="space-y-6"
                                         >
-                                            {/* Seletor de Competição - Estilo Pill com Scroll Horizontal */}
-                                            <div className="relative group">
-                                                <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2 scroll-smooth">
-                                                    {COMPETITIONS.map((comp) => (
-                                                        <button
-                                                            key={comp}
-                                                            onClick={() => setSelectedComp(comp)}
-                                                            className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-300 border ${selectedComp === comp
-                                                                ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-600/30 scale-105'
-                                                                : 'bg-slate-800/40 border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-slate-200 hover:border-slate-600'
-                                                                }`}
-                                                        >
-                                                            {comp}
-                                                        </button>
-                                                    ))}
+                                            {standings.length === 0 ? (
+                                                <div className="text-center py-12 bg-slate-900/50 rounded-3xl border border-slate-800">
+                                                    <Trophy className="w-12 h-12 text-slate-700 mx-auto mb-4 opacity-20" />
+                                                    <p className="text-slate-500 font-bold uppercase tracking-widest">Tabela indisponível</p>
                                                 </div>
-                                                {/* Gradientes de indicação de scroll */}
-                                                <div className="absolute left-0 top-0 bottom-4 w-8 bg-gradient-to-r from-slate-950 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                <div className="absolute right-0 top-0 bottom-4 w-8 bg-gradient-to-l from-slate-950 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            ) : (
+                                                <div className="bg-slate-900/50 rounded-3xl border border-slate-800 overflow-hidden">
+                                                    {/* Desktop Table */}
+                                                    <div className="hidden md:block overflow-x-auto">
+                                                        <table className="w-full">
+                                                            <thead>
+                                                                <tr className="bg-slate-950/50 border-b border-slate-800">
+                                                                    <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Pos</th>
+                                                                    <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Time</th>
+                                                                    <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">Pts</th>
+                                                                    <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">J</th>
+                                                                    <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">V</th>
+                                                                    <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">E</th>
+                                                                    <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">D</th>
+                                                                    <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">SG</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {standings.map((team, index) => {
+                                                                    const goalDiff = (team.goals_for || 0) - (team.goals_against || 0);
+                                                                    const isCruzeiro = team.is_cruzeiro;
+
+                                                                    return (
+                                                                        <tr key={team.id} className={`border-b border-white/5 hover:bg-white/5 transition-colors ${isCruzeiro ? 'bg-blue-600/10' : ''}`}>
+                                                                            <td className="px-6 py-4">
+                                                                                <span className={`text-sm font-black ${isCruzeiro ? 'text-blue-400' : 'text-white'}`}>{team.position}º</span>
+                                                                            </td>
+                                                                            <td className="px-6 py-4">
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <TeamLogo teamName={team.team} customLogo={team.logo} size="xs" />
+                                                                                    <span className={`text-xs font-bold uppercase italic ${isCruzeiro ? 'text-blue-400' : 'text-slate-300'}`}>{team.team}</span>
+                                                                                </div>
+                                                                            </td>
+                                                                            <td className="px-6 py-4 text-center font-black text-white">{team.points}</td>
+                                                                            <td className="px-6 py-4 text-center text-slate-400">{team.played}</td>
+                                                                            <td className="px-6 py-4 text-center text-emerald-500">{team.won}</td>
+                                                                            <td className="px-6 py-4 text-center text-amber-500">{team.drawn}</td>
+                                                                            <td className="px-6 py-4 text-center text-rose-500">{team.lost}</td>
+                                                                            <td className={`px-6 py-4 text-center font-bold ${goalDiff > 0 ? 'text-emerald-500' : goalDiff < 0 ? 'text-rose-500' : 'text-slate-500'}`}>
+                                                                                {goalDiff > 0 ? '+' : ''}{goalDiff}
+                                                                            </td>
+                                                                        </tr>
+                                                                    );
+                                                                })}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+
+                                                    {/* Mobile Cards */}
+                                                    <div className="md:hidden divide-y divide-slate-800">
+                                                        {standings.map((team) => {
+                                                            const goalDiff = (team.goals_for || 0) - (team.goals_against || 0);
+                                                            const isCruzeiro = team.is_cruzeiro;
+                                                            return (
+                                                                <div key={team.id} className={`p-4 ${isCruzeiro ? 'bg-blue-600/10' : ''}`}>
+                                                                    <div className="flex items-center justify-between mb-2">
+                                                                        <div className="flex items-center gap-3">
+                                                                            <span className={`text-sm font-black w-6 ${isCruzeiro ? 'text-blue-400' : 'text-slate-500'}`}>{team.position}º</span>
+                                                                            <TeamLogo teamName={team.team} customLogo={team.logo} size="xs" />
+                                                                            <span className={`text-xs font-bold uppercase italic ${isCruzeiro ? 'text-blue-400' : 'text-slate-300'}`}>{team.team}</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="text-sm font-black text-white">{team.points} <span className="text-[8px] text-slate-500 uppercase">Pts</span></span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="grid grid-cols-5 gap-2 text-center text-[10px] font-bold">
+                                                                        <div className="bg-slate-950/50 rounded p-1"><span className="text-slate-500 block">J</span>{team.played}</div>
+                                                                        <div className="bg-slate-950/50 rounded p-1"><span className="text-emerald-500/50 block">V</span>{team.won}</div>
+                                                                        <div className="bg-slate-950/50 rounded p-1"><span className="text-amber-500/50 block">E</span>{team.drawn}</div>
+                                                                        <div className="bg-slate-950/50 rounded p-1"><span className="text-rose-500/50 block">D</span>{team.lost}</div>
+                                                                        <div className="bg-slate-950/50 rounded p-1"><span className="text-slate-500 block">SG</span>{goalDiff}</div>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </motion.div>
+                                    )}
+
+                                    {(activeTab === 'musicas' || activeTab === 'clips') && (
+                                        <motion.div
+                                            key={activeTab}
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.95 }}
+                                            className="p-4 sm:p-6 lg:p-8 space-y-6"
+                                        >
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h4 className="text-xl font-black uppercase italic text-white flex items-center gap-3">
+                                                    <div className="w-1.5 h-6 bg-blue-600 rounded-full" />
+                                                    {activeTab === 'musicas' ? 'Músicas' : 'Clips'}
+                                                </h4>
                                             </div>
 
-                                            <div className="overflow-x-auto rounded-2xl border border-slate-800/50 bg-slate-900/20 backdrop-blur-sm shadow-2xl">
-                                                <table className="w-full text-left border-collapse">
-                                                    <thead>
-                                                        <tr className="border-b border-slate-800 bg-slate-900/80 sticky top-0 z-10">
-                                                            <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest">POS</th>
-                                                            <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest">TIME</th>
-                                                            <th className="px-4 py-5 text-xs font-black text-slate-500 uppercase tracking-widest text-center">PTS</th>
-                                                            <th className="px-4 py-5 text-xs font-black text-slate-500 uppercase tracking-widest text-center">PJ</th>
-                                                            <th className="px-4 py-5 text-xs font-black text-slate-500 uppercase tracking-widest text-center">V</th>
-                                                            <th className="px-4 py-5 text-xs font-black text-slate-500 uppercase tracking-widest text-center">SG</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-slate-800/30">
-                                                        {standings
-                                                            .filter(team => team.competition === selectedComp)
-                                                            .map((team) => {
-                                                                const isSerieA = selectedComp === 'Campeonato Brasileiro - Série A';
-                                                                const pos = team.position;
-
-                                                                // Cores de qualificação para Série A
-                                                                let posColorClass = "text-slate-400";
-                                                                let posBgClass = "";
-
-                                                                if (isSerieA) {
-                                                                    if (pos <= 4) {
-                                                                        posColorClass = "text-green-400"; // Libertadores
-                                                                        posBgClass = "border-l-4 border-l-green-500 bg-green-500/5";
-                                                                    } else if (pos <= 6) {
-                                                                        posColorClass = "text-blue-400"; // Pré-Libertadores
-                                                                        posBgClass = "border-l-4 border-l-blue-500 bg-blue-500/5";
-                                                                    } else if (pos <= 12) {
-                                                                        posColorClass = "text-orange-400"; // Sul-Americana
-                                                                        posBgClass = "border-l-4 border-l-orange-500/50";
-                                                                    } else if (pos >= 17) {
-                                                                        posColorClass = "text-red-400"; // Rebaixamento
-                                                                        posBgClass = "border-l-4 border-l-red-500/50 bg-red-500/5";
-                                                                    }
-                                                                }
-
-                                                                return (
-                                                                    <tr key={team.id} className={`${team.is_cruzeiro ? 'bg-blue-600/10' : posBgClass} hover:bg-slate-800/40 transition-all duration-200 group`}>
-                                                                        <td className={`px-6 py-4 font-black ${posColorClass} text-sm sm:text-base`}>
-                                                                            {pos}º
-                                                                        </td>
-                                                                        <td className="px-6 py-4 font-bold flex items-center gap-4 whitespace-nowrap">
-                                                                            <TeamLogo
-                                                                                teamName={team.team}
-                                                                                customLogo={team.logo}
-                                                                                size="sm"
-                                                                                className="group-hover:scale-110 transition-transform duration-300"
-                                                                            />
-                                                                            <span className={`text-sm sm:text-base ${team.is_cruzeiro ? 'text-blue-400' : 'text-slate-200'}`}>
-                                                                                {team.team}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td className={`px-4 py-4 text-center font-black ${team.is_cruzeiro ? 'text-blue-400' : 'text-white'} text-sm sm:text-base`}>
-                                                                            {team.points}
-                                                                        </td>
-                                                                        <td className="px-4 py-4 text-center text-slate-400 text-xs sm:text-sm font-medium">{team.played}</td>
-                                                                        <td className="px-4 py-4 text-center text-slate-400 text-xs sm:text-sm font-medium">{team.won}</td>
-                                                                        <td className={`px-4 py-4 text-center text-xs sm:text-sm font-bold ${team.goals_for - team.goals_against >= 0 ? 'text-slate-400' : 'text-red-400/70'}`}>
-                                                                            {team.goals_for - team.goals_against}
-                                                                        </td>
-                                                                    </tr>
-                                                                );
-                                                            })}
-                                                    </tbody>
-                                                </table>
-                                                {standings.filter(team => team.competition === selectedComp).length === 0 && (
-                                                    <div className="py-20 text-center bg-slate-900/40">
-                                                        <Activity className="w-16 h-16 text-slate-800 mx-auto mb-4 animate-pulse opacity-20" />
-                                                        <p className="text-slate-500 text-sm font-bold tracking-widest uppercase">Classificação em breve...</p>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* Legenda para Série A */}
-                                            {selectedComp === 'Campeonato Brasileiro - Série A' && (
-                                                <div className="flex flex-wrap gap-4 pt-2 px-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-3 h-3 rounded-full bg-green-500" />
-                                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Libertadores</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-3 h-3 rounded-full bg-blue-500" />
-                                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Pré-Libertadores</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-3 h-3 rounded-full bg-orange-500" />
-                                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Sul-Americana</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-3 h-3 rounded-full bg-red-500" />
-                                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Rebaixamento</span>
-                                                    </div>
+                                            {loadingClips ? (
+                                                <div className="flex justify-center py-20">
+                                                    <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                                </div>
+                                            ) : clips.filter(c => 
+                                                activeTab === 'musicas' 
+                                                ? c.category?.toLowerCase() === 'musica' 
+                                                : c.category?.toLowerCase() !== 'musica'
+                                            ).length === 0 ? (
+                                                <div className="text-center py-20 bg-slate-900/50 rounded-3xl border border-slate-800">
+                                                    <Play className="w-12 h-12 text-slate-700 mx-auto mb-4 opacity-20" />
+                                                    <p className="text-slate-500 font-bold uppercase tracking-widest">Nenhum item encontrado</p>
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                    {clips
+                                                        .filter(c => 
+                                                            activeTab === 'musicas' 
+                                                            ? c.category?.toLowerCase() === 'musica' 
+                                                            : c.category?.toLowerCase() !== 'musica'
+                                                        )
+                                                        .map(clip => (
+                                                            <a
+                                                                key={clip.id}
+                                                                href={`https://youtube.com/watch?v=${clip.youtube_url}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="group relative flex flex-col bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden hover:border-blue-500/50 transition-all hover:-translate-y-1 shadow-xl"
+                                                            >
+                                                                <div className="relative aspect-video overflow-hidden bg-black">
+                                                                    <img
+                                                                        src={`https://img.youtube.com/vi/${clip.youtube_url}/mqdefault.jpg`}
+                                                                        alt={clip.title}
+                                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80"
+                                                                    />
+                                                                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                                                        <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-xl shadow-blue-900/40 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300">
+                                                                            <Play className="w-5 h-5 fill-current" />
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="p-5">
+                                                                    <h5 className="font-black text-white uppercase italic tracking-tight line-clamp-2 leading-tight group-hover:text-blue-400 transition-colors">
+                                                                        {clip.title}
+                                                                    </h5>
+                                                                    <div className="mt-4 flex items-center justify-between">
+                                                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                                                            {new Date(clip.created_at).toLocaleDateString('pt-BR')}
+                                                                        </span>
+                                                                        <div className="flex items-center gap-1.5 text-blue-500">
+                                                                            <span className="text-[10px] font-black uppercase tracking-tighter">Assistir</span>
+                                                                            <ExternalLink className="w-3 h-3" />
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </a>
+                                                        ))
+                                                    }
                                                 </div>
                                             )}
                                         </motion.div>

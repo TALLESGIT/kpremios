@@ -661,7 +661,7 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
           <div className="flex items-center gap-2">
             <MessageSquare className="w-4 h-4 text-blue-400" />
           </div>
-          <div className="flex items-center gap-1.5 SmallGap">
+          <div className="flex items-center gap-3">
             {(isAdmin || isModerator) && (
               <div className="flex gap-1.5">
                 <button
@@ -686,11 +686,11 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
                   e.stopPropagation();
                   onClose();
                 }}
-                className="relative z-[100] p-4 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl transition-all active:scale-90 flex items-center justify-center min-w-[50px] min-h-[50px] shadow-lg"
+                className="relative z-[150] p-3 -mr-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all active:scale-90 flex items-center justify-center min-w-[44px] min-h-[44px] shadow-lg"
                 title="Fechar Chat"
                 aria-label="Fechar Chat"
               >
-                <X className="w-7 h-7 text-white" />
+                <X className="w-6 h-6 text-white" />
               </button>
             )}
           </div>
@@ -823,7 +823,7 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
         ) : (
           <div className="flex gap-2 items-center">
             <div className="relative" ref={emojiPickerRef}>
-              <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="w-10 h-10 flex items-center justify-center bg-slate-900/50 border border-white/5 rounded-xl text-slate-400"><Smile className="w-5 h-5" /></button>
+              <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="w-10 h-10 flex items-center justify-center bg-slate-900/50 border border-white/5 rounded-xl text-slate-400" title="Emojis"><Smile className="w-5 h-5" /></button>
               {showEmojiPicker && (
                 <div className="absolute bottom-full left-0 mb-3 w-64 bg-slate-800 rounded-2xl border border-white/10 p-3 shadow-2xl z-50 max-h-96 overflow-y-auto">
                   {isVip && (

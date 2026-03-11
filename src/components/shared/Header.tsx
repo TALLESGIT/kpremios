@@ -185,7 +185,7 @@ function Header() {
                     >
                       <span className="flex items-center gap-2">
                         <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
-                        Ao Vivo
+                        Zk-TV
                       </span>
                     </Link>
                   ) : (
@@ -196,7 +196,7 @@ function Header() {
                         : 'text-white/90 hover:text-white hover:bg-white/10'
                         }`}
                     >
-                      Lives Premiadas
+                      Zk-TV
                     </Link>
                   )}
                 </>
@@ -219,7 +219,7 @@ function Header() {
                   : 'text-white/80 hover:text-white hover:bg-white/5'
                   }`}
               >
-                Clipes
+                Zk-Clips
               </Link>
 
               {/* Admin specific navigation links */}
@@ -384,7 +384,7 @@ function Header() {
                         <span className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10">
                           <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
                         </span>
-                        Ao Vivo
+                        Zk-TV
                       </Link>
                     ) : (
                       <Link
@@ -398,7 +398,7 @@ function Header() {
                         <span className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10 transition-colors">
                           🎮
                         </span>
-                        Lives Premiadas
+                        Zk-TV
                       </Link>
                     )}
                   </>
@@ -411,7 +411,7 @@ function Header() {
                     <span className="mr-4 text-xl">🎵</span> Músicas
                   </Link>
                   <Link to="/zk-clips" onClick={closeMenu} className="flex items-center px-5 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-all hover:translate-x-1 font-bold uppercase tracking-tight italic">
-                    <span className="mr-4 text-xl">🎬</span> Clipes
+                    <span className="mr-4 text-xl">🎬</span> Zk-Clips
                   </Link>
                   {currentAppUser?.is_admin && (
                     <Link to="/admin/live-stream" onClick={closeMenu} className="flex items-center px-5 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-all hover:translate-x-1 font-bold uppercase tracking-tight italic border border-blue-500/20 bg-blue-500/5">
