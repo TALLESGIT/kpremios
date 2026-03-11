@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { useSocket } from '../hooks/useSocket';
@@ -71,6 +71,7 @@ const COMPETITIONS = [
 const ZkTVPage: React.FC = () => {
     const { user } = useAuth();
     const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
     const urlChannel = searchParams.get('channel');
 
     // Estados principais
@@ -1531,7 +1532,7 @@ const ZkTVPage: React.FC = () => {
                                     Tabela
                                 </button>
                                 <button
-                                    onClick={() => setActiveTab('musicas')}
+                                    onClick={() => navigate('/spotify')}
                                     className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === 'musicas' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
                                         }`}
                                 >

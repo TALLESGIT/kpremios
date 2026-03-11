@@ -185,13 +185,15 @@ const LoginPage: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
 
-      <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 relative overflow-hidden">
+      <main className="flex-grow flex flex-col justify-center py-12 pb-32 px-4 sm:px-6 relative min-h-[100dvh]">
         {/* Background Pattern */}
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 pointer-events-none"></div>
         <div className="absolute inset-0 bg-gradient-to-br from-primary-dark via-background to-black opacity-90"></div>
 
         <div className="w-full max-w-md relative z-10">
-          <div className="glass-panel rounded-3xl overflow-hidden shadow-2xl border border-white/10">
+          <div className="relative bg-black/40 backdrop-blur-2xl rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10 ring-1 ring-white/5">
+            {/* Inner Glow */}
+            <div className="absolute inset-0 rounded-3xl shadow-[inset_0_0_20px_rgba(255,255,255,0.02)] pointer-events-none"></div>
 
             {/* Header Area */}
             <div className="relative bg-primary/20 p-8 text-center border-b border-white/5">
@@ -226,7 +228,7 @@ const LoginPage: React.FC = () => {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
+                      className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/80 focus:border-accent/50 focus:bg-white/10 transition-all shadow-inner"
                       placeholder="seu@email.com"
                       required
                     />
@@ -262,7 +264,7 @@ const LoginPage: React.FC = () => {
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-10 pr-12 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
+                      className="w-full pl-10 pr-12 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/80 focus:border-accent/50 focus:bg-white/10 transition-all shadow-inner"
                       placeholder="••••••••"
                       required
                     />
@@ -284,7 +286,7 @@ const LoginPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full btn btn-primary py-4 rounded-xl flex items-center justify-center gap-2 group shadow-lg shadow-blue-900/20"
+                  className="w-full bg-gradient-to-r from-accent to-accent/90 hover:from-accent hover:to-accent text-primary font-black py-4 rounded-xl flex items-center justify-center gap-2 group shadow-lg shadow-accent/20 hover:shadow-accent/40 active:scale-95 transition-all"
                 >
                   {loading ? (
                     <>

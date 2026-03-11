@@ -87,7 +87,7 @@ const MobileNavigation: React.FC = () => {
             >
               <button
                 onClick={() => {
-                  navigate('/zk-clips?cat=musicas');
+                  navigate('/spotify');
                   setShowMediaSubmenu(false);
                 }}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white transition-colors border border-transparent hover:border-white/5"
