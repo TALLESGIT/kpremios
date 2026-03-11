@@ -22,6 +22,7 @@ interface MobileLiveControlsProps {
   isAudioEnabled?: boolean;
   onChatToggle?: () => void;
   onVisibilityChange?: (visible: boolean) => void;
+  viewerCount?: number;
 }
 
 const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
@@ -42,7 +43,8 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
   onToggleAudio,
   isAudioEnabled = false,
   onChatToggle,
-  onVisibilityChange
+  onVisibilityChange,
+  viewerCount = 0
 }) => {
   const [visible, setVisible] = useState(false); // Default hidden on desktop
   const [isMobile, setIsMobile] = useState(false);
@@ -355,29 +357,48 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Badge AO VIVO Premium - Re-adicionado e melhorado */}
+      {/* Badge AO VIVO e Viewer Count Premium */}
       <AnimatePresence>
-        {visible && isActive && (
+        {visible && (
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="absolute bottom-4 left-4 z-50 pointer-events-none"
+            className="absolute top-4 left-4 z-50 pointer-events-none flex flex-col gap-2"
           >
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-red-600/20 backdrop-blur-md border border-red-500/30 rounded-full shadow-lg shadow-red-900/20">
-              <div className="relative flex items-center justify-center">
-                <div className="w-2 h-2 bg-red-500 rounded-full">
-                  <motion.div
-                    className="absolute inset-0 bg-red-500 rounded-full"
-                    animate={{ scale: [1, 2.5], opacity: [0.6, 0] }}
-                    transition={{ repeat: Infinity, duration: 1.5, ease: "easeOut" }}
-                  />
+            {/* Badge AO VIVO */}
+            {isActive && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-red-600/20 backdrop-blur-md border border-red-500/30 rounded-full shadow-lg shadow-red-900/20 w-fit">
+                <div className="relative flex items-center justify-center">
+                  <div className="w-2 h-2 bg-red-500 rounded-full">
+                    <motion.div
+                      className="absolute inset-0 bg-red-500 rounded-full"
+                      animate={{ scale: [1, 2.5], opacity: [0.6, 0] }}
+                      transition={{ repeat: Infinity, duration: 1.5, ease: "easeOut" }}
+                    />
+                  </div>
                 </div>
+                <span className="text-[10px] font-black text-white uppercase tracking-widest italic">
+                  AO VIVO
+                </span>
               </div>
-              <span className="text-[10px] font-black text-white uppercase tracking-widest italic">
-                AO VIVO
-              </span>
-            </div>
+            )}
+
+            {/* Contador de Viewers (Novo) */}
+            {viewerCount > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center gap-2 px-3 py-1.5 bg-black/40 backdrop-blur-md border border-white/10 rounded-full shadow-xl w-fit"
+              >
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-[10px] font-bold text-white/90 uppercase tracking-wider">
+                    {viewerCount.toLocaleString()} {viewerCount === 1 ? 'espectador' : 'espectadores'}
+                  </span>
+                </div>
+              </motion.div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

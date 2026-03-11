@@ -289,4 +289,9 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(59, 130, 246, 0.5);
   }
+
+  /* Override para remover padding excessivo relatado pelo usuário */
+  .pb-32 {
+    padding-bottom: 0 !important;
+  }
 }

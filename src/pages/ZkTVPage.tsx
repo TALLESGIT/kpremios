@@ -608,27 +608,78 @@ const ZkTVPage: React.FC = () => {
             supabase.removeChannel(channel);
         };
     }, [sessionId]);
-    // Removida dependência de activeStream.id para ser verdadeiramente global
+    // Sync isFullscreen with native events
+    useEffect(() => {
+        const handleFsChange = () => {
+            const nativeFs = !!(document.fullscreenElement || 
+                               (document as any).webkitFullscreenElement || 
+                               (document as any).mozFullScreenElement || 
+                               (document as any).msFullscreenElement);
+            if (nativeFs !== isFullscreen) {
+                setIsFullscreen(nativeFs);
+            }
+        };
+
+        document.addEventListener('fullscreenchange', handleFsChange);
+        document.addEventListener('webkitfullscreenchange', handleFsChange);
+        document.addEventListener('mozfullscreenchange', handleFsChange);
+        document.addEventListener('MSFullscreenChange', handleFsChange);
+
+        return () => {
+            document.removeEventListener('fullscreenchange', handleFsChange);
+            document.removeEventListener('webkitfullscreenchange', handleFsChange);
+            document.removeEventListener('mozfullscreenchange', handleFsChange);
+            document.removeEventListener('MSFullscreenChange', handleFsChange);
+        };
+    }, [isFullscreen]);
 
     // Handler para duplo clique - tela cheia
     const handleDoubleClick = () => {
-        if (!videoContainerRef.current) return;
-        if (isFullscreen) {
-            document.exitFullscreen();
-        } else {
-            videoContainerRef.current.requestFullscreen();
-        }
+        handleFullscreen();
     };
 
     // Handler para fullscreen
-    const handleFullscreen = () => {
-        if (!videoContainerRef.current) return;
-        if (isFullscreen) {
-            document.exitFullscreen();
-        } else {
-            videoContainerRef.current.requestFullscreen();
+    const handleFullscreen = useCallback(async () => {
+        const container = videoContainerRef.current;
+        if (!container) return;
+
+        try {
+            if (isFullscreen) {
+                // Sair do fullscreen
+                if (document.exitFullscreen) {
+                    await document.exitFullscreen();
+                } else if ((document as any).webkitExitFullscreen) {
+                    await (document as any).webkitExitFullscreen();
+                } else {
+                    setIsFullscreen(false);
+                }
+            } else {
+                // Entrar em fullscreen
+                const requestFs = container.requestFullscreen || 
+                                (container as any).webkitRequestFullscreen || 
+                                (container as any).mozRequestFullScreen || 
+                                (container as any).msRequestFullscreen;
+
+                if (requestFs) {
+                    await requestFs.call(container);
+                } else {
+                    // Fallback para iOS: tentar fullscreen nativo do elemento de vídeo
+                    const video = (window as any).hlsVideoElement || container.querySelector('video');
+                    if (video && video.webkitEnterFullscreen) {
+                        video.webkitEnterFullscreen();
+                    } else {
+                        // Pseudo-fullscreen como fallback final
+                        setIsFullscreen(true);
+                        toast('Modo tela cheia ativado', { icon: '📱' });
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('Erro ao alternar fullscreen:', err);
+            // Em caso de erro (ex: bloqueio do navegador), forçar estado interno
+            setIsFullscreen(!isFullscreen);
         }
-    };
+    }, [isFullscreen]);
 
     // Handler para Picture-in-Picture
     const togglePiP = async () => {
@@ -1317,6 +1368,19 @@ const ZkTVPage: React.FC = () => {
                                                     isDocked={isDockedChat}
                                                     onPictureInPicture={togglePiP}
                                                     isPictureInPicture={!!document.pictureInPictureElement}
+                                                    viewerCount={currentViewerCount}
+                                                    onToggleAudio={() => {
+                                                        const video = (window as any).hlsVideoElement;
+                                                        if (video) {
+                                                            video.muted = !video.muted;
+                                                            if (!video.muted) video.volume = 1.0;
+                                                            // Forçar re-render do controle se necessário (opcional)
+                                                        }
+                                                    }}
+                                                    isAudioEnabled={(() => {
+                                                        const video = (window as any).hlsVideoElement;
+                                                        return video ? !video.muted : false;
+                                                    })()}
                                                     onChatToggle={() => {
                                                         if (isFullscreen && isLandscape) {
                                                             setIsDockedChat(!isDockedChat);
@@ -1416,7 +1480,7 @@ const ZkTVPage: React.FC = () => {
             )}
 
             {/* Content Section */}
-            <section className="py-6 sm:py-8 lg:py-12 relative pb-12 sm:pb-16 lg:pb-24">
+            <section className="py-6 sm:py-8 lg:py-12 relative pb-4 tracking-tight">
                 <div className="max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                     {/* Main Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">

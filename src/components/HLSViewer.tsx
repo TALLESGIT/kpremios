@@ -39,7 +39,14 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
 
     try {
       video.muted = false;
+      video.volume = 1.0;
+      // Forçar play novamente garantindo que não está mudo
       await video.play();
+      
+      // Retry para mobile nativo se necessário
+      if (video.paused) {
+        setTimeout(() => video.play().catch(e => console.error("[HLSViewer] Retry play failed:", e)), 100);
+      }
     } catch (err: any) {
       console.error(`[HLSViewer] Erro ao ativar áudio: ${err?.message || err}`);
     }
@@ -137,6 +144,18 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
       video.removeEventListener('error', handleError);
     };
   }, [hlsUrl]); // ✅ Removido onError das deps — usa ref
+
+  // ✅ Expor métodos para o pai via window se necessário ou via ref (mais limpo)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).hlsVideoElement = videoRef.current;
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        (window as any).hlsVideoElement = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (initialInteracted && hasVideo && !userInteracted) {
