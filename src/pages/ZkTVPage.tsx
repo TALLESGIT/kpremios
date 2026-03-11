@@ -266,8 +266,13 @@ const ZkTVPage: React.FC = () => {
         const handleFullscreenChange = () => {
             const isFs = !!document.fullscreenElement;
             setIsFullscreen(isFs);
+            
+            // Atualizar orientação também ao mudar fullscreen
+            const isLandscapeMode = window.screen?.orientation?.type.startsWith('landscape') ?? (window.innerWidth > window.innerHeight);
+            setIsLandscape(isLandscapeMode);
+
             // Em mobile fullscreen paisagem, ativar chat docked
-            if (isMobile && isFs && window.innerWidth > window.innerHeight) {
+            if (isMobile && isFs && isLandscapeMode) {
                 setIsDockedChat(true);
             } else if (!isFs) {
                 setIsDockedChat(false);
@@ -653,6 +658,11 @@ const ZkTVPage: React.FC = () => {
                 } else {
                     setIsFullscreen(false);
                 }
+
+                // Tentar desbloquear orientação
+                if (window.screen?.orientation?.unlock) {
+                    try { window.screen.orientation.unlock(); } catch (e) {}
+                }
             } else {
                 // Entrar em fullscreen
                 const requestFs = container.requestFullscreen || 
@@ -662,6 +672,15 @@ const ZkTVPage: React.FC = () => {
 
                 if (requestFs) {
                     await requestFs.call(container);
+                    
+                    // Tentar travar em paisagem após entrar em fullscreen (melhor para mobile)
+                    if (isMobile && window.screen?.orientation?.lock) {
+                        try { 
+                            await (window.screen.orientation as any).lock('landscape'); 
+                        } catch (e) { 
+                            console.warn('Orientation lock failed:', e); 
+                        }
+                    }
                 } else {
                     // Fallback para iOS: tentar fullscreen nativo do elemento de vídeo
                     const video = (window as any).hlsVideoElement || container.querySelector('video');
@@ -676,10 +695,9 @@ const ZkTVPage: React.FC = () => {
             }
         } catch (err) {
             console.error('Erro ao alternar fullscreen:', err);
-            // Em caso de erro (ex: bloqueio do navegador), forçar estado interno
             setIsFullscreen(!isFullscreen);
         }
-    }, [isFullscreen]);
+    }, [isFullscreen, isMobile]);
 
     // Handler para Picture-in-Picture
     const togglePiP = async () => {
@@ -1416,9 +1434,10 @@ const ZkTVPage: React.FC = () => {
                                         <span className="text-xs font-black text-white uppercase italic tracking-wider">Chat</span>
                                         <button
                                             onClick={() => setIsDockedChat(false)}
-                                            className="p-1.5 hover:bg-white/10 rounded-lg transition-all"
+                                            className="p-3 -mr-2 hover:bg-white/10 rounded-xl transition-all active:scale-95 flex items-center justify-center min-w-[44px] min-h-[44px]"
+                                            aria-label="Fechar chat"
                                         >
-                                            <X className="w-4 h-4 text-white" />
+                                            <X className="w-6 h-6 text-white" />
                                         </button>
                                     </div>
                                     <div className="flex-1 overflow-hidden flex flex-col">
@@ -1442,9 +1461,13 @@ const ZkTVPage: React.FC = () => {
                 <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[500px] bg-black/95 backdrop-blur-md border-l border-white/10 z-[9999] flex flex-col shadow-2xl">
                     <div className="p-4 border-b border-white/10 flex items-center justify-between">
                         <span className="text-sm font-black text-white uppercase italic tracking-widest">Chat da Transmissão</span>
-                        <button onClick={() => setIsChatOpen(false)}>
-                            <X className="w-5 h-5 text-white" />
-                        </button>
+                        <button 
+                                            onClick={() => setIsChatOpen(false)}
+                                            className="p-2 hover:bg-white/10 rounded-lg transition-all"
+                                            aria-label="Fechar chat"
+                                        >
+                                            <X className="w-6 h-6 text-white" />
+                                        </button>
                     </div>
                     <div className="flex-1 overflow-hidden flex flex-col">
                         <div className="flex-1 min-h-0 h-full">

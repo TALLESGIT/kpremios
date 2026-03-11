@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Maximize2, RotateCw, X, Minimize2, PictureInPicture, MessageSquare, Maximize, Volume2, VolumeX } from 'lucide-react';
+import { Maximize2, RotateCw, X, Minimize2, PictureInPicture, MessageSquare, Maximize, Volume2, VolumeX, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface MobileLiveControlsProps {
@@ -366,38 +366,35 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
             exit={{ opacity: 0, x: -20 }}
             className="absolute top-4 left-4 z-50 pointer-events-none flex flex-col gap-2"
           >
-            {/* Badge AO VIVO */}
+            {/* Badge Unificado: AO VIVO + Viewers */}
             {isActive && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-red-600/20 backdrop-blur-md border border-red-500/30 rounded-full shadow-lg shadow-red-900/20 w-fit">
-                <div className="relative flex items-center justify-center">
-                  <div className="w-2 h-2 bg-red-500 rounded-full">
-                    <motion.div
-                      className="absolute inset-0 bg-red-500 rounded-full"
-                      animate={{ scale: [1, 2.5], opacity: [0.6, 0] }}
-                      transition={{ repeat: Infinity, duration: 1.5, ease: "easeOut" }}
-                    />
+              <div className="flex items-center bg-black/40 backdrop-blur-md rounded-full border border-white/10 shadow-2xl overflow-hidden w-fit">
+                {/* Parte AO VIVO (Vermelho) */}
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 shadow-[0_0_15px_rgba(220,38,38,0.4)]">
+                   <div className="relative flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 bg-white rounded-full">
+                      <motion.div
+                        className="absolute inset-0 bg-white rounded-full"
+                        animate={{ scale: [1, 2.5], opacity: [0.6, 0] }}
+                        transition={{ repeat: Infinity, duration: 1.5, ease: "easeOut" }}
+                      />
+                    </div>
                   </div>
-                </div>
-                <span className="text-[10px] font-black text-white uppercase tracking-widest italic">
-                  AO VIVO
-                </span>
-              </div>
-            )}
-
-            {/* Contador de Viewers (Novo) */}
-            {viewerCount > 0 && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-2 px-3 py-1.5 bg-black/40 backdrop-blur-md border border-white/10 rounded-full shadow-xl w-fit"
-              >
-                <div className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-[10px] font-bold text-white/90 uppercase tracking-wider">
-                    {viewerCount.toLocaleString()} {viewerCount === 1 ? 'espectador' : 'espectadores'}
+                  <span className="text-[10px] font-black text-white uppercase tracking-widest italic">
+                    AO VIVO
                   </span>
                 </div>
-              </motion.div>
+
+                {/* Parte Viewer Count (Dark/Blur) */}
+                {viewerCount > 0 && (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 border-l border-white/10">
+                    <Eye className="w-3.5 h-3.5 text-white/90" />
+                    <span className="text-[10px] font-bold text-white tracking-wider">
+                      {viewerCount.toLocaleString()}
+                    </span>
+                  </div>
+                )}
+              </div>
             )}
           </motion.div>
         )}

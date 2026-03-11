@@ -599,13 +599,7 @@ function WhepPlayer({
           </div>
         </div>
       )}
-      <div
-        className="absolute bottom-2 left-2 px-2 py-1 rounded text-xs font-medium bg-black/60 text-white pointer-events-none"
-        aria-live="polite"
-      >
-        {statusLabel[status]}
-        {status === 'connected' && <span className="ml-1 text-red-500">●</span>}
-      </div>
+
     </div>
   );
 }
