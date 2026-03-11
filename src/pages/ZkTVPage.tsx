@@ -674,7 +674,7 @@ const ZkTVPage: React.FC = () => {
                     await requestFs.call(container);
                     
                     // Tentar travar em paisagem após entrar em fullscreen (melhor para mobile)
-                    if (isMobile && window.screen?.orientation?.lock) {
+                    if (isMobile && window.screen?.orientation && (window.screen.orientation as any).lock) {
                         try { 
                             await (window.screen.orientation as any).lock('landscape'); 
                         } catch (e) { 
