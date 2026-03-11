@@ -85,7 +85,7 @@ const ZkTVPage: React.FC = () => {
         winRate: 0,
         topScorer: 'N/A'
     });
-    const [activeTab, setActiveTab] = useState<'games' | 'standings' | 'stats' | 'musicas' | 'clips'>('games');
+    const [activeTab, setActiveTab] = useState<'games' | 'standings' | 'stats'>('games');
     const [selectedComp, setSelectedComp] = useState<string>('Campeonato Brasileiro - Série A');
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -106,8 +106,7 @@ const ZkTVPage: React.FC = () => {
     const [showPoolModal, setShowPoolModal] = useState(false);
     const [activePool, setActivePool] = useState<any>(null);
     const [lastPoolResult, setLastPoolResult] = useState<any>(null); // Último resultado do bolão
-    const [clips, setClips] = useState<YouTubeClip[]>([]);
-    const [loadingClips, setLoadingClips] = useState(true);
+
 
     const [sessionId] = useState(() => {
         const key = `zk_tv_session`;
@@ -203,7 +202,7 @@ const ZkTVPage: React.FC = () => {
         checkVipStatus();
         checkActivePool(); // Verificar bolão ao carregar
         loadLastPoolResult(); // Buscar último resultado do bolão
-        loadClips(); // Carregar clips e músicas
+
 
         // Detectar mobile
         const checkMobile = () => {
@@ -382,23 +381,6 @@ const ZkTVPage: React.FC = () => {
         }
     };
 
-    const loadClips = async () => {
-        try {
-            setLoadingClips(true);
-            const { data, error } = await supabase
-                .from('youtube_clips')
-                .select('*')
-                .eq('is_active', true)
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
-            setClips(data || []);
-        } catch (error) {
-            console.error('Erro ao carregar clips:', error);
-        } finally {
-            setLoadingClips(false);
-        }
-    };
 
     // ✅ MIGRAÇÃO: Usar Socket.io para atualizações de bolões quando houver stream ativa
     useEffect(() => {
@@ -1531,20 +1513,6 @@ const ZkTVPage: React.FC = () => {
                                 >
                                     Tabela
                                 </button>
-                                <button
-                                    onClick={() => navigate('/spotify')}
-                                    className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === 'musicas' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
-                                        }`}
-                                >
-                                    Música
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('clips')}
-                                    className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === 'clips' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
-                                        }`}
-                                >
-                                    Clips
-                                </button>
                             </div>
 
                             {/* Tab Panels */}
@@ -1762,84 +1730,6 @@ const ZkTVPage: React.FC = () => {
                                                             );
                                                         })}
                                                     </div>
-                                                </div>
-                                            )}
-                                        </motion.div>
-                                    )}
-
-                                    {(activeTab === 'musicas' || activeTab === 'clips') && (
-                                        <motion.div
-                                            key={activeTab}
-                                            initial={{ opacity: 0, scale: 0.95 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0, scale: 0.95 }}
-                                            className="p-4 sm:p-6 lg:p-8 space-y-6"
-                                        >
-                                            <div className="flex items-center justify-between mb-4">
-                                                <h4 className="text-xl font-black uppercase italic text-white flex items-center gap-3">
-                                                    <div className="w-1.5 h-6 bg-blue-600 rounded-full" />
-                                                    {activeTab === 'musicas' ? 'Músicas' : 'Clips'}
-                                                </h4>
-                                            </div>
-
-                                            {loadingClips ? (
-                                                <div className="flex justify-center py-20">
-                                                    <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                                                </div>
-                                            ) : clips.filter(c => 
-                                                activeTab === 'musicas' 
-                                                ? c.category?.toLowerCase() === 'musica' 
-                                                : c.category?.toLowerCase() !== 'musica'
-                                            ).length === 0 ? (
-                                                <div className="text-center py-20 bg-slate-900/50 rounded-3xl border border-slate-800">
-                                                    <Play className="w-12 h-12 text-slate-700 mx-auto mb-4 opacity-20" />
-                                                    <p className="text-slate-500 font-bold uppercase tracking-widest">Nenhum item encontrado</p>
-                                                </div>
-                                            ) : (
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                    {clips
-                                                        .filter(c => 
-                                                            activeTab === 'musicas' 
-                                                            ? c.category?.toLowerCase() === 'musica' 
-                                                            : c.category?.toLowerCase() !== 'musica'
-                                                        )
-                                                        .map(clip => (
-                                                            <a
-                                                                key={clip.id}
-                                                                href={`https://youtube.com/watch?v=${clip.youtube_url}`}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="group relative flex flex-col bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden hover:border-blue-500/50 transition-all hover:-translate-y-1 shadow-xl"
-                                                            >
-                                                                <div className="relative aspect-video overflow-hidden bg-black">
-                                                                    <img
-                                                                        src={`https://img.youtube.com/vi/${clip.youtube_url}/mqdefault.jpg`}
-                                                                        alt={clip.title}
-                                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80"
-                                                                    />
-                                                                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                                                                        <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-xl shadow-blue-900/40 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300">
-                                                                            <Play className="w-5 h-5 fill-current" />
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="p-5">
-                                                                    <h5 className="font-black text-white uppercase italic tracking-tight line-clamp-2 leading-tight group-hover:text-blue-400 transition-colors">
-                                                                        {clip.title}
-                                                                    </h5>
-                                                                    <div className="mt-4 flex items-center justify-between">
-                                                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                                                                            {new Date(clip.created_at).toLocaleDateString('pt-BR')}
-                                                                        </span>
-                                                                        <div className="flex items-center gap-1.5 text-blue-500">
-                                                                            <span className="text-[10px] font-black uppercase tracking-tighter">Assistir</span>
-                                                                            <ExternalLink className="w-3 h-3" />
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </a>
-                                                        ))
-                                                    }
                                                 </div>
                                             )}
                                         </motion.div>
