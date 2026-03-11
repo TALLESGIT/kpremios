@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useFpsMonitor } from '../hooks/useFpsMonitor';
 import Hls from 'hls.js';
-import Hls from 'hls.js';
 
 interface HLSViewerProps {
   hlsUrl: string;
@@ -61,7 +60,7 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     // video.setAttribute('playsinline', 'true'); // redundante pois já está no JSX
 
     const handleError = (e: any) => {
-      addLog(`Erro no elemento de vídeo nativo: ${e?.type}`);
+      console.error(`[HLSViewer] Erro no elemento de vídeo nativo: ${e?.type}`);
       onErrorRef.current?.('Falha na reprodução nativa HLS');
     };
 
@@ -104,15 +103,15 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              addLog(`Erro de rede fatal: ${data.details}. Tentando recuperar...`);
+              console.warn(`[HLSViewer] Erro de rede fatal: ${data.details}. Tentando recuperar...`);
               hls?.startLoad();
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              addLog(`Erro de mídia fatal: ${data.details}. Recuperando...`);
+              console.warn(`[HLSViewer] Erro de mídia fatal: ${data.details}. Recuperando...`);
               hls?.recoverMediaError();
               break;
             default:
-              addLog(`Erro fatal irrecuperável: ${data.details}`);
+              console.error(`[HLSViewer] Erro fatal irrecuperável: ${data.details}`);
               hls?.destroy();
               hlsInstanceRef.current = null;
               onErrorRef.current?.('Falha fatal HLS');
