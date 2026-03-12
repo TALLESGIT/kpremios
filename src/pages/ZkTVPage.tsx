@@ -41,6 +41,7 @@ import { useData } from '../context/DataContext';
 import { useRegisterStreamId } from '../features/chat/useRegisterStreamId';
 import TeamLogo from '../components/TeamLogo';
 import toast from 'react-hot-toast';
+import { getActiveLiveStreams, getLiveStreamByChannel } from '../services/cachedLiveService';
 
 
 interface LiveStream {
@@ -104,6 +105,7 @@ const ZkTVPage: React.FC = () => {
     const videoContainerRef = useRef<HTMLDivElement>(null);
     const activeStreamRef = useRef<LiveStream | null>(null);
     const [showPerf, setShowPerf] = useState(false); // Para debug de performance
+    const [isPageLoading, setIsPageLoading] = useState(true); // Loading state para renderização rápida
 
     // Novos estados para VIP e Bolão
     const [isVip, setIsVip] = useState(false);
@@ -213,47 +215,56 @@ const ZkTVPage: React.FC = () => {
         }
     }, [activeStream, sessionId, user?.id, updateViewerCount]);
 
+    // ========== EFFECT 1: Data Loading (mount-only) ==========
     useEffect(() => {
-        loadData();
-        loadActiveStream();
-        checkVipStatus();
-        checkActivePool(); // Verificar bolão ao carregar
-        loadLastPoolResult(); // Buscar último resultado do bolão
+        const loadAll = async () => {
+            await Promise.all([
+                loadData(),
+                loadActiveStream(),
+                checkVipStatus(),
+                checkActivePool(),
+                loadLastPoolResult()
+            ]);
+            setIsPageLoading(false);
+        };
+        loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Mount-only: carrega dados uma vez
 
-
-        // Detectar mobile
+    // ========== EFFECT 2: Mobile detection ==========
+    useEffect(() => {
         const checkMobile = () => {
             setIsMobile(window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
         };
         checkMobile();
         window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
-        // Handle tab parameter
+    // ========== EFFECT 3: Tab parameter ==========
+    useEffect(() => {
         const tab = searchParams.get('tab');
         if (tab === 'standings') {
             setActiveTab('standings');
         }
+    }, [searchParams]);
 
-        // Detectar orientação
+    // ========== EFFECT 4: Orientation + Fullscreen listeners ==========
+    useEffect(() => {
         const checkOrientation = () => {
-            // Usa window.screen.orientation se disponível, senão fallback para as proporções da janela
             const isLandscapeMode = window.screen?.orientation?.type.startsWith('landscape') ?? (window.innerWidth > window.innerHeight);
             setIsLandscape(isLandscapeMode);
 
-            // Gerenciar fullscreen automaticamente ao girar o dispositivo mobile
             const currentIsMobile = window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             const currentIsFs = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
 
             if (currentIsMobile && videoContainerRef.current) {
                 if (isLandscapeMode && !currentIsFs) {
                     console.log('🔄 Giro para paisagem detectado: Ativando fullscreen via CSS');
-                    // Usar CSS-based fullscreen (funciona em todos os navegadores incluindo iOS)
                     setIsFullscreen(true);
-                    // Fechar chat ao entrar em fullscreen - o usuário deve abrir manualmente
                     setIsChatOpen(false);
                     setIsDockedChat(false);
 
-                    // Também tentar Fullscreen API nativo (funciona em Android Chrome)
                     const element = videoContainerRef.current;
                     const requestFs = element.requestFullscreen ||
                         (element as any).webkitRequestFullscreen ||
@@ -262,12 +273,10 @@ const ZkTVPage: React.FC = () => {
 
                     if (requestFs) {
                         requestFs.call(element).catch(() => {
-                            // Falhou com API nativa, mas CSS-based fullscreen já está ativo
                             console.log('ℹ️ Fullscreen API indisponível, usando CSS fullscreen');
                         });
                     }
                 } else if (!isLandscapeMode && currentIsFs) {
-                    // Saindo de landscape → sair do fullscreen
                     setIsFullscreen(false);
                     const exitFs = document.exitFullscreen || (document as any).webkitExitFullscreen || (document as any).mozCancelFullScreen;
                     if (exitFs && document.fullscreenElement) {
@@ -283,31 +292,16 @@ const ZkTVPage: React.FC = () => {
         checkOrientation();
         window.addEventListener('resize', checkOrientation);
         window.addEventListener('orientationchange', checkOrientation);
-        // Delay extra para iOS que atrasa o orientationchange
         const orientationWithDelay = () => setTimeout(checkOrientation, 300);
         window.addEventListener('orientationchange', orientationWithDelay);
 
-        // Listener para fullscreen
         const handleFullscreenChange = () => {
             const isFs = !!document.fullscreenElement;
             setIsFullscreen(isFs);
 
-            // Atualizar orientação também ao mudar fullscreen
             const isLandscapeMode = window.screen?.orientation?.type.startsWith('landscape') ?? (window.innerWidth > window.innerHeight);
             setIsLandscape(isLandscapeMode);
 
-            // Ao entrar/sair do fullscreen, gerenciar o chat
-            // USER REQUEST: Não abrir chat automaticamente no mobile fullscreen
-            /*
-            if (isMobile && isFs && isLandscapeMode) {
-                // SÓ abre se NÃO foi fechado manualmente antes
-                if (!isChatManuallyClosed) {
-                    setIsDockedChat(true);
-                }
-            } else if (!isFs) {
-                setIsDockedChat(false);
-            }
-            */
             if (!isFs) {
                 setIsDockedChat(false);
             }
@@ -315,13 +309,22 @@ const ZkTVPage: React.FC = () => {
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
-        // Subscribe to changes
+        return () => {
+            window.removeEventListener('resize', checkOrientation);
+            window.removeEventListener('orientationchange', checkOrientation);
+            window.removeEventListener('orientationchange', orientationWithDelay);
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+        };
+    }, []); // Sem deps - os handlers lêem diretamente do DOM
+
+    // ========== EFFECT 5: Realtime subscriptions ==========
+    useEffect(() => {
         const settingsSub = supabase
             .channel('zk-tv-updates')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'cruzeiro_settings' }, () => loadSettings())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'cruzeiro_games' }, () => {
                 loadData();
-                // Título é mantido como o admin definiu (não sobrescrever automaticamente)
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'cruzeiro_standings' }, () => {
                 loadData();
@@ -330,14 +333,9 @@ const ZkTVPage: React.FC = () => {
 
         return () => {
             settingsSub.unsubscribe();
-            window.removeEventListener('resize', checkMobile);
-            window.removeEventListener('resize', checkOrientation);
-            window.removeEventListener('orientationchange', checkOrientation);
-            document.removeEventListener('fullscreenchange', handleFullscreenChange);
-            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-            window.removeEventListener('orientationchange', orientationWithDelay);
         };
-    }, [isMobile, isFullscreen, searchParams, joinStream, leaveStream, isConnected, on, off, user?.id, updateViewerCount, trackViewer, isChatManuallyClosed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Log quando VipMessageOverlay deve ser renderizado
     useEffect(() => {
@@ -782,7 +780,6 @@ const ZkTVPage: React.FC = () => {
 
     const loadActiveStream = async () => {
         try {
-            const { getActiveLiveStreams, getLiveStreamByChannel } = await import('../services/cachedLiveService');
 
             let activeStreams = await getActiveLiveStreams();
             let data = null;
