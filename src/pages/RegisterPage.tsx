@@ -208,7 +208,7 @@ const RegisterPage: React.FC = () => {
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 pointer-events-none"></div>
         <div className="absolute inset-0 bg-gradient-to-br from-primary-dark via-background to-black opacity-90"></div>
 
-        <div className="w-full max-w-md relative z-10">
+        <div className="w-full max-w-md mx-auto relative z-10">
           <div className="relative bg-black/40 backdrop-blur-2xl rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10 ring-1 ring-white/5">
             {/* Inner Glow */}
             <div className="absolute inset-0 rounded-3xl shadow-[inset_0_0_20px_rgba(255,255,255,0.02)] pointer-events-none"></div>

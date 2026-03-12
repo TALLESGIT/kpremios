@@ -311,23 +311,16 @@ function HomePage() {
                     </span>
                   )}
                 </Link>
+                {activePool && activePool.is_active && (
                 <button
-                  onClick={() => {
-                    if (activePool) {
-                      setShowPoolModal(true);
-                    } else {
-                      const section = document.getElementById('bolao-section');
-                      if (section) {
-                        section.scrollIntoView({ behavior: 'smooth' });
-                      }
-                    }
-                  }}
+                  onClick={() => setShowPoolModal(true)}
                   className="px-6 sm:px-10 py-3 sm:py-5 bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white rounded-xl sm:rounded-2xl font-black text-xs sm:text-lg transition-all duration-300 backdrop-blur-md border border-emerald-400/50 flex items-center justify-center gap-2 sm:gap-3 overflow-hidden relative group active:scale-95 shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:shadow-[0_0_30px_rgba(16,185,129,0.6)] animate-pulse-subtle"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer" />
                   <Trophy className="w-4 h-4 sm:w-6 sm:h-6 text-white group-hover:scale-110 transition-transform drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
                   PARTICIPAR DO BOLÃO
                 </button>
+                )}
                 <Link
                   to="/competicoes"
                   className="px-6 sm:px-10 py-3 sm:py-5 bg-gradient-to-br from-white/10 to-transparent hover:bg-white/15 text-white rounded-xl sm:rounded-2xl font-black text-xs sm:text-lg transition-all duration-300 backdrop-blur-md border border-white/10 flex items-center justify-center gap-2 sm:gap-3 overflow-hidden relative group active:scale-95 sm:hidden"

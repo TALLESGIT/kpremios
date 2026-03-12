@@ -241,57 +241,51 @@ const ZkTVPage: React.FC = () => {
             setIsLandscape(isLandscapeMode);
 
             // Gerenciar fullscreen automaticamente ao girar o dispositivo mobile
-            if (isMobile && activeStream?.is_active && videoContainerRef.current) {
-                const element = videoContainerRef.current;
+            const currentIsMobile = window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const currentIsFs = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
 
-                if (isLandscapeMode && !isFullscreen) {
-                    console.log('🔄 Giro para paisagem detectado: Tentando fullscreen automático');
+            if (currentIsMobile && videoContainerRef.current) {
+                if (isLandscapeMode && !currentIsFs) {
+                    console.log('🔄 Giro para paisagem detectado: Ativando fullscreen via CSS');
+                    // Usar CSS-based fullscreen (funciona em todos os navegadores incluindo iOS)
+                    setIsFullscreen(true);
+                    // Fechar chat ao entrar em fullscreen - o usuário deve abrir manualmente
+                    setIsChatOpen(false);
+                    setIsDockedChat(false);
 
-                    // Elemento alvo
+                    // Também tentar Fullscreen API nativo (funciona em Android Chrome)
                     const element = videoContainerRef.current;
-                    const video = element.querySelector('video');
-
-                    // Especial para iOS Safari em iPhone (usa webkitEnterFullscreen no VIDEO)
-                    if (/iPhone|iPad|iPod/i.test(navigator.userAgent) && video && (video as any).webkitEnterFullscreen) {
-                        try {
-                            (video as any).webkitEnterFullscreen();
-                            return;
-                        } catch (e) {
-                            console.log('webkitEnterFullscreen failed:', e);
-                        }
-                    }
-
-                    // Standard Fullscreen API
                     const requestFs = element.requestFullscreen ||
                         (element as any).webkitRequestFullscreen ||
                         (element as any).mozRequestFullScreen ||
                         (element as any).msRequestFullscreen;
 
                     if (requestFs) {
-                        requestFs.call(element).catch(err => {
-                            console.log('⚠️ Erro ao ativar fullscreen automático:', err);
+                        requestFs.call(element).catch(() => {
+                            // Falhou com API nativa, mas CSS-based fullscreen já está ativo
+                            console.log('ℹ️ Fullscreen API indisponível, usando CSS fullscreen');
                         });
+                    }
+                } else if (!isLandscapeMode && currentIsFs) {
+                    // Saindo de landscape → sair do fullscreen
+                    setIsFullscreen(false);
+                    const exitFs = document.exitFullscreen || (document as any).webkitExitFullscreen || (document as any).mozCancelFullScreen;
+                    if (exitFs && document.fullscreenElement) {
+                        exitFs.call(document).catch(() => {});
                     }
                 }
             }
 
-            // USER REQUEST: Não abrir chat automaticamente no mobile fullscreen/landscape
-            /*
-            if (isMobile && (isFullscreen || isLandscapeMode)) {
-                if (!isChatManuallyClosed) {
-                    setIsDockedChat(true);
-                }
-            } else if (!isMobile || !isFullscreen) {
-                setIsDockedChat(false);
-            }
-            */
-            if (!isFullscreen && !isLandscapeMode && isMobile) {
+            if (!currentIsFs && !isLandscapeMode && currentIsMobile) {
                 setIsDockedChat(false);
             }
         };
         checkOrientation();
         window.addEventListener('resize', checkOrientation);
         window.addEventListener('orientationchange', checkOrientation);
+        // Delay extra para iOS que atrasa o orientationchange
+        const orientationWithDelay = () => setTimeout(checkOrientation, 300);
+        window.addEventListener('orientationchange', orientationWithDelay);
 
         // Listener para fullscreen
         const handleFullscreenChange = () => {
@@ -319,6 +313,7 @@ const ZkTVPage: React.FC = () => {
             }
         };
         document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
         // Subscribe to changes
         const settingsSub = supabase
@@ -339,6 +334,8 @@ const ZkTVPage: React.FC = () => {
             window.removeEventListener('resize', checkOrientation);
             window.removeEventListener('orientationchange', checkOrientation);
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+            window.removeEventListener('orientationchange', orientationWithDelay);
         };
     }, [isMobile, isFullscreen, searchParams, joinStream, leaveStream, isConnected, on, off, user?.id, updateViewerCount, trackViewer, isChatManuallyClosed]);
 
@@ -688,40 +685,32 @@ const ZkTVPage: React.FC = () => {
     const handleFullscreen = useCallback(async () => {
         if (!videoContainerRef.current) return;
         const element = videoContainerRef.current;
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
         try {
             if (!isFullscreen) {
-                // Ao entrar manualmente pelo botão, permitimos abrir o chat se não estiver fechado
-                // ✅ USER REQUEST: Não abrir chat automaticamente no fullscreen
-                /*
-                if (isMobile && !isChatManuallyClosed) {
-                    setIsDockedChat(true);
-                }
-                */
+                // Fechar chat ao entrar em fullscreen - o usuário deve abrir manualmente
+                setIsChatOpen(false);
+                setIsDockedChat(false);
 
                 // Tentar bloquear orientação em landscape no mobile
                 if (isMobile && (window.screen as any).orientation?.lock) {
                     try {
                         await (window.screen.orientation as any).lock('landscape').catch(() => {
-                            console.log('Swap orientation lock failed');
+                            console.log('Orientation lock not supported');
                         });
                     } catch (e) {
                         console.log('Orientation lock not supported');
                     }
                 }
 
-                // No iOS iPhone, requestFullscreen no container DIV pode não funcionar.
-                // Fallback para o vídeo se necessário, mas o container é melhor para os overlays.
-                const video = element.querySelector('video');
-
-                // Especial para iOS Safari em iPhone (usa webkitEnterFullscreen no VIDEO)
-                if (isMobile && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                    if (video && (video as any).webkitEnterFullscreen) {
-                        (video as any).webkitEnterFullscreen();
-                        return;
-                    }
+                // iOS: Fullscreen API não funciona em divs, usar CSS-based fullscreen
+                if (isIOS) {
+                    setIsFullscreen(true);
+                    return;
                 }
 
+                // Android / Desktop: usar Fullscreen API nativo
                 const requestFs = element.requestFullscreen ||
                     (element as any).webkitRequestFullscreen ||
                     (element as any).mozRequestFullScreen ||
@@ -729,10 +718,8 @@ const ZkTVPage: React.FC = () => {
 
                 if (requestFs) {
                     await requestFs.call(element);
-                } else if (video && (video as any).webkitEnterFullscreen) {
-                    (video as any).webkitEnterFullscreen();
                 } else {
-                    // Fallback total
+                    // Fallback total: CSS-based fullscreen
                     setIsFullscreen(true);
                 }
             } else {
@@ -741,8 +728,14 @@ const ZkTVPage: React.FC = () => {
                     (window.screen as any).orientation.unlock();
                 }
 
+                if (isIOS) {
+                    // iOS: sair do CSS fullscreen
+                    setIsFullscreen(false);
+                    return;
+                }
+
                 const exitFs = document.exitFullscreen || (document as any).webkitExitFullscreen || (document as any).mozCancelFullScreen;
-                if (exitFs) {
+                if (exitFs && (document.fullscreenElement || (document as any).webkitFullscreenElement)) {
                     await exitFs.call(document);
                 } else {
                     setIsFullscreen(false);
@@ -750,9 +743,8 @@ const ZkTVPage: React.FC = () => {
             }
         } catch (err) {
             console.error('Fullscreen error:', err);
-            // Fallback manual de estado
-            if (!isFullscreen) setIsFullscreen(true);
-            else setIsFullscreen(false);
+            // Fallback: CSS-based fullscreen
+            setIsFullscreen(!isFullscreen);
         }
     }, [isFullscreen, isMobile, isChatManuallyClosed]);
 
@@ -1412,8 +1404,7 @@ const ZkTVPage: React.FC = () => {
                             onMouseLeave={() => !isMobile && setShowControls(false)}
                             onClick={() => showControlsTemporarily()}
                             onTouchStart={() => isMobile && showControlsTemporarily()}
-                            className={`w-full max-w-[680px] lg:max-w-[760px] mx-auto shrink-0 aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative cursor-pointer group ${isFullscreen ? 'rounded-none fixed inset-0 z-[100] w-screen h-screen' : ''
-                                } ${isDockedChat ? 'mobile-video-container docked-chat-active' : ''}`}
+                            className={`${isFullscreen ? 'fixed inset-0 z-[100] w-screen h-screen bg-black rounded-none' : 'w-full max-w-[680px] lg:max-w-[760px] mx-auto shrink-0 aspect-video bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl'} overflow-hidden relative cursor-pointer group ${isDockedChat ? 'mobile-video-container docked-chat-active' : ''}`}
                             title={isMobile ? "Toque duas vezes para tela cheia" : "Duplo clique para tela cheia"}
                         >
                             <div className="relative w-full h-full flex">

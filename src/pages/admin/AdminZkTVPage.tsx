@@ -525,7 +525,7 @@ const AdminZkTVPage: React.FC = () => {
                 match_id: game.id,
                 stream_url: '',
                 is_live: false,
-                is_active: true,
+                is_active: false,
                 created_by: currentUser?.id
             }]).select('id').single();
 

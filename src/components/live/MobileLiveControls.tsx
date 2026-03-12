@@ -193,7 +193,7 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
                   onToggleAudio();
                   showControls(); // Keep controls visible
                 }}
-                className={`bg-black/20 backdrop-blur-sm p-3 rounded-full hover:bg-black/40 transition-colors ${!isAudioEnabled ? 'text-amber-400' : 'text-white'}`}
+                className={`bg-black/20 backdrop-blur-sm p-3 rounded-full hover:bg-black/40 transition-colors ${!isAudioEnabled ? 'text-red-400' : 'text-white'}`}
                 aria-label={isAudioEnabled ? "Mutar" : "Ativar Áudio"}
                 title={isAudioEnabled ? "Mutar" : "Ativar Áudio"}
               >

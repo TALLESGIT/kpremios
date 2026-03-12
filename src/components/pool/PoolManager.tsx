@@ -5,6 +5,19 @@ import { Target, Play, Square, Trophy, Users, DollarSign } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { whatsappService } from '../../services/whatsappService';
 import CustomToast from '../shared/CustomToast';
+import { getTeamLogo } from '../../utils/teamLogos';
+
+// Helper para gerar slug de stream (mesmo padrão do AdminZkTVPage)
+const generateStreamSlug = (title: string): string => {
+  return title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim() + '-' + Date.now().toString().slice(-4);
+};
 
 interface PoolManagerProps {
   streamId: string;
@@ -12,6 +25,7 @@ interface PoolManagerProps {
 
 interface MatchPool {
   id: string;
+  match_id?: string;
   match_title: string;
   home_team: string;
   away_team: string;
@@ -205,17 +219,19 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
         p_pool_id: pool.id
       });
 
-      if (winnersError) {
-        const errMsg = (winnersError as { message?: string }).message || '';
-        const errCode = (winnersError as { code?: string }).code || '';
-        console.error('Erro ao calcular ganhadores:', { message: errMsg, code: errCode, full: winnersError });
+      console.log('RPC winnersData:', winnersData);
+
+      if (winnersError || (winnersData as any)?.error) {
+        const errMsg = (winnersError as { message?: string })?.message || (winnersData as any)?.error || '';
+        const errCode = (winnersError as { code?: string })?.code || 'RPC_INTERNAL_ERROR';
+        console.error('Erro ao calcular ganhadores:', { message: errMsg, code: errCode, full: winnersError, data: winnersData });
         toast.custom(() => (
           <CustomToast
             type="error"
             title="ERRO AO CALCULAR GANHADORES"
             message={errMsg.includes('result_set_at') || errMsg.includes('does not exist')
               ? 'Resultado salvo. Execute no Supabase (SQL) a migration: 20260115_add_result_set_at_to_match_pools.sql'
-              : 'Resultado salvo, mas houve erro ao calcular ganhadores. Veja o console.'}
+              : `Erro: ${errMsg}`}
           />
         ), { duration: 5000 });
       } else {
@@ -337,6 +353,132 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
             // Não bloquear o fluxo se falhar o envio de notificações
           }
         }
+      }
+
+      // ========================================
+      // 🔄 TRANSIÇÃO AUTOMÁTICA: Marcar jogo como finalizado e criar bolão para o próximo jogo
+      // ========================================
+      try {
+        // 1. Se o bolão atual tem match_id, marcar o jogo como 'finished'
+        if (pool.match_id) {
+          const { error: gameUpdateError } = await supabase
+            .from('cruzeiro_games')
+            .update({ status: 'finished', score_home: home, score_away: away })
+            .eq('id', pool.match_id);
+
+          if (gameUpdateError) {
+            console.warn('Erro ao marcar jogo como finalizado:', gameUpdateError);
+          } else {
+            console.log('✅ Jogo marcado como finalizado automaticamente');
+          }
+        }
+
+        // 2. Buscar o próximo jogo upcoming (data mais próxima)
+        const { data: nextGame, error: nextGameError } = await supabase
+          .from('cruzeiro_games')
+          .select('*')
+          .eq('status', 'upcoming')
+          .gte('date', new Date().toISOString())
+          .order('date', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (!nextGameError && nextGame) {
+          // 3. Verificar se já existe um bolão para esse jogo
+          const { data: existingPool } = await supabase
+            .from('match_pools')
+            .select('id')
+            .eq('match_id', nextGame.id)
+            .maybeSingle();
+
+          if (!existingPool) {
+            // 4. Criar live_stream para o próximo jogo
+            const isHome = nextGame.is_home;
+            const matchTitle = isHome
+              ? `Bolão: Cruzeiro x ${nextGame.opponent}`
+              : `Bolão: ${nextGame.opponent} x Cruzeiro`;
+            const homeTeam = isHome ? 'Cruzeiro' : nextGame.opponent;
+            const awayTeam = isHome ? nextGame.opponent : 'Cruzeiro';
+            const cruzeiroLogo = getTeamLogo('Cruzeiro') || 'https://logodetimes.com/times/cruzeiro/logo-cruzeiro-256.png';
+            const homeLogo = isHome ? cruzeiroLogo : (getTeamLogo(nextGame.opponent) || nextGame.opponent_logo || '');
+            const awayLogo = isHome ? (getTeamLogo(nextGame.opponent) || nextGame.opponent_logo || '') : cruzeiroLogo;
+
+            const streamTitle = `Transmissão: ${matchTitle.replace('Bolão: ', '')}`;
+            const channelSlug = generateStreamSlug(streamTitle);
+
+            const { data: newStream, error: streamError } = await supabase
+              .from('live_streams')
+              .insert([{
+                title: streamTitle,
+                channel_name: channelSlug,
+                is_active: false
+              }])
+              .select('id')
+              .single();
+
+            if (!streamError && newStream) {
+              // 5. Calcular acumulado (se sem ganhadores, herdar valor)
+              let newAccumulated = 0;
+              const reloadedPool = await supabase
+                .from('match_pools')
+                .select('*')
+                .eq('id', pool.id)
+                .single();
+              
+              if (reloadedPool.data) {
+                const p = reloadedPool.data;
+                if (!p.winners_count || p.winners_count === 0) {
+                  newAccumulated = (p.accumulated_amount || 0) + (p.total_pool_amount || 0);
+                }
+              }
+
+              // 6. Criar o novo match_pool
+              const { error: newPoolError } = await supabase
+                .from('match_pools')
+                .insert([{
+                  live_stream_id: newStream.id,
+                  match_id: nextGame.id,
+                  match_title: matchTitle,
+                  home_team: homeTeam,
+                  away_team: awayTeam,
+                  home_team_logo: homeLogo,
+                  away_team_logo: awayLogo,
+                  is_active: true,
+                  accumulated_amount: newAccumulated,
+                  total_pool_amount: 0
+                }]);
+
+              if (!newPoolError) {
+                toast.custom(() => (
+                  <CustomToast
+                    type="success"
+                    title="PRÓXIMO BOLÃO CRIADO!"
+                    message={`Bolão automaticamente ativado: ${matchTitle}`}
+                  />
+                ), { duration: 5000 });
+                console.log('✅ Novo bolão criado automaticamente:', matchTitle);
+              } else {
+                console.error('Erro ao criar novo bolão:', newPoolError);
+                toast.error('Resultado salvo, mas erro ao criar próximo bolão.');
+              }
+            } else {
+              console.error('Erro ao criar live_stream para próximo jogo:', streamError);
+            }
+          } else {
+            console.log('ℹ️ Já existe bolão para o próximo jogo, apenas ativando...');
+            // Ativar o bolão existente
+            await supabase
+              .from('match_pools')
+              .update({ is_active: true })
+              .eq('id', existingPool.id);
+            toast.success('Próximo bolão ativado automaticamente!');
+          }
+        } else {
+          console.log('ℹ️ Nenhum próximo jogo encontrado para criar bolão automático.');
+        }
+      } catch (transitionError) {
+        console.error('Erro na transição automática do bolão:', transitionError);
+        // Não bloquear o fluxo principal se a transição falhar
       }
 
       await loadPool();
