@@ -520,11 +520,11 @@ function WhepPlayer({
   };
 
   const handleVideoClick = useCallback(() => {
-    if (videoRef.current && status === 'connected' && isUserMuted) {
+    if (videoRef.current && status === 'connected' && isUserMuted && !isAdmin) {
       videoRef.current.muted = false;
       setIsUserMuted(false);
     }
-  }, [status, isUserMuted]);
+  }, [status, isUserMuted, isAdmin]);
 
   return (
     <div

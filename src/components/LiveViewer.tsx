@@ -39,17 +39,19 @@ export function LiveViewer({
   showPerf = false,
 }: LiveViewerProps) {
 
+  // Hook de status - Busca dados do canal se não fornecidos via props
+  const { data, loading, error } = useLiveStatus(channelName);
 
-  const { data: statusData, loading, error } = useLiveStatus(channelName);
+  // Estado para fallback de WHEP para HLS em caso de erro
   const [fallbackToHls, setFallbackToHls] = useState(false);
 
   // Se passarmos isActive por prop, usamos ele, senão usamos o do hook
-  const data = statusData;
   const isActuallyLive = propIsActive !== undefined ? propIsActive : (data?.is_active ?? false);
   const currentHlsUrl = hlsUrl !== undefined ? hlsUrl : (data?.hls_url ?? null);
 
-  // Loading state
-  if (loading) {
+  // Loading state - Otimizado: Se já temos os dados via Props, NÃO mostrar loading do hook interno
+  const isDataReady = propIsActive !== undefined && hlsUrl !== undefined;
+  if (loading && !isDataReady) {
     return (
       <div className={`flex items-center justify-center h-full bg-black ${className}`}>
         <div className="text-center space-y-4">

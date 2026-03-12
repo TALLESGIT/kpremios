@@ -366,34 +366,13 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
             exit={{ opacity: 0, x: -20 }}
             className="absolute top-4 left-4 z-50 pointer-events-none flex flex-col gap-2"
           >
-            {/* Badge Unificado: AO VIVO + Viewers */}
-            {isActive && (
-              <div className="flex items-center bg-black/40 backdrop-blur-md rounded-full border border-white/10 shadow-2xl overflow-hidden w-fit">
-                {/* Parte AO VIVO (Vermelho) */}
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 shadow-[0_0_15px_rgba(220,38,38,0.4)]">
-                   <div className="relative flex items-center justify-center">
-                    <div className="w-1.5 h-1.5 bg-white rounded-full">
-                      <motion.div
-                        className="absolute inset-0 bg-white rounded-full"
-                        animate={{ scale: [1, 2.5], opacity: [0.6, 0] }}
-                        transition={{ repeat: Infinity, duration: 1.5, ease: "easeOut" }}
-                      />
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-black text-white uppercase tracking-widest italic">
-                    AO VIVO
-                  </span>
-                </div>
-
-                {/* Parte Viewer Count (Dark/Blur) */}
-                {viewerCount > 0 && (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 border-l border-white/10">
-                    <Eye className="w-3.5 h-3.5 text-white/90" />
-                    <span className="text-[10px] font-bold text-white tracking-wider">
-                      {viewerCount.toLocaleString()}
-                    </span>
-                  </div>
-                )}
+            {/* Badge Unificado: Eye Icon + Viewers */}
+            {isActive && viewerCount > 0 && (
+              <div className="flex items-center bg-black/40 backdrop-blur-md rounded-full border border-white/10 shadow-2xl overflow-hidden w-fit px-3 py-1.5 gap-1.5">
+                <Eye className="w-3.5 h-3.5 text-white/90" />
+                <span className="text-[10px] font-bold text-white tracking-wider">
+                  {viewerCount.toLocaleString()}
+                </span>
               </div>
             )}
           </motion.div>

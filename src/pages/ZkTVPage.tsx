@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
@@ -37,9 +37,11 @@ import PoolBetModal from '../components/pool/PoolBetModal';
 import { CastButton } from '../components/CastButton';
 import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding, YouTubeClip } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { useRegisterStreamId } from '../features/chat/useRegisterStreamId';
 import TeamLogo from '../components/TeamLogo';
 import toast from 'react-hot-toast';
+
 
 interface LiveStream {
     id: string;
@@ -70,6 +72,7 @@ const COMPETITIONS = [
 
 const ZkTVPage: React.FC = () => {
     const { user } = useAuth();
+    const { currentUser } = useData();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const urlChannel = searchParams.get('channel');
@@ -85,7 +88,7 @@ const ZkTVPage: React.FC = () => {
         winRate: 0,
         topScorer: 'N/A'
     });
-    const [activeTab, setActiveTab] = useState<'games' | 'standings' | 'stats'>('games');
+    const [activeTab, setActiveTab] = useState<'games' | 'standings' | 'clips'>('games');
     const [selectedComp, setSelectedComp] = useState<string>('Campeonato Brasileiro - Série A');
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -93,12 +96,14 @@ const ZkTVPage: React.FC = () => {
     const [videoFitMode, setVideoFitMode] = useState<'contain' | 'cover'>('contain');
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [isDockedChat, setIsDockedChat] = useState(false);
+    const [isChatManuallyClosed, setIsChatManuallyClosed] = useState(false);
     const [currentViewerCount, setCurrentViewerCount] = useState(0);
     const [showControls, setShowControls] = useState(false);
     const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const trackViewerExecutedRef = useRef(false);
     const videoContainerRef = useRef<HTMLDivElement>(null);
     const activeStreamRef = useRef<LiveStream | null>(null);
+    const [showPerf, setShowPerf] = useState(false); // Para debug de performance
 
     // Novos estados para VIP e Bolão
     const [isVip, setIsVip] = useState(false);
@@ -106,6 +111,18 @@ const ZkTVPage: React.FC = () => {
     const [showPoolModal, setShowPoolModal] = useState(false);
     const [activePool, setActivePool] = useState<any>(null);
     const [lastPoolResult, setLastPoolResult] = useState<any>(null); // Último resultado do bolão
+    const [selectedStandingComp, setSelectedStandingComp] = useState<string | null>(null);
+    const [stableIsLiveActive, setStableIsLiveActive] = useState(true); // Estabilidade para evitar flickering
+    const lastLiveStatusRef = useRef(true);
+
+    // Sincronizar isVip com o currentUser
+    useEffect(() => {
+        if (currentUser) {
+            setIsVip(currentUser.is_vip || false);
+        } else {
+            setIsVip(false);
+        }
+    }, [currentUser]);
 
 
     const [sessionId] = useState(() => {
@@ -229,34 +246,48 @@ const ZkTVPage: React.FC = () => {
 
                 if (isLandscapeMode && !isFullscreen) {
                     console.log('🔄 Giro para paisagem detectado: Tentando fullscreen automático');
-                    const requestFs = element.requestFullscreen || (element as any).webkitRequestFullscreen || (element as any).mozRequestFullScreen || (element as any).msRequestFullscreen;
-                    
+
+                    // Elemento alvo
+                    const element = videoContainerRef.current;
+                    const video = element.querySelector('video');
+
+                    // Especial para iOS Safari em iPhone (usa webkitEnterFullscreen no VIDEO)
+                    if (/iPhone|iPad|iPod/i.test(navigator.userAgent) && video && (video as any).webkitEnterFullscreen) {
+                        try {
+                            (video as any).webkitEnterFullscreen();
+                            return;
+                        } catch (e) {
+                            console.log('webkitEnterFullscreen failed:', e);
+                        }
+                    }
+
+                    // Standard Fullscreen API
+                    const requestFs = element.requestFullscreen ||
+                        (element as any).webkitRequestFullscreen ||
+                        (element as any).mozRequestFullScreen ||
+                        (element as any).msRequestFullscreen;
+
                     if (requestFs) {
                         requestFs.call(element).catch(err => {
                             console.log('⚠️ Erro ao ativar fullscreen automático:', err);
-                            // Fallback: Setar estado manualmente caso o navegador bloqueie a API nativa
-                            setIsFullscreen(true);
                         });
-                    } else {
-                        setIsFullscreen(true);
-                    }
-                } else if (!isLandscapeMode && isFullscreen) {
-                    console.log('🔄 Giro para retrato detectado: Saindo do fullscreen automático');
-                    const exitFs = document.exitFullscreen || (document as any).webkitExitFullscreen || (document as any).mozCancelFullScreen || (document as any).msExitFullscreen;
-                    
-                    if (exitFs && document.fullscreenElement) {
-                        exitFs.call(document).catch(err => {
-                            console.log('⚠️ Erro ao sair do fullscreen automático:', err);
-                            setIsFullscreen(false);
-                        });
-                    } else {
-                        setIsFullscreen(false);
                     }
                 }
             }
 
-            // Em mobile fullscreen paisagem, ativar chat docked
-            setIsDockedChat(isMobile && (isFullscreen || isLandscapeMode));
+            // USER REQUEST: Não abrir chat automaticamente no mobile fullscreen/landscape
+            /*
+            if (isMobile && (isFullscreen || isLandscapeMode)) {
+                if (!isChatManuallyClosed) {
+                    setIsDockedChat(true);
+                }
+            } else if (!isMobile || !isFullscreen) {
+                setIsDockedChat(false);
+            }
+            */
+            if (!isFullscreen && !isLandscapeMode && isMobile) {
+                setIsDockedChat(false);
+            }
         };
         checkOrientation();
         window.addEventListener('resize', checkOrientation);
@@ -266,15 +297,24 @@ const ZkTVPage: React.FC = () => {
         const handleFullscreenChange = () => {
             const isFs = !!document.fullscreenElement;
             setIsFullscreen(isFs);
-            
+
             // Atualizar orientação também ao mudar fullscreen
             const isLandscapeMode = window.screen?.orientation?.type.startsWith('landscape') ?? (window.innerWidth > window.innerHeight);
             setIsLandscape(isLandscapeMode);
 
-            // Em mobile fullscreen paisagem, ativar chat docked
+            // Ao entrar/sair do fullscreen, gerenciar o chat
+            // USER REQUEST: Não abrir chat automaticamente no mobile fullscreen
+            /*
             if (isMobile && isFs && isLandscapeMode) {
-                setIsDockedChat(true);
+                // SÓ abre se NÃO foi fechado manualmente antes
+                if (!isChatManuallyClosed) {
+                    setIsDockedChat(true);
+                }
             } else if (!isFs) {
+                setIsDockedChat(false);
+            }
+            */
+            if (!isFs) {
                 setIsDockedChat(false);
             }
         };
@@ -300,7 +340,7 @@ const ZkTVPage: React.FC = () => {
             window.removeEventListener('orientationchange', checkOrientation);
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
         };
-    }, [isMobile, isFullscreen, searchParams, joinStream, leaveStream, isConnected, on, off, user?.id, updateViewerCount, trackViewer]);
+    }, [isMobile, isFullscreen, searchParams, joinStream, leaveStream, isConnected, on, off, user?.id, updateViewerCount, trackViewer, isChatManuallyClosed]);
 
     // Log quando VipMessageOverlay deve ser renderizado
     useEffect(() => {
@@ -557,36 +597,32 @@ const ZkTVPage: React.FC = () => {
 
     // Listener GLOBAL para atualizações na tabela live_streams (Início, Fim, Viewer Count)
     useEffect(() => {
-        const channel = supabase.channel('global-streams-changes')
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'live_streams'
-            }, (payload) => {
-                if (isZkTVDebug()) {
-                    console.log('📡 ZkTVPage: Mudança detectada na tabela live_streams:', payload);
-                }
+        const channel = supabase.channel('live-stream-updates')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, async (payload) => {
+                if (isZkTVDebug()) console.log('🔔 Realtime: live_streams update', payload);
 
-                const currentStream = activeStreamRef.current;
                 const newVal = payload.new as LiveStream;
+                const oldVal = payload.old as LiveStream;
+                const currentStream = activeStreamRef.current;
 
-                // DETECÇÃO DE START DE LIVE (INSERT ou UPDATE para active=true)
-                if ((payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') && newVal?.is_active) {
-                    if (!currentStream || !currentStream.is_active || currentStream.id !== newVal.id) {
-                        if (isZkTVDebug()) console.log('⚡ Live iniciada/reativada! Conectando imediatamente...', newVal);
-                        setActiveStream(newVal);
+                if (payload.eventType === 'INSERT' || (payload.eventType === 'UPDATE' && newVal?.is_active && (!currentStream || !currentStream.is_active))) {
+                    // Nova live ou reativada
+                    if (!currentStream || currentStream.id !== newVal.id) {
+                        loadActiveStream();
                     }
-                }
+                } else if (payload.eventType === 'UPDATE') {
+                    // Ignorar se não for a stream atual
+                    if (currentStream && currentStream.id !== newVal.id) return;
 
-                // DETECÇÃO DE MUDANÇA NO STREAM ATUAL (UPDATE ou DELETE)
-                if (payload.eventType === 'UPDATE' && currentStream && currentStream.id === payload.new.id) {
-                    if (!newVal.is_active && currentStream.is_active) {
+                    // Se a stream ficar inativa (status mudou de active para inactive)
+                    if (newVal.is_active === false && (!oldVal || oldVal.is_active !== false)) {
                         if (isZkTVDebug()) console.log('🛑 Live encerrada! Desconectando imediatamente...');
                         setActiveStream(prev => prev ? { ...prev, is_active: false } : null);
                         setIsChatOpen(false);
+                        setIsDockedChat(false);
                         toast.error('A transmissão foi encerrada.');
 
-                        if (sessionId && currentStream.id) {
+                        if (sessionId && currentStream?.id) {
                             supabase.from('viewer_sessions')
                                 .update({ is_active: false, ended_at: new Date().toISOString() })
                                 .eq('session_id', sessionId)
@@ -600,11 +636,9 @@ const ZkTVPage: React.FC = () => {
                             setCurrentViewerCount(newVal.viewer_count);
                         }
                     }
-                } else if (payload.eventType === 'DELETE' && currentStream && currentStream.id === payload.old.id) {
+                } else if (payload.eventType === 'DELETE' && activeStreamRef.current && activeStreamRef.current.id === payload.old.id) {
                     setActiveStream(null);
                     setCurrentViewerCount(0);
-                } else if (payload.eventType === 'INSERT' && !activeStreamRef.current) {
-                    loadActiveStream();
                 }
             })
             .subscribe();
@@ -613,15 +647,22 @@ const ZkTVPage: React.FC = () => {
             supabase.removeChannel(channel);
         };
     }, [sessionId]);
+
     // Sync isFullscreen with native events
     useEffect(() => {
         const handleFsChange = () => {
-            const nativeFs = !!(document.fullscreenElement || 
-                               (document as any).webkitFullscreenElement || 
-                               (document as any).mozFullScreenElement || 
-                               (document as any).msFullscreenElement);
+            const nativeFs = !!(document.fullscreenElement ||
+                (document as any).webkitFullscreenElement ||
+                (document as any).mozFullScreenElement ||
+                (document as any).msFullscreenElement);
+
             if (nativeFs !== isFullscreen) {
                 setIsFullscreen(nativeFs);
+
+                // Se sair do fullscreen, fechamos o chat se for mobile
+                if (!nativeFs && isMobile) {
+                    setIsDockedChat(false);
+                }
             }
         };
 
@@ -636,7 +677,7 @@ const ZkTVPage: React.FC = () => {
             document.removeEventListener('mozfullscreenchange', handleFsChange);
             document.removeEventListener('MSFullscreenChange', handleFsChange);
         };
-    }, [isFullscreen]);
+    }, [isFullscreen, isMobile]);
 
     // Handler para duplo clique - tela cheia
     const handleDoubleClick = () => {
@@ -645,59 +686,75 @@ const ZkTVPage: React.FC = () => {
 
     // Handler para fullscreen
     const handleFullscreen = useCallback(async () => {
-        const container = videoContainerRef.current;
-        if (!container) return;
+        if (!videoContainerRef.current) return;
+        const element = videoContainerRef.current;
 
         try {
-            if (isFullscreen) {
-                // Sair do fullscreen
-                if (document.exitFullscreen) {
-                    await document.exitFullscreen();
-                } else if ((document as any).webkitExitFullscreen) {
-                    await (document as any).webkitExitFullscreen();
+            if (!isFullscreen) {
+                // Ao entrar manualmente pelo botão, permitimos abrir o chat se não estiver fechado
+                // ✅ USER REQUEST: Não abrir chat automaticamente no fullscreen
+                /*
+                if (isMobile && !isChatManuallyClosed) {
+                    setIsDockedChat(true);
+                }
+                */
+
+                // Tentar bloquear orientação em landscape no mobile
+                if (isMobile && (window.screen as any).orientation?.lock) {
+                    try {
+                        await (window.screen.orientation as any).lock('landscape').catch(() => {
+                            console.log('Swap orientation lock failed');
+                        });
+                    } catch (e) {
+                        console.log('Orientation lock not supported');
+                    }
+                }
+
+                // No iOS iPhone, requestFullscreen no container DIV pode não funcionar.
+                // Fallback para o vídeo se necessário, mas o container é melhor para os overlays.
+                const video = element.querySelector('video');
+
+                // Especial para iOS Safari em iPhone (usa webkitEnterFullscreen no VIDEO)
+                if (isMobile && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                    if (video && (video as any).webkitEnterFullscreen) {
+                        (video as any).webkitEnterFullscreen();
+                        return;
+                    }
+                }
+
+                const requestFs = element.requestFullscreen ||
+                    (element as any).webkitRequestFullscreen ||
+                    (element as any).mozRequestFullScreen ||
+                    (element as any).msRequestFullscreen;
+
+                if (requestFs) {
+                    await requestFs.call(element);
+                } else if (video && (video as any).webkitEnterFullscreen) {
+                    (video as any).webkitEnterFullscreen();
+                } else {
+                    // Fallback total
+                    setIsFullscreen(true);
+                }
+            } else {
+                // Saindo do fullscreen
+                if ((window.screen as any).orientation?.unlock) {
+                    (window.screen as any).orientation.unlock();
+                }
+
+                const exitFs = document.exitFullscreen || (document as any).webkitExitFullscreen || (document as any).mozCancelFullScreen;
+                if (exitFs) {
+                    await exitFs.call(document);
                 } else {
                     setIsFullscreen(false);
                 }
-
-                // Tentar desbloquear orientação
-                if (window.screen?.orientation?.unlock) {
-                    try { window.screen.orientation.unlock(); } catch (e) {}
-                }
-            } else {
-                // Entrar em fullscreen
-                const requestFs = container.requestFullscreen || 
-                                (container as any).webkitRequestFullscreen || 
-                                (container as any).mozRequestFullScreen || 
-                                (container as any).msRequestFullscreen;
-
-                if (requestFs) {
-                    await requestFs.call(container);
-                    
-                    // Tentar travar em paisagem após entrar em fullscreen (melhor para mobile)
-                    if (isMobile && window.screen?.orientation && (window.screen.orientation as any).lock) {
-                        try { 
-                            await (window.screen.orientation as any).lock('landscape'); 
-                        } catch (e) { 
-                            console.warn('Orientation lock failed:', e); 
-                        }
-                    }
-                } else {
-                    // Fallback para iOS: tentar fullscreen nativo do elemento de vídeo
-                    const video = (window as any).hlsVideoElement || container.querySelector('video');
-                    if (video && video.webkitEnterFullscreen) {
-                        video.webkitEnterFullscreen();
-                    } else {
-                        // Pseudo-fullscreen como fallback final
-                        setIsFullscreen(true);
-                        toast('Modo tela cheia ativado', { icon: '📱' });
-                    }
-                }
             }
         } catch (err) {
-            console.error('Erro ao alternar fullscreen:', err);
-            setIsFullscreen(!isFullscreen);
+            console.error('Fullscreen error:', err);
+            // Fallback manual de estado
+            if (!isFullscreen) setIsFullscreen(true);
+            else setIsFullscreen(false);
         }
-    }, [isFullscreen, isMobile]);
+    }, [isFullscreen, isMobile, isChatManuallyClosed]);
 
     // Handler para Picture-in-Picture
     const togglePiP = async () => {
@@ -733,44 +790,40 @@ const ZkTVPage: React.FC = () => {
 
     const loadActiveStream = async () => {
         try {
-            // ✅ OTIMIZAÇÃO: Usar cache do backend Socket.IO (reduz 99% das requisições ao Supabase)
             const { getActiveLiveStreams, getLiveStreamByChannel } = await import('../services/cachedLiveService');
 
-            // Primeiro, tentar buscar stream ativa do cache
             let activeStreams = await getActiveLiveStreams();
             let data = null;
 
-            // PRIORIDADE 1: Se houver canal na URL, buscar ESSE canal (mesmo que inativo ou cacheado)
             if (urlChannel) {
-                if (isZkTVDebug()) console.log(`🔍 ZkTVPage: Buscando canal da URL: ${urlChannel}`);
                 data = await getLiveStreamByChannel(urlChannel);
             }
 
-            // PRIORIDADE 2: Se não houver canal na URL ou não foi encontrado, pegar a primeira ativa
             if (!data && activeStreams.length > 0) {
                 data = activeStreams[0];
             }
 
-            // PRIORIDADE 3: Se ainda não encontrar nada, buscar a stream padrão ZkOficial (mesmo que inativa)
             if (!data) {
-                if (isZkTVDebug()) console.log('⚠️ Nenhuma stream ativa encontrada, buscando stream ZkOficial...');
                 data = await getLiveStreamByChannel('ZkOficial');
-
-                if (data && isZkTVDebug()) {
-                    console.log('✅ Stream ZkOficial encontrada:', data);
-                }
             }
 
             if (data) {
-                setActiveStream(data);
-                setCurrentViewerCount(data.viewer_count || 0);
-                // Sempre rastrear quando a stream estiver ativa
+                // Só atualiza se houver mudança real ou se não houver stream atual
+                const current = activeStreamRef.current;
+                if (!current || current.id !== data.id || current.is_active !== data.is_active || current.hls_url !== data.hls_url) {
+                    if (isZkTVDebug()) console.log('🎬 ZkTVPage: Atualizando activeStream:', data.channel_name, 'Live:', data.is_active);
+                    setActiveStream(data);
+                    setCurrentViewerCount(data.viewer_count || 0);
+                }
+
                 if (data.is_active) {
                     trackViewer(data.id);
-                    if (!trackViewerExecutedRef.current) {
-                        trackViewerExecutedRef.current = true;
-                    }
+                    trackViewerExecutedRef.current = true;
                 }
+            } else if (activeStreamRef.current) {
+                // Se tínhamos uma stream e agora não veio nada, talvez seja um erro transitório
+                // Não limpamos imediatamente para evitar flickering, a menos que tenhamos certeza
+                if (isZkTVDebug()) console.warn('⚠️ ZkTVPage: Nenhuma stream encontrada no loadActiveStream, mantendo anterior para evitar flickering');
             } else {
                 setActiveStream(null);
                 setCurrentViewerCount(0);
@@ -778,8 +831,7 @@ const ZkTVPage: React.FC = () => {
             }
         } catch (err) {
             console.error('Erro ao carregar live ativa:', err);
-            setActiveStream(null);
-            setCurrentViewerCount(0);
+            // Em caso de erro, mantém o que está para evitar queda da live por erro de API
         }
     };
 
@@ -1037,6 +1089,194 @@ const ZkTVPage: React.FC = () => {
     // Mesmo que is_active = false, tenta mostrar (pode estar transmitindo mas status não sincronizado)
     const isLiveActive = activeStream ? (activeStream.is_active || activeStream.channel_name === 'ZkOficial') : !!settings?.is_live;
 
+    // ✅ ESTABILIDADE: Evitar que a live saia e volte no mobile por flutuações de rede/banco
+    useEffect(() => {
+        if (isLiveActive) {
+            setStableIsLiveActive(true);
+            lastLiveStatusRef.current = true;
+        } else {
+            // Se a live cair, espera 4 segundos antes de realmente mostrar a tela de "Encerrada"
+            // Isso cobre oscilações de sinal e atualizações de banco transientes
+            const timer = setTimeout(() => {
+                if (!lastLiveStatusRef.current) {
+                    setStableIsLiveActive(false);
+                }
+            }, 10000); // Aumentado para 10s para maior estabilidade
+            
+            lastLiveStatusRef.current = false;
+            return () => clearTimeout(timer);
+        }
+    }, [isLiveActive]);
+
+    // Agrupar classificações por competição
+    const groupedStandings = useMemo(() => {
+        const groups: Record<string, CruzeiroStanding[]> = {};
+        standings.forEach(s => {
+            const comp = s.competition || 'Outros';
+            if (!groups[comp]) groups[comp] = [];
+            groups[comp].push(s);
+        });
+
+        // Ordenar cada grupo por posição
+        Object.values(groups).forEach(group => {
+            group.sort((a, b) => a.position - b.position);
+        });
+
+        const sortedEntries = Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+
+        // Tentar definir a competição inicial se ainda não estiver definida
+        if (sortedEntries.length > 0 && !selectedStandingComp) {
+            setSelectedStandingComp(sortedEntries[0][0]);
+        }
+
+        return sortedEntries;
+    }, [standings, selectedStandingComp]);
+
+    // Renderizar tabela de classificação de um grupo
+    // Função auxiliar para obter a cor da zona baseada na posição e competição
+    const getZoneColor = (position: number, competition: string) => {
+        const comp = competition.toLowerCase();
+        if (!comp.includes('série a') && !comp.includes('brasileirão') && !comp.includes('brasileiro')) return '';
+
+        if (position <= 4) return 'bg-blue-600'; // Libertadores
+        if (position <= 6) return 'bg-cyan-500'; // Pré-Libertadores
+        if (position >= 7 && position <= 12) return 'bg-amber-500'; // Sul-Americana
+        if (position >= 17) return 'bg-rose-600'; // Rebaixamento
+        return '';
+    };
+
+    const renderStandingTable = (competitionName: string, competitionStandings: CruzeiroStanding[]) => (
+        <div key={competitionName} className="mb-12 last:mb-0">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="w-1 h-8 bg-blue-600 rounded-full" />
+                <h3 className="text-xl font-black text-white uppercase tracking-wider">{competitionName}</h3>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-white/5 bg-zinc-900/50 backdrop-blur-sm">
+                <table className="w-full text-left border-collapse">
+                    <thead>
+                        <tr className="border-b border-white/5 bg-white/5">
+                            <th className="px-3 py-4 text-[11px] font-black text-white/40 uppercase tracking-widest text-center">Pos</th>
+                            <th className="px-6 py-4 text-[11px] font-black text-white/40 uppercase tracking-widest text-left">Time</th>
+                            <th className="px-6 py-4 text-[11px] font-black text-white/40 uppercase tracking-widest text-center">Pts</th>
+                            <th className="px-6 py-4 text-[11px] font-black text-white/40 uppercase tracking-widest text-center">J</th>
+                            <th className="px-6 py-4 text-[11px] font-black text-white/40 uppercase tracking-widest text-center">V</th>
+                            <th className="px-6 py-4 text-[11px] font-black text-white/40 uppercase tracking-widest text-center">E</th>
+                            <th className="px-6 py-4 text-[11px] font-black text-white/40 uppercase tracking-widest text-center">D</th>
+                            <th className="px-6 py-4 text-[11px] font-black text-white/40 uppercase tracking-widest text-center">SG</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                        {competitionStandings.map((team) => (
+                            <tr
+                                key={team.id}
+                                className={`group hover:bg-white/5 transition-colors ${team.is_cruzeiro ? 'bg-blue-600/10' : ''}`}
+                            >
+                                <td className="px-6 py-4 text-center">
+                                    <div className="flex items-center justify-center">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black text-white ${getZoneColor(team.position, competitionName) || 'bg-white/5 text-white/40'}`}>
+                                            {team.position}º
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-xl bg-zinc-800/80 border border-white/5 group-hover:scale-110 transition-transform flex items-center justify-center overflow-hidden shrink-0 shadow-lg">
+                                            <TeamLogo
+                                                teamName={team.team}
+                                                customLogo={team.logo}
+                                                size="sm"
+                                            />
+                                        </div>
+                                        <span className={`font-bold text-sm sm:text-base ${team.is_cruzeiro ? 'text-blue-500' : 'text-white'}`}>
+                                            {team.team}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 text-center font-black text-white">{team.points}</td>
+                                <td className="px-6 py-4 text-center font-bold text-white/60">{team.played}</td>
+                                <td className="px-6 py-4 text-center text-white/60">{team.won}</td>
+                                <td className="px-6 py-4 text-center text-white/60">{team.drawn}</td>
+                                <td className="px-6 py-4 text-center text-white/60">{team.lost}</td>
+                                <td className="px-6 py-4 text-center">
+                                    <span className={`inline-flex px-2 py-1 rounded-md text-[10px] font-bold ${team.goals_for - team.goals_against >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                        {team.goals_for - team.goals_against > 0 ? '+' : ''}{team.goals_for - team.goals_against}
+                                    </span>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+
+    // Renderizar cards de classificação mobile de um grupo
+    const renderMobileStandingGroup = (competitionName: string, competitionStandings: CruzeiroStanding[]) => (
+        <div key={`mobile-${competitionName}`} className="mb-10 last:mb-0">
+            <div className="flex items-center gap-3 mb-4 px-1">
+                <div className="w-1 h-6 bg-blue-600 rounded-full" />
+                <h3 className="text-lg font-black text-white uppercase tracking-wider">{competitionName}</h3>
+            </div>
+
+            <div className="space-y-3">
+                {competitionStandings.map((team) => (
+                    <div
+                        key={team.id}
+                        className={`p-4 rounded-xl border-l-[4px] border border-white/5 bg-zinc-900/50 backdrop-blur-sm ${team.is_cruzeiro ? 'ring-1 ring-blue-500/30' : ''} ${getZoneColor(team.position, competitionName) ? getZoneColor(team.position, competitionName).replace('bg-', 'border-') : 'border-l-white/5'}`}
+                    >
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-4">
+                                <span className={`text-2xl font-black italic min-w-[32px] text-center ${getZoneColor(team.position, competitionName) ? getZoneColor(team.position, competitionName).replace('bg-', 'text-') : 'text-white/20'}`}>
+                                    {team.position}º
+                                </span>
+                                <div className="w-12 h-12 rounded-2xl bg-zinc-800 border border-white/10 flex items-center justify-center overflow-hidden shadow-xl ring-4 ring-black/20">
+                                    <TeamLogo
+                                        teamName={team.team}
+                                        customLogo={team.logo}
+                                        size="md"
+                                    />
+                                </div>
+                                <div className="ml-1">
+                                    <h4 className={`font-black text-base leading-tight ${team.is_cruzeiro ? 'text-blue-500' : 'text-white'}`}>
+                                        {team.team}
+                                    </h4>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{team.points} PTS</span>
+                                        <div className="w-1 h-1 rounded-full bg-white/20" />
+                                        <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{team.played} JOGOS</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm ${team.goals_for - team.goals_against >= 0 ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'}`}>
+                                SG {team.goals_for - team.goals_against > 0 ? '+' : ''}{team.goals_for - team.goals_against}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-2 pt-3 border-t border-white/5">
+                            <div className="text-center">
+                                <div className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1">V</div>
+                                <div className="text-xs font-bold text-white">{team.won}</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1">E</div>
+                                <div className="text-xs font-bold text-white">{team.drawn}</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1">D</div>
+                                <div className="text-xs font-bold text-white">{team.lost}</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1">SG</div>
+                                <div className="text-xs font-bold text-white">{team.goals_for - team.goals_against}</div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
     // Função para mostrar controles temporariamente
     const showControlsTemporarily = () => {
         setShowControls(true);
@@ -1177,64 +1417,45 @@ const ZkTVPage: React.FC = () => {
                             title={isMobile ? "Toque duas vezes para tela cheia" : "Duplo clique para tela cheia"}
                         >
                             <div className="relative w-full h-full flex">
-                                {isLiveActive ? (
+                                {stableIsLiveActive ? (
                                     <>
-                                        {/* Só renderiza o player quando a transmissão estiver ativa */}
+                                        {/* Renderiza o player principal enquanto estiver estável */}
                                         <LiveViewer
-                                            channelName={activeStream?.channel_name || 'ZkOfical'}
-                                            fitMode={videoFitMode}
+                                            streamId={activeStream?.id}
+                                            channelName={activeStream?.channel_name || 'ZkOficial'}
+                                            hlsUrl={activeStream?.hls_url}
+                                            isActive={isLiveActive}
+                                            isAdmin={currentUser?.is_admin}
+                                            isVip={isVip}
+                                            showPerf={showPerf}
                                             showOfflineMessage={false}
                                         />
                                         {activeStream?.id && (
                                             <VipMessageOverlay streamId={activeStream.id} isActive={isLiveActive} />
                                         )}
                                     </>
-                                ) : activeStream && !isLiveActive ? (
-                                    <>
-                                        {/* Transmissão encerrada - placeholder sem carregar o player */}
-                                        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center z-30">
-                                            <div className="text-center px-6 max-w-md animate-in fade-in zoom-in duration-700">
-                                                <div className="w-20 h-20 mx-auto bg-slate-800/50 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-black/50 border border-white/5">
-                                                    <Tv className="w-10 h-10 text-slate-400" />
-                                                </div>
-                                                <h2 className="text-2xl sm:text-3xl font-black text-white mb-3">
-                                                    Transmissão Encerrada
-                                                </h2>
-                                                <p className="text-slate-400 mb-8 max-w-[300px] mx-auto text-sm sm:text-base">
-                                                    Obrigado por nos acompanhar! Fique ligado nas próximas transmissões.
-                                                </p>
-                                                <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-                                                    <button
-                                                        onClick={() => window.location.reload()}
-                                                        className="px-6 py-3 w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 hover:scale-105 text-sm flex items-center justify-center gap-2"
-                                                    >
-                                                        🔄 Atualizar
-                                                    </button>
-                                                    <a
-                                                        href="/"
-                                                        className="px-6 py-3 w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all border border-slate-700 text-sm flex items-center justify-center gap-2"
-                                                    >
-                                                        🏠 Início
-                                                    </a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </>
                                 ) : (
+                                    /* Se não estiver em live estável, tentamos os fallbacks */
                                     settings?.live_url && settings.live_url.includes('/live/') ? (
                                         <LiveViewer
                                             channelName="ZkOficial"
                                             showOfflineMessage={false}
+                                            isAdmin={currentUser?.is_admin}
+                                            isVip={isVip}
+                                            showPerf={showPerf}
                                         />
                                     ) : settings?.live_url ? (
-                                        <iframe
-                                            src={settings.live_url}
-                                            className="w-full h-full border-0"
-                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                            allowFullScreen
-                                        ></iframe>
+                                        <div className="w-full h-full bg-black">
+                                            <iframe
+                                                src={settings.live_url}
+                                                className="w-full h-full border-0"
+                                                allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                                                allowFullScreen
+                                            />
+                                        </div>
                                     ) : (
-                                        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 sm:p-6 lg:p-12 text-center overflow-y-auto">
+                                        /* Transmissão encerrada ou agenda de próximo jogo */
+                                        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center z-30">
                                             {nextGame ? (
                                                 <div className="w-full max-w-sm mx-auto animate-in fade-in zoom-in duration-700 py-2">
                                                     <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
@@ -1282,13 +1503,19 @@ const ZkTVPage: React.FC = () => {
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <>
-                                                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-800 rounded-xl sm:rounded-2xl flex items-center justify-center mb-4 sm:mb-6 border border-slate-700">
-                                                        <Play className="w-6 h-6 sm:w-8 sm:h-8 text-slate-600" />
+                                                <div className="text-center px-6 max-w-sm animate-in fade-in zoom-in duration-700">
+                                                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-800/50 rounded-full flex items-center justify-center mb-6 shadow-lg border border-white/5 mx-auto">
+                                                        <Tv className="w-10 h-10 text-slate-400" />
                                                     </div>
-                                                    <h3 className="text-lg sm:text-xl font-bold mb-2 text-slate-400">Aguardando calendário...</h3>
-                                                    <p className="text-slate-500 text-xs sm:text-sm px-4">A live será exibida aqui em breve...</p>
-                                                </>
+                                                    <h2 className="text-2xl font-black text-white mb-3">Transmissão Encerrada</h2>
+                                                    <p className="text-slate-400 text-sm mb-6">Obrigado por nos acompanhar! Fique ligado nas próximas lives.</p>
+                                                    <button
+                                                        onClick={() => window.location.reload()}
+                                                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all text-sm"
+                                                    >
+                                                        🔄 Recarregar
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
                                     )
@@ -1433,11 +1660,14 @@ const ZkTVPage: React.FC = () => {
                                     <div className="p-3 border-b border-white/10 flex items-center justify-between shrink-0">
                                         <span className="text-xs font-black text-white uppercase italic tracking-wider">Chat</span>
                                         <button
-                                            onClick={() => setIsDockedChat(false)}
-                                            className="p-3 -mr-2 hover:bg-white/10 rounded-xl transition-all active:scale-95 flex items-center justify-center min-w-[44px] min-h-[44px]"
-                                            aria-label="Fechar chat"
+                                            onClick={() => {
+                                                setIsDockedChat(false);
+                                                setIsChatManuallyClosed(true);
+                                            }}
+                                            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors group/close"
+                                            title="Fechar chat"
                                         >
-                                            <X className="w-6 h-6 text-white" />
+                                            <X className="w-5 h-5 text-white/60 group-hover/close:text-white" />
                                         </button>
                                     </div>
                                     <div className="flex-1 overflow-hidden flex flex-col">
@@ -1461,13 +1691,13 @@ const ZkTVPage: React.FC = () => {
                 <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[500px] bg-black/95 backdrop-blur-md border-l border-white/10 z-[9999] flex flex-col shadow-2xl">
                     <div className="p-4 border-b border-white/10 flex items-center justify-between">
                         <span className="text-sm font-black text-white uppercase italic tracking-widest">Chat da Transmissão</span>
-                        <button 
-                                            onClick={() => setIsChatOpen(false)}
-                                            className="p-2 hover:bg-white/10 rounded-lg transition-all"
-                                            aria-label="Fechar chat"
-                                        >
-                                            <X className="w-6 h-6 text-white" />
-                                        </button>
+                        <button
+                            onClick={() => setIsChatOpen(false)}
+                            className="p-2 hover:bg-white/10 rounded-lg transition-all"
+                            aria-label="Fechar chat"
+                        >
+                            <X className="w-6 h-6 text-white" />
+                        </button>
                     </div>
                     <div className="flex-1 overflow-hidden flex flex-col">
                         <div className="flex-1 min-h-0 h-full">
@@ -1742,80 +1972,60 @@ const ZkTVPage: React.FC = () => {
                                                     <p className="text-slate-500 font-bold uppercase tracking-widest">Tabela indisponível</p>
                                                 </div>
                                             ) : (
-                                                <div className="bg-slate-900/50 rounded-3xl border border-slate-800 overflow-hidden">
-                                                    {/* Desktop Table */}
-                                                    <div className="hidden md:block overflow-x-auto">
-                                                        <table className="w-full">
-                                                            <thead>
-                                                                <tr className="bg-slate-950/50 border-b border-slate-800">
-                                                                    <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Pos</th>
-                                                                    <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Time</th>
-                                                                    <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">Pts</th>
-                                                                    <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">J</th>
-                                                                    <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">V</th>
-                                                                    <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">E</th>
-                                                                    <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">D</th>
-                                                                    <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">SG</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {standings.map((team, index) => {
-                                                                    const goalDiff = (team.goals_for || 0) - (team.goals_against || 0);
-                                                                    const isCruzeiro = team.is_cruzeiro;
-
-                                                                    return (
-                                                                        <tr key={team.id} className={`border-b border-white/5 hover:bg-white/5 transition-colors ${isCruzeiro ? 'bg-blue-600/10' : ''}`}>
-                                                                            <td className="px-6 py-4">
-                                                                                <span className={`text-sm font-black ${isCruzeiro ? 'text-blue-400' : 'text-white'}`}>{team.position}º</span>
-                                                                            </td>
-                                                                            <td className="px-6 py-4">
-                                                                                <div className="flex items-center gap-3">
-                                                                                    <TeamLogo teamName={team.team} customLogo={team.logo} size="xs" />
-                                                                                    <span className={`text-xs font-bold uppercase italic ${isCruzeiro ? 'text-blue-400' : 'text-slate-300'}`}>{team.team}</span>
-                                                                                </div>
-                                                                            </td>
-                                                                            <td className="px-6 py-4 text-center font-black text-white">{team.points}</td>
-                                                                            <td className="px-6 py-4 text-center text-slate-400">{team.played}</td>
-                                                                            <td className="px-6 py-4 text-center text-emerald-500">{team.won}</td>
-                                                                            <td className="px-6 py-4 text-center text-amber-500">{team.drawn}</td>
-                                                                            <td className="px-6 py-4 text-center text-rose-500">{team.lost}</td>
-                                                                            <td className={`px-6 py-4 text-center font-bold ${goalDiff > 0 ? 'text-emerald-500' : goalDiff < 0 ? 'text-rose-500' : 'text-slate-500'}`}>
-                                                                                {goalDiff > 0 ? '+' : ''}{goalDiff}
-                                                                            </td>
-                                                                        </tr>
-                                                                    );
-                                                                })}
-                                                            </tbody>
-                                                        </table>
+                                                <div className="space-y-8">
+                                                    {/* Menu de Competições */}
+                                                    <div className="flex flex-wrap gap-2 pb-4 border-b border-white/5">
+                                                        {groupedStandings.map(([comp]) => (
+                                                            <button
+                                                                key={comp}
+                                                                onClick={() => setSelectedStandingComp(comp)}
+                                                                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all relative overflow-hidden group ${selectedStandingComp === comp
+                                                                        ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/30 scale-105 z-10'
+                                                                        : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white'
+                                                                    }`}
+                                                            >
+                                                                {selectedStandingComp === comp && (
+                                                                    <motion.div
+                                                                        layoutId="activeTabGlow"
+                                                                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"
+                                                                    />
+                                                                )}
+                                                                {comp}
+                                                            </button>
+                                                        ))}
                                                     </div>
 
-                                                    {/* Mobile Cards */}
-                                                    <div className="md:hidden divide-y divide-slate-800">
-                                                        {standings.map((team) => {
-                                                            const goalDiff = (team.goals_for || 0) - (team.goals_against || 0);
-                                                            const isCruzeiro = team.is_cruzeiro;
-                                                            return (
-                                                                <div key={team.id} className={`p-4 ${isCruzeiro ? 'bg-blue-600/10' : ''}`}>
-                                                                    <div className="flex items-center justify-between mb-2">
-                                                                        <div className="flex items-center gap-3">
-                                                                            <span className={`text-sm font-black w-6 ${isCruzeiro ? 'text-blue-400' : 'text-slate-500'}`}>{team.position}º</span>
-                                                                            <TeamLogo teamName={team.team} customLogo={team.logo} size="xs" />
-                                                                            <span className={`text-xs font-bold uppercase italic ${isCruzeiro ? 'text-blue-400' : 'text-slate-300'}`}>{team.team}</span>
-                                                                        </div>
-                                                                        <div className="flex items-center gap-2">
-                                                                            <span className="text-sm font-black text-white">{team.points} <span className="text-[8px] text-slate-500 uppercase">Pts</span></span>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="grid grid-cols-5 gap-2 text-center text-[10px] font-bold">
-                                                                        <div className="bg-slate-950/50 rounded p-1"><span className="text-slate-500 block">J</span>{team.played}</div>
-                                                                        <div className="bg-slate-950/50 rounded p-1"><span className="text-emerald-500/50 block">V</span>{team.won}</div>
-                                                                        <div className="bg-slate-950/50 rounded p-1"><span className="text-amber-500/50 block">E</span>{team.drawn}</div>
-                                                                        <div className="bg-slate-950/50 rounded p-1"><span className="text-rose-500/50 block">D</span>{team.lost}</div>
-                                                                        <div className="bg-slate-950/50 rounded p-1"><span className="text-slate-500 block">SG</span>{goalDiff}</div>
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })}
+                                                    {/* Legenda de Cores (Apenas para Brasileiro/Série A) */}
+                                                    {(selectedStandingComp?.toLowerCase().includes('brasileir') || selectedStandingComp?.toLowerCase().includes('série a')) && (
+                                                        <div className="flex flex-wrap gap-4 px-2 py-3 bg-white/5 rounded-2xl border border-white/5">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-2 h-2 rounded-full bg-blue-600" />
+                                                                <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Libertadores</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-2 h-2 rounded-full bg-cyan-500" />
+                                                                <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Pré-Libertadores</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-2 h-2 rounded-full bg-amber-500" />
+                                                                <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Sul-Americana</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-2 h-2 rounded-full bg-rose-600" />
+                                                                <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Rebaixamento</span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="space-y-12">
+                                                        {isMobile
+                                                            ? groupedStandings
+                                                                .filter(([comp]) => !selectedStandingComp || comp === selectedStandingComp)
+                                                                .map(([comp, teams]) => renderMobileStandingGroup(comp, teams))
+                                                            : groupedStandings
+                                                                .filter(([comp]) => !selectedStandingComp || comp === selectedStandingComp)
+                                                                .map(([comp, teams]) => renderStandingTable(comp, teams))
+                                                        }
                                                     </div>
                                                 </div>
                                             )}
