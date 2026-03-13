@@ -40,6 +40,8 @@ import { useRegisterStreamId } from '../features/chat/useRegisterStreamId';
 import TeamLogo from '../components/TeamLogo';
 import toast from 'react-hot-toast';
 import { getActiveLiveStreams, getLiveStreamByChannel } from '../services/cachedLiveService';
+import { StatusBar } from '@capacitor/status-bar';
+import { Capacitor } from '@capacitor/core';
 
 
 interface LiveStream {
@@ -321,6 +323,10 @@ const ZkTVPage: React.FC = () => {
                     setIsChatOpen(false);
                     setIsDockedChat(false);
 
+                    if (Capacitor.isNativePlatform()) {
+                        StatusBar.hide().catch(e => console.error('StatusBar hide error', e));
+                    }
+
                     const element = videoContainerRef.current;
                     const requestFs = element.requestFullscreen ||
                         (element as any).webkitRequestFullscreen ||
@@ -334,6 +340,9 @@ const ZkTVPage: React.FC = () => {
                     }
                 } else if (!isLandscapeMode && currentIsFs) {
                     setIsFullscreen(false);
+                    if (Capacitor.isNativePlatform()) {
+                        StatusBar.show().catch(e => console.error('StatusBar show error', e));
+                    }
                     const exitFs = document.exitFullscreen || (document as any).webkitExitFullscreen || (document as any).mozCancelFullScreen;
                     if (exitFs && document.fullscreenElement) {
                         exitFs.call(document).catch(() => {});
@@ -714,6 +723,10 @@ const ZkTVPage: React.FC = () => {
                 if (!nativeFs && isMobile) {
                     setIsChatOpen(false); // ✅ Garantir que o chat overlay também feche
                     setIsDockedChat(false);
+                    
+                    if (Capacitor.isNativePlatform()) {
+                        StatusBar.show().catch(e => console.error('StatusBar show error', e));
+                    }
                 }
             }
         };
@@ -773,6 +786,9 @@ const ZkTVPage: React.FC = () => {
                 // iOS: Fullscreen API não funciona em divs, usar CSS-based fullscreen
                 if (isIOS) {
                     setIsFullscreen(true);
+                    if (Capacitor.isNativePlatform()) {
+                        StatusBar.hide().catch(e => console.error('StatusBar hide error', e));
+                    }
                     return;
                 }
 
@@ -825,23 +841,23 @@ const ZkTVPage: React.FC = () => {
     }, [isFullscreen, isMobile, isChatManuallyClosed]);
 
     // Handler para Picture-in-Picture
-    const togglePiP = async () => {
-        const video = videoContainerRef.current?.querySelector('video');
-        if (video && document.pictureInPictureEnabled) {
-            try {
-                if (document.pictureInPictureElement) {
-                    await document.exitPictureInPicture();
-                } else {
-                    await video.requestPictureInPicture();
-                }
-            } catch (err) {
-                console.error('Erro ao alternar PiP:', err);
-                toast.error('Recurso não suportado neste navegador');
+    const togglePiP = useCallback(async () => {
+        try {
+            const video = videoContainerRef.current?.querySelector('video');
+            if (!video || !document.pictureInPictureEnabled) {
+                toast('Seu navegador não suporta modo flutuante (PiP). Para transmitir, use o menu do navegador (Cast).', { icon: '📺' });
+                return;
             }
-        } else {
-            toast('Para transmitir, use o menu do seu navegador (Cast/Transmitir).', { icon: '📺' });
+
+            if (document.pictureInPictureElement) {
+                await document.exitPictureInPicture();
+            } else {
+                await video.requestPictureInPicture();
+            }
+        } catch (error) {
+            console.error('Erro ao alternar PiP:', error);
         }
-    };
+    }, []);
 
     // Recalcular estatísticas quando games ou standings mudarem
     useEffect(() => {
@@ -1170,9 +1186,8 @@ const ZkTVPage: React.FC = () => {
     // ✅ Jogo para exibição (Prioriza o real, fallback para cache)
     const displayGame = nextGame || cachedNextGame;
 
-    // Na página ZK TV, sempre mostrar a live se houver stream ZkOficial
-    // Mesmo que is_active = false, tenta mostrar (pode estar transmitindo mas status não sincronizado)
-    const isLiveActive = activeStream ? (activeStream.is_active || activeStream.channel_name === 'ZkOficial') : !!settings?.is_live;
+    // Na página ZK TV, a live deve ser encerrada se is_active for falso
+    const isLiveActive = activeStream ? activeStream.is_active : !!settings?.is_live;
 
     // ✅ ESTABILIDADE: Evitar que a live saia e volte no mobile por flutuações de rede/banco
     useEffect(() => {
@@ -1741,7 +1756,10 @@ const ZkTVPage: React.FC = () => {
 
                             {/* Chat Docked (Mobile Fullscreen Landscape) - Aumentado para melhor visualização */}
                             {isMobile && isFullscreen && isLandscape && isDockedChat && activeStream && (
-                                <div className="w-[400px] min-w-[350px] max-w-[45vw] h-full bg-black/90 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl">
+                                <div 
+                                    className="w-[400px] min-w-[350px] max-w-[45vw] h-full bg-black/90 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl"
+                                    style={{ paddingRight: 'env(safe-area-inset-right)' }}
+                                >
                                     {/* Header com botão de fechar */}
                                     <div className="p-3 border-b border-white/10 flex items-center justify-between shrink-0">
                                         <span className="text-xs font-black text-white uppercase italic tracking-wider">Chat</span>
