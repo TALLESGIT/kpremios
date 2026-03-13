@@ -85,18 +85,22 @@ serve(async (req) => {
     )
 
     const payload = await req.json()
-    const { title, body, data } = payload
+    const { title, body, data, user_ids } = payload
 
-    console.log(`🔔 Evento recebido: ${title} - ${body}`)
+    console.log(`🔔 Evento recebido: ${title} - ${body}${user_ids ? ` (para ${user_ids.length} usuários)` : ' (broadcast)'}`)
 
-    // 1. Obter todos os tokens de push cadastrados
-    const { data: tokens, error: tokenError } = await supabaseClient
-      .from('user_push_tokens')
-      .select('token')
+    // 1. Obter os tokens de push cadastrados
+    let tokensQuery = supabaseClient.from('user_push_tokens').select('token')
+    
+    if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
+      tokensQuery = tokensQuery.in('user_id', user_ids)
+    }
+
+    const { data: tokens, error: tokenError } = await tokensQuery
 
     if (tokenError) throw tokenError
     if (!tokens || tokens.length === 0) {
-      console.log('ℹ️ Nenhum token de dispositivo encontrado no banco.')
+      console.log('ℹ️ Nenhum token de dispositivo encontrado para o envio.')
       return new Response(JSON.stringify({ message: 'No tokens found' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
