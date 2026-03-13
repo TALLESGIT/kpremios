@@ -12,14 +12,9 @@ interface HLSViewerProps {
   onError?: (error: string) => void;
 }
 
-// ✅ Detectar app nativo Capacitor
-const isCapacitorNative = () =>
-  typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
-
 export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initialInteracted = false, showPerf = false, isAdmin = false, onError }: HLSViewerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [needsInteraction, setNeedsInteraction] = useState(false);
   const [userInteracted, setUserInteracted] = useState(false);
   const [hasVideo, setHasVideo] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,25 +30,20 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     if (!video || isAdmin) return;
 
     setUserInteracted(true);
-    setNeedsInteraction(false);
 
     try {
-      // ✅ Desmutar diretamente via ref — não depende de props/re-render
       video.muted = false;
       video.volume = 1.0;
       await video.play();
 
-      // Retry para mobile nativo se necessário
       if (video.paused) {
         setTimeout(() => video.play().catch(e => console.error("[HLSViewer] Retry play failed:", e)), 100);
       }
     } catch (err: any) {
       console.error(`[HLSViewer] Erro ao ativar áudio: ${err?.message || err}`);
-      // Tentar novamente com muted=true e depois desmutar
       try {
         video.muted = true;
         await video.play();
-        // Após conseguir play mutado, tentar desmutar
         setTimeout(() => {
           video.muted = false;
           video.volume = 1.0;
@@ -68,12 +58,10 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     const video = videoRef.current;
     if (!video || !hlsUrl) return;
 
-    // Evitar re-inicialização se já está rodando com a mesma URL
     if (hlsInstanceRef.current) {
       return;
     }
 
-    // ✅ Setar muted via JS (não via prop) para que o desmute persista
     video.muted = true;
     video.playsInline = true;
     setIsLoading(true);
@@ -89,9 +77,7 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         await video.play();
         setHasVideo(true);
         setIsLoading(false);
-        setNeedsInteraction(true);
       } catch (e: any) {
-        setNeedsInteraction(true);
         setHasVideo(true);
         setIsLoading(false);
       }
@@ -104,11 +90,16 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         enableWorker: true,
         lowLatencyMode: true,
         backBufferLength: 30,
-        liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: 5,
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 3.5,
         maxLiveSyncPlaybackRate: 1.5,
-        maxBufferLength: 15,
-        maxMaxBufferLength: 30,
+        maxBufferLength: 10,
+        maxMaxBufferLength: 20,
+        liveSyncDuration: 1.5,
+        liveMaxLatencyDuration: 4,
+        fragLoadingMaxRetry: 5,
+        manifestLoadingMaxRetry: 5,
+        testBandwidth: true,
       });
 
       hlsInstanceRef.current = hls;
@@ -123,15 +114,12 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.warn(`[HLSViewer] Erro de rede fatal: ${data.details}. Tentando recuperar...`);
               hls?.startLoad();
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.warn(`[HLSViewer] Erro de mídia fatal: ${data.details}. Recuperando...`);
               hls?.recoverMediaError();
               break;
             default:
-              console.error(`[HLSViewer] Erro fatal irrecuperável: ${data.details}`);
               hls?.destroy();
               hlsInstanceRef.current = null;
               setIsLoading(false);
@@ -147,7 +135,6 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
       });
       video.addEventListener('error', handleError);
     } else {
-      console.warn('⚠️ Navegador não suporta HLS.');
       setIsLoading(false);
     }
 
@@ -160,7 +147,6 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     };
   }, [hlsUrl]);
 
-  // ✅ Expor vídeo element para o pai via window
   useEffect(() => {
     if (typeof window !== 'undefined') {
       (window as any).hlsVideoElement = videoRef.current;
@@ -197,7 +183,6 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         }}
       />
 
-      {/* Loading spinner enquanto HLS carrega */}
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-[55]">
           <div className="flex flex-col items-center gap-3">
@@ -223,21 +208,12 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
           </div>
           <div className="flex items-center gap-2">
             <span className="text-slate-400">Estresse:</span>
-            <span
-              className={
-                perf.stress === 'ok'
-                  ? 'text-green-400'
-                  : perf.stress === 'medio'
-                    ? 'text-amber-400'
-                    : 'text-red-400'
-              }
-            >
+            <span className={perf.stress === 'ok' ? 'text-green-400' : perf.stress === 'medio' ? 'text-amber-400' : 'text-red-400'}>
               {perf.stress === 'ok' ? 'OK' : perf.stress === 'medio' ? 'Médio' : 'Alto'}
             </span>
           </div>
         </div>
       )}
-
     </div>
   );
 }

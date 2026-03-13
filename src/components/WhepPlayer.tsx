@@ -371,6 +371,9 @@ function WhepPlayer({
           if ('playoutDelayHint' in receiver) {
             (receiver as any).playoutDelayHint = 0;
           }
+          if ('jitterBufferTarget' in receiver) {
+            (receiver as any).jitterBufferTarget = 0;
+          }
         });
       } catch (err) {
         abortControllerRef.current = null;
@@ -462,13 +465,16 @@ function WhepPlayer({
     liveEdgeIntervalRef.current = setInterval(() => {
       const vid = videoRef.current;
       if (!vid || !vid.srcObject || vid.paused || !vid.buffered.length) return;
+      
       const liveEdge = vid.buffered.end(vid.buffered.length - 1);
       const behind = liveEdge - vid.currentTime;
-      if (behind > 0.5) {
-        console.log(`[sync] ${behind.toFixed(1)}s atrás, pulando para live edge`);
-        vid.currentTime = liveEdge - 0.05;
+      
+      // Se estiver mais de 0.3s atrás, pular para o edge (antes era 0.5s)
+      if (behind > 0.3) {
+        console.log(`[sync] ${behind.toFixed(2)}s atrás, pulando para live edge`);
+        vid.currentTime = liveEdge - 0.02; // Pulo mais preciso (antes era 0.05)
       }
-    }, 3000);
+    }, 1000); // Mais frequente (antes era 3000)
   }
 
   expectLiveRef.current = expectLive;

@@ -297,8 +297,8 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "", showPerf
       case "waiting_hls":
         return (
           <div className="text-center space-y-3">
-            <div className="animate-pulse rounded-full h-12 w-12 border-2 border-yellow-500 mx-auto flex items-center justify-center">
-              <span className="text-yellow-500 text-2xl">⏳</span>
+            <div className="animate-pulse rounded-full h-12 w-12 border-2 border-blue-500 mx-auto flex items-center justify-center">
+              <span className="text-blue-500 text-2xl">⏳</span>
             </div>
             <p className="text-white text-sm font-medium">Aguardando transmissão iniciar...</p>
             <p className="text-slate-400 text-xs">Aguardando o stream HLS ficar disponível</p>
@@ -307,7 +307,7 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "", showPerf
       case "reconnecting":
         return (
           <div className="text-center space-y-3">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
             <p className="text-white text-sm font-medium">Reconectando...</p>
             <p className="text-slate-400 text-xs">Tentativa {reconnectAttempts.current} de {maxReconnectAttempts}</p>
           </div>
@@ -351,22 +351,6 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "", showPerf
       {status !== "playing" && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-10">
           {renderStatusMessage()}
-        </div>
-      )}
-
-      {needsInteraction && status === "playing" && (
-        <div
-          className="absolute inset-0 flex items-center justify-center bg-black/85 backdrop-blur-sm z-20 cursor-pointer"
-          onClick={handleUserInteraction}
-        >
-          <button
-            onClick={handleUserInteraction}
-            className="flex flex-col items-center justify-center gap-3 px-12 py-8 bg-white/15 border-2 border-white/40 rounded-2xl text-white font-semibold text-lg transition-all hover:bg-white/25 hover:border-white/60 hover:scale-105 active:scale-100 shadow-2xl min-w-[200px]"
-          >
-            <span className="text-6xl leading-none drop-shadow-lg">🔊</span>
-            <span className="text-xl font-bold tracking-wide">Toque para ativar o áudio</span>
-            <small className="text-sm opacity-80 font-normal mt-1">O vídeo já está rodando (mutado)</small>
-          </button>
         </div>
       )}
 

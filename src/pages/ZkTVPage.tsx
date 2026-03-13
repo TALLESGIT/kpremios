@@ -712,6 +712,7 @@ const ZkTVPage: React.FC = () => {
 
                 // Se sair do fullscreen, fechamos o chat se for mobile
                 if (!nativeFs && isMobile) {
+                    setIsChatOpen(false); // ✅ Garantir que o chat overlay também feche
                     setIsDockedChat(false);
                 }
             }
@@ -730,9 +731,20 @@ const ZkTVPage: React.FC = () => {
         };
     }, [isFullscreen, isMobile]);
 
-    // Handler para duplo clique - tela cheia
+    // Handler para duplo clique - Cobrir tela (Zoom)
     const handleDoubleClick = () => {
-        handleFullscreen();
+        // Se estiver no mobile, o duplo clique alterna o modo de preenchimento (Zoom)
+        if (isMobile) {
+            setVideoFitMode(prev => prev === 'contain' ? 'cover' : 'contain');
+            toast(videoFitMode === 'contain' ? 'Modo Zoom: Cobrir Tela' : 'Modo Original: Ajustar', {
+                icon: '🔍',
+                duration: 1500,
+                position: 'bottom-center'
+            });
+        } else {
+            // No desktop, mantém o comportamento de alternar fullscreen
+            handleFullscreen();
+        }
     };
 
     // Handler para fullscreen
@@ -771,11 +783,21 @@ const ZkTVPage: React.FC = () => {
                     (element as any).msRequestFullscreen;
 
                 if (requestFs) {
-                    await requestFs.call(element);
+                    try {
+                        await requestFs.call(element);
+                        // Sucesso: o listener de fullscreenchange cuidará do estado
+                    } catch (e) {
+                        console.log('ℹ️ Erro na chamada nativa, usando modo CSS');
+                        setIsFullscreen(true);
+                    }
                 } else {
                     // Fallback total: CSS-based fullscreen
                     setIsFullscreen(true);
                 }
+                
+                // Forçar estado de fullscreen em qualquer caso para garantir visibilidade dos controles
+                // e desativar chat inicial
+                setTimeout(() => setIsFullscreen(true), 100);
             } else {
                 // Saindo do fullscreen
                 if ((window.screen as any).orientation?.unlock) {
@@ -1491,6 +1513,7 @@ const ZkTVPage: React.FC = () => {
                                             isVip={isVip}
                                             showPerf={showPerf}
                                             showOfflineMessage={false}
+                                            fitMode={videoFitMode}
                                         />
                                         {activeStream?.id && (
                                             <VipMessageOverlay streamId={activeStream.id} isActive={isLiveActive} />
@@ -1503,6 +1526,7 @@ const ZkTVPage: React.FC = () => {
                                         isAdmin={currentUser?.is_admin}
                                         isVip={isVip}
                                         showPerf={showPerf}
+                                        fitMode={videoFitMode}
                                     />
                                 ) : settings?.live_url ? (
                                     <div className="w-full h-full bg-black">
@@ -1724,12 +1748,13 @@ const ZkTVPage: React.FC = () => {
                                         <button
                                             onClick={() => {
                                                 setIsDockedChat(false);
+                                                setIsChatOpen(false); // ✅ Garantir fechamento total
                                                 setIsChatManuallyClosed(true);
                                             }}
-                                            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors group/close"
+                                            className="p-2.5 hover:bg-red-500 bg-red-600/20 border border-red-500/40 rounded-full transition-all group/close shadow-lg active:scale-90 flex items-center justify-center min-w-[38px] min-h-[38px]"
                                             title="Fechar chat"
                                         >
-                                            <X className="w-5 h-5 text-white/60 group-hover/close:text-white" />
+                                            <X className="w-5 h-5 text-white" />
                                         </button>
                                     </div>
                                     <div className="flex-1 overflow-hidden flex flex-col">

@@ -29,28 +29,7 @@ export function LivePlayer({
   const maxWaitingStreamAttempts = 10; // Máximo de tentativas antes de mostrar mensagem
 
   const [status, setStatus] = useState<'loading' | 'playing' | 'error' | 'reconnecting' | 'offline'>('loading');
-  const [needsInteraction, setNeedsInteraction] = useState(true);
-  const [userInteracted, setUserInteracted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const handleUserInteraction = useCallback(async () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    console.log('👆 LivePlayer: Usuário interagiu - ativando áudio');
-
-    setUserInteracted(true);
-    setNeedsInteraction(false);
-
-    try {
-      video.muted = false;
-      video.volume = 1.0; // ✅ Garantir volume máximo
-      await video.play();
-      console.log('✅ LivePlayer: Áudio ativado após interação');
-    } catch (err) {
-      console.error('❌ LivePlayer: Erro ao ativar áudio:', err);
-    }
-  }, []);
 
   const attemptReconnect = useCallback(() => {
     if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
@@ -101,12 +80,8 @@ export function LivePlayer({
       try {
         await video.play();
         console.log('✅ LivePlayer: Vídeo reproduzindo (mutado)');
-        if (video.paused) {
-          setNeedsInteraction(true);
-        }
       } catch (err: any) {
         console.warn('⚠️ LivePlayer: Autoplay bloqueado:', err);
-        setNeedsInteraction(true);
       }
     };
 
@@ -287,11 +262,10 @@ export function LivePlayer({
         console.log('✅ LivePlayer: Manifest HLS carregado, tentando reproduzir...');
         video.play().catch((err) => {
           console.warn('⚠️ LivePlayer: Autoplay bloqueado:', err);
-          setNeedsInteraction(true);
         });
       });
       
-      hls.on(Hls.Events.ERROR, (event, data) => {
+      hls.on(Hls.Events.ERROR, (_, data) => {
         if (data.fatal) {
           console.error('❌ LivePlayer: Erro fatal no HLS:', data);
           switch (data.type) {
@@ -451,27 +425,10 @@ export function LivePlayer({
         {status === 'reconnecting' && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-10">
             <div className="text-center space-y-3">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
               <p className="text-white text-sm font-medium">Reconectando...</p>
               <p className="text-slate-400 text-xs">Tentativa {reconnectAttemptsRef.current} de {maxReconnectAttempts}</p>
             </div>
-          </div>
-        )}
-
-        {needsInteraction && status === 'playing' && !userInteracted && (
-          <div
-            className="absolute inset-0 flex items-center justify-center bg-black/85 backdrop-blur-sm z-20 cursor-pointer"
-            onClick={handleUserInteraction}
-          >
-            <button
-              onClick={handleUserInteraction}
-              className="flex flex-col items-center justify-center gap-3 px-12 py-8 bg-white/15 border-2 border-white/40 rounded-2xl text-white font-semibold text-lg transition-all hover:bg-white/25 hover:border-white/60 hover:scale-105 active:scale-100 shadow-2xl min-w-[200px]"
-              aria-label="Tocar para assistir"
-            >
-              <span className="text-6xl leading-none drop-shadow-lg">▶</span>
-              <span className="text-xl font-bold tracking-wide">Toque para assistir</span>
-              <small className="text-sm opacity-80 font-normal mt-1">Clique para ativar o áudio</small>
-            </button>
           </div>
         )}
       </>

@@ -54,7 +54,6 @@ interface MessageOptions {
   audioDuration?: number;
   isPinned?: boolean;
   pinnedLink?: string;
-  vipColor?: string;
   vip_color?: string;
 }
 
@@ -183,8 +182,8 @@ export const useSocketChat = (options: UseSocketChatOptions): UseSocketChatRetur
       user_email: user?.email,
       message,
       message_type: options.messageType || 'text',
-      vip_color: options.vip_color || options.vipColor,
-      user_is_vip: !!options.vipColor || !!options.vip_color,
+      vip_color: options.vip_color,
+      user_is_vip: !!options.vip_color,
       created_at: new Date().toISOString()
     };
 
@@ -196,8 +195,7 @@ export const useSocketChat = (options: UseSocketChatOptions): UseSocketChatRetur
       userId: user?.id || null,
       userName: (user as any)?.name || user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Anônimo',
       message,
-      vip_color: options.vip_color || options.vipColor,
-      ...options
+      ...options // Já contém vip_color agora
     });
   };
 

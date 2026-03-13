@@ -135,7 +135,7 @@ export function LiveViewer({
 
     // Prioridade: WebRTC (WHEP) apenas na WEB → HLS no app nativo (Capacitor) ou Smart TVs
     // MediaMTX recebe em live/ZkOficial (Stream Key do ZK Studio)
-    if (whepBaseUrl && !fallbackToHls && !isNativeApp) {
+    if (whepBaseUrl && !fallbackToHls) {
       return (
         <WhepPlayer
           channelName={DEFAULT_LIVE_CHANNEL}

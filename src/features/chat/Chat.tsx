@@ -406,11 +406,15 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
         isHighlighted: hasLink
       };
     } else if (finalIsVip) {
-      // Use color from message data first, then fallback to local state if it's our message
+      // ✅ Prioridade 1: Cor do payload do backend (via socket)
+      const colorFromMsg = msgData.vip_color;
+      
       const isOwnMessage = msg.user_id === user?.id;
-      const colorToUse = msgData.vip_color || (isOwnMessage ? vipCustomColor : 'purple');
+      const colorToUse = colorFromMsg || (isOwnMessage ? vipCustomColor : 'purple');
+      
       const colorConfig = VIP_COLOR_PRESETS.find(c => c.value === colorToUse) || VIP_COLOR_PRESETS[0];
       const colorClasses = getVipColorClasses(colorConfig.value);
+      
       return {
         border: colorClasses.border,
         bg: colorClasses.bg,
@@ -502,7 +506,7 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
         messageType: 'tts',
         ttsText: msg,
         audioDuration: estimatedDuration,
-        vipColor: isVip ? vipCustomColor : undefined
+        vip_color: isVip ? vipCustomColor : undefined // Enviando vip_color (snake_case)
       });
 
       const remaining = Math.max(0, 3 - (audioCount || 0) - 1);
@@ -569,7 +573,7 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
 
       sendMessage(streamId, msg, {
         messageType: 'text',
-        vipColor: isVip ? vipCustomColor : undefined
+        vip_color: isVip ? vipCustomColor : undefined // Enviando vip_color (snake_case)
       });
     } catch (err) {
       console.error('Erro ao enviar mensagem:', err);
@@ -686,11 +690,11 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
                   e.stopPropagation();
                   onClose();
                 }}
-                className="relative z-[150] p-3 -mr-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all active:scale-90 flex items-center justify-center min-w-[44px] min-h-[44px] shadow-lg"
+                className="relative z-[150] p-2.5 bg-blue-600 hover:bg-blue-500 border border-white/20 rounded-full transition-all active:scale-95 flex items-center justify-center min-w-[42px] min-h-[42px] shadow-[0_0_20px_rgba(37,99,235,0.4)] md:min-w-[48px] md:min-h-[48px]"
                 title="Fechar Chat"
                 aria-label="Fechar Chat"
               >
-                <X className="w-6 h-6 text-white" />
+                <X className="w-6 h-6 text-white md:w-7 md:h-7" />
               </button>
             )}
           </div>

@@ -189,10 +189,7 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{
-                  type: "spring",
-                  stiffness: 200,
-                  damping: 20,
-                  delay: 0.12
+                  type: "spring", stiffness: 200, damping: 20, delay: 0.12
                 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={(e) => {
@@ -200,7 +197,11 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
                   onToggleFit();
                   showControls();
                 }}
-                className={`bg-black/20 backdrop-blur-sm p-3 rounded-full hover:bg-black/40 transition-colors ${fitMode === 'cover' ? 'text-blue-400 border border-blue-500/30' : 'text-white'}`}
+                className={`bg-black/40 backdrop-blur-md p-3 rounded-full border transition-all ${
+                  fitMode === 'cover' 
+                    ? 'text-blue-400 border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]' 
+                    : 'text-white border-white/20 hover:bg-black/60'
+                }`}
                 aria-label="Alternar Zoom"
                 title={fitMode === 'cover' ? "Ajustar à tela" : "Preencher tela"}
               >

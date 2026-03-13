@@ -15,7 +15,7 @@ interface ChatContextValue {
     ttsText?: string;
     audioUrl?: string;
     audioDuration?: number;
-    vipColor?: string;
+    vip_color?: string;
   }) => void;
   emit: (streamId: string, event: string, data: any) => void;
 }
@@ -89,7 +89,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     ttsText?: string;
     audioUrl?: string;
     audioDuration?: number;
-    vipColor?: string;
+    vip_color?: string;
   } = {}) => {
     const store = getChatSessionStore(streamId);
     if (!store || !socket.isConnected) {
@@ -106,7 +106,9 @@ export function ChatProvider({ children }: ChatProviderProps) {
       userId: user?.id || null,
       userName: (user as any)?.name || user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Anônimo',
       message,
-      ...options
+      vip_color: options.vip_color, // Explicitly pass vip_color
+      timestamp: Date.now(), // Add timestamp
+      ...options // Spread remaining options (like messageType, ttsText, etc.)
     });
   };
 

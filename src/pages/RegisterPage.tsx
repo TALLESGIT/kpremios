@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { User, Mail, Phone, Lock, ArrowRight, AlertCircle, CheckCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import Header from '../components/shared/Header';
@@ -203,7 +203,7 @@ const RegisterPage: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
 
-      <main className="flex-grow flex flex-col items-center justify-center py-12 px-4 sm:px-6 relative min-h-[100dvh]">
+      <main className="w-full flex-grow flex flex-col items-center justify-center py-12 px-4 sm:px-6 relative min-h-[100dvh]">
         {/* Background Pattern */}
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 pointer-events-none"></div>
         <div className="absolute inset-0 bg-gradient-to-br from-primary-dark via-background to-black opacity-90"></div>
