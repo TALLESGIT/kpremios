@@ -182,24 +182,6 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
               : "bottom-1 right-4"
               }`}
           >
-            {/* Botão de Áudio (Novo) */}
-            {onToggleAudio && (
-              <motion.button
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleAudio();
-                  showControls(); // Keep controls visible
-                }}
-                className={`bg-black/20 backdrop-blur-sm p-3 rounded-full hover:bg-black/40 transition-colors ${!isAudioEnabled ? 'text-red-400' : 'text-white'}`}
-                aria-label={isAudioEnabled ? "Mutar" : "Ativar Áudio"}
-                title={isAudioEnabled ? "Mutar" : "Ativar Áudio"}
-              >
-                {isAudioEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-              </motion.button>
-            )}
 
             {/* Botão de Zoom/Preencher (Apenas Fullscreen Mobile) */}
             {isFullscreen && onToggleFit && (

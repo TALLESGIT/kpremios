@@ -22,8 +22,8 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
   const [needsInteraction, setNeedsInteraction] = useState(false);
   const [userInteracted, setUserInteracted] = useState(false);
   const [hasVideo, setHasVideo] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // ✅ Usar ref para onError evitar que mudança de referência cause re-render infinito
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
   const hlsInstanceRef = useRef<Hls | null>(null);
@@ -38,17 +38,29 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     setNeedsInteraction(false);
 
     try {
+      // ✅ Desmutar diretamente via ref — não depende de props/re-render
       video.muted = false;
       video.volume = 1.0;
-      // Forçar play novamente garantindo que não está mudo
       await video.play();
-      
+
       // Retry para mobile nativo se necessário
       if (video.paused) {
         setTimeout(() => video.play().catch(e => console.error("[HLSViewer] Retry play failed:", e)), 100);
       }
     } catch (err: any) {
       console.error(`[HLSViewer] Erro ao ativar áudio: ${err?.message || err}`);
+      // Tentar novamente com muted=true e depois desmutar
+      try {
+        video.muted = true;
+        await video.play();
+        // Após conseguir play mutado, tentar desmutar
+        setTimeout(() => {
+          video.muted = false;
+          video.volume = 1.0;
+        }, 200);
+      } catch (retryErr) {
+        console.error('[HLSViewer] Retry com muted também falhou:', retryErr);
+      }
     }
   }, [isAdmin]);
 
@@ -56,31 +68,32 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     const video = videoRef.current;
     if (!video || !hlsUrl) return;
 
-    // ✅ Evitar re-inicialização se já está rodando com a mesma URL
+    // Evitar re-inicialização se já está rodando com a mesma URL
     if (hlsInstanceRef.current) {
       return;
     }
 
+    // ✅ Setar muted via JS (não via prop) para que o desmute persista
     video.muted = true;
     video.playsInline = true;
-    // ✅ Atributos extras para mobile nativo
-    // video.setAttribute('playsinline', 'true'); // redundante pois já está no JSX
+    setIsLoading(true);
 
     const handleError = (e: any) => {
       console.error(`[HLSViewer] Erro no elemento de vídeo nativo: ${e?.type}`);
       onErrorRef.current?.('Falha na reprodução nativa HLS');
+      setIsLoading(false);
     };
 
-    // ✅ Função para tentar play com retry para mobile
     const attemptPlay = async () => {
       try {
         await video.play();
         setHasVideo(true);
-        // ✅ Na web E no app nativo, oferecer botão para ativar áudio se estiver mutado
+        setIsLoading(false);
         setNeedsInteraction(true);
       } catch (e: any) {
         setNeedsInteraction(true);
         setHasVideo(true);
+        setIsLoading(false);
       }
     };
 
@@ -121,6 +134,7 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
               console.error(`[HLSViewer] Erro fatal irrecuperável: ${data.details}`);
               hls?.destroy();
               hlsInstanceRef.current = null;
+              setIsLoading(false);
               onErrorRef.current?.('Falha fatal HLS');
               break;
           }
@@ -134,6 +148,7 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
       video.addEventListener('error', handleError);
     } else {
       console.warn('⚠️ Navegador não suporta HLS.');
+      setIsLoading(false);
     }
 
     return () => {
@@ -143,9 +158,9 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
       }
       video.removeEventListener('error', handleError);
     };
-  }, [hlsUrl]); // ✅ Removido onError das deps — usa ref
+  }, [hlsUrl]);
 
-  // ✅ Expor métodos para o pai via window se necessário ou via ref (mais limpo)
+  // ✅ Expor vídeo element para o pai via window
   useEffect(() => {
     if (typeof window !== 'undefined') {
       (window as any).hlsVideoElement = videoRef.current;
@@ -168,7 +183,7 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
       <video
         ref={videoRef}
         autoPlay
-        muted={isAdmin ? true : !userInteracted}
+        muted
         playsInline
         // @ts-ignore
         {...{ 'webkit-playsinline': 'true' }}
@@ -182,6 +197,15 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         }}
       />
 
+      {/* Loading spinner enquanto HLS carrega */}
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-[55]">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs font-bold text-blue-300/80 uppercase tracking-wider">Carregando transmissão...</span>
+          </div>
+        </div>
+      )}
 
       {showPerf && hasVideo && (
         <div className="absolute top-2 left-2 z-20 px-3 py-2 rounded-lg bg-black/80 text-xs font-mono text-white border border-white/20 space-y-0.5">
