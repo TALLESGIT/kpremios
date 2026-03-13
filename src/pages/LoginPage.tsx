@@ -185,7 +185,7 @@ const LoginPage: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
 
-      <main className="flex-grow flex flex-col justify-center py-12 px-4 sm:px-6 relative min-h-[100dvh]">
+      <main className="flex-grow flex flex-col items-center justify-center py-12 px-4 sm:px-6 relative min-h-[100dvh]">
         {/* Background Pattern */}
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 pointer-events-none"></div>
         <div className="absolute inset-0 bg-gradient-to-br from-primary-dark via-background to-black opacity-90"></div>

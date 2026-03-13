@@ -8,7 +8,6 @@ import {
     Calendar,
     Activity,
     Shield,
-    Play,
     Clock,
     MapPin,
     Maximize2,
@@ -19,8 +18,7 @@ import {
     Crown,
     Target,
     Bell,
-    Trophy,
-    ExternalLink
+    Trophy
 } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
@@ -62,6 +60,44 @@ interface QuickStats {
 
 const isZkTVDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
 
+const CACHE_KEY_NEXT_GAME = 'zktv_cached_next_game';
+const CACHE_KEY_STATS = 'zktv_cached_stats';
+
+const NextMatchSkeleton = () => (
+    <div className="w-full animate-pulse">
+        <div className="flex items-center justify-between mb-6 gap-2">
+            <div className="w-20 h-4 bg-white/5 rounded-full" />
+            <div className="w-24 h-4 bg-white/5 rounded-full" />
+        </div>
+        <div className="flex items-center justify-between gap-6 mb-8">
+            <div className="flex flex-col items-center flex-1">
+                <div className="w-16 h-16 bg-white/5 rounded-2xl mb-3" />
+                <div className="w-16 h-3 bg-white/5 rounded-full" />
+            </div>
+            <div className="flex flex-col items-center">
+                <div className="w-8 h-4 bg-white/5 rounded mb-1" />
+                <div className="h-1 w-8 bg-blue-500/10 rounded-full" />
+            </div>
+            <div className="flex flex-col items-center flex-1">
+                <div className="w-16 h-16 bg-white/5 rounded-2xl mb-3" />
+                <div className="w-16 h-3 bg-white/5 rounded-full" />
+            </div>
+        </div>
+        <div className="pt-6 border-t border-white/5 flex items-center justify-center gap-8">
+            <div className="w-20 h-4 bg-white/5 rounded-full" />
+            <div className="w-16 h-4 bg-white/5 rounded-full" />
+        </div>
+    </div>
+);
+
+const StatsSkeleton = () => (
+    <div className="grid grid-cols-2 gap-4 animate-pulse">
+        {[1, 2, 3, 4].map(i => (
+            <div key={i} className="bg-white/5 p-4 rounded-2xl border border-white/5 h-20" />
+        ))}
+    </div>
+);
+
 const COMPETITIONS = [
     'Campeonato Brasileiro - Série A',
     'Campeonato Mineiro',
@@ -83,12 +119,26 @@ const ZkTVPage: React.FC = () => {
     const [games, setGames] = useState<CruzeiroGame[]>([]);
     const [standings, setStandings] = useState<CruzeiroStanding[]>([]);
     const [activeStream, setActiveStream] = useState<LiveStream | null>(null);
-    const [quickStats, setQuickStats] = useState<QuickStats>({
-        victories: 0,
-        goalsFor: 0,
-        winRate: 0,
-        topScorer: 'N/A'
+    
+    // ✅ Cache States para carregamento instantâneo
+    const [cachedNextGame, setCachedNextGame] = useState<CruzeiroGame | null>(() => {
+        const saved = localStorage.getItem(CACHE_KEY_NEXT_GAME);
+        try { return saved ? JSON.parse(saved) : null; } catch { return null; }
     });
+    const [quickStats, setQuickStats] = useState<QuickStats>(() => {
+        const saved = localStorage.getItem(CACHE_KEY_STATS);
+        try { 
+            return saved ? JSON.parse(saved) : {
+                victories: 0,
+                goalsFor: 0,
+                winRate: 0,
+                topScorer: 'N/A'
+            };
+        } catch { 
+            return { victories: 0, goalsFor: 0, winRate: 0, topScorer: 'N/A' };
+        }
+    });
+
     const [activeTab, setActiveTab] = useState<'games' | 'standings' | 'clips'>('games');
     const [selectedComp, setSelectedComp] = useState<string>('Campeonato Brasileiro - Série A');
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -231,12 +281,18 @@ const ZkTVPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Mount-only: carrega dados uma vez
 
-    // ========== EFFECT 2: Mobile detection ==========
+    // ========== EFFECT 2: Mobile detection & Initial Chat State ==========
     useEffect(() => {
         const checkMobile = () => {
             setIsMobile(window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
         };
         checkMobile();
+
+        // Garantir que chat comece fechado e resetar estados intrusivos
+        setIsChatOpen(false);
+        setIsDockedChat(false);
+        setIsChatManuallyClosed(false);
+
         window.addEventListener('resize', checkMobile);
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
@@ -950,12 +1006,16 @@ const ZkTVPage: React.FC = () => {
 
             const topScorerName = topScorersData?.value?.leagues?.[currentComp]?.name || 'N/A';
 
-            setQuickStats({
+            const statsData = {
                 victories,
                 goalsFor,
                 winRate,
                 topScorer: topScorerName
-            });
+            };
+
+            setQuickStats(statsData);
+            // ✅ Salvar no cache
+            localStorage.setItem(CACHE_KEY_STATS, JSON.stringify(statsData));
         } catch (err) {
             console.error('Erro ao carregar estatísticas:', err);
         }
@@ -987,6 +1047,17 @@ const ZkTVPage: React.FC = () => {
             if (gamesRes.data) {
                 if (isZkTVDebug()) console.log('🎮 Jogos carregados do banco:', gamesRes.data.length, gamesRes.data);
                 setGames(gamesRes.data);
+                
+                // ✅ Encontrar e salvar próximo jogo no cache
+                const foundNext = gamesRes.data.find((g: any) => {
+                    const gameDate = new Date(g.date);
+                    const now = new Date();
+                    return (gameDate > now || g.status === 'live');
+                });
+                if (foundNext) {
+                    setCachedNextGame(foundNext);
+                    localStorage.setItem(CACHE_KEY_NEXT_GAME, JSON.stringify(foundNext));
+                }
             } else {
                 if (isZkTVDebug()) console.warn('⚠️ Nenhum jogo retornado do banco de dados');
             }
@@ -1073,6 +1144,9 @@ const ZkTVPage: React.FC = () => {
             });
         }
     }, [upcomingGames, games]);
+
+    // ✅ Jogo para exibição (Prioriza o real, fallback para cache)
+    const displayGame = nextGame || cachedNextGame;
 
     // Na página ZK TV, sempre mostrar a live se houver stream ZkOficial
     // Mesmo que is_active = false, tenta mostrar (pode estar transmitindo mas status não sincronizado)
@@ -1422,91 +1496,91 @@ const ZkTVPage: React.FC = () => {
                                             <VipMessageOverlay streamId={activeStream.id} isActive={isLiveActive} />
                                         )}
                                     </>
-                                ) : (
-                                    /* Se não estiver em live estável, tentamos os fallbacks */
-                                    settings?.live_url && settings.live_url.includes('/live/') ? (
-                                        <LiveViewer
-                                            channelName="ZkOficial"
-                                            showOfflineMessage={false}
-                                            isAdmin={currentUser?.is_admin}
-                                            isVip={isVip}
-                                            showPerf={showPerf}
+                                ) : settings?.live_url && settings.live_url.includes('/live/') ? (
+                                    <LiveViewer
+                                        channelName="ZkOficial"
+                                        showOfflineMessage={false}
+                                        isAdmin={currentUser?.is_admin}
+                                        isVip={isVip}
+                                        showPerf={showPerf}
+                                    />
+                                ) : settings?.live_url ? (
+                                    <div className="w-full h-full bg-black">
+                                        <iframe
+                                            src={settings.live_url}
+                                            className="w-full h-full border-0"
+                                            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                                            allowFullScreen
                                         />
-                                    ) : settings?.live_url ? (
-                                        <div className="w-full h-full bg-black">
-                                            <iframe
-                                                src={settings.live_url}
-                                                className="w-full h-full border-0"
-                                                allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-                                                allowFullScreen
-                                            />
-                                        </div>
-                                    ) : (
-                                        /* Transmissão encerrada ou agenda de próximo jogo */
-                                        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center z-30">
-                                            {nextGame ? (
-                                                <div className="w-full max-w-sm mx-auto animate-in fade-in zoom-in duration-700 py-2">
-                                                    <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
-                                                        <span className="px-2 sm:px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Próximo Jogo</span>
-                                                        <span className="text-[9px] sm:text-[10px] font-black text-white/40 uppercase tracking-widest truncate">{nextGame.competition}</span>
+                                    </div>
+                                ) : (
+                                    <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center z-30">
+                                        {displayGame ? (
+                                            <div className="w-full max-w-sm mx-auto animate-in fade-in zoom-in duration-700 py-2">
+                                                <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
+                                                    <span className="px-2 sm:px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Próximo Jogo</span>
+                                                    <span className="text-[9px] sm:text-[10px] font-black text-white/40 uppercase tracking-widest truncate">{displayGame.competition}</span>
+                                                </div>
+
+                                                <div className="flex items-center justify-between gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
+                                                    <div className="flex flex-col items-center flex-1 min-w-0">
+                                                        <TeamLogo
+                                                            teamName="Cruzeiro"
+                                                            size="lg"
+                                                            showName={false}
+                                                            className="mb-2 sm:mb-3"
+                                                        />
+                                                        <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full">Cruzeiro</span>
                                                     </div>
 
-                                                    <div className="flex items-center justify-between gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
-                                                        <div className="flex flex-col items-center flex-1 min-w-0">
-                                                            <TeamLogo
-                                                                teamName="Cruzeiro"
-                                                                size="lg"
-                                                                showName={false}
-                                                                className="mb-2 sm:mb-3"
-                                                            />
-                                                            <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full">Cruzeiro</span>
-                                                        </div>
-
-                                                        <div className="flex flex-col items-center flex-shrink-0">
-                                                            <div className="text-lg sm:text-xl lg:text-2xl font-black italic text-white/10 uppercase mb-1">VS</div>
-                                                            <div className="h-1 w-6 sm:w-8 bg-blue-500/20 rounded-full" />
-                                                        </div>
-
-                                                        <div className="flex flex-col items-center flex-1 min-w-0">
-                                                            <TeamLogo
-                                                                teamName={nextGame.opponent}
-                                                                customLogo={nextGame.opponent_logo}
-                                                                size="lg"
-                                                                showName={false}
-                                                                className="mb-2 sm:mb-3"
-                                                            />
-                                                            <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full px-1">{nextGame.opponent}</span>
-                                                        </div>
+                                                    <div className="flex flex-col items-center flex-shrink-0">
+                                                        <div className="text-lg sm:text-xl lg:text-2xl font-black italic text-white/10 uppercase mb-1">VS</div>
+                                                        <div className="h-1 w-6 sm:w-8 bg-blue-500/20 rounded-full" />
                                                     </div>
 
-                                                    <div className="pt-3 sm:pt-4 lg:pt-6 border-t border-white/5 flex items-center justify-center gap-4 sm:gap-6 lg:gap-8 pb-2">
-                                                        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-black text-blue-300">
-                                                            <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                                            <span>{new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-black text-blue-300">
-                                                            <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                                            <span>{new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h</span>
-                                                        </div>
+                                                    <div className="flex flex-col items-center flex-1 min-w-0">
+                                                        <TeamLogo
+                                                            teamName={displayGame.opponent}
+                                                            customLogo={displayGame.opponent_logo}
+                                                            size="lg"
+                                                            showName={false}
+                                                            className="mb-2 sm:mb-3"
+                                                        />
+                                                        <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full px-1">{displayGame.opponent}</span>
                                                     </div>
                                                 </div>
-                                            ) : (
-                                                <div className="text-center px-6 max-w-sm animate-in fade-in zoom-in duration-700">
-                                                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-800/50 rounded-full flex items-center justify-center mb-6 shadow-lg border border-white/5 mx-auto">
-                                                        <Tv className="w-10 h-10 text-slate-400" />
+
+                                                <div className="pt-3 sm:pt-4 lg:pt-6 border-t border-white/5 flex items-center justify-center gap-4 sm:gap-6 lg:gap-8 pb-2">
+                                                    <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-black text-blue-300">
+                                                        <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                                        <span>{new Date(displayGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
                                                     </div>
-                                                    <h2 className="text-2xl font-black text-white mb-3">Transmissão Encerrada</h2>
-                                                    <p className="text-slate-400 text-sm mb-6">Obrigado por nos acompanhar! Fique ligado nas próximas lives.</p>
-                                                    <button
-                                                        onClick={() => window.location.reload()}
-                                                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all text-sm"
-                                                    >
-                                                        🔄 Recarregar
-                                                    </button>
+                                                    <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-black text-blue-300">
+                                                        <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                                        <span>{new Date(displayGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h</span>
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </div>
-                                    )
+                                            </div>
+                                        ) : isPageLoading ? (
+                                            <div className="w-full max-w-sm mx-auto p-6">
+                                                <NextMatchSkeleton />
+                                            </div>
+                                        ) : (
+                                            <div className="text-center px-6 max-w-sm animate-in fade-in zoom-in duration-700">
+                                                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-800/50 rounded-full flex items-center justify-center mb-6 shadow-lg border border-white/5 mx-auto">
+                                                    <Tv className="w-10 h-10 text-slate-400" />
+                                                </div>
+                                                <h2 className="text-2xl font-black text-white mb-3">Transmissão Encerrada</h2>
+                                                <p className="text-slate-400 text-sm mb-6">Obrigado por nos acompanhar! Fique ligado nas próximas lives.</p>
+                                                <button
+                                                    onClick={() => window.location.reload()}
+                                                    className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all text-sm"
+                                                >
+                                                    🔄 Recarregar
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
 
                                 {/* Status e Viewer Count (Apenas Fullscreen Desktop - NÃO mostrar no mobile) */}
@@ -1736,7 +1810,7 @@ const ZkTVPage: React.FC = () => {
 
                                 <h3 className="text-xs sm:text-sm font-bold text-blue-500 uppercase tracking-widest mb-3 sm:mb-4 lg:mb-6">Próximo Jogo</h3>
 
-                                {nextGame ? (
+                                {displayGame ? (
                                     <>
                                         <div className="flex items-center justify-between mb-3 sm:mb-4 lg:mb-6 gap-2 sm:gap-4">
                                             <div className="text-center flex-1 min-w-0">
@@ -1746,27 +1820,29 @@ const ZkTVPage: React.FC = () => {
                                             <div className="px-1 sm:px-2 lg:px-4 text-lg sm:text-xl lg:text-2xl font-black italic text-slate-700 flex-shrink-0">VS</div>
                                             <div className="text-center flex-1 min-w-0">
                                                 <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-slate-800 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-2 sm:mb-3 border border-slate-700 font-black text-slate-400 text-xs sm:text-sm lg:text-base">
-                                                    {nextGame.opponent.substring(0, 3).toUpperCase()}
+                                                    {displayGame.opponent.substring(0, 3).toUpperCase()}
                                                 </div>
-                                                <span className="text-xs sm:text-sm font-bold block truncate px-1">{nextGame.opponent}</span>
+                                                <span className="text-xs sm:text-sm font-bold block truncate px-1">{displayGame.opponent}</span>
                                             </div>
                                         </div>
 
                                         <div className="space-y-2 sm:space-y-3 pt-3 sm:pt-4 lg:pt-6 border-t border-slate-800/50 pb-2">
                                             <div className="flex items-center gap-2 sm:gap-3 text-slate-300">
                                                 <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
-                                                <span className="text-xs sm:text-sm break-words">{new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+                                                <span className="text-xs sm:text-sm break-words">{new Date(displayGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
                                             </div>
                                             <div className="flex items-center gap-2 sm:gap-3 text-slate-300">
                                                 <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
-                                                <span className="text-xs sm:text-sm">{new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h</span>
+                                                <span className="text-xs sm:text-sm">{new Date(displayGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h</span>
                                             </div>
                                             <div className="flex items-center gap-2 sm:gap-3 text-slate-300">
                                                 <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
-                                                <span className="text-xs sm:text-sm break-words">{nextGame.venue}</span>
+                                                <span className="text-xs sm:text-sm break-words">{displayGame.venue}</span>
                                             </div>
                                         </div>
                                     </>
+                                ) : isPageLoading ? (
+                                    <NextMatchSkeleton />
                                 ) : (
                                     <p className="text-slate-500 text-center py-6 sm:py-8 text-xs sm:text-sm">Aguardando calendário...</p>
                                 )}
@@ -1779,24 +1855,28 @@ const ZkTVPage: React.FC = () => {
                                     <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-blue-200" />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:gap-4">
-                                    <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10">
-                                        <span className="block text-blue-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Vitórias</span>
-                                        <span className="text-xl sm:text-2xl font-black text-white">{quickStats.victories}</span>
+                                {isPageLoading && quickStats.victories === 0 ? (
+                                    <StatsSkeleton />
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:gap-4">
+                                        <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10">
+                                            <span className="block text-blue-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Vitórias</span>
+                                            <span className="text-xl sm:text-2xl font-black text-white">{quickStats.victories}</span>
+                                        </div>
+                                        <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10">
+                                            <span className="block text-blue-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Gols Pró</span>
+                                            <span className="text-xl sm:text-2xl font-black text-white">{quickStats.goalsFor}</span>
+                                        </div>
+                                        <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10">
+                                            <span className="block text-blue-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Aproveit.</span>
+                                            <span className="text-xl sm:text-2xl font-black text-white">{quickStats.winRate}%</span>
+                                        </div>
+                                        <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10">
+                                            <span className="block text-blue-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Artilheiro</span>
+                                            <span className="text-xs sm:text-sm font-black text-white break-words">{quickStats.topScorer}</span>
+                                        </div>
                                     </div>
-                                    <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10">
-                                        <span className="block text-blue-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Gols Pró</span>
-                                        <span className="text-xl sm:text-2xl font-black text-white">{quickStats.goalsFor}</span>
-                                    </div>
-                                    <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10">
-                                        <span className="block text-blue-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Aproveit.</span>
-                                        <span className="text-xl sm:text-2xl font-black text-white">{quickStats.winRate}%</span>
-                                    </div>
-                                    <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10">
-                                        <span className="block text-blue-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Artilheiro</span>
-                                        <span className="text-xs sm:text-sm font-black text-white break-words">{quickStats.topScorer}</span>
-                                    </div>
-                                </div>
+                                )}
                             </div>
                         </div>
 

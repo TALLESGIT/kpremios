@@ -238,28 +238,6 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         </div>
       )}
 
-      {needsInteraction && hasVideo && !initialInteracted && (
-        <div
-          className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md z-[60]"
-          onClick={handleUserInteraction}
-        >
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleUserInteraction();
-            }}
-            className="flex flex-col items-center justify-center gap-4 px-10 py-8 bg-blue-600/20 border-2 border-blue-500/50 rounded-3xl text-white transition-all hover:bg-blue-600/30 hover:scale-105 active:scale-95 shadow-[0_0_50px_rgba(37,99,235,0.3)] animate-in fade-in zoom-in duration-300"
-          >
-            <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/40 animate-pulse">
-              <span className="text-4xl text-white">🔊</span>
-            </div>
-            <div className="text-center">
-              <span className="block text-xl font-black uppercase tracking-wider">Ativar Som</span>
-              <span className="block text-xs text-blue-300/80 font-bold uppercase mt-1 tracking-widest">Clique para ouvir a live</span>
-            </div>
-          </button>
-        </div>
-      )}
     </div>
   );
 }

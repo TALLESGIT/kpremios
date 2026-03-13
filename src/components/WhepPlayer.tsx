@@ -569,37 +569,6 @@ function WhepPlayer({
           </div>
         </div>
       )}
-      {status === 'connected' && isUserMuted && !isAdmin && (
-        <div
-          className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 transition-opacity hover:bg-black/20"
-          aria-hidden
-        >
-          <div className="flex flex-col items-center gap-2 text-white/90">
-            <svg
-              className="w-14 h-14"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"
-              />
-            </svg>
-            <span className="text-sm font-medium tracking-wide">Clique para ativar o áudio</span>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }
