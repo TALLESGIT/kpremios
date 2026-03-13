@@ -661,9 +661,10 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
   return (
     <div className={rootClassName}>
       {showHeader && (
-        <div className="px-3 py-2 border-b border-white/5 bg-slate-800/40 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <MessageSquare className="w-4 h-4 text-blue-400" />
+        <div className="px-3 py-2 border-b border-white/5 bg-slate-800/40 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2 text-white font-bold tracking-widest text-xs">
+            <div className="w-1.5 h-3.5 bg-blue-500 rounded-full"></div>
+            CHAT
           </div>
           <div className="flex items-center gap-3">
             {(isAdmin || isModerator) && (

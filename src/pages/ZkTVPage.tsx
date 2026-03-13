@@ -41,6 +41,7 @@ import TeamLogo from '../components/TeamLogo';
 import toast from 'react-hot-toast';
 import { getActiveLiveStreams, getLiveStreamByChannel } from '../services/cachedLiveService';
 import { StatusBar } from '@capacitor/status-bar';
+import { NavigationBar } from '@hugotomazi/capacitor-navigation-bar';
 import { Capacitor } from '@capacitor/core';
 
 
@@ -325,6 +326,7 @@ const ZkTVPage: React.FC = () => {
 
                     if (Capacitor.isNativePlatform()) {
                         StatusBar.hide().catch(e => console.error('StatusBar hide error', e));
+                        NavigationBar.hide().catch(e => console.error('NavigationBar hide error', e));
                     }
 
                     const element = videoContainerRef.current;
@@ -342,6 +344,7 @@ const ZkTVPage: React.FC = () => {
                     setIsFullscreen(false);
                     if (Capacitor.isNativePlatform()) {
                         StatusBar.show().catch(e => console.error('StatusBar show error', e));
+                        NavigationBar.show().catch(e => console.error('NavigationBar show error', e));
                     }
                     const exitFs = document.exitFullscreen || (document as any).webkitExitFullscreen || (document as any).mozCancelFullScreen;
                     if (exitFs && document.fullscreenElement) {
@@ -726,6 +729,7 @@ const ZkTVPage: React.FC = () => {
                     
                     if (Capacitor.isNativePlatform()) {
                         StatusBar.show().catch(e => console.error('StatusBar show error', e));
+                        NavigationBar.show().catch(e => console.error('NavigationBar show error', e));
                     }
                 }
             }
@@ -788,6 +792,7 @@ const ZkTVPage: React.FC = () => {
                     setIsFullscreen(true);
                     if (Capacitor.isNativePlatform()) {
                         StatusBar.hide().catch(e => console.error('StatusBar hide error', e));
+                        NavigationBar.hide().catch(e => console.error('NavigationBar hide error', e));
                     }
                     return;
                 }
@@ -1760,24 +1765,20 @@ const ZkTVPage: React.FC = () => {
                                     className="w-[400px] min-w-[350px] max-w-[45vw] h-full bg-black/90 backdrop-blur-md border-l border-white/10 flex flex-col pointer-events-auto shadow-2xl"
                                     style={{ paddingRight: 'env(safe-area-inset-right)' }}
                                 >
-                                    {/* Header com botão de fechar */}
-                                    <div className="p-3 border-b border-white/10 flex items-center justify-between shrink-0">
-                                        <span className="text-xs font-black text-white uppercase italic tracking-wider">Chat</span>
-                                        <button
-                                            onClick={() => {
-                                                setIsDockedChat(false);
-                                                setIsChatOpen(false); // ✅ Garantir fechamento total
-                                                setIsChatManuallyClosed(true);
-                                            }}
-                                            className="p-2.5 hover:bg-red-500 bg-red-600/20 border border-red-500/40 rounded-full transition-all group/close shadow-lg active:scale-90 flex items-center justify-center min-w-[38px] min-h-[38px]"
-                                            title="Fechar chat"
-                                        >
-                                            <X className="w-5 h-5 text-white" />
-                                        </button>
-                                    </div>
+                                    {/* O cabeçalho foi movido diretamente para o componente Chat via ChatSlot */}
                                     <div className="flex-1 overflow-hidden flex flex-col">
                                         <div className="flex-1 overflow-hidden">
-                                            <ChatSlot id="zktv-mobile-landscape-docked-chat" priority={90} className="h-full" />
+                                            <ChatSlot 
+                                                id="zktv-mobile-landscape-docked-chat" 
+                                                priority={90} 
+                                                className="h-full" 
+                                                showHeader={true}
+                                                onClose={() => {
+                                                    setIsDockedChat(false);
+                                                    setIsChatOpen(false);
+                                                    setIsChatManuallyClosed(true);
+                                                }}
+                                            />
                                         </div>
                                         {/* Enquete e Link Fixado em destaque no mobile landscape */}
                                         <div className="px-3 py-2 border-t border-white/10 bg-black/40">
@@ -1794,19 +1795,15 @@ const ZkTVPage: React.FC = () => {
             {/* Chat Overlay (Desktop e Mobile não fullscreen) - NÃO renderizar se estiver em fullscreen */}
             {isChatOpen && activeStream && !isDockedChat && !isFullscreen && (
                 <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[500px] bg-black/95 backdrop-blur-md border-l border-white/10 z-[9999] flex flex-col shadow-2xl">
-                    <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                        <span className="text-sm font-black text-white uppercase italic tracking-widest">Chat da Transmissão</span>
-                        <button
-                            onClick={() => setIsChatOpen(false)}
-                            className="p-2 hover:bg-white/10 rounded-lg transition-all"
-                            aria-label="Fechar chat"
-                        >
-                            <X className="w-6 h-6 text-white" />
-                        </button>
-                    </div>
                     <div className="flex-1 overflow-hidden flex flex-col">
                         <div className="flex-1 min-h-0 h-full">
-                            <ChatSlot id="zktv-overlay-chat" priority={80} className="h-full" />
+                            <ChatSlot 
+                                id="zktv-overlay-chat" 
+                                priority={80} 
+                                className="h-full" 
+                                showHeader={true}
+                                onClose={() => setIsChatOpen(false)}
+                            />
                         </div>
                     </div>
                 </div>
