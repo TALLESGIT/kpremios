@@ -801,7 +801,7 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 bg-slate-800/40 border-t border-white/5">
+      <div className="p-2 sm:p-3 bg-slate-800/40 border-t border-white/5">
         {user && (
           <PollDisplay streamId={streamId} compact={true} />
         )}
@@ -825,129 +825,139 @@ export function Chat({ streamId, isActive = true, className, showHeader = true, 
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Chat disponível durante a transmissão</p>
           </div>
         ) : (
-          <div className="flex gap-2 items-center">
-            <div className="relative" ref={emojiPickerRef}>
-              <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="w-10 h-10 flex items-center justify-center bg-slate-900/50 border border-white/5 rounded-xl text-slate-400" title="Emojis"><Smile className="w-5 h-5" /></button>
-              {showEmojiPicker && (
-                <div className="absolute bottom-full left-0 mb-3 w-64 bg-slate-800 rounded-2xl border border-white/10 p-3 shadow-2xl z-50 max-h-96 overflow-y-auto">
-                  {isVip && (
-                    <div className="mb-3 pb-3 border-b border-purple-500/20">
-                      <p className="text-[8px] font-black text-purple-400 uppercase mb-2 flex items-center gap-1">
-                        {VIP_EMOJIS.exclusive.title}
-                        <span className="text-[6px] text-purple-500">EXCLUSIVO</span>
-                      </p>
-                      <div className="grid grid-cols-6 gap-1">
-                        {VIP_EMOJIS.exclusive.emojis.map(e => (
-                          <button
-                            key={e}
-                            onClick={() => { setNewMessage(p => p + e); setShowEmojiPicker(false); }}
-                            className="w-8 h-8 flex items-center justify-center text-lg hover:bg-purple-500/20 rounded-lg transition-all hover:scale-110"
-                            title="Emoji VIP exclusivo"
-                          >
-                            {e}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {Object.entries(EMOJI_CATEGORIES).map(([key, cat]) => (
-                    <div key={key} className="mb-3">
-                      <p className="text-[8px] font-black text-slate-500 uppercase mb-2">{cat.title}</p>
-                      <div className="grid grid-cols-6 gap-1">
-                        {cat.emojis.map(e => (
-                          <button
-                            key={e}
-                            onClick={() => { setNewMessage(p => p + e); setShowEmojiPicker(false); }}
-                            className="w-8 h-8 flex items-center justify-center text-lg hover:bg-white/5 rounded-lg transition-all"
-                          >
-                            {e}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            {isVip && (
-              <div className="relative" ref={colorPickerRef}>
-                <button
-                  onClick={() => setShowColorPicker(!showColorPicker)}
-                  className={`w-10 h-10 flex items-center justify-center border rounded-xl transition-all ${showColorPicker ? 'bg-purple-600 border-purple-400 text-white' : 'bg-slate-900/50 border-white/5 text-purple-400'}`}
-                  title="Escolher Cor VIP"
-                >
-                  <Palette className="w-5 h-5" />
-                </button>
-                {showColorPicker && (
-                  <div className="absolute bottom-full left-0 mb-3 w-[280px] bg-slate-800 rounded-2xl border border-white/10 p-5 shadow-2xl z-[100] animate-in fade-in slide-in-from-bottom-4 duration-200 lg:left-0 lg:-translate-x-0 -translate-x-1/4">
-                    <div className="flex items-center justify-between mb-4">
-                      <p className="text-[11px] font-black text-purple-400 uppercase tracking-wider">💎 Cor da sua Mensagem</p>
-                      <button onClick={() => setShowColorPicker(false)} className="p-1 hover:bg-white/5 rounded-lg">
-                        <X className="w-4 h-4 text-slate-500" />
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-5 gap-3">
-                      {VIP_COLOR_PRESETS.map((color) => (
-                        <button
-                          key={color.value}
-                          onClick={() => saveVipColor(color.value)}
-                          className={`w-11 h-11 rounded-xl border-2 transition-all hover:scale-110 active:scale-95 flex items-center justify-center ${vipCustomColor === color.value
-                            ? 'border-white ring-4 ring-white/10 scale-105'
-                            : 'border-white/10'
-                            }`}
-                          style={{ backgroundColor: color.hex }}
-                        >
-                          {vipCustomColor === color.value && <span className="text-white drop-shadow-md">✓</span>}
-                        </button>
+          <div className="flex gap-1.5 items-end">
+            <div className="flex-1 flex items-end bg-slate-900 border border-white/10 rounded-[28px] p-1 shadow-inner relative transition-all focus-within:border-white/20 focus-within:ring-2 focus-within:ring-white/5">
+              
+              <div className="flex items-center gap-0.5 px-0.5 pb-0.5">
+                <div className="relative" ref={emojiPickerRef}>
+                  <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/5 text-slate-400 transition-colors" title="Emojis"><Smile className="w-5 h-5" /></button>
+                  {showEmojiPicker && (
+                    <div className="absolute bottom-full left-0 mb-3 w-64 bg-slate-800 rounded-3xl border border-white/10 p-4 shadow-2xl shadow-black/50 z-50 max-h-80 overflow-y-auto">
+                      {isVip && (
+                        <div className="mb-3 pb-3 border-b border-purple-500/20">
+                          <p className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                            {VIP_EMOJIS.exclusive.title}
+                            <span className="text-[7px] bg-purple-500 text-white px-1.5 py-0.5 rounded-sm">EXCLUSIVO</span>
+                          </p>
+                          <div className="grid grid-cols-6 gap-1">
+                            {VIP_EMOJIS.exclusive.emojis.map(e => (
+                              <button
+                                key={e}
+                                onClick={() => { setNewMessage(p => p + e); setShowEmojiPicker(false); }}
+                                className="w-8 h-8 flex items-center justify-center text-xl hover:bg-purple-500/20 rounded-lg transition-all hover:scale-110"
+                                title="Emoji VIP exclusivo"
+                              >
+                                {e}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {Object.entries(EMOJI_CATEGORIES).map(([key, cat]) => (
+                        <div key={key} className="mb-3 last:mb-0">
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{cat.title}</p>
+                          <div className="grid grid-cols-6 gap-1">
+                            {cat.emojis.map(e => (
+                              <button
+                                key={e}
+                                onClick={() => { setNewMessage(p => p + e); setShowEmojiPicker(false); }}
+                                className="w-8 h-8 flex items-center justify-center text-xl hover:bg-white/5 rounded-lg transition-all"
+                              >
+                                {e}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       ))}
                     </div>
+                  )}
+                </div>
+                {isVip && (
+                  <div className="relative" ref={colorPickerRef}>
+                    <button
+                      onClick={() => setShowColorPicker(!showColorPicker)}
+                      className={`w-9 h-9 flex items-center justify-center rounded-full transition-all ${showColorPicker ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'hover:bg-white/5 text-purple-400'}`}
+                      title="Escolher Cor VIP"
+                    >
+                      <Palette className="w-5 h-5" />
+                    </button>
+                    {showColorPicker && (
+                      <div className="absolute bottom-full left-0 mb-3 w-[260px] bg-slate-800 rounded-3xl border border-white/10 p-5 shadow-2xl shadow-black/50 z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200 lg:left-0 lg:-translate-x-0 -translate-x-12">
+                        <div className="flex items-center justify-between mb-4">
+                          <p className="text-[10px] font-black text-purple-400 uppercase tracking-widest">💎 Cor da Mensagem</p>
+                          <button onClick={() => setShowColorPicker(false)} className="p-1 hover:bg-white/5 rounded-full">
+                            <X className="w-4 h-4 text-slate-500" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-5 gap-3">
+                          {VIP_COLOR_PRESETS.map((color) => (
+                            <button
+                              key={color.value}
+                              onClick={() => saveVipColor(color.value)}
+                              className={`w-10 h-10 rounded-full border-2 transition-all hover:scale-110 active:scale-95 flex items-center justify-center ${vipCustomColor === color.value
+                                ? 'border-white ring-4 ring-white/10 scale-105 shadow-lg shadow-black/20'
+                                : 'border-white/10'
+                                }`}
+                              style={{ backgroundColor: color.hex }}
+                            >
+                              {vipCustomColor === color.value && <span className="text-white drop-shadow-md text-sm">✓</span>}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            )}
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder="Sua mensagem..."
-                maxLength={isVip ? MAX_MESSAGE_LENGTH_VIP : MAX_MESSAGE_LENGTH}
-                className="w-full px-4 py-2.5 bg-slate-900 border border-white/5 rounded-xl text-white text-xs font-bold"
-              />
-              <div className="absolute right-2 bottom-1 text-[9px] text-slate-500 flex flex-col items-end gap-0.5">
+
+              <div className="flex-1 relative pb-0.5">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  placeholder="Mensagem..."
+                  maxLength={isVip ? MAX_MESSAGE_LENGTH_VIP : MAX_MESSAGE_LENGTH}
+                  className="w-full px-2 py-2.5 bg-transparent border-none text-white text-sm font-medium focus:outline-none focus:ring-0 placeholder:text-slate-500"
+                />
+              </div>
+
+              <div className="absolute top-[-20px] right-4 text-[9px] font-bold text-slate-500 flex items-center gap-2 pointer-events-none">
                 {slowModeSecondsRemaining > 0 && (
-                  <span className="text-red-400 animate-pulse font-black">Aguarde {slowModeSecondsRemaining}s</span>
+                  <span className="text-red-400 animate-pulse bg-red-400/10 px-1.5 py-0.5 rounded-full">Aguarde {slowModeSecondsRemaining}s</span>
                 )}
-                <span>{newMessage.length}/{isVip ? MAX_MESSAGE_LENGTH_VIP : MAX_MESSAGE_LENGTH}</span>
+                <span className={newMessage.length > (isVip ? MAX_MESSAGE_LENGTH_VIP : MAX_MESSAGE_LENGTH) * 0.9 ? 'text-orange-400' : ''}>
+                  {newMessage.length}/{isVip ? MAX_MESSAGE_LENGTH_VIP : MAX_MESSAGE_LENGTH}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1 pr-0.5 pb-0.5">
+                {isVip && (
+                  <div className="relative group flex items-center justify-center w-9 h-9">
+                    <button
+                      onClick={handleSendAudioMessage}
+                      disabled={!newMessage.trim() || isSendingAudio || newMessage.length > 500 || audioCountRemaining <= 0}
+                      className="w-8 h-8 rounded-full bg-purple-600/20 hover:bg-purple-600 text-purple-400 hover:text-white transition-all flex items-center justify-center disabled:opacity-30 disabled:hover:bg-purple-600/20 disabled:hover:text-purple-400 disabled:cursor-not-allowed group-hover:scale-105 active:scale-95"
+                      title="Enviar como áudio"
+                    >
+                      <Mic className="w-4 h-4" />
+                    </button>
+                    {audioCountRemaining !== null && (
+                      <div className={`absolute -top-1 -right-1 flex flex-col items-center justify-center w-4 h-4 rounded-full text-[8px] font-black border-2 border-slate-900 ${audioCountRemaining > 0 ? 'bg-purple-500 text-white' : 'bg-red-500 text-white'}`}>
+                        {audioCountRemaining > 0 ? audioCountRemaining : '!'}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!newMessage.trim()}
+                  className="w-9 h-9 flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg shadow-blue-600/20 active:scale-95 transition-all disabled:opacity-50 disabled:bg-slate-700 disabled:shadow-none disabled:text-slate-400"
+                >
+                  <Send className="w-4 h-4 ml-0.5" />
+                </button>
               </div>
             </div>
-            {isVip && (
-              <div className="flex flex-col items-center gap-1">
-                <button
-                  onClick={handleSendAudioMessage}
-                  disabled={!newMessage.trim() || isSendingAudio || newMessage.length > 500 || audioCountRemaining <= 0}
-                  className="px-3 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg shadow-purple-600/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={`Enviar como áudio (TTS) - Máximo 500 caracteres. Restam ${audioCountRemaining} áudios nesta live`}
-                >
-                  <Mic className="w-4 h-4" />
-                </button>
-                {audioCountRemaining > 0 && (
-                  <span className="text-[8px] text-purple-300 font-bold">
-                    Restam {audioCountRemaining} áudios
-                  </span>
-                )}
-                {audioCountRemaining === 0 && (
-                  <span className="text-[8px] text-red-400 font-bold">
-                    Limite atingido
-                  </span>
-                )}
-              </div>
-            )}
-            <button onClick={handleSendMessage} disabled={!newMessage.trim()} className="px-4 py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg shadow-blue-600/20 active:scale-95 transition-all flex items-center gap-2">
-              <span className="md:hidden">Enviar</span>
-              <Send className="w-4 h-4" />
-            </button>
           </div>
         )}
       </div>
