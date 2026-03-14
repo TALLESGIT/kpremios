@@ -134,10 +134,31 @@ serve(async (req) => {
           body: JSON.stringify({
             message: {
               token: token,
-              notification: { title, body },
+              notification: { 
+                title, 
+                body,
+                image: "https://www.zkoficial.com.br/icons/icon-512.webp"
+              },
               data: data || {},
-              android: { priority: "high", notification: { sound: "default" } },
-              apns: { payload: { aps: { sound: "default", badge: 1 } } }
+              android: { 
+                priority: "high", 
+                notification: { 
+                  sound: "default",
+                  imageUrl: "https://www.zkoficial.com.br/icons/icon-512.webp"
+                } 
+              },
+              apns: { 
+                payload: { 
+                  aps: { 
+                    sound: "default", 
+                    badge: 1,
+                    'mutable-content': 1
+                  } 
+                },
+                fcm_options: {
+                  image: "https://www.zkoficial.com.br/icons/icon-512.webp"
+                }
+              }
             }
           })
         })
