@@ -7,8 +7,8 @@ android {
         applicationId "com.zkoficial.premios"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 15
-        versionName "1.2.3"
+        versionCode 16
+        versionName "1.2.4"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -18,10 +18,10 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file('ZkOficial.jks')
+            storeFile file('release-key.jks')
             storePassword 'ZkOficial123'
             keyAlias 'zkoficial'
-            keyPassword 'zkoficial'
+            keyPassword 'ZkOficial123'
         }
     }
     buildTypes {
