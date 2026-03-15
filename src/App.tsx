@@ -54,6 +54,7 @@ import EscalacaoPage from './pages/EscalacaoPage';
 // Spotify e Clips
 import SpotifyPage from './pages/SpotifyPage';
 import ZkClipsPage from './pages/ZkClipsPage';
+import ShopPage from './pages/ShopPage';
 import AdminSpotifyPage from './pages/admin/AdminSpotifyPage';
 import AdminClipsPage from './pages/admin/AdminClipsPage';
 
@@ -63,6 +64,7 @@ import { DataProvider } from './context/DataContext';
 import ProtectedRoute from './components/shared/ProtectedRoute';
 import UserProtectedRoute from './components/ProtectedRoute';
 import { ChatProvider } from './features/chat/ChatProvider';
+import { CartProvider } from './context/CartContext';
 import { ChatHost } from './features/chat/ChatHost';
 import { StreamRegistryProvider, useRegisteredStreamId } from './features/chat/StreamRegistryProvider';
 import MobileNavigation from './components/shared/MobileNavigation';
@@ -225,6 +227,7 @@ function AppContentInner() {
             <Route path="/my-numbers" element={<MyNumbersPage />} />
             <Route path="/live-games" element={<LiveGamesPage />} />
             <Route path="/live-games/:gameId" element={<LiveParticipationPage />} />
+            <Route path="/loja" element={<ShopPage />} />
 
             {/* Novas rotas de autenticação */}
             <Route path="/login" element={<LoginPage />} />
@@ -400,7 +403,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <CartProvider>
+        <AppContent />
+      </CartProvider>
     </AuthProvider>
   );
 }

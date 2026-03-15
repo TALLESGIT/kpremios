@@ -107,7 +107,7 @@ const MobileNavigation: React.FC = () => {
                 <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
                   <Play size={16} className="text-blue-400" />
                 </div>
-                <span className="text-[11px] font-black uppercase tracking-wider">Clips</span>
+                <span className="text-[11px] font-black uppercase tracking-wider">Zk-Clips</span>
               </button>
             </motion.div>
           )}

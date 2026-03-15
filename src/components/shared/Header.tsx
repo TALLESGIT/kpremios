@@ -1,22 +1,43 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, LogOut } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Menu, X, LogOut, ShoppingBag, ChevronDown, Music, Play, Store } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { ZKLogo } from './ZKLogo';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { useCart } from '../../context/CartContext';
 import { supabase } from '../../lib/supabase';
+import { CartDrawer } from '../shop/CartDrawer';
 
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMediaOpen, setIsMediaOpen] = useState(false);
+  const [isMobileMediaOpen, setIsMobileMediaOpen] = useState(false);
+  const mediaRef = useRef<HTMLDivElement>(null);
   const [hasActiveLive, setHasActiveLive] = useState(false);
   const [hasUserBets, setHasUserBets] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { currentUser: currentAppUser, clearUserData } = useData();
+  const { totalItems, setIsCartOpen } = useCart();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-  const closeMenu = () => setIsMenuOpen(false);
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+    setIsMediaOpen(false);
+    setIsMobileMediaOpen(false);
+  };
+
+  // Close media dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mediaRef.current && !mediaRef.current.contains(event.target as Node)) {
+        setIsMediaOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -170,6 +191,16 @@ function Header() {
                 >
                   Escalar Time
                 </Link>
+
+                <Link
+                  to="/loja"
+                  className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/loja'
+                    ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
+                    : 'text-white/90 hover:text-white hover:bg-white/10'
+                    }`}
+                >
+                  Loja
+                </Link>
               </>
 
               {/* Botão AO VIVO ou Lives Premiadas - dependendo se há live ativa */}
@@ -202,25 +233,41 @@ function Header() {
                 </>
               )}
 
-              {/* Links públicos */}
-              <Link
-                to="/spotify"
-                className={`px-3 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/spotify'
-                  ? 'bg-white/10 text-white shadow-sm border border-white/20'
-                  : 'text-white/80 hover:text-white hover:bg-white/5'
-                  }`}
-              >
-                Músicas
-              </Link>
-              <Link
-                to="/zk-clips"
-                className={`px-3 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/zk-clips'
-                  ? 'bg-white/10 text-white shadow-sm border border-white/20'
-                  : 'text-white/80 hover:text-white hover:bg-white/5'
-                  }`}
-              >
-                Zk-Clips
-              </Link>
+              {/* Botão Mídia (Dropdown) */}
+              <div className="relative" ref={mediaRef}>
+                <button
+                  onClick={() => setIsMediaOpen(!isMediaOpen)}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 flex items-center gap-2 ${isMediaOpen || location.pathname === '/spotify' || location.pathname === '/zk-clips'
+                    ? 'text-primary bg-white shadow-lg shadow-white/10'
+                    : 'text-white/90 hover:text-white hover:bg-white/10'
+                    }`}
+                >
+                  Mídia
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isMediaOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Dropdown Menu */}
+                {isMediaOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-[#030712] border border-white/10 rounded-2xl shadow-2xl py-2 overflow-hidden animate-in fade-in zoom-in duration-200">
+                    <Link
+                      to="/spotify"
+                      onClick={closeMenu}
+                      className={`flex items-center gap-3 px-4 py-3 text-sm font-bold uppercase tracking-wide transition-all ${location.pathname === '/spotify' ? 'text-blue-400 bg-blue-500/10' : 'text-white/70 hover:text-white hover:bg-white/5'}`}
+                    >
+                      <Music className="w-4 h-4" />
+                      Músicas
+                    </Link>
+                    <Link
+                      to="/zk-clips"
+                      onClick={closeMenu}
+                      className={`flex items-center gap-3 px-4 py-3 text-sm font-bold uppercase tracking-wide transition-all ${location.pathname === '/zk-clips' ? 'text-blue-400 bg-blue-500/10' : 'text-white/70 hover:text-white hover:bg-white/5'}`}
+                    >
+                      <Play className="w-4 h-4" />
+                      Zk-Clips
+                    </Link>
+                  </div>
+                )}
+              </div>
 
               {/* Admin specific navigation links */}
               {currentAppUser?.is_admin && (
@@ -228,7 +275,7 @@ function Header() {
                   to="/admin/live-stream"
                   className="ml-2 px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 bg-white text-primary hover:bg-gray-100 shadow-lg"
                 >
-                  Transmitir ao Vivo
+                  📡 Transmitir
                 </Link>
               )}
 
@@ -247,6 +294,20 @@ function Header() {
                       Minhas Apostas
                     </Link>
                   )}
+
+                  {/* Botão Carrinho - Desktop */}
+                  <button
+                    onClick={() => setIsCartOpen(true)}
+                    className="relative p-2.5 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 group"
+                  >
+                    <ShoppingBag className="w-5 h-5" />
+                    {totalItems > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black italic border-2 border-[#030712] animate-in zoom-in duration-300">
+                        {totalItems}
+                      </span>
+                    )}
+                    <div className="absolute inset-0 rounded-xl bg-blue-500/0 group-hover:bg-blue-500/10 transition-colors" />
+                  </button>
                 </>
               )}
 
@@ -278,6 +339,19 @@ function Header() {
                   <LogOut className="h-5 w-5" />
                 </button>
               )}
+
+              {/* Botão Carrinho - Mobile (dentro da barra mas visível no mobile) */}
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="md:hidden relative p-2 rounded-xl text-white hover:bg-white/10 transition-all"
+              >
+                <ShoppingBag className="w-6 h-6" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black italic border-2 border-[#030712]">
+                    {totalItems}
+                  </span>
+                )}
+              </button>
             </nav>
 
             {/* Mobile menu button */}
@@ -369,6 +443,20 @@ function Header() {
                   Escalar Time
                 </Link>
 
+                <Link
+                  to="/loja"
+                  className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname === '/loja'
+                    ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] translate-x-1'
+                    : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
+                    }`}
+                  onClick={closeMenu}
+                >
+                  <span className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10 transition-colors">
+                    <Store className="w-5 h-5 text-blue-400" />
+                  </span>
+                  Loja
+                </Link>
+
                 {/* Botão AO VIVO ou Lives Premiadas no mobile */}
                 {currentAppUser && !currentAppUser.is_admin && (
                   <>
@@ -406,15 +494,34 @@ function Header() {
 
                 {/* Mobile Admin and Public Links */}
                 <div className="py-4 space-y-2 border-t border-white/5 mt-4 pt-6">
-                  <p className="px-5 text-[10px] font-black uppercase text-blue-400/50 tracking-[0.2em] mb-3 leading-none italic">Social & Conteúdo</p>
-                  <Link to="/spotify" onClick={closeMenu} className="flex items-center px-5 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-all hover:translate-x-1 font-bold uppercase tracking-tight italic">
-                    <span className="mr-4 text-xl">🎵</span> Músicas
-                  </Link>
-                  <Link to="/zk-clips" onClick={closeMenu} className="flex items-center px-5 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-all hover:translate-x-1 font-bold uppercase tracking-tight italic">
-                    <span className="mr-4 text-xl">🎬</span> Zk-Clips
-                  </Link>
+                  <p className="px-5 text-[10px] font-black uppercase text-blue-400/50 tracking-[0.2em] mb-3 leading-none italic">Mídia & Conteúdo</p>
+                  
+                  {/* Novo Botão Mídia no Mobile */}
+                  <div className="px-5">
+                    <button 
+                      onClick={() => setIsMobileMediaOpen(!isMobileMediaOpen)}
+                      className={`w-full flex items-center justify-between py-3 text-white/60 hover:text-white transition-all font-bold uppercase tracking-tight italic ${isMobileMediaOpen ? 'text-blue-400' : ''}`}
+                    >
+                      <div className="flex items-center">
+                        <span className="mr-4 text-xl">✨</span> Mídia
+                      </div>
+                      <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isMobileMediaOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {isMobileMediaOpen && (
+                      <div className="pl-4 mt-2 space-y-2 border-l-2 border-blue-500/20 animate-in slide-in-from-top-2 duration-200">
+                        <Link to="/spotify" onClick={closeMenu} className="flex items-center py-3 text-white/50 hover:text-white transition-all font-bold uppercase tracking-tight italic text-sm">
+                          <Music className="w-4 h-4 mr-3 text-blue-400" /> Músicas
+                        </Link>
+                        <Link to="/zk-clips" onClick={closeMenu} className="flex items-center py-3 text-white/50 hover:text-white transition-all font-bold uppercase tracking-tight italic text-sm">
+                          <Play className="w-4 h-4 mr-3 text-blue-400" /> Zk-Clips
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+
                   {currentAppUser?.is_admin && (
-                    <Link to="/admin/live-stream" onClick={closeMenu} className="flex items-center px-5 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-all hover:translate-x-1 font-bold uppercase tracking-tight italic border border-blue-500/20 bg-blue-500/5">
+                    <Link to="/admin/live-stream" onClick={closeMenu} className="flex items-center px-5 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-all hover:translate-x-1 font-bold uppercase tracking-tight italic border border-blue-500/20 bg-blue-500/5 mt-4">
                       <span className="mr-4 text-xl">📡</span> Transmitir ao Vivo
                     </Link>
                   )}
@@ -460,6 +567,9 @@ function Header() {
       {isMenuOpen && (
         <div className="fixed inset-0 bg-black/80 z-40 md:hidden" />
       )}
+
+      {/* Gaveta do Carrinho */}
+      <CartDrawer />
     </>
   );
 }

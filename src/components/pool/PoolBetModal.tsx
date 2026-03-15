@@ -42,8 +42,9 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
   const [pixQrCode, setPixQrCode] = useState<string | null>(null);
   const [pixCode, setPixCode] = useState<string | null>(null);
   const [showPixPayment, setShowPixPayment] = useState(false);
-  const [paymentCompleted] = useState(false);
-  const [hasBet, setHasBet] = useState(false);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [userBets, setUserBets] = useState<any[]>([]);
+  const [currentBetId, setCurrentBetId] = useState<string | null>(null); // Guardar o ID da aposta atual sendo paga
   const [paymentStartTime, setPaymentStartTime] = useState<number | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(300); // 5 minutos em segundos
   const timeoutTriggered = useRef(false);
@@ -150,6 +151,40 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
   }, [showPixPayment, paymentStartTime]);
 
 
+  // Realtime subscription to detect when payment is approved
+  useEffect(() => {
+    if (!isOpen || !user || !poolId) return;
+
+    const channel = supabase
+      .channel(`pool_bet_status_${poolId}_${user.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'pool_bets',
+        filter: `user_id=eq.${user.id}`
+      }, (payload) => {
+        if (payload.new.pool_id === poolId && payload.new.payment_status === 'approved') {
+          // Aposta foi aprovada!
+          checkExistingBet();
+          
+          // Se for a aposta que o usuário acabou de fazer, mostrar tela de sucesso
+          if (payload.new.id === currentBetId) {
+            setPaymentCompleted(true);
+            setShowPixPayment(false);
+            
+            // Limpar localStorage
+            const storageKey = `pool_payment_${poolId}_${user.id}`;
+            localStorage.removeItem(storageKey);
+          }
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isOpen, user, poolId, currentBetId]);
+
   const checkExistingBet = async () => {
     if (!user) return;
     try {
@@ -174,22 +209,15 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
         .eq('payment_status', 'approved')
         .order('created_at', { ascending: false });
 
-      // Se houver pelo menos uma aposta aprovada, mostrar a mais recente
-      if (approvedBets && approvedBets.length > 0 && !error) {
-        const mostRecentBet = approvedBets[0];
-        setHasBet(true);
-        setHomeScore(mostRecentBet.predicted_home_score.toString());
-        setAwayScore(mostRecentBet.predicted_away_score.toString());
-
-        // Limpar localStorage se a aposta foi aprovada
+      if (approvedBets && !error) {
+        setUserBets(approvedBets);
+        
+        // Limpar localStorage se a aposta recente foi aprovada
         const storageKey = `pool_payment_${poolId}_${user.id}`;
         localStorage.removeItem(storageKey);
-      } else {
-        setHasBet(false);
       }
     } catch (err) {
       console.error('Erro ao verificar aposta:', err);
-      setHasBet(false);
     }
   };
 
@@ -318,6 +346,8 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
         }
         throw betError;
       }
+
+      setCurrentBetId(betData.id); // Guardar o ID desta aposta para monitorar approval
 
       // Criar pagamento PIX via Edge Function
       let paymentData: any;
@@ -524,40 +554,6 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
 
   if (!isOpen) return null;
 
-  if (hasBet) {
-    return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4" onClick={onClose}>
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-blue-500/30 shadow-2xl max-w-[90vw] sm:max-w-[340px] w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Target className="w-6 h-6 text-yellow-300" />
-              <h2 className="text-xl font-black text-white uppercase">Você já participou!</h2>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white/10 rounded-lg transition-all"
-            >
-              <X className="w-5 h-5 text-white" />
-            </button>
-          </div>
-          <div className="p-4 sm:p-6 text-center space-y-3 sm:space-y-4">
-            <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16 text-green-400 mx-auto" />
-            <p className="text-white font-bold text-sm sm:text-base">Sua aposta:</p>
-            <div className="text-3xl sm:text-4xl font-black text-blue-400">
-              {homeScore} x {awayScore}
-            </div>
-            <p className="text-xs sm:text-sm text-slate-400">Aguarde o resultado do jogo!</p>
-            <button
-              onClick={onClose}
-              className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg sm:rounded-xl transition-all text-sm sm:text-base"
-            >
-              Fechar
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (paymentCompleted) {
     return (
@@ -592,8 +588,18 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
               Boa sorte! O resultado será divulgado após o jogo.
             </p>
             <button
-              onClick={onClose}
+              onClick={() => {
+                setPaymentCompleted(false);
+                setHomeScore('');
+                setAwayScore('');
+              }}
               className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg sm:rounded-xl transition-all text-sm sm:text-base"
+            >
+              Fazer outra aposta
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-lg sm:rounded-xl transition-all text-sm sm:text-base"
             >
               Fechar
             </button>
@@ -736,6 +742,38 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
               Sendo R$ {(totalPoolAmount * 0.70).toFixed(2)} arrecadado + R$ {accumulatedAmount.toFixed(2)} acumulado
             </p>
           </div>
+
+          {/* User Bets Section - New */}
+          {userBets.length > 0 && (
+            <div className="bg-emerald-500/10 p-3 md:p-4 rounded-2xl border border-emerald-500/30">
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs md:text-sm font-black text-white uppercase tracking-wider">Você já participou!</span>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {userBets.map((bet, idx) => (
+                    <div key={bet.id || idx} className="bg-emerald-500/20 px-3 py-1.5 rounded-xl border border-emerald-500/30 flex items-center gap-2">
+                      <span className="text-xs md:text-sm font-black text-white">
+                        {bet.predicted_home_score} x {bet.predicted_away_score}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                
+                <p className="text-[10px] md:text-xs text-emerald-400 font-bold uppercase tracking-tight">
+                  Aguarde o resultado do jogo!
+                </p>
+                
+                <div className="h-[1px] w-full bg-emerald-500/20 my-1" />
+                
+                <p className="text-[9px] md:text-[10px] text-slate-400 leading-tight">
+                  Você pode fazer novas apostas com resultados diferentes cada uma custa apenas <span className="text-white font-bold">R$ 5,00</span>.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Teams - Small Logos */}
           <div className="flex items-center justify-center gap-4 md:gap-8 py-1 md:py-2 relative">

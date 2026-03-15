@@ -32,14 +32,14 @@ export const supabase = createClient(validUrl, validKey, {
       eventsPerSecond: 10
     },
     // Configuração para lidar melhor com erros de conexão WebSocket
-    log_level: import.meta.env.DEV ? 'warn' : 'error', // Reduz logs de erro no console
-    // Timeout para conexão WebSocket (5 segundos)
-    timeout: 5000,
+    log_level: 'info', // Aumentado para ver detalhes da falha
+    // Timeout para conexão WebSocket (10 segundos para lidar com cold starts do tenant)
+    timeout: 10000,
     // Configuração de reconexão
     heartbeatIntervalMs: 30000,
     reconnectAfterMs: (tries: number) => {
       // Aumentar intervalo entre tentativas (máximo 30 segundos)
-      return Math.min(tries * 1000, 30000);
+      return Math.min(tries * 2000, 30000);
     }
   }
 });

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import SuccessModal from '../components/shared/SuccessModal';
 import VipGrantedModal from '../components/vip/VipGrantedModal';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
@@ -20,10 +19,7 @@ import Footer from '../components/shared/Footer';
 function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { currentUser, numbers } = useData();
-  const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [successNumber, setSuccessNumber] = useState<number | null>(null);
+  const { currentUser } = useData();
   const [activePoolsCount, setActivePoolsCount] = useState(0);
   const [poolWinnersCount, setPoolWinnersCount] = useState(0);
   const [nextGame, setNextGame] = useState<CruzeiroGame | null>(null);
@@ -40,10 +36,8 @@ function HomePage() {
 
   // Verificar se o usuário está logado
   const isLoggedIn = !!(user && currentUser);
-  // Verificar se é admin
-  const isAdmin = currentUser?.is_admin || false;
 
-  const { socket, isConnected, on, off, joinStream } = useSocket({
+  const { isConnected, on, off, joinStream } = useSocket({
     streamId: activeStreamId || undefined,
     autoConnect: !!activeStreamId
   });
@@ -74,7 +68,7 @@ function HomePage() {
         event: '*',
         schema: 'public',
         table: 'match_pools'
-      }, (payload) => {
+      }, (_payload) => {
         if (!activeStreamId || !isConnected) {
           checkActivePool();
           checkActivePools();
@@ -117,7 +111,7 @@ function HomePage() {
         }
       };
 
-      poolBetUpdateHandler = (data: { eventType: string; bet: any; oldBet: any; poolId: string }) => {
+      poolBetUpdateHandler = (_data: { eventType: string; bet: any; oldBet: any; poolId: string }) => {
         loadPoolWinnersCount();
       };
 
@@ -142,6 +136,16 @@ function HomePage() {
       if (viewerCountHandler) off('viewer-count-updated', viewerCountHandler);
     };
   }, [activeStreamId, isConnected]);
+
+  useEffect(() => {
+    const handleVipGranted = (event: CustomEvent) => {
+      setVipExpiresAt(event.detail.expiresAt);
+      setShowVipModal(true);
+    };
+
+    window.addEventListener('vipGranted', handleVipGranted as EventListener);
+    return () => window.removeEventListener('vipGranted', handleVipGranted as EventListener);
+  }, []);
 
 
 
@@ -251,19 +255,6 @@ function HomePage() {
     }
   };
 
-  const handleRegistrationSuccess = () => {
-    setSuccessNumber(selectedNumber);
-    setShowSuccess(true);
-  };
-
-  const handleNumberSelection = (num: number) => {
-    setSelectedNumber(num);
-  };
-
-  const handleUpsellClick = () => {
-    setShowSuccess(false);
-    navigate('/dashboard');
-  };
 
   return (
     <div className="min-h-screen bg-[#030712] text-white">
@@ -627,28 +618,16 @@ function HomePage() {
                 onClick={() => navigate('/zk-clips')}
                 className="btn btn-primary w-full bg-blue-600 hover:bg-blue-500 border-none rounded-xl font-black uppercase tracking-widest text-xs"
               >
-                ASSISTIR AGORA
               </button>
             </div>
           </section>
+
 
           {/* Banners de Patrocinadores */}
           <section className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
             <AdvertisementCarousel position="homepage" autoPlay={true} autoPlayInterval={5000} />
           </section>
         </div>
-
-        <SuccessModal
-          isOpen={showSuccess}
-          onClose={() => setShowSuccess(false)}
-          title="🎉 Número Selecionado!"
-          message={`Seu número gratuito #${successNumber} foi reservado com sucesso!`}
-          selectedNumber={successNumber || undefined}
-          autoClose={false}
-          autoCloseTime={8000}
-          showUpsell={true}
-          onUpsellClick={handleUpsellClick}
-        />
 
         {
           activePool && (

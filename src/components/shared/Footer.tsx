@@ -1,6 +1,5 @@
 import React from 'react';
 import { Heart, Instagram, Youtube, MessageCircle, ShieldCheck, Mail } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
 const Footer: React.FC = () => {
@@ -67,6 +66,12 @@ const Footer: React.FC = () => {
                   <Link to="/menu" className="text-blue-200/40 hover:text-white text-sm font-bold uppercase italic tracking-tight transition-colors flex items-center gap-2 group">
                     <span className="w-1.5 h-1.5 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
                     Perfil
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/loja" className="text-blue-200/40 hover:text-white text-sm font-bold uppercase italic tracking-tight transition-colors flex items-center gap-2 group">
+                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                    Loja
                   </Link>
                 </li>
                 <li>

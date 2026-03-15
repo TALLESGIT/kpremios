@@ -4,7 +4,7 @@ import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import { Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, Settings, CheckCircle, MessageSquare, Trash2, Video, Tv, Image as ImageIcon, X, Phone } from 'lucide-react';
+import { Users, Hash, Trophy, RotateCcw, AlertTriangle, BarChart, Settings, CheckCircle, MessageSquare, Trash2, Video, Tv, Image as ImageIcon, X, Phone, LayoutGrid, Truck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
   AreaChart,
@@ -21,6 +21,8 @@ import {
 
 import UserManagementPanel from '../components/admin/UserManagementPanel';
 import SocialSettingsPanel from '../components/admin/SocialSettingsPanel';
+import { ProductManagementPanel } from '../components/admin/ProductManagementPanel';
+import { ShippingRatesPanel } from '../components/admin/ShippingRatesPanel';
 import { LiveViewer } from '../components/LiveViewer';
 
 export default function AdminDashboardPage() {
@@ -58,6 +60,8 @@ export default function AdminDashboardPage() {
   const [allVips, setAllVips] = useState<any[]>([]);
   const [loadingVips, setLoadingVips] = useState(false);
   const [vipFilter, setVipFilter] = useState<'all' | 'active' | 'expired'>('all');
+  const [showProductManagement, setShowProductManagement] = useState(false);
+  const [showShippingManagement, setShowShippingManagement] = useState(false);
 
   // Analytics State
   const [analyticsData, setAnalyticsData] = useState<any[]>([]);
@@ -790,8 +794,27 @@ export default function AdminDashboardPage() {
                   fetchVips();
                 }
               },
-              { label: 'Selecionados', value: takenNumbersCount, icon: Trophy, color: 'from-amber-600 to-amber-400', shadow: 'shadow-amber-500/20', progress: (takenNumbersCount / totalRaffleNumbers) * 100 },
-              { label: 'Conversão', value: `${takenNumbersCount > 0 ? ((takenNumbersCount / totalRaffleNumbers) * 100).toFixed(1) : '0'}%`, icon: BarChart, color: 'from-purple-600 to-purple-400', shadow: 'shadow-purple-500/20' },
+              {
+                label: 'Selecionados',
+                value: takenNumbersCount,
+                icon: Trophy,
+                color: 'from-amber-600 to-amber-400',
+                shadow: 'shadow-amber-500/20',
+                progress: (takenNumbersCount / totalRaffleNumbers) * 100
+              },
+              {
+                label: 'Config. Frete',
+                value: 'Estados',
+                icon: Truck,
+                color: 'from-blue-600 to-indigo-600',
+                shadow: 'shadow-blue-500/20',
+                clickable: true,
+                onClick: () => {
+                  setShowShippingManagement(true);
+                  setShowProductManagement(false);
+                  setShowUserManagement(false);
+                }
+              },
             ].map((stat, idx) => (
               <div
                 key={idx}
@@ -1074,24 +1097,55 @@ export default function AdminDashboardPage() {
                   </Link>
                 </div>
 
-                {/* Banners Card */}
-                <div className="glass-panel rounded-[3rem] p-1 bg-gradient-to-br from-purple-500/20 to-transparent border border-white/5">
+                {/* Loja ZK Gestão */}
+                <div className="glass-panel rounded-[3rem] p-1 bg-gradient-to-br from-emerald-500/20 to-transparent border border-white/5">
                   <div className="bg-slate-900/90 backdrop-blur-3xl rounded-[2.8rem] p-8">
                     <div className="flex items-center gap-6 mb-8">
-                      <div className="w-16 h-16 bg-purple-500/10 rounded-[1.5rem] flex items-center justify-center border border-purple-500/20">
-                        <ImageIcon className="w-8 h-8 text-purple-400" />
+                      <div className="w-16 h-16 bg-emerald-500/10 rounded-[1.5rem] flex items-center justify-center border border-emerald-500/20">
+                        <LayoutGrid className="w-8 h-8 text-emerald-400" />
                       </div>
                     </div>
-                    <h3 className="text-2xl font-black text-white mb-3 italic uppercase">Banners</h3>
+                    <h3 className="text-2xl font-black text-white mb-3 italic uppercase">Loja ZK</h3>
                     <p className="text-blue-200/60 text-sm font-medium mb-8 leading-relaxed">
-                      Gerencie os banners e anúncios exibidos na homepage. Crie slides, adicione imagens e links.
+                      Gerencie o catálogo de produtos, preços, estoque e fotos da loja oficial.
                     </p>
-                    <Link
-                      to="/admin/banners"
-                      className="inline-flex items-center px-8 py-4 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-purple-600/20 uppercase italic text-xs tracking-wider"
+                    <button
+                      onClick={() => {
+                        const productPanel = document.getElementById('product-management-section');
+                        productPanel?.scrollIntoView({ behavior: 'smooth' });
+                        setShowProductManagement(true);
+                        setShowShippingManagement(false);
+                      }}
+                      className="inline-flex items-center px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-emerald-600/20 uppercase italic text-xs tracking-wider"
                     >
-                      Gerenciar Banners
-                    </Link>
+                      Abrir Loja ZK
+                    </button>
+                  </div>
+                </div>
+
+                {/* Gestão de Frete */}
+                <div className="glass-panel rounded-[3rem] p-1 bg-gradient-to-br from-blue-500/20 to-transparent border border-white/5">
+                  <div className="bg-slate-900/90 backdrop-blur-3xl rounded-[2.8rem] p-8">
+                    <div className="flex items-center gap-6 mb-8">
+                      <div className="w-16 h-16 bg-blue-500/10 rounded-[1.5rem] flex items-center justify-center border border-blue-500/20">
+                        <Truck className="w-8 h-8 text-blue-400" />
+                      </div>
+                    </div>
+                    <h3 className="text-2xl font-black text-white mb-3 italic uppercase">Frete & Entregas</h3>
+                    <p className="text-blue-200/60 text-sm font-medium mb-8 leading-relaxed">
+                      Configure os custos de frete por estado e prazos de entrega para os usuários.
+                    </p>
+                    <button
+                      onClick={() => {
+                        const shippingPanel = document.getElementById('shipping-management-section');
+                        shippingPanel?.scrollIntoView({ behavior: 'smooth' });
+                        setShowShippingManagement(true);
+                        setShowProductManagement(false);
+                      }}
+                      className="inline-flex items-center px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-blue-600/20 uppercase italic text-xs tracking-wider"
+                    >
+                      Gerenciar Frete
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1810,9 +1864,41 @@ Obrigado por participar! 🙏`;
         </div>
       )}
 
+      {/* 📦 PAINEL DE GESTÃO DE PRODUTOS */}
+      {showProductManagement && (
+        <div id="product-management-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="glass-panel rounded-[3rem] p-8 md:p-12 bg-slate-800/20 border border-white/5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8">
+              <button 
+                onClick={() => setShowProductManagement(false)}
+                className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-slate-400 hover:text-white transition-all border border-white/5"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <ProductManagementPanel />
+          </div>
+        </div>
+      )}
+
+      {/* 🚚 PAINEL DE GESTÃO DE FRETE */}
+      {showShippingManagement && (
+        <div id="shipping-management-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="glass-panel rounded-[3rem] p-8 md:p-12 bg-slate-800/20 border border-white/5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8">
+              <button 
+                onClick={() => setShowShippingManagement(false)}
+                className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-slate-400 hover:text-white transition-all border border-white/5"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <ShippingRatesPanel />
+          </div>
+        </div>
+      )}
+
       <Footer />
-    </div >
+    </div>
   );
 }
-
-

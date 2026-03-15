@@ -150,3 +150,37 @@ export interface Raffle {
   updated_at: string;
   prize_image?: string;
 }
+
+export interface Product {
+  id: string;
+  name: string;
+  brand: string;
+  price: number;
+  image_url: string;
+  description?: string;
+  category: 'jersey' | 'exclusive' | 'casual' | 'accessories';
+  is_available: boolean;
+  stock: number;
+  weight_g?: number;
+  width_cm?: number;
+  height_cm?: number;
+  length_cm?: number;
+  is_free_shipping?: boolean;
+  free_shipping_states?: string[];
+  gallery_urls?: string[];
+  available_sizes?: string[];
+  target_audience?: 'masculino' | 'feminino' | 'kids' | 'unissex';
+}
+
+export interface ShippingRate {
+  id: string;
+  state_code: string;
+  base_cost: number;
+  estimated_days: number;
+}
+
+export interface CartItem {
+  product: Product;
+  quantity: number;
+  selectedSize?: string;
+}
