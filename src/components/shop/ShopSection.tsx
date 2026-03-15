@@ -27,6 +27,7 @@ const COMING_SOON_PRODUCTS: Product[] = [
     is_available: true,
     is_coming_soon: true,
     target_audience: 'masculino',
+    available_sizes: ['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'],
     description: 'Edição limitada "Papai Ama, Papai Cuida". O manto que celebra a paternidade e a paixão pelo futebol com estilo e irreverência.'
   },
   {
@@ -40,20 +41,22 @@ const COMING_SOON_PRODUCTS: Product[] = [
     is_available: true,
     is_coming_soon: true,
     target_audience: 'feminino',
+    available_sizes: ['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'],
     description: 'Edição limitada "Mamãe Ama, Mamãe Cuida". Design exclusivo feminino com corte acinturado e arte de alta definição.'
   },
   {
     id: 'cs-3',
-    name: 'Kit ZK Kids Premium',
+    name: 'Coleção ZK Kids Streetwear',
     brand: 'ZK KIDS',
     price: 159.90,
-    category: 'jersey',
+    category: 'casual',
     image_url: '/mockups/kids.png',
     stock: 0,
     is_available: true,
     is_coming_soon: true,
     target_audience: 'kids',
-    description: 'Para os pequenos craques! Conjunto completo ZK Kids com tecido tecnológico UltraDry.'
+    available_sizes: ['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'],
+    description: 'Streetwear infantil com propósito! Combo exclusivo contendo Camisa, Boné e Regata com frases motivacionais "O Propósito é Maior que o Processo". Estilo e mensagem para os pequenos vencedores.'
   }
 ];
 

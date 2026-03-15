@@ -67,9 +67,9 @@ export const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(({ produ
 
         {/* Coming Soon Badge */}
         {product.is_coming_soon && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-full px-4">
-            <div className="px-4 py-2 rounded-xl bg-amber-500/90 backdrop-blur-md border border-amber-400 shadow-2xl transform -rotate-12">
-               <span className="text-sm font-black text-black uppercase tracking-tighter block text-center">
+          <div className="absolute inset-0 z-20 flex items-center justify-center p-6 bg-black/60 backdrop-blur-[1px]">
+            <div className="px-4 py-2 rounded-lg bg-amber-500 border border-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.5)] transform -rotate-12 scale-110">
+               <span className="text-[10px] sm:text-xs font-black text-black uppercase tracking-tighter block text-center whitespace-nowrap">
                 LANÇAMENTO EM BREVE
               </span>
             </div>
