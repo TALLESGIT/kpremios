@@ -33,12 +33,16 @@ export const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(({ produ
       className="bg-[#0f172a] rounded-3xl overflow-hidden border border-white/5 hover:border-blue-500/50 transition-all duration-300 group shadow-2xl relative flex flex-col h-full"
     >
       {/* Imagem do Produto */}
-      <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-slate-800 to-slate-950 flex items-center justify-center p-6">
+      <div 
+        onClick={() => onViewDetails(product)}
+        className="relative aspect-square overflow-hidden bg-gradient-to-br from-slate-800 to-slate-950 flex items-center justify-center p-6 cursor-pointer"
+      >
         <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
         <motion.img
           src={product.image_url}
           alt={product.name}
-          className="w-full h-full object-contain filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] group-hover:scale-110 transition-transform duration-700 ease-out"
+          onClick={() => onViewDetails(product)}
+          className="w-full h-full object-contain filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] group-hover:scale-110 transition-transform duration-700 ease-out cursor-pointer"
         />
         
         {/* Premium Badge only */}
@@ -67,7 +71,7 @@ export const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(({ produ
 
         {/* Coming Soon Badge */}
         {product.is_coming_soon && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center p-6 bg-black/60 backdrop-blur-[1px]">
+          <div className="absolute inset-0 z-20 flex items-center justify-center p-6 bg-black/60 backdrop-blur-[1px] pointer-events-none">
             <div className="px-4 py-2 rounded-lg bg-amber-500 border border-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.5)] transform -rotate-12 scale-110">
                <span className="text-[10px] sm:text-xs font-black text-black uppercase tracking-tighter block text-center whitespace-nowrap">
                 LANÇAMENTO EM BREVE
@@ -77,12 +81,14 @@ export const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(({ produ
         )}
 
         {/* Overlay de Ação Rápida */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/40 backdrop-blur-[2px]">
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/40 backdrop-blur-[2px] pointer-events-none">
           <button
-            onClick={() => !product.is_coming_soon && onViewDetails(product)}
-            disabled={product.is_coming_soon}
-            className={`bg-white text-blue-900 w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all ${product.is_coming_soon ? 'opacity-50 cursor-not-allowed' : ''}`}
-            title={product.is_coming_soon ? "Em Breve" : "Ver Detalhes"}
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewDetails(product);
+            }}
+            className="bg-white text-blue-900 w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all pointer-events-auto"
+            title="Ver Detalhes"
           >
             <Plus className="w-7 h-7" />
           </button>
