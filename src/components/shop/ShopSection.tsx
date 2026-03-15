@@ -46,17 +46,45 @@ const COMING_SOON_PRODUCTS: Product[] = [
   },
   {
     id: 'cs-3',
-    name: 'Coleção ZK Kids Streetwear',
+    name: 'Camisa Kids "Propósito"',
     brand: 'ZK KIDS',
-    price: 159.90,
+    price: 89.90,
     category: 'casual',
-    image_url: '/mockups/kids.png',
+    image_url: '/mockups/kids_camisa.png',
     stock: 0,
     is_available: true,
     is_coming_soon: true,
     target_audience: 'kids',
     available_sizes: ['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'],
-    description: 'Streetwear infantil com propósito! Combo exclusivo contendo Camisa, Boné e Regata com frases motivacionais "O Propósito é Maior que o Processo". Estilo e mensagem para os pequenos vencedores.'
+    description: 'Camisa streetwear infantil com a frase: "O Propósito é Maior que o Processo". Algodão premium para o máximo conforto.'
+  },
+  {
+    id: 'cs-4',
+    name: 'Regata Kids "Predestinado"',
+    brand: 'ZK KIDS',
+    price: 79.90,
+    category: 'casual',
+    image_url: '/mockups/kids_regata.png',
+    stock: 0,
+    is_available: true,
+    is_coming_soon: true,
+    target_audience: 'kids',
+    available_sizes: ['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'],
+    description: 'Regata streetwear infantil com a frase: "Predestinado a Vencer". Estilo livre para os pequenos craques.'
+  },
+  {
+    id: 'cs-5',
+    name: 'Boné ZK Premium Kids',
+    brand: 'ZK KIDS',
+    price: 99.90,
+    category: 'casual',
+    image_url: '/mockups/kids_bone.png',
+    stock: 0,
+    is_available: true,
+    is_coming_soon: true,
+    target_audience: 'kids',
+    available_sizes: ['TAM. ÚNICO'],
+    description: 'Boné exclusivo ZK Kids. Ajuste perfeito e design moderno para completar o visual streetwear.'
   }
 ];
 
