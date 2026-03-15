@@ -170,6 +170,7 @@ export interface Product {
   gallery_urls?: string[];
   available_sizes?: string[];
   target_audience?: 'masculino' | 'feminino' | 'kids' | 'unissex';
+  is_coming_soon?: boolean;
 }
 
 export interface ShippingRate {

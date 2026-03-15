@@ -65,12 +65,24 @@ export const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(({ produ
           </div>
         )}
 
+        {/* Coming Soon Badge */}
+        {product.is_coming_soon && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-full px-4">
+            <div className="px-4 py-2 rounded-xl bg-amber-500/90 backdrop-blur-md border border-amber-400 shadow-2xl transform -rotate-12">
+               <span className="text-sm font-black text-black uppercase tracking-tighter block text-center">
+                LANÇAMENTO EM BREVE
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Overlay de Ação Rápida */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/40 backdrop-blur-[2px]">
           <button
-            onClick={() => onViewDetails(product)}
-            className="bg-white text-blue-900 w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all"
-            title="Ver Detalhes"
+            onClick={() => !product.is_coming_soon && onViewDetails(product)}
+            disabled={product.is_coming_soon}
+            className={`bg-white text-blue-900 w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all ${product.is_coming_soon ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title={product.is_coming_soon ? "Em Breve" : "Ver Detalhes"}
           >
             <Plus className="w-7 h-7" />
           </button>
@@ -110,10 +122,11 @@ export const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(({ produ
           
           <button
             onClick={handleBuyNow}
-            className="bg-blue-600 hover:bg-blue-500 text-white h-10 sm:h-11 px-3 sm:px-5 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-[0.1em] flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 active:scale-95 transition-all whitespace-nowrap border border-blue-400/30 w-full sm:w-auto"
+            disabled={product.is_coming_soon}
+            className={`${product.is_coming_soon ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/20'} h-10 sm:h-11 px-3 sm:px-5 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-[0.1em] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all whitespace-nowrap border border-blue-400/30 w-full sm:w-auto`}
           >
-            <ShoppingCart className="w-3.5 h-3.5" />
-            <span>COMPRAR</span>
+            <ShoppingCart className={`w-3.5 h-3.5 ${product.is_coming_soon ? 'hidden' : ''}`} />
+            <span>{product.is_coming_soon ? 'EM BREVE' : 'COMPRAR'}</span>
           </button>
         </div>
       </div>

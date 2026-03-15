@@ -15,6 +15,48 @@ const CATEGORIES = [
   { id: 'casual', label: 'Streetwear', icon: ShoppingBag },
 ];
 
+const COMING_SOON_PRODUCTS: Product[] = [
+  {
+    id: 'cs-1',
+    name: 'Manto "Papai Ama, Papai Cuida"',
+    brand: 'ZK EXCLUSIVE',
+    price: 199.90,
+    category: 'exclusive',
+    image_url: '/mockups/masculino.png',
+    stock: 0,
+    is_available: true,
+    is_coming_soon: true,
+    target_audience: 'masculino',
+    description: 'Edição limitada "Papai Ama, Papai Cuida". O manto que celebra a paternidade e a paixão pelo futebol com estilo e irreverência.'
+  },
+  {
+    id: 'cs-2',
+    name: 'Manto "Mamãe Ama, Mamãe Cuida"',
+    brand: 'ZK EXCLUSIVE',
+    price: 199.90,
+    category: 'exclusive',
+    image_url: '/mockups/feminino.png',
+    stock: 0,
+    is_available: true,
+    is_coming_soon: true,
+    target_audience: 'feminino',
+    description: 'Edição limitada "Mamãe Ama, Mamãe Cuida". Design exclusivo feminino com corte acinturado e arte de alta definição.'
+  },
+  {
+    id: 'cs-3',
+    name: 'Kit ZK Kids Premium',
+    brand: 'ZK KIDS',
+    price: 159.90,
+    category: 'jersey',
+    image_url: '/mockups/kids.png',
+    stock: 0,
+    is_available: true,
+    is_coming_soon: true,
+    target_audience: 'kids',
+    description: 'Para os pequenos craques! Conjunto completo ZK Kids com tecido tecnológico UltraDry.'
+  }
+];
+
 export function ShopSection() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +109,7 @@ export function ShopSection() {
     }
   };
 
-  const filteredProducts = products.filter(p => {
+  const filteredProducts = [...products, ...COMING_SOON_PRODUCTS].filter(p => {
     const categoryMatch = activeCategory === 'all' || p.category === activeCategory;
     const audienceMatch = activeAudience === 'all' || p.target_audience === activeAudience;
     return categoryMatch && audienceMatch;
