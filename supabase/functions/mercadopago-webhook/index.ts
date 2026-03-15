@@ -27,21 +27,59 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const webhookData = await req.json();
+    const rawBody = await req.text();
+    const webhookData = JSON.parse(rawBody);
     const { type, data } = webhookData;
+
+    // --- VALIDAÇÃO DE ASSINATURA (OPCIONAL/RECOMENDADO) ---
+    const webhookSecret = Deno.env.get('MERCADO_PAGO_WEBHOOK_SECRET');
+    const xSignature = req.headers.get('x-signature');
+    const xRequestId = req.headers.get('x-request-id');
+
+    if (webhookSecret && xSignature && xRequestId) {
+      try {
+        const parts = xSignature.split(',');
+        const tsPart = parts.find(p => p.startsWith('ts='));
+        const v1Part = parts.find(p => p.startsWith('v1='));
+
+        if (tsPart && v1Part) {
+          const ts = tsPart.split('=')[1];
+          const receivedHash = v1Part.split('=')[1];
+          const manifest = `id:${xRequestId};ts:${ts};${rawBody}`;
+
+          const key = await crypto.subtle.importKey(
+            "raw",
+            new TextEncoder().encode(webhookSecret),
+            { name: "HMAC", hash: "SHA-256" },
+            false,
+            ["verify", "sign"]
+          );
+
+          const signature = await crypto.subtle.sign(
+            "HMAC",
+            key,
+            new TextEncoder().encode(manifest)
+          );
+
+          const hexSignature = Array.from(new Uint8Array(signature))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+
+          if (hexSignature !== receivedHash) {
+            console.error('❌ Assinatura do Webhook INVÁLIDA!');
+            return new Response(JSON.stringify({ error: 'Invalid signature' }), { status: 401 });
+          }
+          console.log('✅ Assinatura do Webhook validada com sucesso.');
+        }
+      } catch (err) {
+        console.error('Erro ao validar assinatura:', err);
+      }
+    }
+    // ------------------------------------------------------
 
     // Mercado Pago envia webhook com type = "payment" e data.id = payment_id
     if (type !== 'payment' || !data?.id) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid webhook data' }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          }
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Invalid webhook data' }), { status: 400 });
     }
 
     const paymentId = data.id;
@@ -49,16 +87,7 @@ Deno.serve(async (req: Request) => {
 
     if (!mercadoPagoToken) {
       console.error('MERCADO_PAGO_ACCESS_TOKEN não configurada');
-      return new Response(
-        JSON.stringify({ error: 'Payment service not configured' }),
-        {
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          }
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Payment service not configured' }), { status: 500 });
     }
 
     // Buscar detalhes do pagamento no Mercado Pago
