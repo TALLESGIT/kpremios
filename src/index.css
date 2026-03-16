@@ -294,4 +294,28 @@
   .pb-32 {
     padding-bottom: 0 !important;
   }
+
+  /* Patch para Modo Paisagem em Dispositivos Móveis */
+  @media (max-width: 1024px) and (orientation: landscape) {
+    .pt-16, 
+    .pt-24, 
+    .pt-28, 
+    .pt-32, 
+    .pt-\[calc\(4rem\+env\(safe-area-inset-top\,0px\)\)\] {
+      padding-top: 0 !important;
+    }
+    
+    .pb-12, 
+    .pb-16, 
+    .pb-20,
+    .pb-32 {
+      padding-bottom: 0 !important;
+    }
+
+    /* Garantir que as seções ocupem a tela toda se necessário */
+    .min-h-screen {
+      height: 100vh !important;
+      height: 100dvh !important;
+    }
+  }
 }

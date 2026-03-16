@@ -20,13 +20,15 @@ import AdminLiveControlPage from './pages/AdminLiveControlPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminLiveStreamPage from './pages/AdminLiveStreamPage';
 import AdminZkTVPage from './pages/admin/AdminZkTVPage';
+
 import { useParams } from 'react-router-dom';
 
-// Componente simples para redirecionar lives antigas para o ZK TV com o parâmetro de canal adequado
-const ChannelRedirect = () => {
-  const { channelName } = useParams<{ channelName: string }>();
+function ChannelRedirect() {
+  const { channelName } = useParams();
   return <Navigate to={`/zk-tv?channel=${channelName}`} replace />;
-};
+}
+
+
 // import DiagnosticoAgoraPage from './pages/DiagnosticoAgoraPage';
 // import ReporterPage from './pages/ReporterPage';
 
@@ -40,11 +42,11 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import ForgotEmailPage from './pages/ForgotEmailPage';
 
-// ZK TV
-import ZkTVPage from './pages/ZkTVPage';
+
 
 // Banners
 import AdminBannersPage from './pages/admin/AdminBannersPage';
+import ZkTVPage from './pages/ZkTVPage';
 
 // Competições e Tabelas
 import CompetitionsPage from './pages/CompetitionsPage';
@@ -251,7 +253,7 @@ function AppContentInner() {
               </UserProtectedRoute>
             } />
 
-            <Route path="/zk-tv" element={<ZkTVPage />} />
+
 
             {/* Competições e Tabelas */}
             <Route path="/competicoes" element={<CompetitionsPage />} />
@@ -263,6 +265,7 @@ function AppContentInner() {
             {/* Spotify e ZK Clips */}
             <Route path="/spotify" element={<SpotifyPage />} />
             <Route path="/zk-clips" element={<ZkClipsPage />} />
+            <Route path="/zk-tv" element={<ZkTVPage />} />
 
             {/* Rotas antigas do admin */}
             <Route path="/admin/login" element={<AdminLoginPage />} />
@@ -333,6 +336,7 @@ function AppContentInner() {
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/admin/zk-tv"
               element={
@@ -341,6 +345,7 @@ function AppContentInner() {
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/admin/banners"
               element={
@@ -371,8 +376,7 @@ function AppContentInner() {
             <Route path="/termos" element={<TermsOfUsePage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
 
-            {/* Rotas públicas de live streaming - Redirecionando para ZK TV */}
-            <Route path="/live/:channelName" element={<ChannelRedirect />} />
+
             {/* <Route path="/reporter" element={<ReporterPage />} /> */}
 
             {/* Rota de diagnóstico do Agora.io */}
@@ -380,6 +384,7 @@ function AppContentInner() {
 
             {/* Redirect /admin to /admin/login if not authenticated */}
             <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
+            <Route path="/live/:channelName" element={<ChannelRedirect />} />
           </Routes>
           {/* ChatHost e PollOverlay - renderizados dentro do StreamRegistryProvider e Router */}
           <GlobalChatAndPollOverlay />

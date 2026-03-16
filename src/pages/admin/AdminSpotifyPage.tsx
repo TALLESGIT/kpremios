@@ -3,6 +3,8 @@ import { supabase } from '../../lib/supabase';
 import { Trash2, Plus, Music, ExternalLink, Play } from 'lucide-react';
 import { SpotifyService, SpotifyRelease } from '../../services/SpotifyService';
 import { toast } from 'react-hot-toast';
+import Header from '../../components/shared/Header';
+import Footer from '../../components/shared/Footer';
 
 const AdminSpotifyPage: React.FC = () => {
   const [releases, setReleases] = useState<SpotifyRelease[]>([]);
@@ -80,7 +82,9 @@ const AdminSpotifyPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen pb-20 pt-4 px-4 max-w-7xl mx-auto">
+    <div className="min-h-screen flex flex-col bg-slate-900">
+      <Header />
+      <main className="flex-grow pb-20 pt-32 md:pt-40 px-4 max-w-7xl mx-auto w-full">
       <div className="flex items-center gap-4 mb-8">
         <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/20">
           <Music className="w-6 h-6 text-white" />
@@ -208,6 +212,8 @@ const AdminSpotifyPage: React.FC = () => {
           )}
         </div>
       </div>
+      </main>
+      <Footer />
     </div>
   );
 };

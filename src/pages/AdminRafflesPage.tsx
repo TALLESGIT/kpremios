@@ -354,7 +354,7 @@ export default function AdminRafflesPage() {
   return (
     <div className="min-h-screen flex flex-col bg-slate-900">
       <Header />
-      <main className="flex-grow w-full relative overflow-hidden">
+      <main className="flex-grow w-full relative overflow-hidden pt-32 md:pt-40">
         {/* Background Effects */}
         <div className="fixed inset-0 pointer-events-none">
           <div className="absolute top-0 right-0 w-full h-[500px] bg-blue-600/10 blur-[100px]" />

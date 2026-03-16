@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Link } from 'react-router-dom';
+import Header from '../../components/shared/Header';
+import Footer from '../../components/shared/Footer';
 
 interface LiveRaffle {
   id: string;
@@ -210,8 +212,9 @@ const LiveRaffleControlPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <Header />
+      <main className="flex-grow max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 md:pt-40 pb-12 w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -404,7 +407,8 @@ const LiveRaffleControlPage: React.FC = () => {
             </div>
           )}
         </div>
-      </div>
+      </main>
+      <Footer />
     </div>
   );
 };

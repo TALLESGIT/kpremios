@@ -319,7 +319,7 @@ const AdminLiveStreamPage = () => {
   return (
     <div className="min-h-screen flex flex-col bg-slate-900">
       <Header />
-      <main className="flex-grow pt-24 px-4 max-w-6xl mx-auto w-full pb-20">
+      <main className="flex-grow pt-32 md:pt-40 px-4 max-w-6xl mx-auto w-full pb-20">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-black text-white italic uppercase">Controle de Live</h1>

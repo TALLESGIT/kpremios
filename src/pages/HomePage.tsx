@@ -42,6 +42,8 @@ function HomePage() {
     autoConnect: !!activeStreamId
   });
 
+
+
   useEffect(() => {
     checkActivePools();
     loadPoolWinnersCount();
@@ -173,6 +175,8 @@ function HomePage() {
     }
   };
 
+
+
   const checkActiveLive = async () => {
     try {
       const { data, error } = await supabase
@@ -221,16 +225,32 @@ function HomePage() {
   const loadNextGame = async () => {
     setLoadingGame(true);
     try {
-      const { data, error } = await supabase
+      // Primeiro, tenta buscar se existe um jogo com status 'live'
+      const { data: liveGame } = await supabase
         .from('cruzeiro_games')
         .select('*')
-        .gte('date', new Date().toISOString())
-        .order('date', { ascending: true })
+        .eq('status', 'live')
         .limit(1)
         .maybeSingle();
 
-      if (!error && data) {
-        setNextGame(data);
+      if (liveGame) {
+        setNextGame(liveGame);
+      } else {
+        // Se não houver live, busca o próximo jogo (do dia de hoje em diante para não perder jogos que já começaram)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const { data, error } = await supabase
+          .from('cruzeiro_games')
+          .select('*')
+          .gte('date', today.toISOString())
+          .order('date', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (!error && data) {
+          setNextGame(data);
+        }
       }
     } catch (err) {
       console.error('Erro ao carregar próximo jogo:', err);
@@ -302,6 +322,7 @@ function HomePage() {
                     </span>
                   )}
                 </Link>
+
                 {activePool && activePool.is_active && (
                 <button
                   onClick={() => setShowPoolModal(true)}
@@ -343,10 +364,82 @@ function HomePage() {
             </motion.div>
           </div>
 
+          {/* LIVE STREAM BANNER - Moved up for better prominence */}
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 sm:mt-12">
+            <section className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-blue-400 to-emerald-400 rounded-[2.5rem] blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+              <div className="relative block rounded-[2.5rem] overflow-hidden border border-white/10 glass-panel shadow-2xl transition-all duration-500 hover:shadow-blue-500/20">
+                <div className="absolute inset-0 bg-slate-900/40 opacity-60"></div>
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_50%,rgba(59,130,246,0.15),transparent)]"></div>
+
+                <div className="relative p-8 sm:p-14 flex flex-col lg:flex-row items-center justify-between gap-10">
+                  <div className="flex-1 flex flex-col lg:flex-row items-center gap-8 text-center lg:text-left">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-blue-500 rounded-3xl blur-2xl opacity-20 animate-pulse"></div>
+                      <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-blue-600 to-blue-400 flex items-center justify-center border border-white/20 shadow-xl group-hover:scale-110 transition-transform duration-500">
+                        <MonitorPlay className="w-12 h-12 text-white" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mb-4">
+                        <span className="px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em]">ZK TV</span>
+                        {hasActiveLive && (
+                          <div className="flex items-center gap-2 px-3 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-full animate-pulse">
+                            <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                            <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.15em]">Ao Vivo</span>
+                          </div>
+                        )}
+                      </div>
+                      <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-4 italic tracking-tight uppercase leading-none">
+                        ASSISTA TODOS OS <br className="hidden sm:block" />
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-white to-blue-400">JOGOS AO VIVO</span>
+                      </h2>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center gap-4">
+                    {hasActiveLive && (
+                      <div className="flex flex-col items-center sm:items-end gap-2">
+                        <div className="flex -space-x-4 mb-1">
+                          {[...Array(3)].map((_, i) => (
+                            <div key={i} className="w-10 h-10 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center text-xs font-bold text-blue-400 shadow-xl overflow-hidden glass-panel">
+                              <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i + 10}`} alt="viewer" className="w-full h-full object-cover" />
+                            </div>
+                          ))}
+                          <div className="w-10 h-10 rounded-full border-2 border-slate-900 bg-blue-600 flex items-center justify-center text-[10px] font-black text-white shadow-xl">
+                            {viewerCount > 0 ? (viewerCount >= 1000 ? `+${(viewerCount / 1000).toFixed(1)}k` : viewerCount) : '0'}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-center sm:items-end">
+                          <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-500/10 border border-rose-500/20 rounded-full mb-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                            <span className="text-[10px] font-black text-rose-500 uppercase tracking-wider">
+                              {viewerCount > 0 ? `${viewerCount} ONLINE` : 'LIVE ATIVA'}
+                            </span>
+                          </div>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Pessoas Assistindo</span>
+                        </div>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => navigate('/zk-tv')}
+                      className="bg-white text-blue-900 px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-blue-50 transition-colors shadow-xl shadow-white/5 active:scale-95 duration-200 w-full"
+                    >
+                      {hasActiveLive ? 'Entrar na Live' : 'Acessar ZK TV'}
+                    </button>
+                  </div>
+                </div>
+                <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,255,0.02))] bg-[length:100%_2px,3px_100%] opacity-20"></div>
+              </div>
+            </section>
+          </div>
+
           {/* Admin Managed Game Banner */}
           {
             !loadingGame && nextGame && (
-              <div className="mt-12 w-full max-w-4xl mx-auto px-4 z-20 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+              <div className="mt-8 sm:mt-12 w-full max-w-4xl mx-auto px-4 z-20 animate-in fade-in slide-in-from-bottom-8 duration-1000">
                 <div className="relative group overflow-hidden rounded-[2.5rem] sm:rounded-[3rem] border border-white/10 shadow-2xl shadow-blue-500/10 bg-slate-900/40 backdrop-blur-xl min-h-[280px] sm:min-h-[220px]">
                   {/* Background Banner Image */}
                   {nextGame.banner_url && (
@@ -443,76 +536,6 @@ function HomePage() {
 
         {/* Main Content Areas */}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16">
-          {/* LIVE STREAM BANNER */}
-          <section className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-blue-400 to-emerald-400 rounded-[2.5rem] blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-            <div className="relative block rounded-[2.5rem] overflow-hidden border border-white/10 glass-panel shadow-2xl transition-all duration-500 hover:shadow-blue-500/20">
-              <div className="absolute inset-0 bg-slate-900/40 opacity-60"></div>
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_50%,rgba(59,130,246,0.15),transparent)]"></div>
-
-              <div className="relative p-8 sm:p-14 flex flex-col lg:flex-row items-center justify-between gap-10">
-                <div className="flex-1 flex flex-col lg:flex-row items-center gap-8 text-center lg:text-left">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-blue-500 rounded-3xl blur-2xl opacity-20 animate-pulse"></div>
-                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-blue-600 to-blue-400 flex items-center justify-center border border-white/20 shadow-xl group-hover:scale-110 transition-transform duration-500">
-                      <MonitorPlay className="w-12 h-12 text-white" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mb-4">
-                      <span className="px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em]">ZK TV</span>
-                      {hasActiveLive && (
-                        <div className="flex items-center gap-2 px-3 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-full animate-pulse">
-                          <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                          <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.15em]">Ao Vivo</span>
-                        </div>
-                      )}
-                    </div>
-                    <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-4 italic tracking-tight uppercase leading-none">
-                      ASSISTA TODOS OS <br className="hidden sm:block" />
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-white to-blue-400">JOGOS AO VIVO</span>
-                    </h2>
-                  </div>
-                </div>
-
-                <div className="flex flex-col items-center gap-4">
-                  {hasActiveLive && (
-                    <div className="flex flex-col items-center sm:items-end gap-2">
-                      <div className="flex -space-x-4 mb-1">
-                        {[...Array(3)].map((_, i) => (
-                          <div key={i} className="w-10 h-10 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center text-xs font-bold text-blue-400 shadow-xl overflow-hidden glass-panel">
-                            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i + 10}`} alt="viewer" className="w-full h-full object-cover" />
-                          </div>
-                        ))}
-                        <div className="w-10 h-10 rounded-full border-2 border-slate-900 bg-blue-600 flex items-center justify-center text-[10px] font-black text-white shadow-xl">
-                          {viewerCount > 0 ? (viewerCount >= 1000 ? `+${(viewerCount / 1000).toFixed(1)}k` : viewerCount) : '0'}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-center sm:items-end">
-                        <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-500/10 border border-rose-500/20 rounded-full mb-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
-                          <span className="text-[10px] font-black text-rose-500 uppercase tracking-wider">
-                            {viewerCount > 0 ? `${viewerCount} ONLINE` : 'LIVE ATIVA'}
-                          </span>
-                        </div>
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Pessoas Assistindo</span>
-                      </div>
-                    </div>
-                  )}
-                  <button
-                    onClick={() => navigate('/zk-tv')}
-                    className="bg-white text-blue-900 px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-blue-50 transition-colors shadow-xl shadow-white/5 active:scale-95 duration-200 w-full"
-                  >
-                    {hasActiveLive ? 'Entrar na Live' : 'Acessar ZK TV'}
-                  </button>
-                </div>
-              </div>
-              <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,255,0.02))] bg-[length:100%_2px,3px_100%] opacity-20"></div>
-            </div>
-          </section>
-
           {/* Cards Grid */}
           <section id="bolao-section" className={`grid grid-cols-1 md:grid-cols-2 ${activePool && activePool.is_active ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-8`}>
             {activePool && activePool.is_active && (
@@ -616,8 +639,9 @@ function HomePage() {
               <p className="text-blue-200 mb-8 text-sm leading-relaxed">Bastidores e conteúdos exclusivos para a Nação!</p>
               <button
                 onClick={() => navigate('/zk-clips')}
-                className="btn btn-primary w-full bg-blue-600 hover:bg-blue-500 border-none rounded-xl font-black uppercase tracking-widest text-xs"
+                className="btn btn-primary w-full bg-blue-600 hover:bg-blue-500 border-none rounded-xl font-black uppercase tracking-widest text-xs py-4 shadow-lg shadow-blue-600/20"
               >
+                VER CLIPES
               </button>
             </div>
           </section>

@@ -6,6 +6,12 @@ export interface ShippingCalculation {
   estimatedDays: number;
   isFree: boolean;
   stateCode: string;
+  address?: {
+    street: string;
+    neighborhood: string;
+    city: string;
+    state: string;
+  };
 }
 
 /**
@@ -80,15 +86,26 @@ export async function calculateShipping(
  * Utilitário para extrair o estado (UF) a partir de um CEP (Simulação ou via API externa)
  * Em uma implementação real, usaríamos a API do ViaCEP ou similar.
  */
-export async function getStateFromZip(cep: string): Promise<string | null> {
+export async function getAddressFromZip(cep: string) {
   const cleanCep = cep.replace(/\D/g, '');
   if (cleanCep.length !== 8) return null;
 
   try {
     const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
     const data = await response.json();
-    return data.uf || null;
+    if (data.erro) return null;
+    return {
+      street: data.logradouro,
+      neighborhood: data.bairro,
+      city: data.localidade,
+      state: data.uf
+    };
   } catch (error) {
     return null;
   }
+}
+
+export async function getStateFromZip(cep: string): Promise<string | null> {
+  const address = await getAddressFromZip(cep);
+  return address?.state || null;
 }

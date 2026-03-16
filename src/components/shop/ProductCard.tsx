@@ -117,14 +117,15 @@ export const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(({ produ
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-3 border-t border-white/5 gap-3">
-          <div className="flex flex-col">
+{/* Preço removido conforme solicitado */}
+          {/* <div className="flex flex-col">
             <span className="text-[9px] text-slate-500 line-through font-bold opacity-30">
               R$ {(product.price * 1.2).toFixed(2).replace('.', ',')}
             </span>
             <span className="text-lg sm:text-2xl font-black text-emerald-400 italic tracking-tighter">
               R$ {product.price.toFixed(2).replace('.', ',')}
             </span>
-          </div>
+          </div> */}
           
           <button
             onClick={handleBuyNow}

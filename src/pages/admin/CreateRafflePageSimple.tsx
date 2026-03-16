@@ -5,15 +5,7 @@ import { useData } from '../../context/DataContext';
 import { supabase } from '../../lib/supabase';
 import Header from '../../components/shared/Header';
 import Footer from '../../components/shared/Footer';
-import { 
-  ArrowLeft, 
-  Trophy, 
-  MessageSquare,
-  Send,
-  Loader2,
-  CheckCircle,
-  XCircle
-} from 'lucide-react';
+import { Loader2, Calendar, MapPin, Trophy, DollarSign, Image as ImageIcon, Plus, Trash2, Clock, Users, ArrowLeft, Save, AlertCircle } from 'lucide-react';
 
 const CreateRafflePageSimple: React.FC = () => {
   const navigate = useNavigate();
@@ -260,7 +252,7 @@ const CreateRafflePageSimple: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <Header />
       
-      <main className="flex-grow w-full py-6">
+      <main className="flex-grow w-full pt-32 md:pt-40 pb-12">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header Section */}
           <motion.div

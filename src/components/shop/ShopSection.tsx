@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, ChevronRight, Zap, Trophy, Flame, Loader2, X, Star, ShoppingCart, Plus } from 'lucide-react';
+import { ShoppingBag, ChevronRight, Zap, Trophy, Flame, Loader2, X, Star, ShoppingCart, Plus, Package } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { Product } from '../../types';
 import { supabase } from '../../lib/supabase';
@@ -13,80 +13,10 @@ const CATEGORIES = [
   { id: 'jersey', label: 'Mantos', icon: Flame },
   { id: 'exclusive', label: 'Exclusivos', icon: Zap },
   { id: 'casual', label: 'Streetwear', icon: ShoppingBag },
+  { id: 'accessories', label: 'Acessórios', icon: Package },
 ];
 
-const COMING_SOON_PRODUCTS: Product[] = [
-  {
-    id: 'cs-1',
-    name: 'Manto "Papai Ama, Papai Cuida"',
-    brand: 'ZK EXCLUSIVE',
-    price: 199.90,
-    category: 'exclusive',
-    image_url: '/mockups/masculino.png',
-    stock: 0,
-    is_available: true,
-    is_coming_soon: true,
-    target_audience: 'masculino',
-    available_sizes: ['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'],
-    description: 'Edição limitada "Papai Ama, Papai Cuida". O manto que celebra a paternidade e a paixão pelo futebol com estilo e irreverência.'
-  },
-  {
-    id: 'cs-2',
-    name: 'Manto "Mamãe Ama, Mamãe Cuida"',
-    brand: 'ZK EXCLUSIVE',
-    price: 199.90,
-    category: 'exclusive',
-    image_url: '/mockups/feminino.png',
-    stock: 0,
-    is_available: true,
-    is_coming_soon: true,
-    target_audience: 'feminino',
-    available_sizes: ['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'],
-    description: 'Edição limitada "Mamãe Ama, Mamãe Cuida". Design exclusivo feminino com corte acinturado e arte de alta definição.'
-  },
-  {
-    id: 'cs-3',
-    name: 'Camisa Kids "Propósito"',
-    brand: 'ZK KIDS',
-    price: 89.90,
-    category: 'casual',
-    image_url: '/mockups/kids_camisa.png',
-    stock: 0,
-    is_available: true,
-    is_coming_soon: true,
-    target_audience: 'kids',
-    available_sizes: ['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'],
-    description: 'Camisa streetwear infantil com a frase: "O Propósito é Maior que o Processo". Algodão premium para o máximo conforto.'
-  },
-  {
-    id: 'cs-4',
-    name: 'Regata Kids "Predestinado"',
-    brand: 'ZK KIDS',
-    price: 79.90,
-    category: 'casual',
-    image_url: '/mockups/kids_regata.png',
-    stock: 0,
-    is_available: true,
-    is_coming_soon: true,
-    target_audience: 'kids',
-    available_sizes: ['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'],
-    description: 'Regata streetwear infantil com a frase: "Predestinado a Vencer". Estilo livre para os pequenos craques.'
-  },
-  {
-    id: 'cs-5',
-    name: 'Boné ZK Premium Kids',
-    brand: 'ZK KIDS',
-    price: 99.90,
-    category: 'casual',
-    image_url: '/mockups/kids_bone.png',
-    stock: 0,
-    is_available: true,
-    is_coming_soon: true,
-    target_audience: 'kids',
-    available_sizes: ['TAM. ÚNICO'],
-    description: 'Boné exclusivo ZK Kids. Ajuste perfeito e design moderno para completar o visual streetwear.'
-  }
-];
+
 
 export function ShopSection() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -140,7 +70,7 @@ export function ShopSection() {
     }
   };
 
-  const filteredProducts = [...products, ...COMING_SOON_PRODUCTS].filter(p => {
+  const filteredProducts = products.filter(p => {
     const categoryMatch = activeCategory === 'all' || p.category === activeCategory;
     const audienceMatch = activeAudience === 'all' || p.target_audience === activeAudience;
     return categoryMatch && audienceMatch;
@@ -351,10 +281,11 @@ export function ShopSection() {
                       </h4>
 
                       <div className="space-y-6">
-                        <div className="flex flex-col">
+                        {/* Preço removido conforme solicitado */}
+                        {/* <div className="flex flex-col">
                           <span className="text-slate-500 text-sm line-through font-bold opacity-30">R$ {(selectedProduct.price * 1.2).toFixed(2).replace('.', ',')}</span>
                           <span className="text-4xl sm:text-5xl font-black text-emerald-400 italic tracking-tighter">R$ {selectedProduct.price.toFixed(2).replace('.', ',')}</span>
-                        </div>
+                        </div> */}
 
                         <div className="p-6 rounded-[2rem] bg-white/5 border border-white/10">
                           <p className="text-sm sm:text-base text-slate-300 font-medium leading-relaxed">
@@ -401,13 +332,14 @@ export function ShopSection() {
                     <div className="mt-12 flex flex-col gap-4">
                       <button
                         onClick={handleBuyFromModal}
-                        className="w-full bg-blue-600 hover:bg-blue-500 text-white h-16 rounded-2xl text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-xl shadow-blue-600/20 active:scale-95 transition-all group"
+                        disabled={selectedProduct.is_coming_soon}
+                        className={`w-full ${selectedProduct.is_coming_soon ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/20 shadow-xl'} h-16 rounded-2xl text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition-all group`}
                       >
-                        <ShoppingCart className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                        GARANTIR AGORA
+                        {!selectedProduct.is_coming_soon && <ShoppingCart className="w-6 h-6 group-hover:scale-110 transition-transform" />}
+                        {selectedProduct.is_coming_soon ? 'LANÇAMENTO EM BREVE' : 'GARANTIR AGORA'}
                       </button>
                       <p className="text-center text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-                        🚚 Frete grátis para membros ZK Gold
+                        {selectedProduct.is_coming_soon ? 'Fique atento às nossas redes para o lançamento' : '🚚 Frete grátis para membros ZK Gold'}
                       </p>
                     </div>
                   </div>

@@ -205,7 +205,7 @@ export default function AdminBannersPage() {
   return (
     <div className="min-h-screen flex flex-col bg-slate-900">
       <Header />
-      <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 md:pt-40 pb-12 w-full">
         <div className="mb-8">
           <h1 className="text-4xl font-black text-white mb-2">Gerenciar Banners</h1>
           <p className="text-blue-200/60">Gerencie os banners e anúncios exibidos no site</p>

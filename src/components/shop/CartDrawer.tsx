@@ -1,16 +1,22 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShoppingBag, Trash2, Plus, Minus, ArrowRight, Truck, MapPin, Loader2 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
-import { calculateShipping, getStateFromZip, ShippingCalculation } from '../../utils/shipping';
+import { calculateShipping, getAddressFromZip, ShippingCalculation } from '../../utils/shipping';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 export function CartDrawer() {
   const { isCartOpen, setIsCartOpen, cart, removeFromCart, updateQuantity, totalPrice, totalItems } = useCart();
+  const { user } = useAuth();
   
   const [zipCode, setZipCode] = useState('');
   const [isCalculating, setIsCalculating] = useState(false);
+  const [isFinishing, setIsFinishing] = useState(false);
   const [shippingInfo, setShippingInfo] = useState<ShippingCalculation | null>(null);
+  const [houseNumber, setHouseNumber] = useState('');
+  const [complement, setComplement] = useState('');
 
   // Recalcular frete se o carrinho mudar e já tiver um CEP
   useEffect(() => {
@@ -21,6 +27,32 @@ export function CartDrawer() {
     }
   }, [cart]);
 
+  // Bloquear scroll do body quando o carrinho estiver aberto
+  useEffect(() => {
+    if (isCartOpen) {
+      const scrollY = window.scrollY;
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${scrollY}px`;
+    } else {
+      const scrollY = document.body.style.top;
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.top = '';
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+      }
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.top = '';
+    };
+  }, [isCartOpen]);
+
   const handleCalculateShipping = async (cep: string) => {
     const cleanCep = cep.replace(/\D/g, '');
     if (cleanCep.length !== 8) {
@@ -30,19 +62,100 @@ export function CartDrawer() {
 
     setIsCalculating(true);
     try {
-      const stateCode = await getStateFromZip(cleanCep);
-      if (!stateCode) {
+      const address = await getAddressFromZip(cleanCep);
+      if (!address) {
         toast.error('CEP não encontrado');
         return;
       }
 
       const products = cart.map(item => item.product);
-      const result = await calculateShipping(stateCode, products);
-      setShippingInfo(result);
+      const result = await calculateShipping(address.state, products);
+      setShippingInfo({
+        ...result,
+        address
+      });
     } catch (error) {
       toast.error('Erro ao calcular frete');
     } finally {
       setIsCalculating(false);
+    }
+  };
+
+  const handleCheckout = async () => {
+    if (!user) {
+      toast.error('Por favor, faça login para finalizar o pedido');
+      return;
+    }
+
+    if (cart.length === 0) return;
+
+    if (!shippingInfo) {
+      toast.error('Por favor, calcule o frete primeiro');
+      return;
+    }
+
+    if (!houseNumber.trim()) {
+      toast.error('Por favor, informe o número da residência');
+      return;
+    }
+
+    setIsFinishing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-store-checkout', {
+        body: {
+          user_id: user.id,
+          customer_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Cliente',
+          customer_email: user.email,
+          items: cart.map(item => ({
+            id: item.product.id,
+            name: item.product.name,
+            price: item.product.price,
+            quantity: item.quantity,
+            image_url: item.product.image_url,
+            selectedSize: item.selectedSize
+          })),
+          shipping_cost: shippingInfo.cost,
+          zip_code: zipCode,
+          house_number: houseNumber,
+          complement: complement,
+          address_state: shippingInfo.stateCode,
+          street: shippingInfo.address?.street,
+          neighborhood: shippingInfo.address?.neighborhood,
+          city: shippingInfo.address?.city
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.checkout_url) {
+        // Redireciona para o Checkout Pro do Mercado Pago
+        window.location.href = data.checkout_url;
+      } else {
+        throw new Error('URL de checkout não recebida');
+      }
+    } catch (error: any) {
+      console.error('Erro no checkout:', error);
+      
+      let errorMessage = 'Erro ao processar pedido. Tente novamente.';
+      
+      // No Supabase v2, o corpo do erro 500/400 pode estar no context.json
+      if (error.context) {
+        try {
+          // Tentar ler o corpo da resposta se for um erro de função
+          const body = await error.context.json();
+          if (body && (body.error || body.message)) {
+            errorMessage = body.error || body.message;
+          }
+        } catch (e) {
+          console.warn('Não foi possível ler o corpo do erro:', e);
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setIsFinishing(false);
     }
   };
 
@@ -202,24 +315,58 @@ export function CartDrawer() {
                   
                   {shippingInfo && (
                     <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="flex items-center justify-between text-[9px] font-bold uppercase tracking-tight"
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-1"
                     >
-                      <span className="text-slate-500">Entrega: {shippingInfo.stateCode}</span>
-                      {shippingInfo.isFree ? (
-                        <span className="text-emerald-400 font-black">Frete Grátis ✨</span>
-                      ) : (
-                        <span className="text-white">
-                          R$ {shippingInfo.cost.toFixed(2).replace('.', ',')} • {shippingInfo.estimatedDays} dias
-                        </span>
-                      )}
+                      <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-tight">
+                        <span className="text-blue-400/70">Endereço de Entrega:</span>
+                        {shippingInfo.isFree ? (
+                          <span className="text-emerald-400 font-black">Frete Grátis ✨</span>
+                        ) : (
+                          <span className="text-white">
+                            R$ {shippingInfo.cost.toFixed(2).replace('.', ',')} • {shippingInfo.estimatedDays} dias
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-2 bg-black/20 rounded-lg border border-white/5">
+                        <p className="text-[10px] text-white font-bold leading-tight">
+                          {shippingInfo.address?.street}
+                        </p>
+                        <p className="text-[9px] text-slate-500 font-medium">
+                          {shippingInfo.address?.neighborhood}, {shippingInfo.address?.city} - {shippingInfo.address?.state}
+                        </p>
+                      </div>
+
+                      {/* Novos campos: Número e Complemento */}
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <div className="space-y-1">
+                          <label className="text-[8px] font-black text-blue-400 uppercase tracking-widest pl-1">Número</label>
+                          <input
+                            type="text"
+                            placeholder="Ex: 123"
+                            value={houseNumber}
+                            onChange={(e) => setHouseNumber(e.target.value)}
+                            className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 font-bold"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[8px] font-black text-blue-400 uppercase tracking-widest pl-1">Comp.</label>
+                          <input
+                            type="text"
+                            placeholder="Apto, Bloco..."
+                            value={complement}
+                            onChange={(e) => setComplement(e.target.value)}
+                            className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 font-bold"
+                          />
+                        </div>
+                      </div>
                     </motion.div>
                   )}
                 </div>
 
                 <div className="space-y-2 mb-4">
-                  <div className="flex justify-between items-center">
+                   <div className="flex justify-between items-center">
                     <span className="text-slate-500 font-bold uppercase text-[10px] tracking-wider">Subtotal</span>
                     <span className="text-white font-bold text-sm italic">R$ {totalPrice.toFixed(2).replace('.', ',')}</span>
                   </div>
@@ -241,10 +388,18 @@ export function CartDrawer() {
                 </div>
 
                 <button
-                  className="w-full h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-black uppercase tracking-[0.15em] text-xs shadow-xl shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 group"
+                  onClick={handleCheckout}
+                  disabled={isFinishing || cart.length === 0}
+                  className="w-full h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-black uppercase tracking-[0.15em] text-xs shadow-xl shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  FINALIZAR PEDIDO
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  {isFinishing ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <>
+                      FINALIZAR PEDIDO
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
                 </button>
                 <p className="text-center text-[9px] text-slate-600 mt-3 uppercase font-bold tracking-widest italic leading-none">
                   🔒 Pagamento Seguro via Mercado Pago

@@ -1,43 +1,67 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Tv, Layout, Play, MoreHorizontal } from 'lucide-react';
+import { Home, Play, Store, MoreHorizontal, Tv } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 
 const MobileNavigation: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [hasActiveLive, setHasActiveLive] = useState(false);
   const [showMediaSubmenu, setShowMediaSubmenu] = useState(false);
+  const [hasActiveLive, setHasActiveLive] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(false);
 
-  // ✅ Verificar se há live ativa e escutar mudanças em tempo real
   useEffect(() => {
-    const checkLive = async () => {
-      const { data } = await supabase
-        .from('live_streams')
-        .select('id')
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle();
-      setHasActiveLive(!!data);
+    const checkOrientation = () => {
+      // Considera landscape apenas em dispositivos móveis (largura < 1024)
+      setIsLandscape(window.innerWidth > window.innerHeight && window.innerWidth < 1024);
+    };
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+    return () => window.removeEventListener('resize', checkOrientation);
+  }, []);
+
+  useEffect(() => {
+    const checkActiveLive = async () => {
+      try {
+        const { data } = await supabase
+          .from('live_streams')
+          .select('id')
+          .eq('is_active', true)
+          .limit(1)
+          .maybeSingle();
+        setHasActiveLive(!!data);
+      } catch (err) {
+        console.error('Erro ao verificar live:', err);
+      }
     };
 
-    checkLive();
+    checkActiveLive();
 
-    const channel = supabase
-      .channel('mobile-nav-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, () => checkLive())
+    const subscription = supabase
+      .channel('mobile-nav-live-check')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'live_streams' 
+      }, () => {
+        checkActiveLive();
+      })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
+
+
 
   const navItems = [
     { id: 'home', label: 'Início', icon: Home, path: '/' },
-    { id: 'live', icon: Tv, label: 'Ao Vivo', path: '/zk-tv' },
-    { id: 'escalacao', icon: Layout, label: 'Escalação', path: '/escalacao' },
-    { id: 'midia', icon: Play, label: 'Mídia', path: '/zk-clips' },
-    { id: 'menu', icon: MoreHorizontal, label: 'Mais', path: '/menu' }
+    { id: 'zktv', label: 'ZK TV', icon: Tv, path: '/zk-tv' },
+    { id: 'loja', label: 'Loja', icon: Store, path: '/loja' },
+    { id: 'midia', label: 'Mídia', icon: Play, path: '/zk-clips' },
+    { id: 'menu', label: 'Mais', icon: MoreHorizontal, path: '/menu' }
   ];
 
   // Identificar item ativo baseando-se no path
@@ -47,18 +71,14 @@ const MobileNavigation: React.FC = () => {
 
   const handleNavClick = (item: typeof navItems[0]) => {
     if (item.id === 'midia') {
-      if (location.pathname === '/zk-clips') {
-        setShowMediaSubmenu(!showMediaSubmenu);
-      } else {
-        navigate(item.path);
-        // Opcional: mostrar submenu após navegar
-        setTimeout(() => setShowMediaSubmenu(true), 300);
-      }
+      setShowMediaSubmenu(!showMediaSubmenu);
     } else {
       setShowMediaSubmenu(false);
       navigate(item.path);
     }
   };
+
+  if (isLandscape) return null;
 
   return (
     <>
@@ -109,6 +129,18 @@ const MobileNavigation: React.FC = () => {
                 </div>
                 <span className="text-[11px] font-black uppercase tracking-wider">Zk-Clips</span>
               </button>
+              <button
+                onClick={() => {
+                  navigate('/escalacao');
+                  setShowMediaSubmenu(false);
+                }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white transition-colors border border-transparent hover:border-white/5"
+              >
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                  <MoreHorizontal size={16} className="text-emerald-400" />
+                </div>
+                <span className="text-[11px] font-black uppercase tracking-wider">Escalação</span>
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -117,8 +149,6 @@ const MobileNavigation: React.FC = () => {
           {navItems.map((item) => {
             const isActive = activeTab === item.id;
             const Icon = item.icon;
-            const isLiveItem = item.id === 'live';
-            const showLiveDot = isLiveItem && hasActiveLive;
 
             return (
               <button
@@ -132,30 +162,24 @@ const MobileNavigation: React.FC = () => {
                     <Icon
                       size={24}
                       className={`transition-all duration-500 ${isActive
-                        ? isLiveItem
-                          ? "text-red-500 scale-110 drop-shadow-[0_0_10px_rgba(239,68,68,0.6)]"
-                          : "text-blue-500 scale-110 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                        ? "text-blue-500 scale-110 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]"
                         : "text-white/30"
                         }`}
                     />
-                    {/* ✅ Indicador Ao Vivo Melhorado */}
-                    {showLiveDot && (
-                      <span className="absolute -top-1 -right-2 flex h-3 w-3">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] border border-white/20" />
-                      </span>
+                    {item.id === 'midia' && hasActiveLive && (
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full border-2 border-[#030712] animate-pulse" />
                     )}
                     {isActive && (
                       <motion.div
                         layoutId="activeTabGlow"
-                        className={`absolute -inset-4 rounded-full -z-10 blur-md ${isLiveItem ? "bg-red-500/15" : "bg-blue-500/10"}`}
+                        className="absolute -inset-4 rounded-full -z-10 blur-md bg-blue-500/10"
                         initial={false}
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
                       />
                     )}
                   </div>
                   <span className={`text-[9px] uppercase font-black tracking-[0.15em] transition-colors duration-500 ${isActive
-                    ? isLiveItem ? "text-red-500" : "text-blue-500"
+                    ? "text-blue-500"
                     : "text-white/20"
                     }`}>
                     {item.label}
@@ -164,10 +188,7 @@ const MobileNavigation: React.FC = () => {
 
                 {isActive && (
                   <motion.div
-                    className={`absolute top-0 w-12 h-1 rounded-b-full shadow-lg ${isLiveItem
-                      ? "bg-gradient-to-r from-red-600 to-red-400 shadow-red-900/40"
-                      : "bg-gradient-to-r from-blue-600 to-blue-400 shadow-blue-900/40"
-                      }`}
+                    className="absolute top-0 w-12 h-1 rounded-b-full shadow-lg bg-gradient-to-r from-blue-600 to-blue-400 shadow-blue-900/40"
                     layoutId="indicator"
                   />
                 )}

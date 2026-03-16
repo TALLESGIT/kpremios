@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, LogOut, ShoppingBag, ChevronDown, Music, Play, Store } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { ZKLogo } from './ZKLogo';
@@ -20,6 +21,17 @@ function Header() {
   const { user, signOut } = useAuth();
   const { currentUser: currentAppUser, clearUserData } = useData();
   const { totalItems, setIsCartOpen } = useCart();
+  const [isLandscape, setIsLandscape] = useState(false);
+
+  useEffect(() => {
+    const checkOrientation = () => {
+      // Considera landscape apenas em dispositivos móveis (largura < 1024)
+      setIsLandscape(window.innerWidth > window.innerHeight && window.innerWidth < 1024);
+    };
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+    return () => window.removeEventListener('resize', checkOrientation);
+  }, []);
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => {
@@ -27,6 +39,32 @@ function Header() {
     setIsMediaOpen(false);
     setIsMobileMediaOpen(false);
   };
+
+  // Bloquear scroll do body quando menu estiver aberto
+  useEffect(() => {
+    if (isMenuOpen) {
+      const scrollY = window.scrollY;
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${scrollY}px`;
+    } else {
+      const scrollY = document.body.style.top;
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.top = '';
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+      }
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.top = '';
+    };
+  }, [isMenuOpen]);
 
   // Close media dropdown on click outside
   useEffect(() => {
@@ -147,6 +185,8 @@ function Header() {
   };
 
 
+  if (isLandscape) return null;
+
   return (
     <>
       <header className="fixed top-0 left-0 w-full bg-[#030712]/80 backdrop-blur-xl border-b border-white/5 z-[100] shadow-2xl pt-[env(safe-area-inset-top,20px)] md:pt-0">
@@ -204,7 +244,7 @@ function Header() {
               </>
 
               {/* Botão AO VIVO ou Lives Premiadas - dependendo se há live ativa */}
-              {currentAppUser && !currentAppUser.is_admin && (
+              {!currentAppUser?.is_admin && (
                 <>
                   {hasActiveLive ? (
                     <Link
@@ -220,15 +260,15 @@ function Header() {
                       </span>
                     </Link>
                   ) : (
-                    <Link
-                      to="/live-games"
-                      className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname.startsWith('/live-games')
-                        ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
-                        : 'text-white/90 hover:text-white hover:bg-white/10'
-                        }`}
-                    >
-                      Zk-TV
-                    </Link>
+                  <Link
+                    to="/zk-tv"
+                    className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname.startsWith('/zk-tv') && !hasActiveLive
+                      ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
+                      : 'text-white/90 hover:text-white hover:bg-white/10'
+                      }`}
+                  >
+                    Zk-TV
+                  </Link>
                   )}
                 </>
               )}
@@ -369,20 +409,32 @@ function Header() {
             </button>
           </div>
         </div>
+      </header>
 
-        {/* Mobile Navigation Overlay */}
+      {/* Mobile Navigation Overlay */}
+      <AnimatePresence>
         {isMenuOpen && (
           <div
-            className="fixed inset-0 z-50 md:hidden"
+            className="fixed inset-0 z-[150] md:hidden"
             onClick={closeMenu}
           >
             {/* Backdrop */}
-            <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-all duration-300 ${isMenuOpen ? 'opacity-100' : 'opacity-0'
-              }`} />
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md transition-all duration-300" 
+            />
 
             {/* Slide-out Menu */}
-            <div className={`absolute right-0 top-0 h-full w-80 max-w-[85%] bg-[#030712]/95 backdrop-blur-2xl shadow-2xl border-l border-white/10 transform transition-all duration-500 ease-[cubic-bezier(0.32,0,0.67,0)] ${isMenuOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
-              }`}>
+            <motion.div 
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="absolute right-0 top-0 h-full w-80 max-w-[85%] bg-[#030712]/95 backdrop-blur-2xl shadow-2xl border-l border-white/10 flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
               {/* Menu Header */}
               <div className="flex items-center justify-between p-6 border-b border-white/5 bg-gradient-to-r from-blue-600/20 to-transparent pt-[calc(env(safe-area-inset-top,20px)+1.5rem)]">
                 <div className="flex items-center">
@@ -400,7 +452,7 @@ function Header() {
               </div>
 
               {/* Menu Items */}
-              <nav className="p-5 space-y-2.5 overflow-y-auto max-h-[calc(100vh-140px)] custom-scrollbar">
+              <nav className="flex-1 overflow-y-auto p-5 space-y-2.5 custom-scrollbar pb-[calc(env(safe-area-inset-bottom,20px)+3rem)]">
                 <Link
                   to={currentAppUser?.is_admin ? "/admin/dashboard" : "/"}
                   className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${(currentAppUser?.is_admin ? location.pathname === '/admin/dashboard' : location.pathname === '/')
@@ -458,7 +510,7 @@ function Header() {
                 </Link>
 
                 {/* Botão AO VIVO ou Lives Premiadas no mobile */}
-                {currentAppUser && !currentAppUser.is_admin && (
+                {!currentAppUser?.is_admin && (
                   <>
                     {hasActiveLive ? (
                       <Link
@@ -476,8 +528,8 @@ function Header() {
                       </Link>
                     ) : (
                       <Link
-                        to="/live-games"
-                        className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname.startsWith('/live-games')
+                        to="/zk-tv"
+                        className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname.startsWith('/zk-tv') && !hasActiveLive
                           ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] translate-x-1'
                           : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
                           }`}
@@ -558,15 +610,10 @@ function Header() {
                   </div>
                 )}
               </nav>
-            </div>
+            </motion.div>
           </div>
         )}
-      </header>
-
-      {/* Overlay para escurecer o fundo quando menu estiver aberto */}
-      {isMenuOpen && (
-        <div className="fixed inset-0 bg-black/80 z-40 md:hidden" />
-      )}
+      </AnimatePresence>
 
       {/* Gaveta do Carrinho */}
       <CartDrawer />

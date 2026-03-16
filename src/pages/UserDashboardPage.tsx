@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { X, Gift, Calendar, Bell, Trophy, Zap, Ticket, Phone, AlertCircle, CreditCard, Settings, ChevronRight, Fingerprint } from 'lucide-react';
+import { X, Gift, Calendar, Bell, Trophy, Zap, Ticket, Phone, AlertCircle, CreditCard, Settings, ChevronRight, Fingerprint, ShoppingBag } from 'lucide-react';
 import { NativeBiometric } from "@capgo/capacitor-native-biometric";
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -24,6 +24,7 @@ interface RecentActivity {
   date: string;
   prize?: string;
   number?: number;
+  status?: string;
 }
 
 const UserDashboardPage: React.FC = () => {
@@ -174,6 +175,16 @@ const UserDashboardPage: React.FC = () => {
         .order('draw_date', { ascending: false })
         .limit(5);
 
+      const { data: storeOrders, error: storeError } = await supabase
+        .from('store_orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      if (drawError) throw drawError;
+      if (storeError) throw storeError;
+
       if (drawError) throw drawError;
 
       const activities: RecentActivity[] = drawResults?.map(result => {
@@ -191,7 +202,18 @@ const UserDashboardPage: React.FC = () => {
         };
       }) || [];
 
-      setRecentActivity(activities);
+      const shopActivities: RecentActivity[] = storeOrders?.map(order => ({
+        id: order.id,
+        type: 'participation' as any,
+        title: 'Compra na Loja ZK',
+        description: `Pedido #${order.id.slice(0, 8)} - ${order.status === 'paid' ? 'Pago' : 'Pendente'}`,
+        date: order.created_at,
+        status: order.status
+      })) || [];
+
+      setRecentActivity([...activities, ...shopActivities].sort((a, b) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      ).slice(0, 6));
     } catch (error) {
       setRecentActivity([]);
     }
@@ -402,6 +424,14 @@ const UserDashboardPage: React.FC = () => {
               isExternal: true
             },
             {
+              icon: ShoppingBag,
+              label: 'Minhas Compras',
+              description: 'Rastreio e histórico de pedidos na loja',
+              path: '/dashboard?tab=compras',
+              color: 'text-emerald-400',
+              bg: 'bg-emerald-500/10'
+            },
+            {
               icon: Settings,
               label: 'Minha Conta',
               description: 'Segurança e dados pessoais',
@@ -455,8 +485,10 @@ const UserDashboardPage: React.FC = () => {
                         'bg-white/10 text-gray-400'
                       }`}>
                       {activity.type === 'win' && <Trophy className="w-6 h-6" />}
-                      {activity.type === 'participation' && <Ticket className="w-6 h-6" />}
-                      {activity.type === 'raffle_join' && <Gift className="w-6 h-6" />}
+                      {activity.title.includes('Compra') ? <ShoppingBag className="w-6 h-6" /> : (
+                        activity.type === 'participation' ? <Ticket className="w-6 h-6" /> :
+                        activity.type === 'raffle_join' ? <Gift className="w-6 h-6" /> : null
+                      )}
                     </div>
                     <div>
                       <p className="text-white font-bold">{activity.title}</p>

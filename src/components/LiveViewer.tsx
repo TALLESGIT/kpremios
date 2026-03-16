@@ -133,9 +133,9 @@ export function LiveViewer({
     // Detecção se estamos no app nativo (Capacitor)
     const isNativeApp = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.() || false;
 
-    // Prioridade: WebRTC (WHEP) apenas na WEB → HLS no app nativo (Capacitor) ou Smart TVs
-    // MediaMTX recebe em live/ZkOficial (Stream Key do ZK Studio)
-    if (whepBaseUrl && !fallbackToHls) {
+    // Prioridade: WebRTC (WHEP) apenas na WEB para baixíssima latência
+    // No NATIVO (Capacitor) ou se WHEP falhar, usamos HLS por ser mais estável
+    if (whepBaseUrl && !isNativeApp && !fallbackToHls) {
       return (
         <WhepPlayer
           channelName={DEFAULT_LIVE_CHANNEL}

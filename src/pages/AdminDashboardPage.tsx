@@ -1078,23 +1078,27 @@ export default function AdminDashboardPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
 
-                <div className="glass-panel rounded-[2.5rem] group relative overflow-hidden border border-white/5 bg-slate-800/40 p-8 hover:border-blue-500/30 transition-all duration-500">
-                  <div className="flex items-start justify-between mb-6">
-                    <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center border border-blue-500/20 group-hover:scale-110 transition-transform">
-                      <Tv className="h-8 w-8 text-blue-500" />
+
+
+                {/* ZK TV */}
+                <div className="glass-panel rounded-[3rem] p-1 bg-gradient-to-br from-red-500/20 to-indigo-700/20 border border-white/5">
+                  <div className="bg-slate-900/90 backdrop-blur-3xl rounded-[2.8rem] p-8">
+                    <div className="flex items-center gap-6 mb-8">
+                      <div className="w-16 h-16 bg-red-500/10 rounded-[1.5rem] flex items-center justify-center border border-red-500/20">
+                        <Tv className="w-8 h-8 text-red-400" />
+                      </div>
                     </div>
-                    <span className="text-blue-400 text-xl">🦊</span>
+                    <h3 className="text-2xl font-black text-white mb-3 italic uppercase">ZK TV</h3>
+                    <p className="text-blue-200/60 text-sm font-medium mb-8 leading-relaxed">
+                      Gerencie as lives, canais, chat e moderação em tempo real da ZK TV.
+                    </p>
+                    <Link
+                      to="/admin/zk-tv"
+                      className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-red-600 to-indigo-700 hover:from-red-500 hover:to-indigo-600 text-white font-black rounded-2xl transition-all shadow-xl shadow-red-600/20 uppercase italic text-xs tracking-wider"
+                    >
+                      Gerenciar ZK TV
+                    </Link>
                   </div>
-                  <h3 className="text-2xl font-black text-white mb-3 italic uppercase">ZK TV</h3>
-                  <p className="text-blue-200/60 text-sm font-medium mb-8 leading-relaxed">
-                    Gestão de placares, próximos jogos do Cruzeiro e informações do canal.
-                  </p>
-                  <Link
-                    to="/admin/zk-tv"
-                    className="inline-flex items-center px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-blue-600/20 uppercase italic text-xs tracking-wider"
-                  >
-                    Gerenciar ZK TV
-                  </Link>
                 </div>
 
                 {/* Loja ZK Gestão */}
