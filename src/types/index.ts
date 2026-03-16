@@ -7,6 +7,10 @@ export interface User {
   extra_numbers: number[];
   is_admin: boolean;
   is_vip?: boolean;
+  vip_expires_at?: string;
+  vip_granted_at?: string;
+  vip_type?: 'free' | 'paid';
+  avatar_url?: string;
   created_at: string;
   updated_at: string;
 }
