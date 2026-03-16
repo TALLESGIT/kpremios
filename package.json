@@ -14,10 +14,10 @@
     "docker:down": "docker-compose down"
   },
   "dependencies": {
-    "@capacitor/app": "^8.0.1",
-    "@capacitor/push-notifications": "^8.0.2",
-    "@capacitor/status-bar": "^8.0.1",
-    "@capgo/capacitor-native-biometric": "^8.4.2",
+    "@capacitor/app": "^6.0.0",
+    "@capacitor/push-notifications": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0",
+    "@capgo/capacitor-native-biometric": "^6.0.0",
     "@hugotomazi/capacitor-navigation-bar": "^4.0.1",
     "@supabase/supabase-js": "^2.57.4",
     "@types/canvas-confetti": "^1.9.0",
@@ -40,11 +40,11 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "@capacitor/android": "^8.2.0",
+    "@capacitor/android": "^6.0.0",
     "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^8.2.0",
-    "@capacitor/core": "^8.2.0",
-    "@capacitor/ios": "^8.2.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
     "@eslint/js": "^9.9.1",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
