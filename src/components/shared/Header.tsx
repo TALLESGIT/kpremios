@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, LogOut, ShoppingBag, ChevronDown, Music, Play, Store } from 'lucide-react';
+import { Menu, X, LogOut, ShoppingBag, ChevronDown, Music, Play, Store, Bell, User } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { ZKLogo } from './ZKLogo';
 import { useAuth } from '../../context/AuthContext';
@@ -16,6 +16,7 @@ function Header() {
   const mediaRef = useRef<HTMLDivElement>(null);
   const [hasActiveLive, setHasActiveLive] = useState(false);
   const [hasUserBets, setHasUserBets] = useState(false);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -146,6 +147,50 @@ function Header() {
       setHasUserBets(false);
     }
   }, [user, currentAppUser]);
+
+  // Contar notificações não lidas
+  useEffect(() => {
+    if (!user) {
+      setUnreadNotifCount(0);
+      return;
+    }
+
+    const fetchUnreadCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('user_notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('read', false);
+
+        if (!error && count !== null) {
+          setUnreadNotifCount(count);
+        }
+      } catch {
+        // Tabela pode não existir ainda - sem problema
+        setUnreadNotifCount(0);
+      }
+    };
+
+    fetchUnreadCount();
+
+    // Realtime para notificações
+    const notifSub = supabase
+      .channel('header-notif-count')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_notifications',
+        filter: `user_id=eq.${user.id}`
+      }, () => {
+        fetchUnreadCount();
+      })
+      .subscribe();
+
+    return () => {
+      notifSub.unsubscribe();
+    };
+  }, [user]);
 
   const checkUserBets = async () => {
     if (!user) return;
@@ -380,33 +425,74 @@ function Header() {
                 </button>
               )}
 
-              {/* Botão Carrinho - Mobile (dentro da barra mas visível no mobile) */}
+              {/* Carrinho mobile movido para a seção mobile (ícones ao lado do hamburger) */}
+            </nav>
+
+            {/* Mobile: Perfil + Notificações + Carrinho + Hamburger */}
+            <div className="md:hidden flex items-center gap-1">
+              {/* Ícone de Notificações (Sino) */}
+              <button
+                onClick={() => navigate('/notifications')}
+                className="relative p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all duration-300"
+                aria-label="Notificações"
+              >
+                <Bell className="h-5 w-5" />
+                {unreadNotifCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-black border-2 border-[#030712] animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]">
+                    {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Ícone de Perfil */}
+              <button
+                onClick={() => navigate(user ? '/dashboard' : '/login')}
+                className="relative p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all duration-300"
+                aria-label="Perfil"
+              >
+                {currentAppUser ? (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-[10px] font-black text-white border border-white/20 overflow-hidden shadow-lg shadow-blue-500/20 active:scale-90 transition-transform">
+                    {currentAppUser.avatar_url ? (
+                      <img src={currentAppUser.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      currentAppUser.name?.charAt(0).toUpperCase() || 'U'
+                    )}
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/40 border border-white/10 active:scale-90 transition-transform">
+                    <User className="h-4.5 w-4.5" />
+                  </div>
+                )}
+              </button>
+
+              {/* Carrinho */}
               <button
                 onClick={() => setIsCartOpen(true)}
-                className="md:hidden relative p-2 rounded-xl text-white hover:bg-white/10 transition-all"
+                className="relative p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all"
+                aria-label="Carrinho"
               >
-                <ShoppingBag className="w-6 h-6" />
+                <ShoppingBag className="h-5 w-5" />
                 {totalItems > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black italic border-2 border-[#030712]">
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[8px] font-black border-2 border-[#030712]">
                     {totalItems}
                   </span>
                 )}
               </button>
-            </nav>
 
-            {/* Mobile menu button */}
-            <button
-              onClick={toggleMenu}
-              className="md:hidden inline-flex items-center justify-center p-2 rounded-xl text-white hover:bg-white/10 transition-all duration-300"
-              aria-expanded="false"
-            >
-              <span className="sr-only">Abrir menu</span>
-              {isMenuOpen ? (
-                <X className="block h-6 w-6" aria-hidden="true" />
-              ) : (
-                <Menu className="block h-6 w-6" aria-hidden="true" />
-              )}
-            </button>
+              {/* Hamburger Menu */}
+              <button
+                onClick={toggleMenu}
+                className="p-2 rounded-xl text-white hover:bg-white/10 transition-all duration-300"
+                aria-expanded={isMenuOpen}
+              >
+                <span className="sr-only">Abrir menu</span>
+                {isMenuOpen ? (
+                  <X className="block h-6 w-6" aria-hidden="true" />
+                ) : (
+                  <Menu className="block h-6 w-6" aria-hidden="true" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -599,15 +685,35 @@ function Header() {
                 )}
 
                 {currentAppUser && (
-                  <div className="pt-6 mt-6 border-t border-white/5">
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic text-red-400 hover:text-white hover:bg-red-500/20 transition-all border border-red-500/10 active:scale-95"
+                  <>
+                    <Link
+                      to={user ? "/dashboard" : "/login"}
+                      className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname === '/dashboard' || location.pathname === '/login'
+                        ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] translate-x-1'
+                        : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
+                        }`}
+                      onClick={closeMenu}
                     >
-                      <LogOut className="h-5 w-5 mr-4" />
-                      Sair da Conta
-                    </button>
-                  </div>
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10 overflow-hidden">
+                        {currentAppUser?.avatar_url ? (
+                          <img src={currentAppUser.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                          <User className="w-5 h-5 text-blue-400" />
+                        )}
+                      </div>
+                      {user ? 'Meu Perfil' : 'Entrar'}
+                    </Link>
+
+                    <div className="p-4 bg-white/[0.02] rounded-3xl mt-6 border border-white/5">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic text-red-400 hover:text-white hover:bg-red-500/20 transition-all border border-red-500/10 active:scale-95"
+                      >
+                        <LogOut className="h-5 w-5 mr-4" />
+                        Sair da Conta
+                      </button>
+                    </div>
+                  </>
                 )}
               </nav>
             </motion.div>

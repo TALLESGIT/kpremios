@@ -167,8 +167,8 @@ const ZkTVPage: React.FC = () => {
     const [activePool, setActivePool] = useState<any>(null);
     const [lastPoolResult, setLastPoolResult] = useState<any>(null); // Último resultado do bolão
     const [selectedStandingComp, setSelectedStandingComp] = useState<string | null>(null);
-    const [stableIsLiveActive, setStableIsLiveActive] = useState(true); // Estabilidade para evitar flickering
-    const lastLiveStatusRef = useRef(true);
+    const [stableIsLiveActive, setStableIsLiveActive] = useState(false); // ✅ Começa false - só ativa quando confirmar stream ativa
+    const lastLiveStatusRef = useRef(false);
 
     // Sincronizar isVip com o currentUser
     useEffect(() => {

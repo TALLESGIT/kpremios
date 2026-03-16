@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Play, Store, MoreHorizontal, Tv } from 'lucide-react';
+import { Home, Play, Store, Tv, Swords } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 
@@ -54,14 +54,12 @@ const MobileNavigation: React.FC = () => {
     };
   }, []);
 
-
-
   const navItems = [
     { id: 'home', label: 'Início', icon: Home, path: '/' },
     { id: 'zktv', label: 'ZK TV', icon: Tv, path: '/zk-tv' },
     { id: 'loja', label: 'Loja', icon: Store, path: '/loja' },
+    { id: 'escalacao', label: 'Escalação', icon: Swords, path: '/escalacao' },
     { id: 'midia', label: 'Mídia', icon: Play, path: '/zk-clips' },
-    { id: 'menu', label: 'Mais', icon: MoreHorizontal, path: '/menu' }
   ];
 
   // Identificar item ativo baseando-se no path
@@ -96,14 +94,14 @@ const MobileNavigation: React.FC = () => {
       </AnimatePresence>
 
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#030712]/95 backdrop-blur-2xl border-t border-white/5 z-[100] pb-[calc(env(safe-area-inset-bottom,0px)+15px)] shadow-[0_-15px_50px_rgba(0,0,0,0.8)]">
-        {/* Media Submenu */}
+        {/* Media Submenu - Agora só Músicas e ZK-Clips (sem Escalação) */}
         <AnimatePresence>
           {showMediaSubmenu && (
             <motion.div
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              className="absolute bottom-[calc(100%+15px)] left-[60%] -translate-x-1/2 w-48 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-2xl flex flex-col gap-1 z-[110]"
+              className="absolute bottom-[calc(100%+15px)] left-[75%] -translate-x-1/2 w-48 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-2xl flex flex-col gap-1 z-[110]"
             >
               <button
                 onClick={() => {
@@ -128,18 +126,6 @@ const MobileNavigation: React.FC = () => {
                   <Play size={16} className="text-blue-400" />
                 </div>
                 <span className="text-[11px] font-black uppercase tracking-wider">Zk-Clips</span>
-              </button>
-              <button
-                onClick={() => {
-                  navigate('/escalacao');
-                  setShowMediaSubmenu(false);
-                }}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white transition-colors border border-transparent hover:border-white/5"
-              >
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                  <MoreHorizontal size={16} className="text-emerald-400" />
-                </div>
-                <span className="text-[11px] font-black uppercase tracking-wider">Escalação</span>
               </button>
             </motion.div>
           )}
@@ -166,7 +152,7 @@ const MobileNavigation: React.FC = () => {
                         : "text-white/30"
                         }`}
                     />
-                    {item.id === 'midia' && hasActiveLive && (
+                    {item.id === 'zktv' && hasActiveLive && (
                       <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full border-2 border-[#030712] animate-pulse" />
                     )}
                     {isActive && (

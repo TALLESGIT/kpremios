@@ -73,7 +73,7 @@ export default function AdminDashboardPage() {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('id, name, whatsapp, is_vip, vip_expires_at, vip_granted_at, vip_type')
+        .select('id, name, whatsapp, is_vip, vip_expires_at, vip_granted_at, vip_type, avatar_url')
         .eq('is_vip', true)
         .order('created_at', { ascending: false });
       if (!error) setAllVips(data || []);
@@ -1829,8 +1829,12 @@ Obrigado por participar! 🙏`;
                     const wppMsg = encodeURIComponent(`Olá ${v.name}! 👋 Seu VIP na ZK Oficial ${isActive ? 'expira em breve' : 'está expirado'}. Renove agora e continue com todos os benefícios! 💎`);
                     return (
                       <div key={v.id} className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${isActive ? (v.vip_type === 'paid' ? 'bg-blue-500/5 border-blue-500/20' : 'bg-emerald-500/5 border-emerald-500/20') : 'bg-red-500/5 border-red-500/20'}`}>
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 font-black text-sm ${isActive ? (v.vip_type === 'paid' ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-white' : 'bg-gradient-to-br from-emerald-400 to-green-500 text-black') : 'bg-gradient-to-br from-red-400 to-red-600 text-white'}`}>
-                          {(v.name || '?').charAt(0).toUpperCase()}
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 font-black text-sm overflow-hidden ${isActive ? (v.vip_type === 'paid' ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-white' : 'bg-gradient-to-br from-emerald-400 to-green-500 text-black') : 'bg-gradient-to-br from-red-400 to-red-600 text-white'}`}>
+                          {v.avatar_url ? (
+                            <img src={v.avatar_url} alt={v.name} className="w-full h-full object-cover" />
+                          ) : (
+                            (v.name || '?').charAt(0).toUpperCase()
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-white font-black text-sm truncate">{v.name || 'Sem nome'}</p>

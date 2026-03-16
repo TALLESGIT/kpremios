@@ -25,6 +25,7 @@ interface UserProfile {
   created_at: string;
   free_number?: number;
   extra_numbers?: number[];
+  avatar_url?: string;
 }
 
 const UserManagementPanel: React.FC = () => {
@@ -48,7 +49,7 @@ const UserManagementPanel: React.FC = () => {
 
       const { data, error } = await supabase
         .from('users')
-        .select('id, name, email, whatsapp, is_admin, created_at, free_number, extra_numbers')
+        .select('id, name, email, whatsapp, is_admin, created_at, free_number, extra_numbers, avatar_url')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -293,11 +294,15 @@ const UserManagementPanel: React.FC = () => {
                 className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200"
               >
                 <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-full ${user.is_admin
-                    ? 'bg-purple-100 text-purple-600'
-                    : 'bg-blue-100 text-blue-600'
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center overflow-hidden border-2 ${user.is_admin
+                    ? 'bg-purple-100 text-purple-600 border-purple-200'
+                    : 'bg-blue-100 text-blue-600 border-blue-200'
                     }`}>
-                    <User className="h-5 w-5" />
+                    {user.avatar_url ? (
+                      <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="h-6 w-6" />
+                    )}
                   </div>
 
                   <div className="flex-1">
