@@ -11,11 +11,12 @@ let package = Package(
             targets: ["CapApp-SPM"])
     ],
     dependencies: [
-        .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", exact: "8.2.0"),
+        .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", exact: "6.2.1"),
         .package(name: "CapacitorApp", path: "..\..\..\node_modules\@capacitor\app"),
         .package(name: "CapacitorPushNotifications", path: "..\..\..\node_modules\@capacitor\push-notifications"),
         .package(name: "CapacitorStatusBar", path: "..\..\..\node_modules\@capacitor\status-bar"),
-        .package(name: "CapgoCapacitorNativeBiometric", path: "..\..\..\node_modules\@capgo\capacitor-native-biometric")
+        .package(name: "CapgoCapacitorNativeBiometric", path: "..\..\..\node_modules\@capgo\capacitor-native-biometric"),
+        .package(name: "HugotomaziCapacitorNavigationBar", path: "..\..\..\node_modules\@hugotomazi\capacitor-navigation-bar")
     ],
     targets: [
         .target(
@@ -26,7 +27,8 @@ let package = Package(
                 .product(name: "CapacitorApp", package: "CapacitorApp"),
                 .product(name: "CapacitorPushNotifications", package: "CapacitorPushNotifications"),
                 .product(name: "CapacitorStatusBar", package: "CapacitorStatusBar"),
-                .product(name: "CapgoCapacitorNativeBiometric", package: "CapgoCapacitorNativeBiometric")
+                .product(name: "CapgoCapacitorNativeBiometric", package: "CapgoCapacitorNativeBiometric"),
+                .product(name: "HugotomaziCapacitorNavigationBar", package: "HugotomaziCapacitorNavigationBar")
             ]
         )
     ]
