@@ -110,11 +110,21 @@ function AppContentInner() {
   }, []);
 
   // Rotas públicas que podem ser acessadas durante o loading
-  const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password', '/forgot-email'];
+  const publicRoutes = [
+    '/login', 
+    '/register', 
+    '/forgot-password', 
+    '/reset-password', 
+    '/forgot-email', 
+    '/zk-tv', 
+    '/loja', 
+    '/winners', 
+    '/my-numbers'
+  ];
 
   // Verificar rota atual usando window.location (já que ainda não estamos dentro do Router)
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-  const isPublicRoute = publicRoutes.includes(currentPath);
+  const isPublicRoute = publicRoutes.includes(currentPath) || currentPath.startsWith('/live/');
 
   // Mostrar loading enquanto verifica a sessão, exceto para rotas públicas
   if (loading && !isPublicRoute) {

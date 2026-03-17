@@ -1496,9 +1496,9 @@ const ZkTVPage: React.FC = () => {
                             >
                                 {isLiveActive ? (
                                     <>
-                                        {activeStream?.title.split(' x ')[0] || 'Ao Vivo'}
+                                        {(activeStream?.title || 'Ao Vivo').split(' x ')[0]}
                                         <span className="text-blue-500">
-                                            {activeStream?.title.includes(' x ') ? ` x ${activeStream.title.split(' x ')[1]}` : ''}
+                                            {activeStream?.title?.includes(' x ') ? ` x ${activeStream.title.split(' x ')[1]}` : ''}
                                         </span>
                                     </>
                                 ) : (
@@ -1548,9 +1548,6 @@ const ZkTVPage: React.FC = () => {
                                             showOfflineMessage={false}
                                             fitMode={videoFitMode}
                                         />
-                                        {activeStream?.id && (
-                                            <VipMessageOverlay streamId={activeStream.id} isActive={isLiveActive} />
-                                        )}
                                     </>
                                 ) : settings?.live_url && settings.live_url.includes('/live/') ? (
                                     <LiveViewer
