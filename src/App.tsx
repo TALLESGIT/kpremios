@@ -75,7 +75,7 @@ import TermsOfUsePage from './pages/TermsOfUsePage';
 import NotificationsPage from './pages/NotificationsPage';
 import { usePushNotifications } from './hooks/usePushNotifications';
 import { App as CapacitorApp } from '@capacitor/app';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 // Componente interno que usa o streamId do registry global
 // As páginas (ZkTVPage, PublicLiveStreamPage) registram seu streamId via useRegisterStreamId
@@ -132,7 +132,6 @@ function AppContentInner() {
     '/reset-password', 
     '/forgot-email', 
     '/zk-tv', 
-    '/loja', 
     '/winners', 
     '/my-numbers'
   ];
@@ -264,7 +263,11 @@ function AppContentInner() {
             <Route path="/my-numbers" element={<MyNumbersPage />} />
             <Route path="/live-games" element={<LiveGamesPage />} />
             <Route path="/live-games/:gameId" element={<LiveParticipationPage />} />
-            <Route path="/loja" element={<ShopPage />} />
+            <Route path="/loja" element={
+              <UserProtectedRoute>
+                <ShopPage />
+              </UserProtectedRoute>
+            } />
 
             {/* Novas rotas de autenticação */}
             <Route path="/login" element={<LoginPage />} />
