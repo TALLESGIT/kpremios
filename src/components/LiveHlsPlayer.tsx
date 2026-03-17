@@ -164,9 +164,9 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "", showPerf
           manifestLoadingMaxRetry: 4,
           levelLoadingTimeOut: 10000,
           levelLoadingMaxRetry: 4,
-          // ✅ Configurações de latência
-          liveSyncDurationCount: 3,     // Manter apenas 3 segmentos de sincronização
-          liveMaxLatencyDurationCount: 5, // Máximo 5 segmentos de latência
+          // ✅ Configurações de latência (NÃO misturar 'Count' com 'Duration')
+          liveSyncDuration: 3,         // Segundos de latência alvo
+          liveMaxLatencyDuration: 6,   // Latência máxima antes de pular
           maxFragLookUpTolerance: 0.2,  // Tolerância de busca de fragmento
         });
 

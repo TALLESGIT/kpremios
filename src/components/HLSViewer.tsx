@@ -105,13 +105,10 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         enableWorker: true,
         lowLatencyMode: true,
         backBufferLength: 30,
-        liveSyncDurationCount: 2,
-        liveMaxLatencyDurationCount: 3.5,
-        maxLiveSyncPlaybackRate: 1.5,
         maxBufferLength: 10,
         maxMaxBufferLength: 20,
-        liveSyncDuration: 1.5,
-        liveMaxLatencyDuration: 4,
+        liveSyncDuration: 3,         // Latência alvo (segundos)
+        liveMaxLatencyDuration: 6,   // Latência máxima (segundos)
         fragLoadingMaxRetry: 5,
         manifestLoadingMaxRetry: 5,
         testBandwidth: true,
