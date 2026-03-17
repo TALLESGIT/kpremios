@@ -123,13 +123,16 @@ function AppContentInner() {
   ];
 
   // Verificar rota atual usando window.location (já que ainda não estamos dentro do Router)
-  const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-  const isPublicRoute = publicRoutes.includes(currentPath) || currentPath.startsWith('/live/');
+  const currentPath = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '';
+  const isPublicRoute = publicRoutes.some(route => currentPath === route || currentPath.endsWith(route)) || 
+                        currentPath.includes('live') || 
+                        currentPath.includes('zk-tv') ||
+                        currentPath.includes('media');
 
   // Mostrar loading enquanto verifica a sessão, exceto para rotas públicas
   if (loading && !isPublicRoute) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-blue-500 to-blue-700 relative overflow-hidden">
+      <div className="min-h-screen flex items-center justify-center bg-black relative overflow-hidden">
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden">
           <motion.div

@@ -5,13 +5,33 @@
 // Fallback para Supabase se o backend estiver offline
 
 import { supabase } from '../lib/supabase';
+import { Capacitor } from '@capacitor/core';
 
 const isCacheDebug = () => (import.meta as any).env?.DEV === true || (import.meta as any).env?.VITE_DEBUG_LIVE === '1';
 
+// ✅ CORREÇÃO: No mobile nativo, 'localhost' aponta para o próprio celular. 
+// Devemos usar a URL de produção se estiver no Capacitor.
 const SOCKET_SERVER_URL = import.meta.env.VITE_SOCKET_SERVER_URL || 
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && !Capacitor.isNativePlatform()
     ? 'http://localhost:3001'
     : 'https://api.zkoficial.com.br');
+
+/**
+ * Utilitário para fetch com timeout compatível com WebViews antigas
+ */
+async function fetchWithTimeout(url: string, options: any = {}, timeout = 5000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } finally {
+    clearTimeout(id);
+  }
+}
 
 export interface LiveStreamData {
   id: string;
@@ -48,14 +68,12 @@ export async function getActiveLiveStreams(): Promise<LiveStreamData[]> {
   try {
     if (isCacheDebug()) console.log('📦 Buscando live streams do CACHE (backend Socket.IO)');
 
-    const response = await fetch(`${SOCKET_SERVER_URL}/api/live-streams/active`, {
+    const response = await fetchWithTimeout(`${SOCKET_SERVER_URL}/api/live-streams/active`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-      },
-      // Timeout de 5 segundos
-      signal: AbortSignal.timeout(5000),
-    });
+      }
+    }, 5000);
 
     if (!response.ok) {
       throw new Error(`Backend retornou ${response.status}`);

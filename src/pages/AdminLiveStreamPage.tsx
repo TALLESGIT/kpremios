@@ -252,6 +252,21 @@ const AdminLiveStreamPage = () => {
       setSelectedStream(data);
 
       toast.success('Você está AO VIVO!');
+
+      // ✅ NOTIFICAÇÃO PUSH: Enviar lembrete para todos os usuários que a live começou
+      // Fazemos isso via Edge Function diretamente como backup do trigger do banco
+      try {
+        await supabase.functions.invoke('notify-events', {
+          body: {
+            title: '🔴 ZK TV AO VIVO!',
+            body: `A transmissão "${selectedStream.title}" começou agora. Vem assistir! ⚽🎥`,
+            data: { url: '/zk-tv', type: 'live_start' }
+          }
+        });
+        console.log('Push notification sent successfully');
+      } catch (pushErr) {
+        console.error('Erro ao enviar push manual:', pushErr);
+      }
     } catch (err) {
       console.error('Erro ao iniciar:', err);
       toast.error('Erro ao iniciar');
@@ -308,6 +323,22 @@ const AdminLiveStreamPage = () => {
     }
   };
 
+  const notifyExpiringVips = async () => {
+    if (!confirm('Deseja enviar uma notificação para todos os VIPs que expiram nos próximos 3 dias?')) return;
+    
+    const loadingToast = toast.loading('Enviando notificações para VIPs...');
+    try {
+      const { data, error } = await supabase.functions.invoke('notify-vip-expiring');
+      
+      if (error) throw error;
+      
+      toast.success(`Notificações enviadas! VIPs encontrados: ${data.total_vips_found || 0}.`, { id: loadingToast });
+    } catch (err) {
+      console.error('Erro ao notificar VIPs:', err);
+      toast.error('Falha ao enviar notificações VIP.', { id: loadingToast });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
@@ -325,7 +356,16 @@ const AdminLiveStreamPage = () => {
             <h1 className="text-3xl font-black text-white italic uppercase">Controle de Live</h1>
             <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Gerencie suas transmissões</p>
           </div>
-          <button onClick={() => setIsCreating(true)} className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-500 transition-all uppercase text-sm">Nova Live</button>
+          <div className="flex gap-4">
+            <button 
+              onClick={notifyExpiringVips}
+              className="px-6 py-3 bg-slate-800 text-amber-400 border border-amber-400/30 font-bold rounded-xl hover:bg-amber-400/10 transition-all uppercase text-[10px] tracking-widest flex items-center gap-2"
+            >
+              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></div>
+              Lembrete VIP
+            </button>
+            <button onClick={() => setIsCreating(true)} className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-500 transition-all uppercase text-sm">Nova Live</button>
+          </div>
         </div>
 
         {isCreating && (

@@ -20,8 +20,8 @@
     --color-warning: 234 179 8;
     --color-error: 239 68 68;
 
-    --color-background: 0 45 90;
-    /* Azul Profundo */
+    --color-background: 3 7 18;
+    /* #030712 - Quase preto */
     --color-text: 248 250 252;
     /* Texto claro por padrão */
     --color-text-inverse: 15 23 42;
@@ -33,7 +33,7 @@
 
   body {
     @apply font-sans antialiased;
-    background: radial-gradient(circle at top center, #005BAA 0%, #002D5A 40%, #001A33 100%);
+    background: #030712;
     background-attachment: fixed;
     color: white;
     overflow-x: hidden;

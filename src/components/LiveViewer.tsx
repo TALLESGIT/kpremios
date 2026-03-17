@@ -158,8 +158,11 @@ export function LiveViewer({
       );
     }
 
-    // Detecção se estamos no app nativo (Capacitor)
-    const isNativeApp = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.() || false;
+    // Detecção se estamos no app nativo (Capacitor/WebView)
+    const isNativeApp = typeof window !== 'undefined' && (
+      (window as any).Capacitor?.isNativePlatform?.() || 
+      /Capacitor|Bridge/i.test(navigator.userAgent)
+    );
 
     // Prioridade: WebRTC (WHEP) apenas na WEB para baixíssima latência
     // No NATIVO (Capacitor) ou se WHEP falhar, usamos HLS por ser mais estável

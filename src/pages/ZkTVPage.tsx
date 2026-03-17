@@ -122,6 +122,7 @@ const ZkTVPage: React.FC = () => {
     const [games, setGames] = useState<CruzeiroGame[]>([]);
     const [standings, setStandings] = useState<CruzeiroStanding[]>([]);
     const [activeStream, setActiveStream] = useState<LiveStream | null>(null);
+    const isLiveActive = activeStream ? activeStream.is_active : !!settings?.is_live;
     
     // ✅ Cache States para carregamento instantâneo
     const [cachedNextGame, setCachedNextGame] = useState<CruzeiroGame | null>(() => {
@@ -274,18 +275,27 @@ const ZkTVPage: React.FC = () => {
             // Safety timeout: Não deixar a tela de loading travada por mais de 8 segundos
             const safetyTimer = setTimeout(() => {
                 setIsPageLoading(false);
-                if (isZkTVDebug()) console.warn('⚠️ ZkTVPage: Loading safety timeout atingido');
+                if (isZkTVDebug()) console.warn('⚠️ ZkTVPage: Loading safety timeout atingido (V2)');
+                toast.error('O carregamento está demorando mais que o esperado. Tentando recuperar...', { id: 'loading-slow' });
             }, 8000);
 
             try {
-                // Carregar dados em paralelo
+                if (isZkTVDebug()) console.log('🚀 ZkTVPage: Iniciando carregamento de dados (Native-Safe Mode)');
+                
+                // Carregar dados em paralelo com timeouts individuais
                 await Promise.allSettled([
-                    loadData(),
+                    // Adicionar uma pequena margem para garantir que não trave o thread
+                    new Promise(resolve => setTimeout(async () => {
+                        await loadData();
+                        resolve(true);
+                    }, 50)),
                     loadActiveStream(),
                     checkVipStatus(),
                     checkActivePool(),
                     loadLastPoolResult()
                 ]);
+
+                if (isZkTVDebug()) console.log('✅ ZkTVPage: Carregamento concluído');
             } catch (err) {
                 console.error('Erro no carregamento inicial:', err);
             } finally {
@@ -861,6 +871,15 @@ const ZkTVPage: React.FC = () => {
     // Handler para Picture-in-Picture
     const togglePiP = useCallback(async () => {
         try {
+            // ✅ Restrição: PiP apenas quando ao vivo (pedido pelo usuário)
+            if (!isLiveActive) {
+                toast('O modo flutuante (PiP) só está disponível quando há uma transmissão ao vivo ativa.', { 
+                    icon: '📺',
+                    duration: 3000
+                });
+                return;
+            }
+
             const video = videoContainerRef.current?.querySelector('video');
             if (!video || !document.pictureInPictureEnabled) {
                 toast('Seu navegador não suporta modo flutuante (PiP). Para transmitir, use o menu do navegador (Cast).', { icon: '📺' });
@@ -875,7 +894,7 @@ const ZkTVPage: React.FC = () => {
         } catch (error) {
             console.error('Erro ao alternar PiP:', error);
         }
-    }, []);
+    }, [isLiveActive]);
 
     // Recalcular estatísticas quando games ou standings mudarem
     useEffect(() => {
@@ -1204,9 +1223,6 @@ const ZkTVPage: React.FC = () => {
     // ✅ Jogo para exibição (Prioriza o real, fallback para cache)
     const displayGame = nextGame || cachedNextGame;
 
-    // Na página ZK TV, a live deve ser encerrada se is_active for falso
-    const isLiveActive = activeStream ? activeStream.is_active : !!settings?.is_live;
-
     // ✅ ESTABILIDADE: Evitar que a live saia e volte no mobile por flutuações de rede/banco
     useEffect(() => {
         if (isLiveActive) {
@@ -1451,6 +1467,12 @@ const ZkTVPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-[#030712] flex flex-col pt-16 text-white font-sans selection:bg-blue-500/30">
+            {/* Version ID - Visível apenas para debug (usar VITE_DEBUG_LIVE=1) */}
+            {isZkTVDebug() && (
+                <div className="fixed top-0 left-0 z-[9999] bg-red-600 text-[8px] font-bold p-1 rounded-br-lg pointer-events-none">
+                    VERSÃO NATIVA OK - {new Date().toLocaleTimeString()}
+                </div>
+            )}
             <Header />
 
             {/* Hero Section / Live Stream */}
