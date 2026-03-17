@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useFpsMonitor } from '../hooks/useFpsMonitor';
 import Hls from 'hls.js';
+import { Volume2, VolumeX } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface HLSViewerProps {
   hlsUrl: string;
@@ -27,7 +29,7 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
 
   const handleUserInteraction = useCallback(async () => {
     const video = videoRef.current;
-    if (!video || isAdmin) return;
+    if (!video) return;
 
     setUserInteracted(true);
 
@@ -188,11 +190,13 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         ref={videoRef}
         autoPlay
         muted
+        controls
         playsInline
         // @ts-ignore
         {...{ 'webkit-playsinline': 'true' }}
         x-webkit-airplay="allow"
         preload="auto"
+        onClick={handleUserInteraction}
         style={{
           width: '100%',
           height: '100%',
@@ -200,6 +204,31 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
           objectFit: fitMode,
         }}
       />
+
+      {/* Overlay de Áudio (Mobile UX) */}
+      <AnimatePresence>
+        {hasVideo && !userInteracted && !isAdmin && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={handleUserInteraction}
+            className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] cursor-pointer group"
+          >
+            <motion.div 
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              className="bg-blue-600 p-6 rounded-full shadow-2xl border-2 border-white/20 mb-4 group-hover:bg-blue-500 transition-colors"
+            >
+              <VolumeX className="w-10 h-10 text-white" />
+            </motion.div>
+            <div className="text-center px-6">
+              <h3 className="text-white font-black uppercase italic tracking-tighter text-xl mb-1">Vídeo Mutado</h3>
+              <p className="text-blue-100/80 text-[10px] font-bold uppercase tracking-[0.2em]">Clique na tela para ativar o som</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-[55]">

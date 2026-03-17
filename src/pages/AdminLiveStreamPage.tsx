@@ -253,20 +253,8 @@ const AdminLiveStreamPage = () => {
 
       toast.success('Você está AO VIVO!');
 
-      // ✅ NOTIFICAÇÃO PUSH: Enviar lembrete para todos os usuários que a live começou
-      // Fazemos isso via Edge Function diretamente como backup do trigger do banco
-      try {
-        await supabase.functions.invoke('notify-events', {
-          body: {
-            title: '🔴 ZK TV AO VIVO!',
-            body: `A transmissão "${selectedStream.title}" começou agora. Vem assistir! ⚽🎥`,
-            data: { url: '/zk-tv', type: 'live_start' }
-          }
-        });
-        console.log('Push notification sent successfully');
-      } catch (pushErr) {
-        console.error('Erro ao enviar push manual:', pushErr);
-      }
+      // NOTA: A notificação push agora é disparada automaticamente pelo Trigger do Banco de Dados
+      // na tabela 'live_streams' quando is_active muda para true. Isso evita duplicidade.
     } catch (err) {
       console.error('Erro ao iniciar:', err);
       toast.error('Erro ao iniciar');

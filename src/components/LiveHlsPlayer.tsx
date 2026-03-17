@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
 import { useFpsMonitor } from "../hooks/useFpsMonitor";
+import { VolumeX, Volume2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 type Status = "offline" | "loading" | "waiting_hls" | "playing" | "error" | "reconnecting";
 
@@ -353,6 +355,31 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "", showPerf
           {renderStatusMessage()}
         </div>
       )}
+
+      {/* Overlay de Áudio/Interação */}
+      <AnimatePresence>
+        {needsInteraction && status === "playing" && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={handleUserInteraction}
+            className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] cursor-pointer group"
+          >
+            <motion.div 
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              className="bg-blue-600 p-6 rounded-full shadow-2xl border-2 border-white/20 mb-4 group-hover:bg-blue-500 transition-colors"
+            >
+              <VolumeX className="w-10 h-10 text-white" />
+            </motion.div>
+            <div className="text-center px-6">
+              <h3 className="text-white font-black uppercase italic tracking-tighter text-xl mb-1">Áudio Desativado</h3>
+              <p className="text-blue-100/80 text-[10px] font-bold uppercase tracking-[0.2em]">Clique na tela para ativar o som</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {showPerf && status === "playing" && (
         <div className="absolute top-2 left-2 z-30 px-3 py-2 rounded-lg bg-black/80 text-xs font-mono text-white border border-white/20 space-y-0.5">
