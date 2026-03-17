@@ -58,8 +58,10 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     const video = videoRef.current;
     if (!video || !hlsUrl) return;
 
+    // Se já havia uma instância, destruímos para criar a nova (troca de stream)
     if (hlsInstanceRef.current) {
-      return;
+      hlsInstanceRef.current.destroy();
+      hlsInstanceRef.current = null;
     }
 
     video.muted = true;
@@ -78,6 +80,7 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         setHasVideo(true);
         setIsLoading(false);
       } catch (e: any) {
+        console.warn('[HLSViewer] Autoplay falhou, aguardando clique:', e.message);
         setHasVideo(true);
         setIsLoading(false);
       }
@@ -114,12 +117,15 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
+              console.log('[HLSViewer] Falha de rede, tentando recuperar...');
               hls?.startLoad();
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
+              console.log('[HLSViewer] Falha de mídia, tentando recuperar...');
               hls?.recoverMediaError();
               break;
             default:
+              console.error('[HLSViewer] Erro fatal HLS:', data.details);
               hls?.destroy();
               hlsInstanceRef.current = null;
               setIsLoading(false);
@@ -130,17 +136,20 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = hlsUrl;
-      video.addEventListener('loadedmetadata', () => {
+      const onLoaded = () => {
         attemptPlay();
-      });
+        video.removeEventListener('loadedmetadata', onLoaded);
+      };
+      video.addEventListener('loadedmetadata', onLoaded);
       video.addEventListener('error', handleError);
     } else {
+      console.error('[HLSViewer] HLS não suportado neste navegador/webview');
       setIsLoading(false);
     }
 
     return () => {
-      if (hls) {
-        hls.destroy();
+      if (hlsInstanceRef.current) {
+        hlsInstanceRef.current.destroy();
         hlsInstanceRef.current = null;
       }
       video.removeEventListener('error', handleError);

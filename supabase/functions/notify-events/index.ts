@@ -107,7 +107,7 @@ serve(async (req) => {
       })
     }
 
-    const registrationTokens = [...new Set(tokens.map(t => t.token))]
+    const registrationTokens = [...new Set(tokens.map(t => t.token))].filter(Boolean)
     console.log(`📲 Enviando para ${registrationTokens.length} dispositivos...`)
 
     // 2. Configurar credenciais do Firebase (via Secret)
@@ -144,7 +144,8 @@ serve(async (req) => {
                 priority: "high", 
                 notification: { 
                   sound: "default",
-                  imageUrl: "https://www.zkoficial.com.br/icons/icon-512.webp"
+                  image: "https://www.zkoficial.com.br/icons/icon-512.webp",
+                  channelId: "high_priority"
                 } 
               },
               apns: { 
@@ -166,7 +167,7 @@ serve(async (req) => {
         const result = await response.json()
         if (!response.ok) {
           console.error(`❌ Erro ao enviar para token ${token.substring(0, 10)}...:`, result)
-          // Opcional: Remover token inválido do banco
+          return { token: token.substring(0, 10), status: response.status, error: result?.error?.message || 'FCM Error' }
         }
         return { token: token.substring(0, 10), status: response.status }
       } catch (e) {
@@ -177,13 +178,15 @@ serve(async (req) => {
 
     const results = await Promise.all(sendPromises)
     const successCount = results.filter(r => r.status === 200).length
+    const errors = results.filter(r => r.status !== 200).slice(0, 5) // Pegar até 5 erros para debug
 
     console.log(`✅ Processo concluído. Sucessos: ${successCount}/${registrationTokens.length}`)
 
     return new Response(JSON.stringify({
       success: true,
       sent: successCount,
-      total: registrationTokens.length
+      total: registrationTokens.length,
+      sample_errors: errors
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
