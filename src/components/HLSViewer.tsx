@@ -67,11 +67,21 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     video.muted = true;
     video.playsInline = true;
     setIsLoading(true);
+    setHasVideo(false);
+
+    // Timeout de segurança: se não carregar em 12s, para o loading para mostrar fallback ou erro
+    const loadingTimeout = setTimeout(() => {
+      if (!hasVideo && hlsInstanceRef.current) {
+        console.warn('[HLSViewer] Tempo limite de carregamento excedido.');
+        setIsLoading(false);
+      }
+    }, 12000);
 
     const handleError = (e: any) => {
-      console.error(`[HLSViewer] Erro no elemento de vídeo nativo: ${e?.type}`);
+      console.error(`[HLSViewer] Erro no elemento de vídeo nativo: ${e?.type || e}`);
       onErrorRef.current?.('Falha na reprodução nativa HLS');
       setIsLoading(false);
+      clearTimeout(loadingTimeout);
     };
 
     const attemptPlay = async () => {
@@ -79,10 +89,12 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         await video.play();
         setHasVideo(true);
         setIsLoading(false);
+        clearTimeout(loadingTimeout);
       } catch (e: any) {
-        console.warn('[HLSViewer] Autoplay falhou, aguardando clique:', e.message);
+        console.warn('[HLSViewer] Autoplay falhou ou bloqueado:', e.message);
         setHasVideo(true);
         setIsLoading(false);
+        clearTimeout(loadingTimeout);
       }
     };
 
