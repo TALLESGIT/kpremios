@@ -109,8 +109,23 @@ function AppContentInner() {
     };
   }, []);
 
+  const [loadingSafetyTimeout, setLoadingSafetyTimeout] = useState(false);
+
+  // Safety timeout para não travar no loading global
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (loading) {
+        console.warn('⚠️ App: Loading safety timeout atingido');
+        setLoadingSafetyTimeout(true);
+      }
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [loading]);
+
   // Rotas públicas que podem ser acessadas durante o loading
   const publicRoutes = [
+    '/',
+    '/index.html',
     '/login', 
     '/register', 
     '/forgot-password', 
@@ -124,15 +139,22 @@ function AppContentInner() {
 
   // Verificar rota atual usando window.location (já que ainda não estamos dentro do Router)
   const currentPath = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '';
-  const isPublicRoute = publicRoutes.some(route => currentPath === route || currentPath.endsWith(route)) || 
+  const isPublicRoute = currentPath === '' || currentPath === '/' || currentPath === '/index.html' ||
+                        publicRoutes.some(route => currentPath === route || currentPath.endsWith(route)) || 
                         currentPath.includes('live') || 
                         currentPath.includes('zk-tv') ||
                         currentPath.includes('media');
 
-  // Mostrar loading enquanto verifica a sessão, exceto para rotas públicas
-  if (loading && !isPublicRoute) {
+  // Mostrar loading enquanto verifica a sessão, exceto para rotas públicas ou após timeout
+  if (loading && !isPublicRoute && !loadingSafetyTimeout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black relative overflow-hidden">
+        {/* Debug info (apenas para VITE_DEBUG_LIVE=1) */}
+        {typeof window !== 'undefined' && (import.meta as any).env.VITE_DEBUG_LIVE === '1' && (
+          <div className="fixed top-2 left-2 z-[9999] text-[10px] text-white/40 font-mono">
+            Path: {currentPath} | Loading: {loading ? 'YES' : 'NO'} | Public: {isPublicRoute ? 'YES' : 'NO'}
+          </div>
+        )}
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden">
           <motion.div

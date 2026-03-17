@@ -1454,6 +1454,7 @@ const ZkTVPage: React.FC = () => {
             <div className="min-h-screen bg-[#030712] flex flex-col pt-16 text-white font-sans">
                 <Header />
                 <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-8 animate-pulse">
+                    <div className="text-white/40 text-sm font-bold animate-bounce">CARREGANDO ZK TV...</div>
                     <div className="w-48 h-8 bg-white/5 rounded-full" />
                     <div className="w-full max-w-3xl aspect-video bg-white/5 rounded-3xl" />
                     <div className="w-full max-w-4xl space-y-4">
@@ -1470,7 +1471,7 @@ const ZkTVPage: React.FC = () => {
             {/* Version ID - Visível apenas para debug (usar VITE_DEBUG_LIVE=1) */}
             {isZkTVDebug() && (
                 <div className="fixed top-0 left-0 z-[9999] bg-red-600 text-[8px] font-bold p-1 rounded-br-lg pointer-events-none">
-                    VERSÃO NATIVA OK - {new Date().toLocaleTimeString()}
+                    VERSÃO NATIVA OK - {new Date().toLocaleTimeString()} (L:{isPageLoading?'Y':'N'} S:{!!activeStream?'Y':'N'} IS:{isLiveActive?'Y':'N'})
                 </div>
             )}
             <Header />
