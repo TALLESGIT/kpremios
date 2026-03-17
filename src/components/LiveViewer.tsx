@@ -49,8 +49,36 @@ export function LiveViewer({
   const isActuallyLive = propIsActive !== undefined ? propIsActive : (data?.is_active ?? false);
   const currentHlsUrl = hlsUrl !== undefined ? hlsUrl : (data?.hls_url ?? null);
 
+  // ✅ MELHORIA: Para Admin, se não houver URL, tentamos prever a URL do MediaMTX para permitir o preview antes do 'Iniciar'
+  const mediaMtxBase = (import.meta.env.VITE_MEDIAMTX_HLS_BASE_URL as string | undefined)?.trim();
+  let effectiveHlsUrl = currentHlsUrl;
+  let effectiveChannelName = channelName || data?.channel_name || DEFAULT_LIVE_CHANNEL;
+
+  // Se for admin e estiver OFFLINE, forçamos o canal padrão para o preview bater com o OBS
+  if (isAdmin && !isActuallyLive) {
+    effectiveChannelName = DEFAULT_LIVE_CHANNEL;
+  }
+
+  if (isAdmin && !effectiveHlsUrl && mediaMtxBase) {
+    effectiveHlsUrl = `${mediaMtxBase.replace(/\/$/, '')}/live/${effectiveChannelName}/index.m3u8`;
+  }
+
+  // ✅ MELHORIA: Sincronizar o canal do WHEP com o que está na URL HLS
+  // Isso resolve o problema de 404 quando o canal no DB é 'live-teste' mas o sinal real está em 'ZkOficial'
+  if (effectiveHlsUrl && effectiveHlsUrl.includes('/live/')) {
+    const parts = effectiveHlsUrl.split('/live/');
+    if (parts[1]) {
+      const channelFromUrl = parts[1].split('/')[0];
+      if (channelFromUrl && channelFromUrl !== effectiveChannelName) {
+        console.log(`[LiveViewer] Sincronizando canal WHEP (${effectiveChannelName}) com URL HLS (${channelFromUrl})`);
+        effectiveChannelName = channelFromUrl;
+      }
+    }
+  }
+
   // Loading state - Otimizado: Se já temos os dados via Props, NÃO mostrar loading do hook interno
-  const isDataReady = propIsActive !== undefined && hlsUrl !== undefined;
+  const isDataReady = (propIsActive !== undefined && hlsUrl !== undefined) || (isAdmin && !!effectiveHlsUrl);
+  
   if (loading && !isDataReady) {
     return (
       <div className={`flex items-center justify-center h-full bg-black ${className}`}>
@@ -64,7 +92,7 @@ export function LiveViewer({
   }
 
   // Error state
-  if (error) {
+  if (error && !isDataReady) {
     return (
       <div className={`flex items-center justify-center h-full bg-black ${className}`}>
         <div className="text-center space-y-2 px-4">
@@ -76,8 +104,8 @@ export function LiveViewer({
     );
   }
 
-  // Offline state - sem dados
-  if (!data) {
+  // Offline state - sem dados (Só se não for admin e não tivermos dados via props)
+  if (!data && !isDataReady) {
     if (!showOfflineMessage) return null;
 
     return (
@@ -138,7 +166,7 @@ export function LiveViewer({
     if (whepBaseUrl && !isNativeApp && !fallbackToHls) {
       return (
         <WhepPlayer
-          channelName={DEFAULT_LIVE_CHANNEL}
+          channelName={effectiveChannelName}
           fitMode={fitMode}
           pathPrefix="live"
           isAdmin={isAdmin}
@@ -151,10 +179,10 @@ export function LiveViewer({
       );
     }
 
-    if (currentHlsUrl) {
+    if (effectiveHlsUrl) {
       return (
         <HLSViewer
-          hlsUrl={currentHlsUrl}
+          hlsUrl={effectiveHlsUrl}
           fitMode={fitMode}
           className="w-full h-full"
           isAdmin={isAdmin}

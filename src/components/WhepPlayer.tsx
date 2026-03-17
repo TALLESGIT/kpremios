@@ -552,6 +552,33 @@ function WhepPlayer({
           backgroundColor: '#000',
         }}
       />
+
+      {/* Overlay de Status (Loading/Offline) */}
+      {(status === 'connecting' || status === 'reconnecting' || status === 'offline') && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10 pointer-events-none">
+          <div className="flex flex-col items-center gap-4 animate-in fade-in duration-500">
+            {status !== 'offline' && (
+              <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            )}
+            {status === 'offline' && (
+              <div className="w-10 h-10 rounded-full border-2 border-white/10 flex items-center justify-center">
+                <div className="w-2 h-2 bg-white/40 rounded-full animate-pulse" />
+              </div>
+            )}
+            <div className="text-center space-y-1">
+              <span className="text-xs font-bold text-blue-300/80 uppercase tracking-widest block">
+                {statusLabel[status]}
+              </span>
+              {status === 'offline' && (
+                <span className="text-[10px] text-white/40 uppercase tracking-wider">
+                  Sincronizando sinal...
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {status === 'ended' && (
         <div
           className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/95 backdrop-blur-sm z-20"

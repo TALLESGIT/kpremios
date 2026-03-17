@@ -398,7 +398,7 @@ const AdminLiveStreamPage = () => {
                     hlsUrl={selectedStream.hls_url}
                     isActive={selectedStream.is_active}
                     isAdmin={true}
-                    className={!isStreaming ? 'blur-sm grayscale-[0.3]' : ''}
+                    className={!isStreaming ? 'opacity-90 grayscale-[0.2]' : ''}
                   />
                   <VipMessageOverlay streamId={selectedStream.id} isActive={selectedStream.is_active} />
                   <VipAlertOverlay streamId={selectedStream.id} />

@@ -271,14 +271,27 @@ const ZkTVPage: React.FC = () => {
     // ========== EFFECT 1: Data Loading (mount-only) ==========
     useEffect(() => {
         const loadAll = async () => {
-            await Promise.all([
-                loadData(),
-                loadActiveStream(),
-                checkVipStatus(),
-                checkActivePool(),
-                loadLastPoolResult()
-            ]);
-            setIsPageLoading(false);
+            // Safety timeout: Não deixar a tela de loading travada por mais de 8 segundos
+            const safetyTimer = setTimeout(() => {
+                setIsPageLoading(false);
+                if (isZkTVDebug()) console.warn('⚠️ ZkTVPage: Loading safety timeout atingido');
+            }, 8000);
+
+            try {
+                // Carregar dados em paralelo
+                await Promise.allSettled([
+                    loadData(),
+                    loadActiveStream(),
+                    checkVipStatus(),
+                    checkActivePool(),
+                    loadLastPoolResult()
+                ]);
+            } catch (err) {
+                console.error('Erro no carregamento inicial:', err);
+            } finally {
+                clearTimeout(safetyTimer);
+                setIsPageLoading(false);
+            }
         };
         loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps

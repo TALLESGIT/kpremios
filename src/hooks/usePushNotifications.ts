@@ -16,6 +16,12 @@ export const usePushNotifications = () => {
 
   const registerPush = async () => {
     try {
+      if (typeof (window as any)._pushListenersInitialized !== 'undefined') {
+        console.log('Push listeners already initialized, just registering...');
+        await PushNotifications.register();
+        return;
+      }
+
       // 1. Solicitar permissão
       let permStatus = await PushNotifications.checkPermissions();
 
@@ -28,52 +34,62 @@ export const usePushNotifications = () => {
         return;
       }
 
-      // 2. Registrar no serviço de push (FCM)
-      await PushNotifications.register();
-
-      // 3. Listener para sucesso no registro do Token
-      PushNotifications.addListener('registration', async (token) => {
+      // 2. Adicionar Listeners ANTES de registrar
+      
+      // Listener para sucesso no registro do Token
+      await PushNotifications.addListener('registration', async (token) => {
         console.log('Push Token gerado:', token.value);
 
         // Salvar token no Supabase vinculado ao usuário
         if (user?.id) {
-          const { error } = await supabase
-            .from('user_push_tokens')
-            .upsert({
-              user_id: user.id,
-              token: token.value,
-              platform: Capacitor.getPlatform(),
-              updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'user_id,token'
-            });
+          try {
+            const { error } = await supabase
+              .from('user_push_tokens')
+              .upsert({
+                user_id: user.id,
+                token: token.value,
+                platform: Capacitor.getPlatform(),
+                updated_at: new Date().toISOString()
+              }, {
+                onConflict: 'token'
+              });
 
-          if (error) console.error('Erro ao salvar push token:', error);
+            if (error) console.error('Erro ao salvar push token no banco:', error);
+            else console.log('Push token salvo com sucesso para o usuário:', user.id);
+          } catch (e) {
+            console.error('Exceção ao salvar push token:', e);
+          }
         }
       });
 
-      // 4. Listener para erro no registro
-      PushNotifications.addListener('registrationError', (error) => {
+      // Listener para erro no registro
+      await PushNotifications.addListener('registrationError', (error) => {
         console.error('Erro no registro de push:', error);
       });
 
-      // 5. Listener para notificação recebida (app aberto)
-      PushNotifications.addListener('pushNotificationReceived', (notification) => {
-        console.log('Notificação recebida:', notification);
-        // Aqui poderíamos mostrar um toast customizado
+      // Listener para notificação recebida (app aberto)
+      await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        console.log('Notificação recebida com app aberto:', notification);
       });
 
-      // 6. Listener para ação na notificação (clique)
-      PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-        console.log('Ação na notificação:', notification);
-        if (notification.notification.data?.path) {
-          // Lógica de redirecionamento interno
-          window.location.href = notification.notification.data.path;
+      // Listener para ação na notificação (clique)
+      await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+        console.log('Usuário clicou na notificação:', notification);
+        const path = notification.notification.data?.path;
+        if (path) {
+          console.log('Redirecionando para:', path);
+          window.location.href = path;
         }
       });
 
+      // Marcar como inicializado globalmente (evita duplicar listeners no re-render)
+      (window as any)._pushListenersInitialized = true;
+
+      // 3. Registrar no serviço de push (FCM)
+      await PushNotifications.register();
+
     } catch (err) {
-      console.error('Erro ao configurar Push:', err);
+      console.error('Erro crítico ao configurar Push Notifications:', err);
     }
   };
 };
