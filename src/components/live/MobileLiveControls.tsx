@@ -264,8 +264,8 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
               </motion.button>
             )}
 
-            {/* Botão Picture-in-Picture (apenas mobile) */}
-            {isMobile && onPictureInPicture && (
+            {/* Botão Picture-in-Picture (apenas mobile e live ativa) */}
+            {isMobile && isActive && onPictureInPicture && (
               <motion.button
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}

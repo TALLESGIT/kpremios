@@ -1433,6 +1433,22 @@ const ZkTVPage: React.FC = () => {
         });
     }, [isFullscreen, isMobile, isChatOpen, isDockedChat, isLandscape, isLiveActive, activeStream]);
 
+    if (isPageLoading) {
+        return (
+            <div className="min-h-screen bg-[#030712] flex flex-col pt-16 text-white font-sans">
+                <Header />
+                <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-8 animate-pulse">
+                    <div className="w-48 h-8 bg-white/5 rounded-full" />
+                    <div className="w-full max-w-3xl aspect-video bg-white/5 rounded-3xl" />
+                    <div className="w-full max-w-4xl space-y-4">
+                        <div className="h-4 bg-white/5 rounded-full w-3/4 mx-auto" />
+                        <div className="h-4 bg-white/5 rounded-full w-1/2 mx-auto" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-[#030712] flex flex-col pt-16 text-white font-sans selection:bg-blue-500/30">
             <Header />
