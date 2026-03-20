@@ -2,7 +2,6 @@ import { Routes, Route, Navigate, useLocation, BrowserRouter as Router } from 'r
 import { motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import React, { useEffect, useState } from 'react';
-import { ZKToastIcon } from './components/shared/ZKToastIcon';
 import HomePage from './pages/HomePage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminRegisterPage from './pages/AdminRegisterPage';
@@ -50,7 +49,7 @@ import AdminSpotifyPage from './pages/admin/AdminSpotifyPage';
 import AdminClipsPage from './pages/admin/AdminClipsPage';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { DataProvider, useData } from './context/DataContext';
+import { DataProvider } from './context/DataContext';
 import ProtectedRoute from './components/shared/ProtectedRoute';
 import UserProtectedRoute from './components/ProtectedRoute';
 import { ChatProvider } from './features/chat/ChatProvider';
