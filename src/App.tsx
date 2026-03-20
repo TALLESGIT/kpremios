@@ -125,11 +125,12 @@ function AppContentInner() {
     return () => clearTimeout(timer);
   }, [loading]);
 
-  const publicRoutes = ['/', '/index.html', '/login', '/register', '/forgot-password', '/reset-password', '/forgot-email', '/zk-tv', '/winners', '/my-numbers'];
+  const publicRoutes = ['/', '/index.html', '/login', '/register', '/forgot-password', '/reset-password', '/forgot-email', '/zk-tv', '/winners', '/my-numbers', '/loja'];
   const currentPath = location.pathname.toLowerCase();
   const isPublicRoute = currentPath === '/' || currentPath === '/index.html' ||
                         publicRoutes.some(route => currentPath === route || currentPath.endsWith(route)) ||
-                        currentPath.includes('live') || currentPath.includes('zk-tv') || currentPath.includes('media');
+                        currentPath.includes('live') || currentPath.includes('zk-tv') || currentPath.includes('media') ||
+                        currentPath.includes('loja');
 
   if (loading && !isPublicRoute && !loadingSafetyTimeout) {
     return (
@@ -173,7 +174,7 @@ function AppContentInner() {
           <Route path="/my-numbers" element={<MyNumbersPage />} />
           <Route path="/live-games" element={<LiveGamesPage />} />
           <Route path="/live-games/:gameId" element={<LiveParticipationPage />} />
-          <Route path="/loja" element={<UserProtectedRoute><ShopPage /></UserProtectedRoute>} />
+          <Route path="/loja" element={<ShopPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />

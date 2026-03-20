@@ -84,6 +84,8 @@ export function CartDrawer() {
   const handleCheckout = async () => {
     if (!user) {
       toast.error('Por favor, faça login para finalizar o pedido');
+      setIsCartOpen(false);
+      window.location.href = '/login?redirect=/loja';
       return;
     }
 
@@ -390,13 +392,13 @@ export function CartDrawer() {
                 <button
                   onClick={handleCheckout}
                   disabled={isFinishing || cart.length === 0}
-                  className="w-full h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-black uppercase tracking-[0.15em] text-xs shadow-xl shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`w-full h-14 ${!user ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500'} text-white rounded-xl font-black uppercase tracking-[0.15em] text-xs shadow-xl shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {isFinishing ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
                     <>
-                      FINALIZAR PEDIDO
+                      {!user ? 'ENTRAR PARA FINALIZAR' : 'FINALIZAR PEDIDO'}
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </>
                   )}

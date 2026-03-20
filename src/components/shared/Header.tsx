@@ -364,37 +364,19 @@ function Header() {
                 </Link>
               )}
 
-              {/* User buttons */}
-              {currentAppUser && !currentAppUser.is_admin && (
-                <>
-                  {/* Botão Minhas Apostas - apenas para usuários que NÃO estão participando do bolão */}
-                  {!hasUserBets && (
-                    <Link
-                      to="/my-numbers"
-                      className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 border border-blue-500/50 ${location.pathname === '/my-numbers'
-                        ? 'bg-blue-500/20 text-white shadow-lg border-blue-500'
-                        : 'text-white hover:bg-blue-500/10 hover:border-blue-500/70'
-                        }`}
-                    >
-                      Minhas Apostas
-                    </Link>
-                  )}
-
-                  {/* Botão Carrinho - Desktop */}
-                  <button
-                    onClick={() => setIsCartOpen(true)}
-                    className="relative p-2.5 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 group"
-                  >
-                    <ShoppingBag className="w-5 h-5" />
-                    {totalItems > 0 && (
-                      <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black italic border-2 border-[#030712] animate-in zoom-in duration-300">
-                        {totalItems}
-                      </span>
-                    )}
-                    <div className="absolute inset-0 rounded-xl bg-blue-500/0 group-hover:bg-blue-500/10 transition-colors" />
-                  </button>
-                </>
-              )}
+              {/* Botão Carrinho - Desktop (Visível para todos) */}
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="relative p-2.5 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 group"
+              >
+                <ShoppingBag className="w-5 h-5" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black italic border-2 border-[#030712] animate-in zoom-in duration-300">
+                    {totalItems}
+                  </span>
+                )}
+                <div className="absolute inset-0 rounded-xl bg-blue-500/0 group-hover:bg-blue-500/10 transition-colors" />
+              </button>
 
               {/* Login/Register buttons */}
               {!user && !currentAppUser && (
