@@ -22,18 +22,18 @@ import {
 import Header from '../../components/shared/Header';
 import Footer from '../../components/shared/Footer';
 import TeamLogo from '../../components/TeamLogo';
-import { CruzeiroGame, CruzeiroStanding, YouTubeClip, CruzeiroPlayer } from '../../types';
+import { MatchGame, MatchStanding, YouTubeClip, TeamPlayer } from '../../types';
 import { useMemo } from 'react';
-import { getTeamLogo, getTeamColors } from '../../utils/teamLogos';
+import { getTeamColors } from '../../utils/teamLogos';
 import { calculateNextPoolAccumulated } from '../../utils/poolUtils';
 
 const COMPETITIONS = [
-    'Campeonato Brasileiro - Série A',
-    'Campeonato Mineiro',
-    'Copa Conmebol Libertadores',
-    'Copa Conmebol Sul-Americana',
-    'Copa do Brasil',
-    'Amistoso'
+    { id: 71, name: 'Campeonato Brasileiro' },
+    { id: 629, name: 'Campeonato Mineiro' },
+    { id: 329, name: 'Conmebol Libertadores' },
+    { id: 330, name: 'Conmebol Sul-Americana' },
+    { id: 256, name: 'Copa do Brasil' },
+    { id: 0, name: 'Amistoso' }
 ];
 
 const TEAMS_BRASIL_SERIE_A = [
@@ -54,10 +54,10 @@ const TEAMS_MINEIRO = [
 ];
 
 const TEAMS_BY_COMPETITION: Record<string, string[]> = {
-    'Campeonato Brasileiro - Série A': TEAMS_BRASIL_SERIE_A,
+    'Campeonato Brasileiro': TEAMS_BRASIL_SERIE_A,
     'Campeonato Mineiro': TEAMS_MINEIRO,
-    'Copa Conmebol Libertadores': [...TEAMS_LIBERTADORES, 'Flamengo', 'Palmeiras', 'São Paulo', 'Botafogo', 'Fortaleza', 'Atlético-MG', 'Fluminense', 'Grêmio'],
-    'Copa Conmebol Sul-Americana': [...TEAMS_LIBERTADORES, 'Corinthians', 'Internacional', 'Athletico-PR', 'Cruzeiro', 'Cuiabá', 'Fortaleza'],
+    'Conmebol Libertadores': [...TEAMS_LIBERTADORES, 'Flamengo', 'Palmeiras', 'São Paulo', 'Botafogo', 'Fortaleza', 'Atlético-MG', 'Fluminense', 'Grêmio'],
+    'Conmebol Sul-Americana': [...TEAMS_LIBERTADORES, 'Corinthians', 'Internacional', 'Athletico-PR', 'Cruzeiro', 'Cuiabá', 'Fortaleza'],
     'Copa do Brasil': [...TEAMS_BRASIL_SERIE_A, ...TEAMS_MINEIRO],
     'Amistoso': [...TEAMS_BRASIL_SERIE_A, ...TEAMS_MINEIRO, ...TEAMS_LIBERTADORES]
 };
@@ -116,6 +116,8 @@ const AdminZkTVPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [bannerUploading, setBannerUploading] = useState(false);
     const [playerPhotoUploading, setPlayerPhotoUploading] = useState(false);
+    const [userClub, setUserClub] = useState<string | null>(null);
+    const [clubInfo, setClubInfo] = useState<{name: string, logo_url: string} | null>(null);
 
     // Clipes Inéditos
     const [clips, setClips] = useState<YouTubeClip[]>([]);
@@ -130,20 +132,18 @@ const AdminZkTVPage: React.FC = () => {
     });
     const [saving, setSaving] = useState(false);
     const [isBulkEditing, setIsBulkEditing] = useState(false);
-    const [bulkStandings, setBulkStandings] = useState<CruzeiroStanding[]>([]);
-
     // Games State
-    const [games, setGames] = useState<CruzeiroGame[]>([]);
+    const [games, setGames] = useState<MatchGame[]>([]);
     const [activePoolsCount, setActivePoolsCount] = useState(0);
     const [isAddingGame, setIsAddingGame] = useState(false);
-    const [editingGame, setEditingGame] = useState<CruzeiroGame | null>(null);
+    const [editingGame, setEditingGame] = useState<MatchGame | null>(null);
     const [createPoolToggle, setCreatePoolToggle] = useState(false);
-    const [gameForm, setGameForm] = useState<Partial<CruzeiroGame>>({
+    const [gameForm, setGameForm] = useState<Partial<MatchGame>>({
         opponent: '',
         opponent_logo: '',
         date: new Date().toISOString(),
         venue: '',
-        competition: '',
+        competition: 'Campeonato Brasileiro',
         is_home: true,
         banner_url: '',
         status: 'upcoming',
@@ -152,10 +152,10 @@ const AdminZkTVPage: React.FC = () => {
     });
 
     // Players State
-    const [players, setPlayers] = useState<CruzeiroPlayer[]>([]);
+    const [players, setPlayers] = useState<TeamPlayer[]>([]);
     const [isAddingPlayer, setIsAddingPlayer] = useState(false);
-    const [editingPlayer, setEditingPlayer] = useState<CruzeiroPlayer | null>(null);
-    const [playerForm, setPlayerForm] = useState<Partial<CruzeiroPlayer>>({
+    const [editingPlayer, setEditingPlayer] = useState<TeamPlayer | null>(null);
+    const [playerForm, setPlayerForm] = useState<Partial<TeamPlayer>>({
         name: '',
         full_name: '',
         photo_url: '',
@@ -173,11 +173,12 @@ const AdminZkTVPage: React.FC = () => {
     }, [gameForm.competition]);
 
     // Standings State
-    const [standings, setStandings] = useState<CruzeiroStanding[]>([]);
-    const [selectedCompetition, setSelectedCompetition] = useState<string>('Campeonato Brasileiro - Série A');
+    const [standings, setStandings] = useState<MatchStanding[]>([]);
+    const [bulkStandings, setBulkStandings] = useState<MatchStanding[]>([]);
+    const [selectedCompetition, setSelectedCompetition] = useState<string>('Campeonato Brasileiro');
     const [isAddingStanding, setIsAddingStanding] = useState(false);
-    const [editingStanding, setEditingStanding] = useState<CruzeiroStanding | null>(null);
-    const [standingForm, setStandingForm] = useState<Partial<CruzeiroStanding>>({
+    const [editingStanding, setEditingStanding] = useState<MatchStanding | null>(null);
+    const [standingForm, setStandingForm] = useState<Partial<MatchStanding>>({
         team: '',
         position: 0,
         points: 0,
@@ -187,32 +188,21 @@ const AdminZkTVPage: React.FC = () => {
         lost: 0,
         goals_for: 0,
         goals_against: 0,
-        is_cruzeiro: false,
-        competition: 'Campeonato Brasileiro - Série A',
+        is_primary_team: false,
+        competition: 'Campeonato Brasileiro',
         last_5: '',
         prev_position: 0,
         next_opponent: ''
     });
 
-    useEffect(() => {
-        if (currentUser?.is_admin) {
-            loadData();
-        }
-    }, [currentUser]);
-
-    // Recarregar standings quando mudar competição
-    useEffect(() => {
-        if (currentUser?.is_admin) {
-            loadStandingsByCompetition();
-        }
-    }, [selectedCompetition, currentUser]);
-
     const loadStandingsByCompetition = async () => {
+        if (!userClub) return;
         try {
             const { data, error } = await supabase
-                .from('cruzeiro_standings')
+                .from('match_standings')
                 .select('*')
                 .eq('competition', selectedCompetition)
+                .eq('club_slug', userClub)
                 .order('position', { ascending: true });
 
             if (!error && data) {
@@ -223,52 +213,12 @@ const AdminZkTVPage: React.FC = () => {
         }
     };
 
-    const loadData = async () => {
-        try {
-            setLoading(true);
-
-            await Promise.all([
-                loadGames(),
-                loadStandingsByCompetition(),
-                loadClips(),
-                loadPlayers()
-            ]);
-
-            // Silent automatic cleanup on load
-            autoCleanupOldGames();
-
-        } catch (error) {
-            console.error('Error loading ZK TV data:', error);
-            toast.error('Erro ao carregar dados da ZK TV');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const autoCleanupOldGames = async () => {
-        try {
-            const threeDaysAgo = new Date();
-            threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-
-            const { error, count } = await supabase
-                .from('cruzeiro_games')
-                .delete({ count: 'exact' })
-                .eq('status', 'finished')
-                .lt('date', threeDaysAgo.toISOString());
-
-            if (!error && count && count > 0) {
-                console.log(`[Auto Cleanup] ${count} games older than 3 days removed.`);
-                loadGames();
-            }
-        } catch (error) {
-            console.error('[Auto Cleanup Error]:', error);
-        }
-    };
-
     const loadGames = async () => {
+        if (!userClub) return;
         const { data: gamesData } = await supabase
-            .from('cruzeiro_games')
+            .from('match_games')
             .select('*')
+            .eq('club_slug', userClub)
             .order('date', { ascending: true });
 
         if (gamesData) {
@@ -300,9 +250,11 @@ const AdminZkTVPage: React.FC = () => {
     };
 
     const loadPlayers = async () => {
+        if (!userClub) return;
         const { data, error } = await supabase
-            .from('cruzeiro_players')
+            .from('team_players')
             .select('*')
+            .eq('club_slug', userClub)
             .order('position', { ascending: true })
             .order('name', { ascending: true });
 
@@ -310,6 +262,127 @@ const AdminZkTVPage: React.FC = () => {
             setPlayers(data);
         }
     };
+
+    const autoCleanupOldGames = async () => {
+        if (!userClub) return;
+        try {
+            const threeDaysAgo = new Date();
+            threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+            const { error, count } = await supabase
+                .from('match_games')
+                .delete({ count: 'exact' })
+                .eq('club_slug', userClub)
+                .eq('status', 'finished')
+                .lt('date', threeDaysAgo.toISOString());
+
+            if (!error && count && count > 0) {
+                console.log(`[Auto Cleanup] ${count} games older than 3 days removed.`);
+                loadGames();
+            }
+        } catch (error) {
+            console.error('[Auto Cleanup Error]:', error);
+        }
+    };
+
+    const loadData = async () => {
+        try {
+            setLoading(true);
+
+            await Promise.all([
+                loadGames(),
+                loadStandingsByCompetition(),
+                loadClips(),
+                loadPlayers()
+            ]);
+
+            // Silent automatic cleanup on load
+            autoCleanupOldGames();
+
+        } catch (error) {
+            console.error('Error loading ZK TV data:', error);
+            toast.error('Erro ao carregar dados da ZK TV');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (currentUser?.is_admin) {
+            supabase
+                .from('users')
+                .select('club_slug')
+                .eq('id', currentUser.id)
+                .single()
+                .then(({ data }) => {
+                    setUserClub(data?.club_slug || 'cruzeiro');
+                });
+        }
+    }, [currentUser]);
+
+    useEffect(() => {
+        if (userClub) {
+            supabase.from('clubs_config')
+                .select('name, logo_url')
+                .eq('slug', userClub)
+                .single()
+                .then(({ data }) => {
+                    if (data) setClubInfo(data);
+                });
+            
+            // Load all data when club is confirmed
+            loadData();
+        }
+    }, [userClub]);
+
+    // Recarregar standings quando mudar competição ou clube
+    useEffect(() => {
+        if (currentUser?.is_admin && userClub) {
+            loadStandingsByCompetition();
+        }
+    }, [selectedCompetition, userClub, currentUser]);
+
+    const handleSyncCompetition = async () => {
+        if (!userClub) {
+            toast.error('Clube do usuário não identificado');
+            return;
+        }
+
+        const competition = COMPETITIONS.find(c => c.name === selectedCompetition);
+        if (!competition || competition.id === 0) {
+            toast.error('Sincronização não disponível para esta competição');
+            return;
+        }
+
+        try {
+            setSaving(true);
+            const { data, error } = await supabase.functions.invoke('sync-football-data', {
+                body: { 
+                    club_slug: userClub, 
+                    league_id: competition.id,
+                    season: 2026
+                }
+            });
+
+            if (error) {
+                // Tenta extrair a mensagem de erro detalhada do corpo da resposta, se disponível
+                const errorData = error.context?.body;
+                const errorMsg = typeof errorData === 'string' ? JSON.parse(errorData).error : errorData?.error;
+                throw new Error(errorMsg || error.message || 'Falha na sincronização');
+            }
+            
+            toast.success(data.message || 'Sincronização concluída!');
+            await loadStandingsByCompetition();
+            await loadGames();
+        } catch (err: any) {
+            console.error('Erro na sincronização:', err);
+            toast.error(err.message || 'Falha ao sincronizar');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+
 
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'banner' | 'logo' | 'player' = 'banner') => {
@@ -380,12 +453,13 @@ const AdminZkTVPage: React.FC = () => {
 
             const payload = {
                 ...playerForm,
+                club_slug: userClub,
                 updated_at: new Date().toISOString()
             };
 
             const { error } = editingPlayer
-                ? await supabase.from('cruzeiro_players').update(payload).eq('id', editingPlayer.id)
-                : await supabase.from('cruzeiro_players').insert([payload]);
+                ? await supabase.from('team_players').update(payload).eq('id', editingPlayer.id)
+                : await supabase.from('team_players').insert([payload]);
 
             if (error) throw error;
             toast.success(editingPlayer ? 'Jogador atualizado!' : 'Jogador adicionado!');
@@ -411,7 +485,7 @@ const AdminZkTVPage: React.FC = () => {
     const handleDeletePlayer = async (id: string) => {
         if (!window.confirm('Tem certeza que deseja excluir este jogador?')) return;
         try {
-            const { error } = await supabase.from('cruzeiro_players').delete().eq('id', id);
+            const { error } = await supabase.from('team_players').delete().eq('id', id);
             if (error) throw error;
             toast.success('Jogador excluído!');
             loadPlayers();
@@ -423,8 +497,15 @@ const AdminZkTVPage: React.FC = () => {
     const handleSaveGame = async () => {
         try {
             setSaving(true);
+            
+            // Buscar nome do clube para o título do bolão
+            const { data: clubInfo } = await supabase.from('clubs_config').select('name, logo_url').eq('slug', userClub).single();
+            const clubName = clubInfo?.name || 'Clube';
+            const clubLogo = clubInfo?.logo_url || '';
+
             const payload = {
                 ...gameForm,
+                club_slug: userClub,
                 updated_at: new Date().toISOString()
             };
 
@@ -478,7 +559,7 @@ const AdminZkTVPage: React.FC = () => {
             };
 
             if (editingGame) {
-                const { data: updatedData, error: updateError } = await supabase.from('cruzeiro_games').update(payload).eq('id', editingGame.id).select().single();
+                const { data: updatedData, error: updateError } = await supabase.from('match_games').update(payload).eq('id', editingGame.id).select().single();
                 if (updateError) throw updateError;
                 savedGame = updatedData;
                 toast.success('Jogo atualizado!');
@@ -486,7 +567,7 @@ const AdminZkTVPage: React.FC = () => {
                 const oppId = savedGame.is_home ? savedGame.api_away_team_id : savedGame.api_home_team_id;
                 if (oppId) syncOpponentPlayers(oppId, savedGame.opponent);
             } else {
-                const { data, error } = await supabase.from('cruzeiro_games').insert([payload]).select().single();
+                const { data, error } = await supabase.from('match_games').insert([payload]).select().single();
                 if (error) throw error;
                 savedGame = data;
                 toast.success('Jogo adicionado!');
@@ -497,12 +578,11 @@ const AdminZkTVPage: React.FC = () => {
                 if (createPoolToggle) {
                     try {
                         const isHome = savedGame.is_home;
-                        const matchTitle = isHome ? `Cruzeiro x ${savedGame.opponent}` : `${savedGame.opponent} x Cruzeiro`;
-                        const homeTeam = isHome ? 'Cruzeiro' : savedGame.opponent;
-                        const awayTeam = isHome ? savedGame.opponent : 'Cruzeiro';
-                        const cruzeiroLogo = 'https://logodetimes.com/times/cruzeiro/logo-cruzeiro-256.png';
-                        const homeLogo = isHome ? cruzeiroLogo : (savedGame.opponent_logo || '');
-                        const awayLogo = isHome ? (savedGame.opponent_logo || '') : cruzeiroLogo;
+                        const matchTitle = isHome ? `${clubName} x ${savedGame.opponent}` : `${savedGame.opponent} x ${clubName}`;
+                        const homeTeam = isHome ? clubName : savedGame.opponent;
+                        const awayTeam = isHome ? savedGame.opponent : clubName;
+                        const homeLogo = isHome ? clubLogo : (savedGame.opponent_logo || '');
+                        const awayLogo = isHome ? (savedGame.opponent_logo || '') : clubLogo;
 
                         // 1) Create a live_stream first (required FK for match_pools)
                         const streamTitle = `Transmissão: ${matchTitle}`;
@@ -524,7 +604,7 @@ const AdminZkTVPage: React.FC = () => {
                             toast.error('Jogo salvo, mas houve erro ao criar a Transmissão para o Bolão.');
                         } else {
                             // 2) Now create the pool linked to the new live_stream
-                            const accumulatedAmount = await calculateNextPoolAccumulated();
+                            const accumulatedAmount = await calculateNextPoolAccumulated(userClub);
                             const { error: poolError } = await supabase.from('match_pools').insert({
                                 live_stream_id: streamData.id,
                                 match_title: matchTitle,
@@ -566,12 +646,14 @@ const AdminZkTVPage: React.FC = () => {
         }
     };
 
-    const handleActivatePool = async (game: CruzeiroGame) => {
+    const handleActivatePool = async (game: MatchGame) => {
         try {
             setSaving(true);
+            const clubName = clubInfo?.name || 'Clube';
+            const clubLogo = clubInfo?.logo_url || '';
 
             // 1. Criar Live Stream (Sem definir ID manual, deixa o Supabase gerar o UUID)
-            const streamTitle = `Cruzeiro x ${game.opponent}`;
+            const streamTitle = `${clubName} x ${game.opponent}`;
             const channelSlug = generateStreamSlug(streamTitle);
 
             const { data: lsData, error: lsError } = await supabase.from('live_streams').insert([{
@@ -589,18 +671,18 @@ const AdminZkTVPage: React.FC = () => {
             const liveStreamId = lsData.id;
 
             // 2. Definir times e logos
-            const cruzeiroLogo = getTeamLogo('Cruzeiro');
-            const home_team = game.is_home ? 'Cruzeiro' : game.opponent;
-            const away_team = game.is_home ? game.opponent : 'Cruzeiro';
-            const home_team_logo = game.is_home ? cruzeiroLogo : game.opponent_logo;
-            const away_team_logo = game.is_home ? game.opponent_logo : cruzeiroLogo;
+            const home_team = game.is_home ? clubName : game.opponent;
+            const away_team = game.is_home ? game.opponent : clubName;
+            const home_team_logo = game.is_home ? clubLogo : game.opponent_logo;
+            const away_team_logo = game.is_home ? game.opponent_logo : clubLogo;
 
             // 3. Criar Match Pool com acumulado automático
-            const accumulatedAmount = await calculateNextPoolAccumulated();
+            const accumulatedAmount = await calculateNextPoolAccumulated(userClub);
             const { error: poolError } = await supabase.from('match_pools').insert([{
                 live_stream_id: liveStreamId,
                 match_id: game.id,
-                match_title: `Bolão: Cruzeiro x ${game.opponent}`,
+                club_slug: userClub,
+                match_title: `Bolão: ${clubName} x ${game.opponent}`,
                 home_team,
                 away_team,
                 home_team_logo,
@@ -611,6 +693,14 @@ const AdminZkTVPage: React.FC = () => {
             }]);
 
             if (poolError) throw poolError;
+
+            // 3. Atualizar status do jogo
+            const { error: gameError } = await supabase.from('match_games').update({ 
+                status: 'live',
+                updated_at: new Date().toISOString()
+            }).eq('id', game.id);
+
+            if (gameError) throw gameError;
 
             toast.success('Bolão ativado com sucesso! 🚀');
             loadData();
@@ -623,6 +713,7 @@ const AdminZkTVPage: React.FC = () => {
     };
 
     const handleCleanupOldGames = async () => {
+        if (!userClub) return;
         if (!window.confirm('Deseja realmente excluir todos os jogos finalizados há mais de 3 dias? Esta ação removerá também os bolões e históricos associados.')) {
             return;
         }
@@ -633,8 +724,9 @@ const AdminZkTVPage: React.FC = () => {
             threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
             const { error, count } = await supabase
-                .from('cruzeiro_games')
+                .from('match_games')
                 .delete({ count: 'exact' })
+                .eq('club_slug', userClub)
                 .eq('status', 'finished')
                 .lt('date', threeDaysAgo.toISOString());
 
@@ -653,7 +745,7 @@ const AdminZkTVPage: React.FC = () => {
     const handleDeleteGame = async (id: string) => {
         if (!window.confirm('Tem certeza que deseja excluir este jogo?')) return;
         try {
-            const { error } = await supabase.from('cruzeiro_games').delete().eq('id', id);
+            const { error } = await supabase.from('match_games').delete().eq('id', id);
             if (error) throw error;
             toast.success('Jogo excluído!');
             loadData();
@@ -679,13 +771,14 @@ const AdminZkTVPage: React.FC = () => {
 
             const payload = {
                 ...standingForm,
+                club_slug: userClub,
                 competition: standingForm.competition || selectedCompetition,
                 team: standingForm.team.trim()
             };
 
             const { error } = editingStanding
-                ? await supabase.from('cruzeiro_standings').update(payload).eq('id', editingStanding.id)
-                : await supabase.from('cruzeiro_standings').insert([payload]);
+                ? await supabase.from('match_standings').update(payload).eq('id', editingStanding.id)
+                : await supabase.from('match_standings').insert([payload]);
 
             if (error) {
                 console.error('Erro detalhado ao salvar classificação:', error);
@@ -706,7 +799,7 @@ const AdminZkTVPage: React.FC = () => {
                 lost: 0,
                 goals_for: 0,
                 goals_against: 0,
-                is_cruzeiro: false,
+                is_primary_team: false,
                 competition: selectedCompetition,
                 last_5: '',
                 prev_position: 0,
@@ -724,7 +817,11 @@ const AdminZkTVPage: React.FC = () => {
     const handleSaveBulkStandings = async () => {
         setSaving(true);
         try {
-            const { error } = await supabase.from('cruzeiro_standings').upsert(bulkStandings);
+            const standingsWithClub = bulkStandings.map(s => ({
+                ...s,
+                club_slug: userClub
+            }));
+            const { error } = await supabase.from('match_standings').upsert(standingsWithClub);
             if (error) throw error;
             toast.success('Todas as classificações foram atualizadas!');
             setIsBulkEditing(false);
@@ -740,7 +837,7 @@ const AdminZkTVPage: React.FC = () => {
     const handleDeleteStanding = async (id: string) => {
         if (!window.confirm('Excluir este time da tabela?')) return;
         try {
-            const { error } = await supabase.from('cruzeiro_standings').delete().eq('id', id);
+            const { error } = await supabase.from('match_standings').delete().eq('id', id);
             if (error) throw error;
             toast.success('Time removido!');
             loadStandingsByCompetition();
@@ -985,7 +1082,7 @@ const AdminZkTVPage: React.FC = () => {
                                                 <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-purple-600/5 opacity-50"></div>
                                                 <div className="relative flex items-center justify-between">
                                                     <div className="flex-1 flex flex-col items-center gap-3">
-                                                        <TeamLogo teamName="Cruzeiro" size="xl" />
+                                                        <TeamLogo teamName={clubInfo?.name || 'Clube'} customLogo={clubInfo?.logo_url} size="xl" />
                                                     </div>
 
                                                     <div className="flex flex-col items-center gap-2 px-8">
@@ -1060,7 +1157,7 @@ const AdminZkTVPage: React.FC = () => {
                                                     >
                                                         <option value="">Selecione a Competição</option>
                                                         {COMPETITIONS.map(comp => (
-                                                            <option key={comp} value={comp}>{comp}</option>
+                                                            <option key={comp.id} value={comp.name}>{comp.name}</option>
                                                         ))}
                                                     </select>
                                                 </div>
@@ -1098,7 +1195,7 @@ const AdminZkTVPage: React.FC = () => {
                                                 {(gameForm.status === 'live' || gameForm.status === 'finished') && (
                                                     <>
                                                         <div>
-                                                            <label className="block text-sm text-slate-400 mb-2">Gols {gameForm.is_home ? 'do Cruzeiro' : 'do Adversário'} (Casa)</label>
+                                                            <label className="block text-sm text-slate-400 mb-2">Gols {gameForm.is_home ? `do ${clubInfo?.name || 'Clube'}` : 'do Adversário'} (Casa)</label>
                                                             <input
                                                                 type="number"
                                                                 min="0"
@@ -1108,7 +1205,7 @@ const AdminZkTVPage: React.FC = () => {
                                                             />
                                                         </div>
                                                         <div>
-                                                            <label className="block text-sm text-slate-400 mb-2">Gols {!gameForm.is_home ? 'do Cruzeiro' : 'do Adversário'} (Fora)</label>
+                                                            <label className="block text-sm text-slate-400 mb-2">Gols {!gameForm.is_home ? `do ${clubInfo?.name || 'Clube'}` : 'do Adversário'} (Fora)</label>
                                                             <input
                                                                 type="number"
                                                                 min="0"
@@ -1270,8 +1367,8 @@ const AdminZkTVPage: React.FC = () => {
                                                     <div className="p-6 relative -mt-12">
                                                         <div className="flex items-center justify-between mb-8">
                                                             <div className="flex flex-col items-center gap-2">
-                                                                <TeamLogo teamName="Cruzeiro" size="lg" showName={false} />
-                                                                <span className="text-xs font-black text-white uppercase">Cruzeiro</span>
+                                                                <TeamLogo teamName={clubInfo?.name || 'Clube'} customLogo={clubInfo?.logo_url} size="lg" showName={false} />
+                                                                <span className="text-xs font-black text-white uppercase">{clubInfo?.name || 'Clube'}</span>
                                                             </div>
 
                                                             <div className="flex flex-col items-center gap-3">
@@ -1450,18 +1547,29 @@ const AdminZkTVPage: React.FC = () => {
                                                         </button>
                                                     </div>
                                                 )}
-                                                <select
-                                                    value={selectedCompetition}
-                                                    onChange={(e) => {
-                                                        setSelectedCompetition(e.target.value);
-                                                        setStandingForm(prev => ({ ...prev, competition: e.target.value }));
-                                                    }}
-                                                    className="bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
-                                                >
-                                                    {COMPETITIONS.filter(c => c !== 'Amistoso').map(comp => (
-                                                        <option key={comp} value={comp}>{comp}</option>
-                                                    ))}
-                                                </select>
+                                                <div className="flex items-center gap-3">
+                                                    <select
+                                                        value={selectedCompetition}
+                                                        onChange={(e) => {
+                                                            setSelectedCompetition(e.target.value);
+                                                            setStandingForm(prev => ({ ...prev, competition: e.target.value }));
+                                                        }}
+                                                        className="bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+                                                    >
+                                                        {COMPETITIONS.filter(c => c.name !== 'Amistoso').map(comp => (
+                                                            <option key={comp.id} value={comp.name}>{comp.name}</option>
+                                                        ))}
+                                                    </select>
+
+                                                    <button
+                                                        onClick={() => handleSyncCompetition()}
+                                                        disabled={saving}
+                                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl text-xs font-black uppercase transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50"
+                                                    >
+                                                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                                                        Sincronizar API
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -1480,7 +1588,7 @@ const AdminZkTVPage: React.FC = () => {
                                                     lost: 0,
                                                     goals_for: 0,
                                                     goals_against: 0,
-                                                    is_cruzeiro: false,
+                                                    is_primary_team: false,
                                                     competition: selectedCompetition
                                                 });
                                                 setIsAddingStanding(true);
@@ -1507,8 +1615,8 @@ const AdminZkTVPage: React.FC = () => {
                                                     onChange={(e) => setStandingForm({ ...standingForm, competition: e.target.value })}
                                                     className="w-full bg-slate-950 border border-slate-700 p-4 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                                                 >
-                                                    {COMPETITIONS.filter(c => c !== 'Amistoso').map(comp => (
-                                                        <option key={comp} value={comp}>{comp}</option>
+                                                    {COMPETITIONS.filter(c => c.name !== 'Amistoso').map(comp => (
+                                                        <option key={comp.id} value={comp.name}>{comp.name}</option>
                                                     ))}
                                                 </select>
                                             </div>
@@ -1562,11 +1670,11 @@ const AdminZkTVPage: React.FC = () => {
                                                     <label className="flex items-center gap-2 cursor-pointer">
                                                         <input
                                                             type="checkbox"
-                                                            checked={standingForm.is_cruzeiro}
-                                                            onChange={(e) => setStandingForm({ ...standingForm, is_cruzeiro: e.target.checked })}
+                                                            checked={standingForm.is_primary_team}
+                                                            onChange={(e) => setStandingForm({ ...standingForm, is_primary_team: e.target.checked })}
                                                             className="w-5 h-5 rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-blue-500"
                                                         />
-                                                        <span className="text-sm font-bold">É o Cruzeiro?</span>
+                                                        <span className="text-sm font-bold">É o Time Principal?</span>
                                                     </label>
                                                 </div>
                                             </div>
@@ -1596,14 +1704,14 @@ const AdminZkTVPage: React.FC = () => {
                                             </thead>
                                             <tbody className="divide-y divide-slate-800">
                                                 {(isBulkEditing ? bulkStandings : standings).map((team, idx) => {
-                                                    const updateBulk = (key: keyof CruzeiroStanding, val: any) => {
+                                                    const updateBulk = (key: keyof MatchStanding, val: any) => {
                                                         const newBulk = [...bulkStandings];
                                                         (newBulk[idx] as any)[key] = val;
                                                         setBulkStandings(newBulk);
                                                     };
 
                                                     return (
-                                                        <tr key={team.id} className={team.is_cruzeiro ? 'bg-blue-600/10' : ''}>
+                                                        <tr key={team.id} className={team.is_primary_team ? 'bg-blue-600/10' : ''}>
                                                             <td className="px-6 py-4 font-black">
                                                                 {isBulkEditing ? (
                                                                     <input

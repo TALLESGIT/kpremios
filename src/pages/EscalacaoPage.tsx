@@ -3,24 +3,15 @@ import { motion } from 'framer-motion';
 import ModernPitchView from '../components/lineup/ModernPitchView';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-import { supabase } from '../lib/supabase';
 
 // No generic interface needed if not used
 
 const EscalacaoPage: React.FC = () => {
 
+  // O ModernPitchView interno já gerencia o carregamento dos dados baseado no club_slug do usuário
   useEffect(() => {
-    const fetchNextGame = async () => {
-      await supabase
-        .from('cruzeiro_games')
-        .select('opponent, opponent_logo')
-        .eq('status', 'upcoming')
-        .order('date', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-    };
-    fetchNextGame();
+    // Scroll to top on mount
+    window.scrollTo(0, 0);
   }, []);
 
   return (

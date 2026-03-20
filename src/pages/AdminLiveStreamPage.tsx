@@ -37,6 +37,7 @@ const AdminLiveStreamPage = () => {
   const navigate = useNavigate();
   const [streams, setStreams] = useState<LiveStream[]>([]);
   const [selectedStream, setSelectedStream] = useState<LiveStream | null>(null);
+  const [clubSlug, setClubSlug] = useState<string | null>(null);
 
   // Registrar o streamId globalmente para o ChatHost (unificação do chat)
   useRegisterStreamId(selectedStream?.id);
@@ -102,7 +103,7 @@ const AdminLiveStreamPage = () => {
         // Primeiro tenta na tabela users (sistema principal)
         let { data: userRecord, error: userError } = await supabase
           .from('users')
-          .select('is_admin')
+          .select('is_admin, club_slug')
           .eq('id', user.id)
           .maybeSingle();
 
@@ -117,6 +118,10 @@ const AdminLiveStreamPage = () => {
           if (profileRecord) {
             userRecord = profileRecord;
           }
+        }
+
+        if (userRecord?.club_slug) {
+          setClubSlug(userRecord.club_slug);
         }
 
         if (!userRecord || !userRecord.is_admin) {
@@ -454,7 +459,7 @@ const AdminLiveStreamPage = () => {
             {/* Painéis Administrativos e Moderadores */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
               <div className="space-y-6">
-                <PoolManager streamId={selectedStream.id} />
+                <PoolManager streamId={selectedStream.id} clubSlug={clubSlug || undefined} />
                 <PollManager streamId={selectedStream.id} />
               </div>
               <div className="space-y-6">

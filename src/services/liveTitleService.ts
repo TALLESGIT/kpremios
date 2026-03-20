@@ -1,27 +1,31 @@
 import { supabase } from '../lib/supabase';
-import { CruzeiroGame } from '../types';
+import { MatchGame } from '../types';
+import { getActiveMatchSettings } from './matchSettingsService';
 
 /**
- * Gera o título da live baseado no jogo do Cruzeiro
- * Formato: "Cruzeiro x [Adversário]"
+ * Gera o título da live baseado no jogo ativo
+ * Formato: "[Time A] x [Time B]"
  */
-export function generateLiveTitle(game: CruzeiroGame | null): string {
+export async function generateLiveTitle(game: MatchGame | null): Promise<string> {
   if (!game) {
-    return 'ZK TV';
+    return 'ZK-TV - A Casa do Futebol';
   }
 
+  const settings = await getActiveMatchSettings();
+  const primaryTeam = settings?.team_name || 'Cruzeiro';
+  
   const opponent = game.opponent || 'Adversário';
-  return `Cruzeiro x ${opponent}`;
+  return `${primaryTeam} x ${opponent}`;
 }
 
 /**
  * Busca o jogo ativo (status = 'live') ou o próximo jogo
  */
-export async function getActiveGame(): Promise<CruzeiroGame | null> {
+export async function getActiveGame(): Promise<MatchGame | null> {
   try {
     // Primeiro, tentar buscar jogo com status 'live'
     const { data: liveGame, error: liveError } = await supabase
-      .from('cruzeiro_games')
+      .from('match_games')
       .select('*')
       .eq('status', 'live')
       .order('date', { ascending: false })
@@ -29,13 +33,13 @@ export async function getActiveGame(): Promise<CruzeiroGame | null> {
       .maybeSingle();
 
     if (!liveError && liveGame) {
-      return liveGame as CruzeiroGame;
+      return liveGame as MatchGame;
     }
 
     // Se não encontrar jogo ao vivo, buscar próximo jogo
     const now = new Date().toISOString();
     const { data: nextGame, error: nextError } = await supabase
-      .from('cruzeiro_games')
+      .from('match_games')
       .select('*')
       .gte('date', now)
       .order('date', { ascending: true })
@@ -43,7 +47,7 @@ export async function getActiveGame(): Promise<CruzeiroGame | null> {
       .maybeSingle();
 
     if (!nextError && nextGame) {
-      return nextGame as CruzeiroGame;
+      return nextGame as MatchGame;
     }
 
     return null;
@@ -66,7 +70,7 @@ export async function updateLiveTitle(streamId?: string, channelName: string = '
       return false;
     }
 
-    const newTitle = generateLiveTitle(activeGame);
+    const newTitle = await generateLiveTitle(activeGame);
 
     // Se não tem streamId, buscar pelo channel_name
     if (!streamId) {

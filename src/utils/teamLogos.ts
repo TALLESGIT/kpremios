@@ -4,7 +4,7 @@
  */
 
 // Logos dos clubes via API brasileirão (cdn confiável e gratuito)
-const TEAM_LOGOS: Record<string, string> = {
+export const TEAM_LOGOS: Record<string, string> = {
   // ========== SÉRIE A ==========
   'Cruzeiro': 'https://logodetimes.com/times/cruzeiro/logo-cruzeiro-256.png',
   'Flamengo': 'https://logodetimes.com/times/flamengo/logo-flamengo-256.png',
@@ -88,7 +88,7 @@ const TEAM_LOGOS: Record<string, string> = {
 };
 
 // Cores primárias do clube (para fallback e gradientes)
-const TEAM_COLORS: Record<string, { primary: string; secondary: string }> = {
+export const TEAM_COLORS: Record<string, { primary: string; secondary: string }> = {
   'Cruzeiro': { primary: '#003DA5', secondary: '#FFFFFF' },
   'Flamengo': { primary: '#D1001C', secondary: '#000000' },
   'Palmeiras': { primary: '#006437', secondary: '#FFFFFF' },

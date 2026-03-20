@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { useSocket } from '../hooks/useSocket';
@@ -14,7 +14,6 @@ import {
     Minimize2,
     Eye,
     MessageSquare,
-    X,
     Crown,
     Target,
     Bell,
@@ -33,7 +32,7 @@ import VipMessageOverlay from '../components/live/VipMessageOverlay';
 import VipSubscriptionModal from '../components/vip/VipSubscriptionModal';
 import PoolBetModal from '../components/pool/PoolBetModal';
 import { CastButton } from '../components/CastButton';
-import { CruzeiroSettings, CruzeiroGame, CruzeiroStanding, YouTubeClip } from '../types';
+import { MatchSettings, MatchGame, MatchStanding } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useRegisterStreamId } from '../features/chat/useRegisterStreamId';
@@ -79,7 +78,7 @@ const NextMatchSkeleton = () => (
             </div>
             <div className="flex flex-col items-center">
                 <div className="w-8 h-4 bg-white/5 rounded mb-1" />
-                <div className="h-1 w-8 bg-blue-500/10 rounded-full" />
+                <div className="h-1 w-8 bg-indigo-500/10 rounded-full" />
             </div>
             <div className="flex flex-col items-center flex-1">
                 <div className="w-16 h-16 bg-white/5 rounded-2xl mb-3" />
@@ -101,31 +100,22 @@ const StatsSkeleton = () => (
     </div>
 );
 
-const COMPETITIONS = [
-    'Campeonato Brasileiro - Série A',
-    'Campeonato Mineiro',
-    'Copa Conmebol Libertadores',
-    'Copa Conmebol Sul-Americana',
-    'Copa do Brasil',
-    'Amistoso'
-];
 
 const ZkTVPage: React.FC = () => {
     const { user } = useAuth();
     const { currentUser } = useData();
     const [searchParams] = useSearchParams();
-    const navigate = useNavigate();
     const urlChannel = searchParams.get('channel');
 
     // Estados principais
-    const [settings, setSettings] = useState<CruzeiroSettings | null>(null);
-    const [games, setGames] = useState<CruzeiroGame[]>([]);
-    const [standings, setStandings] = useState<CruzeiroStanding[]>([]);
+    const [settings, setSettings] = useState<MatchSettings | null>(null);
+    const [games, setGames] = useState<MatchGame[]>([]);
+    const [standings, setStandings] = useState<MatchStanding[]>([]);
     const [activeStream, setActiveStream] = useState<LiveStream | null>(null);
     const isLiveActive = activeStream ? activeStream.is_active : !!settings?.is_live;
     
     // ✅ Cache States para carregamento instantâneo
-    const [cachedNextGame, setCachedNextGame] = useState<CruzeiroGame | null>(() => {
+    const [cachedNextGame, setCachedNextGame] = useState<MatchGame | null>(() => {
         const saved = localStorage.getItem(CACHE_KEY_NEXT_GAME);
         try { return saved ? JSON.parse(saved) : null; } catch { return null; }
     });
@@ -143,8 +133,17 @@ const ZkTVPage: React.FC = () => {
         }
     });
 
+    const [userClub, setUserClub] = useState<string>('cruzeiro');
+
+    // Sincronizar userClub com o currentUser
+    useEffect(() => {
+        if (currentUser?.club_slug) {
+            setUserClub(currentUser.club_slug);
+        }
+    }, [currentUser]);
+
     const [activeTab, setActiveTab] = useState<'games' | 'standings' | 'clips'>('games');
-    const [selectedComp, setSelectedComp] = useState<string>('Campeonato Brasileiro - Série A');
+    const [selectedComp] = useState<string>('Campeonato Brasileiro - Série A');
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [isLandscape, setIsLandscape] = useState(false);
@@ -158,7 +157,7 @@ const ZkTVPage: React.FC = () => {
     const trackViewerExecutedRef = useRef(false);
     const videoContainerRef = useRef<HTMLDivElement>(null);
     const activeStreamRef = useRef<LiveStream | null>(null);
-    const [showPerf, setShowPerf] = useState(false); // Para debug de performance
+    const [showPerf] = useState(false); // Para debug de performance
     const [isPageLoading, setIsPageLoading] = useState(true); // Loading state para renderização rápida
 
     // Novos estados para VIP e Bolão
@@ -434,11 +433,11 @@ const ZkTVPage: React.FC = () => {
     useEffect(() => {
         const settingsSub = supabase
             .channel('zk-tv-updates')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'cruzeiro_settings' }, () => loadSettings())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'cruzeiro_games' }, () => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'match_settings' }, () => loadSettings())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'match_games' }, () => {
                 loadData();
             })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'cruzeiro_standings' }, () => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'match_standings' }, () => {
                 loadData();
             })
             .subscribe();
@@ -926,7 +925,7 @@ const ZkTVPage: React.FC = () => {
     }, [games.length, standings.length]);
 
     const loadSettings = async () => {
-        const { data } = await supabase.from('cruzeiro_settings').select('*').single();
+        const { data } = await supabase.from('match_settings').select('*').single();
         if (data) setSettings(data);
     };
 
@@ -989,7 +988,7 @@ const ZkTVPage: React.FC = () => {
             // Se não há jogos carregados ainda (primeiro carregamento), buscar do banco com filtro
             if (finishedGames.length === 0 && games.length === 0) {
                 let query = supabase
-                    .from('cruzeiro_games')
+                    .from('match_games')
                     .select('*')
                     .eq('status', 'finished');
 
@@ -1004,7 +1003,7 @@ const ZkTVPage: React.FC = () => {
                     const { data: topScorersData } = await supabase
                         .from('site_settings')
                         .select('value')
-                        .eq('key', 'cruzeiro_top_scorers')
+                        .eq('key', 'match_top_scorers')
                         .maybeSingle();
 
                     const topScorerName = topScorersData?.value?.leagues?.[currentComp]?.name || 'N/A';
@@ -1032,9 +1031,9 @@ const ZkTVPage: React.FC = () => {
                 }, 0);
 
                 const { data: standingsData } = await supabase
-                    .from('cruzeiro_standings')
+                    .from('match_standings')
                     .select('*')
-                    .eq('is_cruzeiro', true)
+                    .eq('is_primary_team', true)
                     .eq('competition', currentComp)
                     .maybeSingle();
 
@@ -1051,7 +1050,8 @@ const ZkTVPage: React.FC = () => {
                 const { data: topScorersData } = await supabase
                     .from('site_settings')
                     .select('value')
-                    .eq('key', 'cruzeiro_top_scorers')
+                    .eq('key', 'match_top_scorers')
+                    .eq('club_slug', userClub)
                     .maybeSingle();
 
                 const topScorerName = topScorersData?.value?.leagues?.[currentComp]?.name || 'N/A';
@@ -1083,10 +1083,10 @@ const ZkTVPage: React.FC = () => {
                 return total;
             }, 0);
 
-            const cruzeiroStanding = standings.find(s => s.is_cruzeiro && s.competition === currentComp);
+            const primaryStanding = standings.find(s => s.is_primary_team && s.competition === currentComp);
             let winRate = 0;
-            if (cruzeiroStanding && cruzeiroStanding.played > 0) {
-                winRate = Math.round((cruzeiroStanding.points / (cruzeiroStanding.played * 3)) * 100);
+            if (primaryStanding && primaryStanding.played > 0) {
+                winRate = Math.round((primaryStanding.points / (primaryStanding.played * 3)) * 100);
             } else if (finishedGames.length > 0) {
                 const draws = finishedGames.filter(g => g.score_home === g.score_away).length;
                 const totalPoints = victories * 3 + draws;
@@ -1097,7 +1097,8 @@ const ZkTVPage: React.FC = () => {
             const { data: topScorersData } = await supabase
                 .from('site_settings')
                 .select('value')
-                .eq('key', 'cruzeiro_top_scorers')
+                .eq('key', 'match_top_scorers')
+                .eq('club_slug', userClub)
                 .maybeSingle();
 
             const topScorerName = topScorersData?.value?.leagues?.[currentComp]?.name || 'N/A';
@@ -1127,9 +1128,9 @@ const ZkTVPage: React.FC = () => {
     const loadData = async () => {
         try {
             const [settingsRes, gamesRes, standingsRes] = await Promise.all([
-                supabase.from('cruzeiro_settings').select('*').single(),
-                supabase.from('cruzeiro_games').select('*').order('date', { ascending: true }),
-                supabase.from('cruzeiro_standings').select('*').order('position', { ascending: true })
+                supabase.from('match_settings').select('*').eq('club_slug', userClub).maybeSingle(),
+                supabase.from('match_games').select('*').eq('club_slug', userClub).order('date', { ascending: true }),
+                supabase.from('match_standings').select('*').eq('club_slug', userClub).order('position', { ascending: true })
             ]);
 
             if (settingsRes.error) {
@@ -1166,7 +1167,7 @@ const ZkTVPage: React.FC = () => {
             // Recalcular stats após carregar todos os dados
             setTimeout(() => loadQuickStats(selectedComp), 200);
         } catch (error) {
-            console.error('❌ Error loading Cruzeiro data:', error);
+            console.error('❌ Error loading football data:', error);
         }
     };
 
@@ -1265,7 +1266,7 @@ const ZkTVPage: React.FC = () => {
 
     // Agrupar classificações por competição
     const groupedStandings = useMemo(() => {
-        const groups: Record<string, CruzeiroStanding[]> = {};
+        const groups: Record<string, MatchStanding[]> = {};
         standings.forEach(s => {
             const comp = s.competition || 'Outros';
             if (!groups[comp]) groups[comp] = [];
@@ -1300,10 +1301,10 @@ const ZkTVPage: React.FC = () => {
         return '';
     };
 
-    const renderStandingTable = (competitionName: string, competitionStandings: CruzeiroStanding[]) => (
+    const renderStandingTable = (competitionName: string, competitionStandings: MatchStanding[]) => (
         <div key={competitionName} className="mb-12 last:mb-0">
             <div className="flex items-center gap-3 mb-6">
-                <div className="w-1 h-8 bg-blue-600 rounded-full" />
+                <div className="w-1 h-8 bg-indigo-600 rounded-full" />
                 <h3 className="text-xl font-black text-white uppercase tracking-wider">{competitionName}</h3>
             </div>
 
@@ -1325,7 +1326,7 @@ const ZkTVPage: React.FC = () => {
                         {competitionStandings.map((team) => (
                             <tr
                                 key={team.id}
-                                className={`group hover:bg-white/5 transition-colors ${team.is_cruzeiro ? 'bg-blue-600/10' : ''}`}
+                                className={`group hover:bg-white/5 transition-colors ${team.is_primary_team ? 'bg-indigo-600/10' : ''}`}
                             >
                                 <td className="px-6 py-4 text-center">
                                     <div className="flex items-center justify-center">
@@ -1343,7 +1344,7 @@ const ZkTVPage: React.FC = () => {
                                                 size="sm"
                                             />
                                         </div>
-                                        <span className={`font-bold text-sm sm:text-base ${team.is_cruzeiro ? 'text-blue-500' : 'text-white'}`}>
+                                        <span className={`font-bold text-sm sm:text-base ${team.is_primary_team ? 'text-indigo-400' : 'text-white'}`}>
                                             {team.team}
                                         </span>
                                     </div>
@@ -1367,10 +1368,10 @@ const ZkTVPage: React.FC = () => {
     );
 
     // Renderizar cards de classificação mobile de um grupo
-    const renderMobileStandingGroup = (competitionName: string, competitionStandings: CruzeiroStanding[]) => (
+    const renderMobileStandingGroup = (competitionName: string, competitionStandings: MatchStanding[]) => (
         <div key={`mobile-${competitionName}`} className="mb-10 last:mb-0">
             <div className="flex items-center gap-3 mb-4 px-1">
-                <div className="w-1 h-6 bg-blue-600 rounded-full" />
+                <div className="w-1 h-6 bg-indigo-600 rounded-full" />
                 <h3 className="text-lg font-black text-white uppercase tracking-wider">{competitionName}</h3>
             </div>
 
@@ -1378,7 +1379,7 @@ const ZkTVPage: React.FC = () => {
                 {competitionStandings.map((team) => (
                     <div
                         key={team.id}
-                        className={`p-4 rounded-xl border-l-[4px] border border-white/5 bg-zinc-900/50 backdrop-blur-sm ${team.is_cruzeiro ? 'ring-1 ring-blue-500/30' : ''} ${getZoneColor(team.position, competitionName) ? getZoneColor(team.position, competitionName).replace('bg-', 'border-') : 'border-l-white/5'}`}
+                        className={`p-4 rounded-xl border-l-[4px] border border-white/5 bg-zinc-900/50 backdrop-blur-sm ${team.is_primary_team ? 'ring-1 ring-indigo-500/30' : ''} ${getZoneColor(team.position, competitionName) ? getZoneColor(team.position, competitionName).replace('bg-', 'border-') : 'border-l-white/5'}`}
                     >
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-4">
@@ -1393,11 +1394,11 @@ const ZkTVPage: React.FC = () => {
                                     />
                                 </div>
                                 <div className="ml-1">
-                                    <h4 className={`font-black text-base leading-tight ${team.is_cruzeiro ? 'text-blue-500' : 'text-white'}`}>
+                                    <h4 className={`font-black text-base leading-tight ${team.is_primary_team ? 'text-indigo-400' : 'text-white'}`}>
                                         {team.team}
                                     </h4>
                                     <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{team.points} PTS</span>
+                                        <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{team.points} PTS</span>
                                         <div className="w-1 h-1 rounded-full bg-white/20" />
                                         <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{team.played} JOGOS</span>
                                     </div>
@@ -1488,13 +1489,13 @@ const ZkTVPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#030712] flex flex-col pt-16 text-white font-sans selection:bg-blue-500/30">
+        <div className="min-h-screen bg-[#030712] flex flex-col pt-16 text-white font-sans selection:bg-indigo-500/30">
             <Header />
 
             {/* Hero Section / Live Stream */}
             <section className="relative pt-24 sm:pt-28 lg:pt-32 pb-12 sm:pb-16 lg:pb-20 overflow-visible">
                 {/* Background Glow */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-full bg-blue-600/10 blur-[120px] rounded-full pointer-events-none -z-10" />
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-full bg-indigo-600/5 blur-[120px] rounded-full pointer-events-none -z-10" />
 
                 <div className="max-w-6xl xl:max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex flex-col items-center gap-8 sm:gap-10 lg:gap-12">
@@ -1504,7 +1505,7 @@ const ZkTVPage: React.FC = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 className="flex flex-wrap items-center justify-center gap-3 mb-6"
                             >
-                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-400 text-sm font-bold">
+                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-indigo-400 text-sm font-bold">
                                     <Tv className="w-4 h-4" />
                                     ZK TV
                                 </div>
@@ -1551,12 +1552,12 @@ const ZkTVPage: React.FC = () => {
                                 {isLiveActive ? (
                                     <>
                                         {(activeStream?.title || 'Ao Vivo').split(' x ')[0]}
-                                        <span className="text-blue-500">
+                                        <span className="text-indigo-500">
                                             {activeStream?.title?.includes(' x ') ? ` x ${activeStream.title.split(' x ')[1]}` : ''}
                                         </span>
                                     </>
                                 ) : (
-                                    <>ZK <span className="text-blue-500">TV</span></>
+                                    <>ZK <span className="text-indigo-500">TV</span></>
                                 )}
                             </motion.h1>
 
@@ -1568,7 +1569,7 @@ const ZkTVPage: React.FC = () => {
                             >
                                 {isLiveActive
                                     ? `Assista agora: ${activeStream?.title || 'ZK TV'}. Acompanhe ao vivo com a melhor qualidade e interatividade.`
-                                    : 'Acompanhe tudo sobre o Maior de Minas. Transmissões ao vivo, estatísticas, próximos jogos e muito mais em um só lugar.'
+                                    : 'Acompanhe as transmissões ao vivo, estatísticas, jogos e muito mais em um só lugar premium para os maiores fãs.'
                                 }
                             </motion.p>
 
@@ -1632,12 +1633,12 @@ const ZkTVPage: React.FC = () => {
                                                 <div className="flex items-center justify-between gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
                                                     <div className="flex flex-col items-center flex-1 min-w-0">
                                                         <TeamLogo
-                                                            teamName="Cruzeiro"
+                                                            teamName={userClub === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time'}
                                                             size="lg"
                                                             showName={false}
                                                             className="mb-2 sm:mb-3"
                                                         />
-                                                        <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full">Cruzeiro</span>
+                                                        <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full">{userClub === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time'}</span>
                                                     </div>
 
                                                     <div className="flex flex-col items-center flex-shrink-0">
@@ -1920,7 +1921,7 @@ const ZkTVPage: React.FC = () => {
                                         <div className="flex items-center justify-between mb-3 sm:mb-4 lg:mb-6 gap-2 sm:gap-4">
                                             <div className="text-center flex-1 min-w-0">
                                                 <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-2 sm:mb-3 shadow-lg shadow-blue-600/20 font-black text-white text-xs sm:text-sm lg:text-base">CRU</div>
-                                                <span className="text-xs sm:text-sm font-bold block truncate">Cruzeiro</span>
+                                                <span className="text-xs sm:text-sm font-bold block truncate">{settings?.team_name || (userClub === 'cruzeiro' ? "Cruzeiro" : "Meu Time")}</span>
                                             </div>
                                             <div className="px-1 sm:px-2 lg:px-4 text-lg sm:text-xl lg:text-2xl font-black italic text-slate-700 flex-shrink-0">VS</div>
                                             <div className="text-center flex-1 min-w-0">
@@ -2032,7 +2033,7 @@ const ZkTVPage: React.FC = () => {
                                                                     <div className="text-xs sm:text-sm font-bold text-blue-500 mb-1">{game.competition}</div>
                                                                     {/* Mobile: duas linhas | Desktop: uma linha */}
                                                                     <div className="text-sm sm:text-base lg:text-xl font-black text-center sm:text-left">
-                                                                        <span className="block sm:inline">Cruzeiro</span>
+                                                                        <span className="block sm:inline">{userClub === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time'}</span>
                                                                         <span className="text-slate-600 mx-1 sm:mx-2 block sm:inline">x</span>
                                                                         <span className="block sm:inline">{game.opponent}</span>
                                                                     </div>
@@ -2084,24 +2085,40 @@ const ZkTVPage: React.FC = () => {
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        // Se não houver resultado do bolão, mostrar jogos finalizados do Cruzeiro
+                                                        // Se não houver resultado do bolão, mostrar últimos jogos
                                                         recentGames.map(game => (
                                                             <div key={game.id} className="p-3 sm:p-4 bg-slate-950/40 border border-slate-900 rounded-xl sm:rounded-2xl transition-all hover:bg-slate-900/40">
                                                                 <div className="flex items-center justify-between gap-3">
                                                                     <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
                                                                         <div className="flex items-center gap-2 min-w-0">
-                                                                            <TeamLogo teamName={game.is_home ? 'Cruzeiro' : game.opponent} customLogo={game.is_home ? undefined : game.opponent_logo} size="xs" />
+                                                                            <TeamLogo 
+                                                                                teamName={game.is_home 
+                                                                                    ? (game.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time') 
+                                                                                    : game.opponent} 
+                                                                                customLogo={game.is_home ? undefined : game.opponent_logo} 
+                                                                                size="xs" 
+                                                                            />
                                                                             <span className={`text-[10px] sm:text-xs font-bold truncate ${game.is_home ? 'text-blue-400' : 'text-slate-300'}`}>
-                                                                                {game.is_home ? 'Cruzeiro' : game.opponent}
+                                                                                {game.is_home 
+                                                                                    ? (game.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time') 
+                                                                                    : game.opponent}
                                                                             </span>
                                                                         </div>
 
                                                                         <span className="text-[10px] text-slate-600 font-black italic">VS</span>
 
                                                                         <div className="flex items-center gap-2 min-w-0">
-                                                                            <TeamLogo teamName={game.is_home ? game.opponent : 'Cruzeiro'} customLogo={game.is_home ? game.opponent_logo : undefined} size="xs" />
+                                                                            <TeamLogo 
+                                                                                teamName={!game.is_home 
+                                                                                    ? (game.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time') 
+                                                                                    : game.opponent} 
+                                                                                customLogo={!game.is_home ? undefined : game.opponent_logo} 
+                                                                                size="xs" 
+                                                                            />
                                                                             <span className={`text-[10px] sm:text-xs font-bold truncate ${!game.is_home ? 'text-blue-400' : 'text-slate-300'}`}>
-                                                                                {!game.is_home ? 'Cruzeiro' : game.opponent}
+                                                                                {!game.is_home 
+                                                                                    ? (game.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time') 
+                                                                                    : game.opponent}
                                                                             </span>
                                                                         </div>
                                                                     </div>

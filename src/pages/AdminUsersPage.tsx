@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -31,6 +31,7 @@ interface User {
   email: string;
   whatsapp: string;
   is_admin: boolean;
+  club_slug: string | null;
   free_number: number | null;
   created_at: string;
   last_login: string | null;
@@ -42,6 +43,11 @@ interface User {
   won_prize: string | null;
 }
 
+interface Club {
+  slug: string;
+  name: string;
+}
+
 const AdminUsersPage: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser: currentAppUser } = useData();
@@ -51,25 +57,70 @@ const AdminUsersPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'winners' | 'admins'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(15);
+  const [totalItems, setTotalItems] = useState(0);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [clubs, setClubs] = useState<Club[]>([]);
+  const [updating, setUpdating] = useState(false);
+  const [editAdmin, setEditAdmin] = useState(false);
+  const [editClub, setEditClub] = useState('');
+  const [stats, setStats] = useState({ total: 0, active: 0, winners: 0, admins: 0 });
 
-  useEffect(() => {
-    if (currentAppUser?.is_admin) {
-      loadUsers();
+  const loadClubs = async () => {
+    try {
+      const { data } = await supabase.from('clubs_config').select('slug, name');
+      if (data) setClubs(data);
+    } catch (e) {
+      console.error('Erro ao carregar clubes');
     }
-  }, [currentAppUser]);
+  };
 
-  const loadUsers = async () => {
+  const loadStats = async () => {
+    try {
+      const [totalRes, adminsRes, winnersRes] = await Promise.all([
+        supabase.from('users').select('*', { count: 'exact', head: true }),
+        supabase.from('users').select('*', { count: 'exact', head: true }).eq('is_admin', true),
+        supabase.from('users').select('*', { count: 'exact', head: true }).eq('is_winner', true)
+      ]);
+
+      setStats({
+        total: totalRes.count || 0,
+        active: totalRes.count || 0,
+        admins: adminsRes.count || 0,
+        winners: winnersRes.count || 0
+      });
+    } catch (e) {
+      console.error('Erro ao carregar estatísticas');
+    }
+  };
+
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      let query = supabase
         .from('users')
         .select(`
           *,
           extra_number_requests(count)
-        `)
-        .order('created_at', { ascending: false });
+        `, { count: 'exact' });
+
+      // Search
+      if (searchTerm) {
+        query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,whatsapp.ilike.%${searchTerm}%`);
+      }
+
+      // Filters
+      if (statusFilter === 'winners') query = query.eq('is_winner', true);
+      if (statusFilter === 'admins') query = query.eq('is_admin', true);
+
+      // Pagination
+      const from = (currentPage - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+      
+      const { data, count, error } = await query
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       if (error) throw error;
 
@@ -97,31 +148,23 @@ const AdminUsersPage: React.FC = () => {
       }));
 
       setUsers(processedUsers);
+      setTotalItems(count || 0);
     } catch (error) {
       toast.error('Erro ao carregar usuários');
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, itemsPerPage, searchTerm, statusFilter]);
 
-  const filteredUsers = users.filter(u => {
-    const matchesSearch =
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.whatsapp.includes(searchTerm);
+  useEffect(() => {
+    if (currentAppUser?.is_admin) {
+      loadUsers();
+      loadClubs();
+      loadStats();
+    }
+  }, [currentAppUser, loadUsers]);
 
-    const matchesStatus =
-      statusFilter === 'all' ||
-      (statusFilter === 'active' && u.is_active) ||
-      (statusFilter === 'inactive' && !u.is_active) ||
-      (statusFilter === 'winners' && u.is_winner) ||
-      (statusFilter === 'admins' && u.is_admin);
-
-    return matchesSearch && matchesStatus;
-  });
-
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-  const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   const handleUserAction = async (userId: string, action: 'toggle_status' | 'view_details' | 'delete') => {
     const targetUser = users.find(u => u.id === userId);
@@ -129,6 +172,8 @@ const AdminUsersPage: React.FC = () => {
 
     if (action === 'view_details') {
       setSelectedUser(targetUser);
+      setEditAdmin(targetUser.is_admin);
+      setEditClub(targetUser.club_slug || '');
       setShowUserModal(true);
     } else if (action === 'toggle_status') {
       toast.success('Em breve: Ativar/Desativar usuários');
@@ -154,6 +199,7 @@ const AdminUsersPage: React.FC = () => {
       if (error) throw error;
       toast.success('Usuário excluído!');
       await loadUsers();
+      await loadStats();
     } catch (err: any) {
       toast.error('Erro ao excluir');
     }
@@ -166,17 +212,60 @@ const AdminUsersPage: React.FC = () => {
     window.open(`https://wa.me/${final}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  const exportUsers = () => {
-    const csv = [
-      ['Nome', 'Email', 'WhatsApp', 'Admin', 'Gratuito', 'Extras', 'Data'],
-      ...filteredUsers.map(u => [u.name, u.email, u.whatsapp, u.is_admin ? 'S' : 'N', u.free_number || 'N/A', u.total_extra_numbers, new Date(u.created_at).toLocaleDateString()])
-    ].map(r => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'usuarios.csv';
-    a.click();
+  const handleUpdateUserLevel = async () => {
+    if (!selectedUser) return;
+
+    try {
+      setUpdating(true);
+      const { error } = await supabase
+        .from('users')
+        .update({
+          is_admin: editAdmin,
+          club_slug: editClub || null
+        })
+        .eq('id', selectedUser.id);
+
+      if (error) throw error;
+
+      toast.success('Nível de acesso atualizado!');
+      await loadUsers();
+      await loadStats();
+      setShowUserModal(false);
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Erro ao atualizar nível de acesso');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const exportAllUsers = async () => {
+    toast.loading('Preparando exportação completa...');
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('name, email, whatsapp, is_admin, free_number, created_at')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const csv = [
+        ['Nome', 'Email', 'WhatsApp', 'Admin', 'Gratuito', 'Data'],
+        ...data.map(u => [u.name, u.email, u.whatsapp, u.is_admin ? 'S' : 'N', u.free_number || 'N/A', new Date(u.created_at).toLocaleDateString()])
+      ].map(r => r.join(',')).join('\n');
+      
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `usuarios_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      toast.dismiss();
+      toast.success('Exportação concluída!');
+    } catch (e) {
+      toast.dismiss();
+      toast.error('Erro na exportação');
+    }
   };
 
   if (!currentAppUser?.is_admin) {
@@ -209,10 +298,10 @@ const AdminUsersPage: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <button onClick={loadUsers} className="p-3.5 rounded-2xl bg-slate-800/50 border border-white/5 text-slate-400 hover:text-white transition-all hover:bg-slate-800">
+            <button onClick={() => { loadUsers(); loadStats(); }} className="p-3.5 rounded-2xl bg-slate-800/50 border border-white/5 text-slate-400 hover:text-white transition-all hover:bg-slate-800">
               <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
             </button>
-            <button onClick={exportUsers} className="flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-xs tracking-widest transition-all shadow-lg shadow-emerald-600/20 active:scale-95">
+            <button onClick={exportAllUsers} className="flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-xs tracking-widest transition-all shadow-lg shadow-emerald-600/20 active:scale-95">
               <Download className="w-4 h-4" />
               <span>Exportar CSV</span>
             </button>
@@ -222,10 +311,10 @@ const AdminUsersPage: React.FC = () => {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            { label: 'Total', count: users.length, icon: Users, color: 'blue' },
-            { label: 'Ativos', count: users.filter(u => u.is_active).length, icon: CheckCircle, color: 'emerald' },
-            { label: 'Ganhadores', count: users.filter(u => u.is_winner).length, icon: Trophy, color: 'amber' },
-            { label: 'Admins', count: users.filter(u => u.is_admin).length, icon: Shield, color: 'purple' }
+            { label: 'Total', count: stats.total, icon: Users, color: 'blue' },
+            { label: 'Ativos', count: stats.active, icon: CheckCircle, color: 'emerald' },
+            { label: 'Ganhadores', count: stats.winners, icon: Trophy, color: 'amber' },
+            { label: 'Admins', count: stats.admins, icon: Shield, color: 'purple' }
           ].map((stat, i) => (
             <motion.div
               key={i}
@@ -254,18 +343,16 @@ const AdminUsersPage: React.FC = () => {
               type="text"
               placeholder="Buscar por nome, email ou WhatsApp..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               className="w-full pl-12 pr-6 py-4 bg-slate-900/50 border border-white/5 rounded-2xl text-white font-bold text-sm focus:outline-none focus:border-blue-500/50 transition-colors"
             />
           </div>
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
+            onChange={(e) => { setStatusFilter(e.target.value as any); setCurrentPage(1); }}
             className="w-full md:w-64 px-6 py-4 bg-slate-900/50 border border-white/5 rounded-2xl text-slate-300 font-black text-xs uppercase tracking-widest focus:outline-none focus:border-blue-500/50 transition-colors cursor-pointer appearance-none"
           >
             <option value="all">Todos os tipos</option>
-            <option value="active">Usuários Ativos</option>
-            <option value="inactive">Usuários Inativos</option>
             <option value="winners">Ganhadores</option>
             <option value="admins">Administradores</option>
           </select>
@@ -285,7 +372,16 @@ const AdminUsersPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {paginatedUsers.length === 0 ? (
+                {loading ? (
+                    <tr>
+                      <td colSpan={5} className="px-8 py-20 text-center">
+                        <div className="flex flex-col items-center opacity-30">
+                          <RefreshCw className="w-12 h-12 mb-4 animate-spin" />
+                          <p className="font-black uppercase italic tracking-widest text-sm">Carregando usuários...</p>
+                        </div>
+                      </td>
+                    </tr>
+                ) : users.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-8 py-20 text-center">
                       <div className="flex flex-col items-center opacity-30">
@@ -295,7 +391,7 @@ const AdminUsersPage: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  paginatedUsers.map((u, i) => (
+                  users.map((u, i) => (
                     <motion.tr
                       key={u.id}
                       initial={{ opacity: 0, y: 10 }}
@@ -341,7 +437,12 @@ const AdminUsersPage: React.FC = () => {
                       <td className="px-8 py-5">
                         <div className="flex items-center gap-2">
                           {u.is_admin ? (
-                            <span className="px-3 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[9px] font-black uppercase tracking-widest">Admin</span>
+                            <div className="flex flex-col gap-1">
+                              <span className="px-3 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[9px] font-black uppercase tracking-widest">Admin</span>
+                              {u.club_slug && (
+                                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter text-center">Clube: {u.club_slug}</span>
+                              )}
+                            </div>
                           ) : u.is_winner ? (
                             <span className="px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-black uppercase tracking-widest">Ganhador</span>
                           ) : (
@@ -360,8 +461,8 @@ const AdminUsersPage: React.FC = () => {
                         </div>
                       </td>
                     </motion.tr>
-                  )
-                  ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -371,17 +472,18 @@ const AdminUsersPage: React.FC = () => {
             <div className="px-8 py-6 bg-slate-800/30 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                 Página <span className="text-white">{currentPage}</span> de <span className="text-white">{totalPages}</span>
+                <span className="ml-2 text-slate-600">({totalItems} usuários)</span>
               </p>
               <div className="flex gap-2">
                 <button
-                  disabled={currentPage === 1}
+                  disabled={currentPage === 1 || loading}
                   onClick={() => setCurrentPage(p => p - 1)}
                   className="p-2.5 rounded-xl bg-slate-900 border border-white/5 text-slate-400 disabled:opacity-20 hover:text-white transition-all shadow-xl"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 <button
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages || loading}
                   onClick={() => setCurrentPage(p => p + 1)}
                   className="p-2.5 rounded-xl bg-slate-900 border border-white/5 text-slate-400 disabled:opacity-20 hover:text-white transition-all shadow-xl"
                 >
@@ -419,8 +521,8 @@ const AdminUsersPage: React.FC = () => {
               </div>
 
               {/* Modal Content */}
-              <div className="px-8 pb-10 -mt-12 relative">
-                <div className="flex flex-col items-center text-center space-y-4">
+              <div className="px-8 pb-10 -mt-12 relative max-h-[80vh] overflow-y-auto custom-scrollbar">
+                <div className="flex flex-col items-center text-center space-y-4 mb-8">
                   <div className="w-24 h-24 rounded-[2rem] bg-slate-900 p-1 border border-white/10 shadow-2xl">
                     <div className="w-full h-full rounded-[1.75rem] bg-gradient-to-tr from-blue-600 to-blue-400 flex items-center justify-center text-white font-black text-3xl italic">
                       {selectedUser.name.charAt(0).toUpperCase()}
@@ -432,7 +534,7 @@ const AdminUsersPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="glass-panel-dark p-6 rounded-[2rem] border border-white/5 space-y-2">
                     <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">WhatsApp</p>
                     <div className="flex items-center justify-between">
@@ -473,6 +575,60 @@ const AdminUsersPage: React.FC = () => {
                       <p className="text-slate-500 text-[10px] font-bold uppercase">Em: {selectedUser.won_at ? new Date(selectedUser.won_at).toLocaleDateString('pt-BR') : 'N/A'}</p>
                     </div>
                   )}
+                </div>
+
+                {/* Management Section */}
+                <div className="mt-8 border-t border-white/5 pt-8 space-y-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Shield className="w-5 h-5 text-purple-400" />
+                    <h3 className="text-white font-black uppercase text-xs tracking-widest">Controle de Acesso</h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Status Administrativo</p>
+                      <button
+                        onClick={() => setEditAdmin(!editAdmin)}
+                        className={`w-full p-4 rounded-2xl border transition-all flex items-center justify-between ${editAdmin
+                          ? 'bg-purple-500/10 border-purple-500/30 text-purple-400'
+                          : 'bg-slate-950/40 border-white/5 text-slate-500'
+                          }`}
+                      >
+                        <span className="font-bold text-sm">{editAdmin ? 'Administrador' : 'Usuário Comum'}</span>
+                        <div className={`w-10 h-6 rounded-full relative transition-colors ${editAdmin ? 'bg-purple-500' : 'bg-slate-800'}`}>
+                          <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${editAdmin ? 'left-5' : 'left-1'}`} />
+                        </div>
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Clube Vinculado</p>
+                      <div className="relative">
+                        <select
+                          disabled={!editAdmin}
+                          value={editClub}
+                          onChange={(e) => setEditClub(e.target.value)}
+                          className="w-full p-4 bg-slate-950/40 border border-white/5 rounded-2xl text-white font-bold text-sm focus:outline-none focus:border-purple-500/50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed appearance-none"
+                        >
+                          <option value="">Nenhum Clube</option>
+                          {clubs.map(club => (
+                            <option key={club.slug} value={club.slug}>{club.name}</option>
+                          ))}
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-30">
+                          <ChevronRight className="w-5 h-5 rotate-90" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleUpdateUserLevel}
+                    disabled={updating}
+                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl shadow-blue-900/40 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {updating ? <RefreshCw className="w-5 h-5 animate-spin" /> : 'Salvar Alterações'}
+                  </button>
                 </div>
               </div>
             </motion.div>

@@ -8,12 +8,18 @@ import { supabase } from '../lib/supabase';
  *    (Acumulado anterior) + (70% do Valor Total Arrecadado no anterior)
  * 3. Se teve pelo menos 1 ganhador, o novo bolão começa com 0 acumulado.
  */
-export const calculateNextPoolAccumulated = async (): Promise<number> => {
+export const calculateNextPoolAccumulated = async (clubSlug?: string | null): Promise<number> => {
   try {
-    const { data: lastPool, error } = await supabase
+    let query = supabase
       .from('match_pools')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (clubSlug) {
+      query = query.eq('club_slug', clubSlug);
+    }
+
+    const { data: lastPool, error } = await query
       .limit(1)
       .maybeSingle();
 

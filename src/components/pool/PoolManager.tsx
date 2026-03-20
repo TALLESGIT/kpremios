@@ -21,6 +21,7 @@ const generateStreamSlug = (title: string): string => {
 
 interface PoolManagerProps {
   streamId: string;
+  clubSlug?: string;
 }
 
 interface MatchPool {
@@ -39,7 +40,7 @@ interface MatchPool {
   accumulated_amount: number;
 }
 
-const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
+const PoolManager: React.FC<PoolManagerProps> = ({ streamId, clubSlug }) => {
   const [pool, setPool] = useState<MatchPool | null>(null);
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -331,7 +332,7 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
         // 1. Se o bolão atual tem match_id, marcar o jogo como 'finished'
         if (pool.match_id) {
           const { error: gameUpdateError } = await supabase
-            .from('cruzeiro_games')
+            .from('match_games')
             .update({ status: 'finished', score_home: home, score_away: away })
             .eq('id', pool.match_id);
 
@@ -343,11 +344,18 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
         }
 
         // 2. Buscar o próximo jogo upcoming (data mais próxima)
-        const { data: nextGame, error: nextGameError } = await supabase
-          .from('cruzeiro_games')
+        let nextGameQuery = supabase
+          .from('match_games')
           .select('*')
           .eq('status', 'upcoming')
-          .gte('date', new Date().toISOString())
+          .gte('date', new Date().toISOString());
+
+        // Filtrar por club_slug se disponível
+        if (clubSlug) {
+          nextGameQuery = nextGameQuery.eq('club_slug', clubSlug);
+        }
+
+        const { data: nextGame, error: nextGameError } = await nextGameQuery
           .order('date', { ascending: true })
           .limit(1)
           .maybeSingle();
@@ -363,14 +371,22 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId }) => {
           if (!existingPool) {
             // 4. Criar live_stream para o próximo jogo
             const isHome = nextGame.is_home;
+            const clubName = clubSlug ? (clubSlug.charAt(0).toUpperCase() + clubSlug.slice(1)) : 'Meu Time';
+            
             const matchTitle = isHome
-              ? `Bolão: Cruzeiro x ${nextGame.opponent}`
-              : `Bolão: ${nextGame.opponent} x Cruzeiro`;
-            const homeTeam = isHome ? 'Cruzeiro' : nextGame.opponent;
-            const awayTeam = isHome ? nextGame.opponent : 'Cruzeiro';
-            const cruzeiroLogo = getTeamLogo('Cruzeiro') || 'https://logodetimes.com/times/cruzeiro/logo-cruzeiro-256.png';
-            const homeLogo = isHome ? cruzeiroLogo : (getTeamLogo(nextGame.opponent) || nextGame.opponent_logo || '');
-            const awayLogo = isHome ? (getTeamLogo(nextGame.opponent) || nextGame.opponent_logo || '') : cruzeiroLogo;
+              ? `Bolão: ${clubName} x ${nextGame.opponent}`
+              : `Bolão: ${nextGame.opponent} x ${clubName}`;
+            
+            const homeTeam = isHome ? clubName : nextGame.opponent;
+            const awayTeam = isHome ? nextGame.opponent : clubName;
+            
+            // Tenta obter o logo do time principal. Se for cruzeiro, usa o logo padrão.
+            const primaryLogo = (clubSlug === 'cruzeiro')
+              ? 'https://logodetimes.com/times/cruzeiro/logo-cruzeiro-256.png'
+              : (nextGame.club_logo || ''); // Caso exista um logo do clube no jogo
+            
+            const homeLogo = isHome ? primaryLogo : (getTeamLogo(nextGame.opponent) || nextGame.opponent_logo || '');
+            const awayLogo = isHome ? (getTeamLogo(nextGame.opponent) || nextGame.opponent_logo || '') : primaryLogo;
 
             const streamTitle = `Transmissão: ${matchTitle.replace('Bolão: ', '')}`;
             const channelSlug = generateStreamSlug(streamTitle);

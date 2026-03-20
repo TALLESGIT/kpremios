@@ -6,7 +6,7 @@ import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { useSocket } from '../hooks/useSocket';
 import { Play, Trophy, MonitorPlay, Target, MessageCircle, DollarSign, Instagram, Users, Tv } from 'lucide-react';
-import { CruzeiroGame } from '../types';
+import { MatchGame } from '../types';
 import PoolBetModal from '../components/pool/PoolBetModal';
 import AdvertisementCarousel from '../components/shared/AdvertisementCarousel';
 import TeamLogo from '../components/TeamLogo';
@@ -22,7 +22,7 @@ function HomePage() {
   const { currentUser } = useData();
   const [activePoolsCount, setActivePoolsCount] = useState(0);
   const [poolWinnersCount, setPoolWinnersCount] = useState(0);
-  const [nextGame, setNextGame] = useState<CruzeiroGame | null>(null);
+  const [nextGame, setNextGame] = useState<MatchGame | null>(null);
   const [loadingGame, setLoadingGame] = useState(true);
   const [hasActiveLive, setHasActiveLive] = useState(false);
   const [activePool, setActivePool] = useState<any>(null);
@@ -225,11 +225,15 @@ function HomePage() {
   const loadNextGame = async () => {
     setLoadingGame(true);
     try {
+      // Determinar o clube para filtrar (preferência do usuário ou padrão)
+      const targetClub = currentUser?.club_slug || 'cruzeiro';
+
       // Primeiro, tenta buscar se existe um jogo com status 'live'
       const { data: liveGame } = await supabase
-        .from('cruzeiro_games')
+        .from('match_games')
         .select('*')
         .eq('status', 'live')
+        .eq('club_slug', targetClub)
         .limit(1)
         .maybeSingle();
 
@@ -241,8 +245,9 @@ function HomePage() {
         today.setHours(0, 0, 0, 0);
 
         const { data, error } = await supabase
-          .from('cruzeiro_games')
+          .from('match_games')
           .select('*')
+          .eq('club_slug', targetClub)
           .gte('date', today.toISOString())
           .order('date', { ascending: true })
           .limit(1)
@@ -294,13 +299,13 @@ function HomePage() {
               className="mb-8"
             >
               <span className="inline-block px-5 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-black uppercase tracking-[0.3em] mb-6 shadow-lg shadow-blue-500/5">
-                ⚽ O MAIOR PORTAL DO CABULOSO ⚽
+                ⚽ O MAIOR PORTAL DE ESPORTES ⚽
               </span>
               <h1 className="text-6xl sm:text-8xl lg:text-9xl font-black text-white italic tracking-tighter uppercase leading-[0.85] mb-8">
-                ZK <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-white to-blue-500 drop-shadow-2xl">OFICIAL</span>
+                ZK <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-white to-blue-500 drop-shadow-2xl">TV</span>
               </h1>
               <p className="max-w-2xl mx-auto text-lg sm:text-xl text-blue-100/70 font-medium leading-relaxed tracking-tight mb-10">
-                Acompanhe o <span className="text-white font-bold">Cruzeiro</span> em tempo real, participe de bolões exclusivos e concorra a prêmios incríveis toda semana!
+                Acompanhe seu <span className="text-white font-bold">time do coração</span> em tempo real, participe de bolões exclusivos e concorra a prêmios incríveis toda semana!
               </p>
 
               <div className="flex flex-wrap justify-center gap-3 sm:gap-5">
@@ -363,6 +368,97 @@ function HomePage() {
 
             </motion.div>
           </div>
+
+          {/* Admin Managed Game Banner */}
+          {
+            !loadingGame && nextGame && (
+              <div className="mt-8 sm:mt-12 w-full max-w-4xl mx-auto px-4 z-20 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                <div className="relative group overflow-hidden rounded-[2.5rem] sm:rounded-[3rem] border border-white/10 shadow-2xl shadow-blue-500/10 bg-slate-900/40 backdrop-blur-xl min-h-[280px] sm:min-h-[220px]">
+                  {/* Background Banner Image */}
+                  {nextGame.banner_url && (
+                    <>
+                      <img
+                        src={nextGame.banner_url}
+                        alt="Banner do Jogo"
+                        className="absolute inset-0 w-full h-full object-cover sm:object-cover object-center transition-transform duration-1000 group-hover:scale-110 opacity-40"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-br from-slate-950/95 via-slate-950/80 to-blue-900/30 sm:from-slate-950/90 sm:via-slate-950/70 sm:to-blue-900/40"></div>
+                    </>
+                  )}
+
+                  {/* Dynamic Glow */}
+                  <div
+                    className="absolute -top-24 -right-24 w-64 h-64 blur-[120px] opacity-10 group-hover:opacity-30 transition-all duration-700"
+                    style={{ backgroundColor: getTeamColors(nextGame.opponent).primary }}
+                  ></div>
+
+                  <div className="relative z-20 p-6 sm:p-12 flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-8 h-full">
+                    <div className="flex flex-col items-center sm:items-start text-center sm:text-left w-full sm:w-auto">
+                      <span className={`px-3 py-1 rounded-full backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-white mb-6 sm:mb-4 shadow-lg ${nextGame.status === 'live' ? 'bg-red-600/80 shadow-red-500/20' :
+                        nextGame.status === 'finished' ? 'bg-emerald-600/80 shadow-emerald-500/20' :
+                          'bg-blue-600/80 shadow-blue-500/20'
+                        }`}>
+                        {nextGame.status === 'live' ? 'Partida Ao Vivo' :
+                          nextGame.status === 'finished' ? 'Partida Finalizada' :
+                            'Próxima Partida'}
+                      </span>
+
+                      <div className="flex items-center justify-center sm:justify-start gap-4 sm:gap-6 w-full">
+                        <div className="flex flex-col items-center gap-2 group/team cursor-pointer transition-transform hover:scale-105">
+                          <TeamLogo 
+                            teamName={nextGame.is_home 
+                              ? (nextGame.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time') 
+                              : nextGame.opponent} 
+                            size="lg" 
+                            showName={false} 
+                          />
+                          <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-tighter">
+                            {nextGame.is_home 
+                              ? (nextGame.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time') 
+                              : nextGame.opponent}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="text-xl sm:text-2xl font-black italic text-white/20">VS</div>
+                          <div className="h-[1px] w-8 bg-gradient-to-r from-transparent via-white/10 to-transparent mt-1" />
+                        </div>
+
+                        <div className="flex flex-col items-center gap-2 group/team cursor-pointer transition-transform hover:scale-105">
+                          <TeamLogo
+                            teamName={!nextGame.is_home 
+                              ? (nextGame.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time') 
+                              : nextGame.opponent}
+                            customLogo={!nextGame.is_home ? undefined : nextGame.opponent_logo}
+                            size="lg"
+                            showName={false}
+                          />
+                          <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-tighter text-center line-clamp-1 max-w-[100px] sm:max-w-[120px]">
+                            {!nextGame.is_home 
+                              ? (nextGame.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time') 
+                              : nextGame.opponent}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-center sm:items-end gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                      <div className="flex items-center gap-2 text-blue-400 font-black">
+                        <span className="text-base sm:text-lg bg-blue-500/20 px-5 py-2.5 rounded-2xl border border-blue-400/30 backdrop-blur-md text-blue-300 shadow-xl shadow-black/20">
+                          {new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} • {new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-950/40 px-4 py-1.5 rounded-full border border-white/5 backdrop-blur-sm">
+                          {nextGame.competition}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          }
 
           {/* LIVE STREAM BANNER - Moved up for better prominence */}
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 sm:mt-12">
@@ -435,81 +531,6 @@ function HomePage() {
               </div>
             </section>
           </div>
-
-          {/* Admin Managed Game Banner */}
-          {
-            !loadingGame && nextGame && (
-              <div className="mt-8 sm:mt-12 w-full max-w-4xl mx-auto px-4 z-20 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                <div className="relative group overflow-hidden rounded-[2.5rem] sm:rounded-[3rem] border border-white/10 shadow-2xl shadow-blue-500/10 bg-slate-900/40 backdrop-blur-xl min-h-[280px] sm:min-h-[220px]">
-                  {/* Background Banner Image */}
-                  {nextGame.banner_url && (
-                    <>
-                      <img
-                        src={nextGame.banner_url}
-                        alt="Banner do Jogo"
-                        className="absolute inset-0 w-full h-full object-cover sm:object-cover object-center transition-transform duration-1000 group-hover:scale-110 opacity-40"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-br from-slate-950/95 via-slate-950/80 to-blue-900/30 sm:from-slate-950/90 sm:via-slate-950/70 sm:to-blue-900/40"></div>
-                    </>
-                  )}
-
-                  {/* Dynamic Glow */}
-                  <div
-                    className="absolute -top-24 -right-24 w-64 h-64 blur-[120px] opacity-10 group-hover:opacity-30 transition-all duration-700"
-                    style={{ backgroundColor: getTeamColors(nextGame.opponent).primary }}
-                  ></div>
-
-                  <div className="relative z-20 p-6 sm:p-12 flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-8 h-full">
-                    <div className="flex flex-col items-center sm:items-start text-center sm:text-left w-full sm:w-auto">
-                      <span className={`px-3 py-1 rounded-full backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-white mb-6 sm:mb-4 shadow-lg ${nextGame.status === 'live' ? 'bg-red-600/80 shadow-red-500/20' :
-                        nextGame.status === 'finished' ? 'bg-emerald-600/80 shadow-emerald-500/20' :
-                          'bg-blue-600/80 shadow-blue-500/20'
-                        }`}>
-                        {nextGame.status === 'live' ? 'Partida Ao Vivo' :
-                          nextGame.status === 'finished' ? 'Partida Finalizada' :
-                            'Próxima Partida'}
-                      </span>
-
-                      <div className="flex items-center justify-center sm:justify-start gap-4 sm:gap-6 w-full">
-                        <div className="flex flex-col items-center gap-2 group/team cursor-pointer transition-transform hover:scale-105">
-                          <TeamLogo teamName="Cruzeiro" size="lg" showName={false} />
-                          <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-tighter">Cruzeiro</span>
-                        </div>
-
-                        <div className="flex flex-col items-center justify-center">
-                          <div className="text-xl sm:text-2xl font-black italic text-white/20">VS</div>
-                          <div className="h-[1px] w-8 bg-gradient-to-r from-transparent via-white/10 to-transparent mt-1" />
-                        </div>
-
-                        <div className="flex flex-col items-center gap-2 group/team cursor-pointer transition-transform hover:scale-105">
-                          <TeamLogo
-                            teamName={nextGame.opponent}
-                            customLogo={nextGame.opponent_logo}
-                            size="lg"
-                            showName={false}
-                          />
-                          <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-tighter text-center line-clamp-1 max-w-[100px] sm:max-w-[120px]">{nextGame.opponent}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col items-center sm:items-end gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-                      <div className="flex items-center gap-2 text-blue-400 font-black">
-                        <span className="text-base sm:text-lg bg-blue-500/20 px-5 py-2.5 rounded-2xl border border-blue-400/30 backdrop-blur-md text-blue-300 shadow-xl shadow-black/20">
-                          {new Date(nextGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} • {new Date(nextGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-950/40 px-4 py-1.5 rounded-full border border-white/5 backdrop-blur-sm">
-                          {nextGame.competition}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )
-          }
         </div>
 
         {/* Stats / Info Bar */}

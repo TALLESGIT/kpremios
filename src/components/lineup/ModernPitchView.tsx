@@ -1,344 +1,282 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '../../lib/supabase';
-import {
-  X,
-  Share2,
-  RefreshCcw,
-  Instagram,
-  Search,
-  Filter,
-  Trophy
+import { 
+  Share2, 
+  Trophy, 
+  Search, 
+  X, 
+  UserPlus,
+  Trash2,
+  AlertCircle,
+  Instagram
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
-import { toBlob } from 'html-to-image';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
 import { getTeamLogo, getTeamInitials } from '../../utils/teamLogos';
+import toast from 'react-hot-toast';
+import { toPng } from 'html-to-image';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-import { CruzeiroPlayer, CruzeiroGame } from '../../types';
+interface TeamPlayer {
+  id: string;
+  name: string;
+  position: string;
+  number: string;
+  photo_url: string | null;
+  club_slug?: string;
+  team_id?: number;
+}
 
-type FormationKey = '4-3-3' | '4-4-2' | '3-5-2' | '4-2-3-1' | '5-3-2';
+interface MatchGame {
+  id: string;
+  opponent: string;
+  opponent_logo: string | null;
+  date: string;
+  competition: string;
+  is_home: boolean;
+  club_slug: string;
+  club_logo?: string;
+  api_home_team_id?: number;
+  api_away_team_id?: number;
+}
 
-interface Position {
+interface FormationPosition {
   id: number;
-  role: 'GOL' | 'LAT' | 'ZAG' | 'MEI' | 'ATA';
+  role: string;
   top: number;
   left: number;
 }
 
-// ─── Formações ───────────────────────────────────────────────────────────────
-const FORMATIONS: Record<FormationKey, Position[]> = {
+const FORMATIONS: Record<string, FormationPosition[]> = {
   '4-4-2': [
-    { id: 1, role: 'GOL', top: 90, left: 50 },
-    { id: 2, role: 'LAT', top: 75, left: 15 },
-    { id: 3, role: 'ZAG', top: 80, left: 35 },
-    { id: 4, role: 'ZAG', top: 80, left: 65 },
-    { id: 5, role: 'LAT', top: 75, left: 85 },
-    { id: 6, role: 'MEI', top: 58, left: 38 },
-    { id: 7, role: 'MEI', top: 58, left: 62 },
-    { id: 8, role: 'MEI', top: 40, left: 18 },
-    { id: 9, role: 'MEI', top: 40, left: 82 },
-    { id: 10, role: 'ATA', top: 15, left: 32 },
-    { id: 11, role: 'ATA', top: 15, left: 68 },
+    { id: 1, role: 'GOL', top: 92, left: 50 },
+    { id: 2, role: 'LAT', top: 78, left: 15 },
+    { id: 3, role: 'ZAG', top: 82, left: 35 },
+    { id: 4, role: 'ZAG', top: 82, left: 65 },
+    { id: 5, role: 'LAT', top: 78, left: 85 },
+    { id: 6, role: 'MEI', top: 58, left: 18 },
+    { id: 7, role: 'MEI', top: 62, left: 40 },
+    { id: 8, role: 'MEI', top: 62, left: 60 },
+    { id: 9, role: 'MEI', top: 58, left: 82 },
+    { id: 10, role: 'ATA', top: 32, left: 35 },
+    { id: 11, role: 'ATA', top: 32, left: 65 },
   ],
   '4-3-3': [
-    { id: 1, role: 'GOL', top: 90, left: 50 },
-    { id: 2, role: 'LAT', top: 75, left: 15 },
-    { id: 3, role: 'ZAG', top: 80, left: 35 },
-    { id: 4, role: 'ZAG', top: 80, left: 65 },
-    { id: 5, role: 'LAT', top: 75, left: 85 },
-    { id: 6, role: 'MEI', top: 55, left: 50 },
-    { id: 7, role: 'MEI', top: 45, left: 22 },
-    { id: 8, role: 'MEI', top: 45, left: 78 },
-    { id: 9, role: 'ATA', top: 18, left: 15 },
-    { id: 10, role: 'ATA', top: 8, left: 50 },
-    { id: 11, role: 'ATA', top: 18, left: 85 },
+    { id: 1, role: 'GOL', top: 92, left: 50 },
+    { id: 2, role: 'LAT', top: 78, left: 15 },
+    { id: 3, role: 'ZAG', top: 82, left: 35 },
+    { id: 4, role: 'ZAG', top: 82, left: 65 },
+    { id: 5, role: 'LAT', top: 78, left: 85 },
+    { id: 6, role: 'MEI', top: 54, left: 50 },
+    { id: 7, role: 'MEI', top: 64, left: 25 },
+    { id: 8, role: 'MEI', top: 64, left: 75 },
+    { id: 9, role: 'ATA', top: 34, left: 15 },
+    { id: 10, role: 'ATA', top: 25, left: 50 },
+    { id: 11, role: 'ATA', top: 34, left: 85 },
   ],
   '3-5-2': [
-    { id: 1, role: 'GOL', top: 90, left: 50 },
-    { id: 2, role: 'ZAG', top: 75, left: 25 },
-    { id: 3, role: 'ZAG', top: 75, left: 50 },
-    { id: 4, role: 'ZAG', top: 75, left: 75 },
-    { id: 5, role: 'MEI', top: 48, left: 12 },
-    { id: 6, role: 'MEI', top: 58, left: 35 },
-    { id: 7, role: 'MEI', top: 38, left: 50 },
-    { id: 8, role: 'MEI', top: 58, left: 65 },
-    { id: 9, role: 'MEI', top: 48, left: 88 },
-    { id: 10, role: 'ATA', top: 15, left: 32 },
-    { id: 11, role: 'ATA', top: 15, left: 68 },
-  ],
-  '4-2-3-1': [
-    { id: 1, role: 'GOL', top: 90, left: 50 },
-    { id: 2, role: 'LAT', top: 75, left: 15 },
-    { id: 3, role: 'ZAG', top: 80, left: 35 },
-    { id: 4, role: 'ZAG', top: 80, left: 65 },
-    { id: 5, role: 'LAT', top: 75, left: 85 },
+    { id: 1, role: 'GOL', top: 92, left: 50 },
+    { id: 2, role: 'ZAG', top: 82, left: 25 },
+    { id: 3, role: 'ZAG', top: 82, left: 50 },
+    { id: 4, role: 'ZAG', top: 82, left: 75 },
+    { id: 5, role: 'LAT', top: 62, left: 15 },
     { id: 6, role: 'MEI', top: 62, left: 35 },
-    { id: 7, role: 'MEI', top: 62, left: 65 },
-    { id: 8, role: 'MEI', top: 42, left: 18 },
-    { id: 9, role: 'MEI', top: 32, left: 50 },
-    { id: 10, role: 'MEI', top: 42, left: 82 },
-    { id: 11, role: 'ATA', top: 12, left: 50 },
-  ],
-  '5-3-2': [
-    { id: 1, role: 'GOL', top: 90, left: 50 },
-    { id: 2, role: 'LAT', top: 62, left: 15 },
-    { id: 3, role: 'ZAG', top: 75, left: 28 },
-    { id: 4, role: 'ZAG', top: 82, left: 50 },
-    { id: 5, role: 'ZAG', top: 75, left: 72 },
-    { id: 6, role: 'LAT', top: 62, left: 85 },
-    { id: 7, role: 'MEI', top: 42, left: 25 },
-    { id: 8, role: 'MEI', top: 50, left: 50 },
-    { id: 9, role: 'MEI', top: 42, left: 75 },
-    { id: 10, role: 'ATA', top: 15, left: 32 },
-    { id: 11, role: 'ATA', top: 15, left: 68 },
-  ],
+    { id: 7, role: 'MEI', top: 54, left: 50 },
+    { id: 8, role: 'MEI', top: 62, left: 65 },
+    { id: 9, role: 'LAT', top: 62, left: 85 },
+    { id: 10, role: 'ATA', top: 32, left: 35 },
+    { id: 11, role: 'ATA', top: 32, left: 65 },
+  ]
 };
 
-// ─── Helper: logo adversário ──────────────────────────────────────────────────
-// Removida duplicata de getTeamInitials pois agora importamos do utilitário
-
-// ─── Componente principal ─────────────────────────────────────────────────────
 const ModernPitchView: React.FC = () => {
-  const pitchRef = useRef<HTMLDivElement>(null);
-  const [formation, setFormation] = useState<FormationKey>('4-4-2');
+  const { user } = useAuth();
+  const [formation, setFormation] = useState('4-4-2');
   const [activeTeam, setActiveTeam] = useState<'home' | 'away'>('home');
-  const [homePlayers, setHomePlayers] = useState<Record<number, CruzeiroPlayer | null>>({});
-  const [awayPlayers, setAwayPlayers] = useState<Record<number, CruzeiroPlayer | null>>({});
-  const [players, setPlayers] = useState<CruzeiroPlayer[]>([]);
-  const [nextGame, setNextGame] = useState<CruzeiroGame | null>(null);
-  const [opponentImgError, setOpponentImgError] = useState(false);
-  const [cruzeiroImgError, setCruzeiroImgError] = useState(false);
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
-  const [sharing, setSharing] = useState(false);
-  const [opponentPlayers, setOpponentPlayers] = useState<CruzeiroPlayer[]>([]);
-  const [loadingOpponents, setLoadingOpponents] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterPos, setFilterPos] = useState<string | null>(null);
+  const [filterPos, setFilterPos] = useState<string>('');
+  
+  const [homeSelected, setHomeSelected] = useState<Record<number, TeamPlayer>>({});
+  const [awaySelected, setAwaySelected] = useState<Record<number, TeamPlayer>>({});
+  
+  const [availablePlayers, setAvailablePlayers] = useState<TeamPlayer[]>([]);
+  const [opponentPlayers, setOpponentPlayers] = useState<TeamPlayer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sharing, setSharing] = useState(false);
+  const [nextGame, setNextGame] = useState<MatchGame | null>(null);
+  const [clubInfo, setClubInfo] = useState<{name: string, logo_url: string | null, brand_color: string} | null>(null);
 
-  const currentSelectedState = activeTeam === 'home' ? homePlayers : awayPlayers;
-  const setCurrentSelectedState = activeTeam === 'home' ? setHomePlayers : setAwayPlayers;
+  const [cruzeiroImgError, setCruzeiroImgError] = useState(false);
+  const [opponentImgError, setOpponentImgError] = useState(false);
 
-  const isTeamComplete =
-    Object.values(currentSelectedState).filter((p) => p !== null).length === 11;
+  const pitchRef = useRef<HTMLDivElement>(null);
+
+  const clubSlug = (user?.user_metadata?.club_slug as string) || 'cruzeiro';
 
   useEffect(() => {
-    loadPlayers();
-    loadNextGame(); // Keep this here for initial load of next game
-  }, []);
+    loadData();
+  }, [clubSlug]);
 
-  const loadNextGame = async () => {
+  const loadData = async () => {
     try {
-      const { data } = await supabase
-        .from('cruzeiro_games')
+      setLoading(true);
+      
+      const { data: clubData } = await supabase
+        .from('clubs_config')
+        .select('name, logo_url, brand_color')
+        .eq('slug', clubSlug)
+        .maybeSingle();
+      
+      if (clubData) {
+        setClubInfo(clubData);
+        setCruzeiroImgError(false); // Reset error state on data load
+      }
+
+      const { data: gameData } = await supabase
+        .from('match_games')
         .select('*')
-        .in('status', ['upcoming', 'live'])
+        .eq('club_slug', clubSlug)
+        .eq('status', 'upcoming')
         .order('date', { ascending: true })
         .limit(1)
         .maybeSingle();
-
-      if (data) { setNextGame(data); return; }
-
-      const { data: recent } = await supabase
-        .from('cruzeiro_games')
-        .select('*')
-        .eq('status', 'finished')
-        .order('date', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (recent) setNextGame(recent);
-    } catch (err) {
-      console.error('Erro ao carregar próximo jogo:', err);
-    }
-  };
-
-  const loadPlayers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('cruzeiro_players')
-        .select('*')
-        .eq('is_active', true)
-        .order('name', { ascending: true });
-
-      if (!error && data) setPlayers(data);
-    } catch (err) {
-      console.error('Erro ao carregar jogadores:', err);
-    }
-  };
-
-  const loadOpponentPlayers = useCallback(async () => {
-    if (!nextGame) return;
-    try {
-      setLoadingOpponents(true);
-
-      const opponentId = nextGame.is_home
-        ? nextGame.api_away_team_id
-        : nextGame.api_home_team_id;
-
-      if (!opponentId) {
-        setOpponentPlayers([]);
-        setLoadingOpponents(false); // Ensure loading state is reset
-        return;
+      
+      if (gameData) {
+        setNextGame(gameData);
+        setOpponentImgError(false);
+        
+        const oppTeamId = gameData.is_home ? gameData.api_away_team_id : gameData.api_home_team_id;
+        if (oppTeamId) {
+          const { data: oppPlayers } = await supabase
+            .from('opponent_players')
+            .select('*')
+            .eq('team_id', oppTeamId)
+            .order('name', { ascending: true });
+          
+          if (oppPlayers) setOpponentPlayers(oppPlayers as TeamPlayer[]);
+        }
       }
 
-      const { data, error } = await supabase
-        .from('opponent_players')
+      const { data: playerData } = await supabase
+        .from('team_players')
         .select('*')
-        .eq('team_id', opponentId)
-        .eq('is_active', true)
+        .eq('club_slug', clubSlug)
         .order('name', { ascending: true });
-
-      if (error) throw error;
-      setOpponentPlayers(data || []);
-    } catch (err) {
-      console.error('Erro ao carregar jogadores adversários:', err);
+      
+      if (playerData) setAvailablePlayers(playerData);
+      
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      toast.error('Erro ao carregar dados da escalação');
     } finally {
-      setLoadingOpponents(false);
+      setLoading(false);
     }
-  }, [nextGame]);
-
-  useEffect(() => {
-    if (activeTeam === 'away' && opponentPlayers.length === 0) {
-      loadOpponentPlayers();
-    }
-  }, [activeTeam, loadOpponentPlayers, opponentPlayers.length]);
-
-  const handleSelectPlayer = (player: CruzeiroPlayer) => {
-    if (activeSlot === null) return;
-
-    const existingSlot = Object.keys(currentSelectedState).find(
-      (key) => currentSelectedState[parseInt(key)]?.id === player.id
-    );
-
-    const newSelected = { ...currentSelectedState };
-    if (existingSlot) newSelected[parseInt(existingSlot)] = null;
-    newSelected[activeSlot] = player;
-
-    setCurrentSelectedState(newSelected);
-    setActiveSlot(null);
-    setSearchTerm('');
   };
 
-  // ─── Compartilhamento (100% Web) ──────────────────────────────────────────
-  const handleShare = useCallback(async () => {
+  const currentSelectedState = activeTeam === 'home' ? homeSelected : awaySelected;
+  const setTeamSelected = activeTeam === 'home' ? setHomeSelected : setAwaySelected;
+
+  const handleSelectPlayer = (player: TeamPlayer) => {
+    if (activeSlot === null) return;
+    setTeamSelected(prev => ({ ...prev, [activeSlot]: player }));
+    setActiveSlot(null);
+    setSearchTerm('');
+    toast.success(`${player.name} escalado!`);
+  };
+
+  const handleShare = async () => {
     if (!pitchRef.current) return;
     try {
       setSharing(true);
-      const loadingToast = toast.loading('Gerando imagem...');
-
-      await document.fonts.ready;
-      await new Promise((r) => setTimeout(r, 1500)); // Aumentado para 1.5s
-
-      const blob = await toBlob(pitchRef.current, {
-        quality: 0.95,
+      
+      const dataUrl = await toPng(pitchRef.current, {
+        cacheBust: true,
+        backgroundColor: '#030712',
         pixelRatio: 2,
-        cacheBust: true, // Adicionado cacheBust
-        style: { borderRadius: '0' },
       });
 
-      toast.dismiss(loadingToast);
-      if (!blob) throw new Error('Falha ao gerar imagem');
-
-      const file = new File([blob], 'minha-escalacao-zk.png', { type: 'image/png' });
-
-      // Tenta Web Share API (mobile Chrome / Safari)
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: 'Minha Escalação no ZK',
-          text: 'Confira meu time ideal do Cruzeiro! ⚽ @zkoficial',
-          files: [file],
-        });
-        return;
-      }
-
-      // Fallback: download direto
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'minha-escalacao-zk.png';
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success('📸 Imagem salva! Compartilhe nas redes sociais.', { duration: 4000 });
-    } catch (err: any) {
-      if (err?.name === 'AbortError') return; // Usuário cancelou
-      console.error('Erro ao compartilhar:', err);
-      toast.error('Erro ao gerar imagem. Tente novamente.');
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `escalacao-${activeTeam === 'home' ? (clubSlug || 'meu-time') : 'adversario'}.png`;
+      link.click();
+      
+      toast.success('Imagem gerada com sucesso!', {
+        icon: '📸',
+        style: {
+          borderRadius: '1rem',
+          background: '#10b981',
+          color: '#fff',
+          fontWeight: 'bold',
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro ao gerar imagem');
     } finally {
       setSharing(false);
     }
-  }, []);
+  };
 
-  // ─── Filtro de jogadores ──────────────────────────────────────────────────
-  const currentPlayerList = activeTeam === 'home' ? players : opponentPlayers;
+  const currentRoster = activeTeam === 'home' ? availablePlayers : opponentPlayers;
 
-  const filteredPlayers = currentPlayerList.filter((p) => {
+  const filteredPlayers = currentRoster.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-    if (!filterPos) return matchesSearch;
-    const pos = (p.position || '').toUpperCase();
-    if (filterPos === 'GOL') return matchesSearch && (pos.includes('GOLEIRO') || pos.includes('GOL'));
-    if (filterPos === 'ZAG') return matchesSearch && (pos.includes('ZAGUEIRO') || pos.includes('ZAG'));
-    if (filterPos === 'LAT') return matchesSearch && (pos.includes('LATERAL') || pos.includes('LAT'));
-    if (filterPos === 'MEI')
-      return matchesSearch && (pos.includes('MEIO') || pos.includes('VOLANTE') || pos.includes('MEI') || pos.includes('MEIA'));
-    if (filterPos === 'ATA')
-      return matchesSearch && (pos.includes('ATACANTE') || pos.includes('CENTROAVANTE') || pos.includes('ATA') || pos.includes('PONTA'));
-    return matchesSearch;
+    const matchesPos = p.position.includes(filterPos) || p.position === filterPos;
+    return matchesSearch && (filterPos ? matchesPos : true);
   });
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  const isTeamComplete = Object.keys(currentSelectedState).length === 11;
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-600 rounded-full animate-spin" />
+        <p className="text-blue-200/40 text-sm font-black uppercase tracking-widest animate-pulse">Carregando Elenco...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-4 w-full max-w-md mx-auto items-center justify-center p-2">
-      {/* Controles Superiores */}
-      <div className="grid grid-cols-2 gap-2 w-full">
-        {/* Formação */}
-        <div className="relative border border-white/10 rounded-2xl overflow-hidden shadow-lg backdrop-blur-xl bg-black/20">
-          <select
+    <div className="max-w-4xl mx-auto space-y-4">
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 scrollbar-hide">
+          <select 
             value={formation}
             onChange={(e) => {
-              setHomePlayers({});
-              setAwayPlayers({});
-              setFormation(e.target.value as FormationKey);
+              setFormation(e.target.value);
+              setHomeSelected({});
+              setAwaySelected({});
             }}
-            className="w-full appearance-none bg-transparent px-4 py-3 pr-10 text-white font-black text-[10px] uppercase outline-none cursor-pointer"
+            className="bg-white/5 border border-white/10 text-white text-xs font-black uppercase tracking-tighter px-4 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none min-w-[100px]"
           >
-            {Object.keys(FORMATIONS).map((f) => (
-              <option key={f} value={f} className="bg-slate-900">
-                FORM: {f}
-              </option>
+            {Object.keys(FORMATIONS).map(f => (
+              <option key={f} value={f} className="bg-slate-900">FORM: {f}</option>
             ))}
           </select>
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-            <Filter className="w-3 h-3 text-white/40" />
-          </div>
+
+          <button
+            onClick={() => setTeamSelected({})}
+            className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white border border-white/10 rounded-xl transition-all active:scale-95 flex items-center gap-2 group"
+          >
+            <Trash2 size={14} className="group-hover:text-red-500" />
+            <span className="text-[10px] font-black uppercase italic tracking-tight">Limpar</span>
+          </button>
         </div>
 
-        {/* Limpar */}
-        <button
-          onClick={() => setCurrentSelectedState({})}
-          className="flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-black text-[10px] uppercase shadow-lg border border-white/10 transition-all active:scale-95"
-        >
-          <RefreshCcw className="w-3 h-3 opacity-60" />
-          Limpar
-        </button>
-      </div>
-
-      {/* Seletor de Time e Compartilhar */}
-      <div className="flex flex-col sm:flex-row gap-2 w-full">
-        <div className="flex p-1 bg-black/40 rounded-2xl border border-white/10 flex-1">
+        <div className="flex items-center gap-2 bg-white/5 p-1 rounded-2xl border border-white/10 w-full sm:w-auto">
           <button
-            onClick={() => setActiveTeam('home')}
-            className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${
+            onClick={() => { setActiveTeam('home'); setSearchTerm(''); }}
+            className={`flex-1 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
               activeTeam === 'home' 
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' 
                 : 'text-white/40 hover:text-white'
             }`}
           >
-            Cruzeiro
+            {clubInfo?.name || 'Meu Time'}
           </button>
           <button
-            onClick={() => setActiveTeam('away')}
-            className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${
+            onClick={() => { setActiveTeam('away'); setSearchTerm(''); }}
+            className={`flex-1 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
               activeTeam === 'away' 
                 ? 'bg-red-600 text-white shadow-lg shadow-red-900/40' 
                 : 'text-white/40 hover:text-white'
@@ -367,56 +305,62 @@ const ModernPitchView: React.FC = () => {
         </button>
       </div>
 
-      {/* CAMPO — printado pelo html-to-image */}
       <div
         ref={pitchRef}
-        className="w-full bg-[#030712] rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white/10 flex flex-col relative"
+        className="w-full md:max-w-2xl md:mx-auto bg-[#030712] rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white/10 flex flex-col relative"
       >
-        {/* Banner superior */}
-        <div className="w-full bg-slate-900/90 backdrop-blur-md py-3 px-4 z-30 flex flex-col items-center border-b border-white/5 relative">
+        <div className="w-full bg-slate-900/90 backdrop-blur-md py-4 px-6 z-30 flex flex-col items-center border-b border-white/5 relative">
           <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50" />
           
-          <div className="flex items-center justify-between w-full gap-2">
-            {/* Logo Cruzeiro */}
-            <div className="flex flex-col items-center flex-shrink-0">
-              <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white rounded-full p-1 shadow-xl border-2 border-primary flex items-center justify-center ring-4 ring-blue-500/20">
-                {!cruzeiroImgError ? (
-                  <img
-                    src="/logos/cruzeiro.png"
-                    alt="Cruzeiro"
-                    className="w-full h-full object-contain"
-                    crossOrigin="anonymous"
-                    onError={() => setCruzeiroImgError(true)}
-                  />
-                ) : (
-                  <span className="text-[10px] sm:text-xs font-black text-blue-700">CRU</span>
-                )}
+          <div className="flex items-center justify-between w-full gap-4">
+              <div className="w-12 h-12 sm:w-20 sm:h-20 flex items-center justify-center overflow-visible">
+                {(() => {
+                  const logoUrl = clubInfo?.logo_url;
+                  if (logoUrl && !cruzeiroImgError) {
+                    const proxiedUrl = logoUrl.startsWith('http') 
+                      ? `https://images.weserv.nl/?url=${encodeURIComponent(logoUrl)}&w=250&h=250&fit=contain`
+                      : logoUrl;
+                    return (
+                      <img
+                        src={proxiedUrl}
+                        alt={clubInfo?.name || 'Clube'}
+                        className="w-full h-full object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.2)]"
+                        crossOrigin="anonymous"
+                        onError={() => setCruzeiroImgError(true)}
+                      />
+                    );
+                  }
+                  return (
+                    <div className="w-full h-full bg-blue-600 rounded-full flex items-center justify-center">
+                       <span className="text-xs sm:text-lg font-black text-white">
+                        {clubInfo?.name?.substring(0, 3).toUpperCase() || 'ZK'}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
-            </div>
 
-            {/* Título Centralizado e Responsivo */}
             <div className="flex-1 flex flex-col items-center justify-center min-w-0">
-              <div className="flex items-center gap-2 scale-75 sm:scale-100 mb-0.5">
-                <div className="h-px w-4 bg-blue-500/50" />
-                <span className="text-[8px] font-black italic text-blue-400 uppercase tracking-[0.2em]">Live Match</span>
-                <div className="h-px w-4 bg-blue-500/50" />
+              <div className="flex items-center gap-2 mb-1">
+                <div className="h-px w-6 bg-blue-500/50" />
+                <span className="text-[10px] font-black italic text-blue-400 uppercase tracking-[0.3em]">Live Match</span>
+                <div className="h-px w-6 bg-blue-500/50" />
               </div>
               
-              <h2 className="text-[12px] sm:text-xl font-black italic uppercase tracking-tighter text-white text-center leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
-                {activeTeam === 'home' ? 'Cruzeiro Esporte Clube' : `Elenco ${nextGame?.opponent || 'Adversário'}`}
+              <h2 className="text-lg sm:text-2xl font-black italic uppercase tracking-tighter text-white text-center leading-none drop-shadow-2xl">
+                {activeTeam === 'home' ? (clubInfo?.name || 'Meu Time') : (nextGame?.opponent || 'Adversário')}
               </h2>
               
-              <div className="mt-1 flex items-center gap-1.5 px-2 py-0.5 bg-white/5 rounded-full border border-white/10">
-                <Trophy className="w-2 h-2 text-yellow-500" />
-                <span className="text-[6px] sm:text-[8px] font-bold text-blue-200 uppercase tracking-widest truncate max-w-[120px]">
+              <div className="mt-2 flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
+                <Trophy className="w-3 h-3 text-yellow-500" />
+                <span className="text-[8px] sm:text-[10px] font-black text-blue-200 uppercase tracking-widest truncate">
                   {nextGame?.competition || 'Temporada 2026'}
                 </span>
               </div>
             </div>
 
-            {/* Logo adversário */}
             <div className="flex flex-col items-center flex-shrink-0">
-              <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white/10 backdrop-blur-md rounded-full p-1.5 shadow-xl border-2 border-white/20 flex items-center justify-center overflow-hidden ring-4 ring-white/10">
+               <div className="w-12 h-12 sm:w-20 sm:h-20 flex items-center justify-center overflow-visible">
                 {(() => {
                   const oppName = nextGame?.opponent;
                   const logoUrl = nextGame?.opponent_logo || (oppName ? getTeamLogo(oppName) : '');
@@ -425,18 +369,18 @@ const ModernPitchView: React.FC = () => {
                     return (
                       <img
                         src={logoUrl.startsWith('http')
-                          ? `https://images.weserv.nl/?url=${encodeURIComponent(logoUrl)}`
+                          ? `https://images.weserv.nl/?url=${encodeURIComponent(logoUrl)}&w=250&h=250&fit=contain`
                           : logoUrl}
                         alt={oppName || 'Adversário'}
-                        className="w-full h-full object-contain"
+                        className="w-full h-full object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.1)]"
                         crossOrigin="anonymous"
                         onError={() => setOpponentImgError(true)}
                       />
                     );
                   }
                   return (
-                    <div className="w-full h-full flex items-center justify-center bg-blue-900/40">
-                      <span className="text-[10px] sm:text-lg font-black text-white/40">
+                    <div className="w-full h-full flex items-center justify-center bg-white/10 rounded-full">
+                      <span className="text-xs sm:text-lg font-black text-white/40">
                         {oppName ? getTeamInitials(oppName) : '?'}
                       </span>
                     </div>
@@ -447,42 +391,37 @@ const ModernPitchView: React.FC = () => {
           </div>
         </div>
 
-        {/* Gramado */}
-        <div className="relative w-full aspect-[3/4]">
-          {/* Fundo azul profundo estético */}
+        <div className="relative w-full aspect-[4/5]">
           <div
             className="absolute inset-0"
             style={{
               background: 'linear-gradient(to bottom, #0f172a 0%, #0f172a 50%, #1e293b 50%, #1e293b 100%)',
-              backgroundSize: '100% 60px',
+              backgroundSize: '100% 80px',
             }}
           />
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10" />
           <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 to-transparent" />
 
-          {/* Linhas do campo */}
-          <div className="absolute inset-0 p-4 sm:p-6 pointer-events-none">
+          <div className="absolute inset-0 p-6 pointer-events-none">
             <div className="w-full h-full border-2 border-white/40 relative">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 sm:w-28 sm:h-28 border-2 border-white/40 rounded-full" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border-2 border-white/40 rounded-full" />
               <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white/40" />
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-20 sm:h-28 border-2 border-b-0 border-white/40 rounded-t-xl" />
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-20 sm:h-28 border-2 border-t-0 border-white/40 rounded-b-xl" />
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-24 sm:h-32 border-2 border-b-0 border-white/40 rounded-t-xl" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-24 sm:h-32 border-2 border-t-0 border-white/40 rounded-b-xl" />
             </div>
           </div>
 
-          {/* Badge Instagram */}
-          <div className="absolute bottom-2 sm:bottom-4 right-2 sm:right-4 z-30 inline-flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 shadow-2xl">
-            <Instagram className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />
-            <span className="text-white font-black text-[9px] sm:text-[11px] tracking-wide">@itallozk</span>
+          <div className="absolute bottom-4 right-4 z-30 inline-flex items-center gap-2 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/20 shadow-2xl">
+            <Instagram className="w-3 h-3 text-white" />
+            <span className="text-white font-black text-[10px] sm:text-[12px] tracking-wide">@itallozk</span>
           </div>
 
-          {/* Jogadores */}
           {FORMATIONS[formation].map((pos) => {
             const player = currentSelectedState[pos.id];
             return (
               <div
                 key={pos.id}
-                className="absolute -translate-x-1/2 -translate-y-1/2 z-20"
+                className="absolute -translate-x-1/2 -translate-y-1/2 z-40"
                 style={{ top: `${pos.top}%`, left: `${pos.left}%` }}
               >
                 <div
@@ -492,9 +431,8 @@ const ModernPitchView: React.FC = () => {
                   }}
                   className="flex flex-col items-center group cursor-pointer"
                 >
-                  {/* Círculo do jogador */}
                   <div className={`
-                    relative w-10 h-10 sm:w-14 sm:h-14 rounded-full border-2 sm:border-[3px]
+                    relative w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 sm:border-[3px]
                     ${player ? 'border-white bg-white shadow-2xl' : 'border-white/50 bg-white/20 hover:bg-white/40'}
                     flex items-center justify-center overflow-hidden transition-all
                   `}>
@@ -514,21 +452,35 @@ const ModernPitchView: React.FC = () => {
                         }}
                       />
                     ) : (
-                      <img
-                        src={(activeTeam === 'home' ? "/logos/cruzeiro.png" : (nextGame?.opponent_logo || getTeamLogo(nextGame?.opponent || ''))) as string}
-                        alt={pos.role}
-                        className="w-full h-full object-contain opacity-40 group-hover:opacity-100 transition-opacity p-1.5"
-                      />
+                      (() => {
+                        const rawLogoUrl = (activeTeam === 'home' 
+                          ? clubInfo?.logo_url 
+                          : (nextGame?.opponent_logo || getTeamLogo(nextGame?.opponent || ''))) as string;
+                        
+                        const proxiedLogoUrl = (rawLogoUrl && rawLogoUrl.startsWith('http'))
+                          ? `https://images.weserv.nl/?url=${encodeURIComponent(rawLogoUrl)}&w=150&h=150&fit=contain`
+                          : rawLogoUrl;
+
+                        if (!proxiedLogoUrl) return null;
+
+                        return (
+                          <img
+                            src={proxiedLogoUrl}
+                            alt={pos.role}
+                            className={`w-full h-full object-contain transition-opacity p-2 ${activeTeam === 'home' ? 'opacity-80' : 'opacity-40 group-hover:opacity-100'}`}
+                          />
+                        );
+                      })()
                     )}
                   </div>
 
-                  {/* Label do jogador */}
                   <div className={`
-                    mt-1 w-[70px] h-[20px] rounded-lg shadow-xl border
+                    mt-1 sm:mt-1.5 min-w-[50px] sm:min-w-[70px] max-w-[85px] sm:max-w-[130px] w-fit px-1.5 sm:px-3 h-[18px] sm:h-[24px] rounded-lg shadow-xl border
                     ${player ? 'bg-white border-blue-600' : 'bg-blue-900/60 border-white/20'}
                     flex items-center justify-center
                   `}>
-                    <span className={`font-black uppercase tracking-tighter italic text-[9px]
+                    <span className={`font-black uppercase tracking-tighter italic truncate w-full text-center
+                      ${(player ? player.name : pos.role).length > 12 ? 'text-[7.5px] sm:text-[9px]' : 'text-[9px] sm:text-[10px]'}
                       ${player ? 'text-blue-700' : 'text-white/80'}
                     `}>
                       {player ? player.name : pos.role}
@@ -541,14 +493,6 @@ const ModernPitchView: React.FC = () => {
         </div>
       </div>
 
-      {/* Download manual (desktop hint) */}
-      {isTeamComplete && (
-        <p className="text-white/30 text-[10px] text-center font-bold uppercase tracking-widest px-4">
-          💡 No desktop, clique em Compartilhar para baixar a imagem e postar nas redes
-        </p>
-      )}
-
-      {/* Modal de Seleção de Jogador */}
       <AnimatePresence>
         {activeSlot !== null && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
@@ -565,17 +509,30 @@ const ModernPitchView: React.FC = () => {
               exit={{ scale: 0.9, opacity: 0 }}
               className="relative w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
             >
-              {/* Header */}
               <div className="px-4 py-4 sm:px-8 sm:py-6 border-b border-gray-100 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <img 
-                      src={(activeTeam === 'home' ? "/logos/cruzeiro.png" : (nextGame?.opponent_logo || getTeamLogo(nextGame?.opponent || ''))) as string} 
-                      alt="Time" 
-                      className="w-8 h-8 object-contain" 
-                    />
+                    {(() => {
+                      const rawLogoUrl = (activeTeam === 'home' 
+                        ? clubInfo?.logo_url 
+                        : (nextGame?.opponent_logo || getTeamLogo(nextGame?.opponent || ''))) as string;
+                      
+                      const proxiedLogoUrl = (rawLogoUrl && rawLogoUrl.startsWith('http'))
+                        ? `https://images.weserv.nl/?url=${encodeURIComponent(rawLogoUrl)}&w=100&h=100&fit=contain`
+                        : rawLogoUrl;
+
+                      if (!proxiedLogoUrl) return null;
+
+                      return (
+                        <img 
+                          src={proxiedLogoUrl} 
+                          alt="Time" 
+                          className="w-8 h-8 object-contain" 
+                        />
+                      );
+                    })()}
                     <h3 className="text-lg sm:text-xl font-black text-gray-800 uppercase italic">
-                      {activeTeam === 'home' ? 'Cruzeiro' : (nextGame?.opponent || 'Adversário')}
+                      {activeTeam === 'home' ? (clubInfo?.name || 'Meu Time') : (nextGame?.opponent || 'Adversário')}
                     </h3>
                   </div>
                   <button
@@ -586,74 +543,74 @@ const ModernPitchView: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Busca */}
                 <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Buscar jogador..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl py-2 sm:py-3 px-10 text-xs sm:text-sm font-bold text-gray-700 focus:border-blue-500 focus:bg-white transition-all outline-none"
-                    autoFocus
+                    className="w-full pl-11 pr-4 py-3 bg-gray-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                   />
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  {searchTerm && (
-                    <button
-                      onClick={() => setSearchTerm('')}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2"
-                    >
-                      <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
-                    </button>
-                  )}
                 </div>
               </div>
 
-              {/* Grid de jogadores */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                {loadingOpponents ? (
-                  <div className="flex flex-col items-center justify-center py-20 gap-4">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
-                    <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Buscando Atletas...</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                    {filteredPlayers.map((player: CruzeiroPlayer) => {
-                      const isSelected = Object.values(currentSelectedState).some((p) => p?.id === player.id);
-                      return (
-                        <button
-                          key={player.id}
-                          onClick={() => handleSelectPlayer(player)}
-                          className={`flex flex-col items-center p-2.5 sm:p-4 rounded-2xl sm:rounded-3xl transition-all border-2 sm:border-4
-                            ${isSelected
-                              ? 'bg-blue-700 border-yellow-400 scale-105 shadow-xl'
-                              : 'bg-[#0055ff] border-transparent hover:bg-blue-600 hover:scale-105'
-                            } active:scale-95`}
-                        >
-                        <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-white/20 mb-2 sm:mb-3 bg-white/10 shadow-inner">
-                          {player.photo_url ? (
-                            <img
-                              src={player.photo_url}
-                              alt={player.name}
-                              className="w-full h-full object-cover"
-                            />
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 custom-scrollbar">
+                {filteredPlayers.length > 0 ? (
+                  filteredPlayers.map((player) => {
+                    const isSelected = Object.values(currentSelectedState).some(p => p.id === player.id);
+                    return (
+                      <button
+                        key={player.id}
+                        disabled={isSelected}
+                        onClick={() => handleSelectPlayer(player)}
+                        className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all ${
+                          isSelected 
+                            ? 'bg-gray-50 border-gray-100 opacity-50' 
+                            : 'bg-white border-gray-100 hover:border-blue-500 hover:shadow-lg'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl border border-gray-100 overflow-hidden bg-gray-50">
+                            {player.photo_url ? (
+                              <img
+                                src={player.photo_url.startsWith('http')
+                                  ? `https://images.weserv.nl/?url=${encodeURIComponent(player.photo_url)}`
+                                  : player.photo_url}
+                                alt={player.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-blue-600 font-bold">
+                                {player.name.substring(0, 1)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-left">
+                            <p className="font-black text-gray-800 uppercase italic tracking-tighter text-sm sm:text-base">
+                              {player.name}
+                            </p>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                              #{player.number} • {player.position}
+                            </p>
+                          </div>
+                        </div>
+                        <div className={`p-2 rounded-xl ${isSelected ? 'bg-gray-100' : 'bg-blue-50'}`}>
+                          {isSelected ? (
+                            <AlertCircle className="w-4 h-4 text-gray-300" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-blue-800 p-3">
-                              <img src="/logos/cruzeiro.png" alt="Cruzeiro" className="w-full h-full object-contain opacity-50" />
-                            </div>
+                            <UserPlus className="w-4 h-4 text-blue-600" />
                           )}
                         </div>
-                        <h4 className="text-[10px] sm:text-[11px] font-black text-white uppercase tracking-tighter text-center line-clamp-1">
-                          {player.name}
-                        </h4>
                       </button>
                     );
-                  })}
-
-                  {!loadingOpponents && filteredPlayers.length === 0 && (
-                    <div className="col-span-2 py-20 text-center opacity-30">
-                      <p className="text-sm font-black uppercase text-gray-500">Nenhum atleta</p>
+                  })
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-4">
+                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center">
+                      <Search className="w-8 h-8 opacity-20" />
                     </div>
-                    )}
+                    <p className="font-bold text-sm uppercase tracking-widest opacity-40">Nenhum jogador encontrado</p>
                   </div>
                 )}
               </div>

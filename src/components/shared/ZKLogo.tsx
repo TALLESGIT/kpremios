@@ -20,9 +20,9 @@ function ZKLogo({ className = '', size = 'md' }: ZKLogoProps) {
         xmlns="http://www.w3.org/2000/svg"
       >
         <defs>
-          <linearGradient id="cruzeiroGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#005BAA" />
-            <stop offset="100%" stopColor="#004280" />
+          <linearGradient id="zkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#4f46e5" />
+            <stop offset="100%" stopColor="#3730a3" />
           </linearGradient>
           <linearGradient id="whiteGradient" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#FFFFFF" />
@@ -37,18 +37,18 @@ function ZKLogo({ className = '', size = 'md' }: ZKLogoProps) {
           </filter>
         </defs>
 
-        {/* Outer Ring with Crown Effect logic */}
+        {/* Outer Ring */}
         <circle
           cx="50"
           cy="50"
           r="48"
-          fill="#005BAA"
+          fill="#4f46e5"
           stroke="#FFFFFF"
           strokeWidth="2"
           className="shadow-inner"
         />
 
-        {/* Southern Cross Stars (Cruzeiro do Sul) */}
+        {/* Decorative Stars */}
         {/* Estrela Maior (Alpha) - Bottom */}
         <path d="M50 75 L52 80 L57 80 L53 84 L55 89 L50 86 L45 89 L47 84 L43 80 L48 80 Z" fill="#FFFFFF" />
 

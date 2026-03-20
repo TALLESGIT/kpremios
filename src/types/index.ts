@@ -13,6 +13,7 @@ export interface User {
   avatar_url?: string;
   created_at: string;
   updated_at: string;
+  club_slug?: string;
 }
 
 export interface RaffleNumber {
@@ -72,11 +73,14 @@ export interface AuditLog {
   user_agent?: string;
 }
 
-export interface CruzeiroSettings {
+export interface MatchSettings {
   id: string;
   live_url: string;
   is_live: boolean;
+  team_name?: string;
+  brand_color?: string;
   updated_at: string;
+  club_slug?: string;
 }
 
 export interface YouTubeClip {
@@ -90,9 +94,10 @@ export interface YouTubeClip {
   category?: string;
   created_at: string;
   updated_at: string;
+  club_slug?: string;
 }
 
-export interface CruzeiroGame {
+export interface MatchGame {
   id: string;
   opponent: string;
   opponent_logo?: string;
@@ -110,9 +115,10 @@ export interface CruzeiroGame {
   api_away_team_id?: number;
   created_at: string;
   updated_at?: string;
+  club_slug: string;
 }
 
-export interface CruzeiroStanding {
+export interface MatchStanding {
   id: string;
   position: number;
   team: string;
@@ -124,15 +130,16 @@ export interface CruzeiroStanding {
   lost: number;
   goals_for: number;
   goals_against: number;
-  is_cruzeiro: boolean;
+  is_primary_team: boolean;
   competition: string;
   last_5?: string;
   prev_position?: number;
   next_opponent?: string;
   created_at: string;
+  club_slug: string;
 }
 
-export interface CruzeiroPlayer {
+export interface TeamPlayer {
   id: string;
   name: string;
   full_name?: string;
@@ -140,8 +147,10 @@ export interface CruzeiroPlayer {
   position: 'GOL' | 'LAT' | 'ZAG' | 'MEI' | 'ATA';
   number?: number;
   is_active: boolean;
+  team_name?: string;
   created_at: string;
   updated_at: string;
+  club_slug: string;
 }
 
 export interface Raffle {
@@ -192,4 +201,25 @@ export interface CartItem {
   product: Product;
   quantity: number;
   selectedSize?: string;
+}
+
+export interface MatchPool {
+  id: string;
+  match_id?: string;
+  match_title: string;
+  home_team: string;
+  away_team: string;
+  home_team_logo?: string;
+  away_team_logo?: string;
+  is_active: boolean;
+  result_home_score: number | null;
+  result_away_score: number | null;
+  total_participants: number;
+  total_pool_amount: number;
+  winners_count: number;
+  prize_per_winner: number;
+  accumulated_amount: number;
+  club_slug: string;
+  created_at: string;
+  live_stream_id?: string;
 }
