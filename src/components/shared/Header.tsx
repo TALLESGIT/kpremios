@@ -15,7 +15,7 @@ function Header() {
   const [isMobileMediaOpen, setIsMobileMediaOpen] = useState(false);
   const mediaRef = useRef<HTMLDivElement>(null);
   const [hasActiveLive, setHasActiveLive] = useState(false);
-  const [hasUserBets, setHasUserBets] = useState(false);
+  const [hasActiveLive, setHasActiveLive] = useState(false);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
@@ -122,31 +122,7 @@ function Header() {
     };
   }, []);
 
-  // Verificar se usuário tem apostas aprovadas
-  useEffect(() => {
-    if (user && !currentAppUser?.is_admin) {
-      checkUserBets();
-
-      // Subscription para atualizações em tempo real
-      const subscription = supabase
-        .channel('user-bets-changes')
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'pool_bets',
-          filter: `user_id=eq.${user.id}`
-        }, () => {
-          checkUserBets();
-        })
-        .subscribe();
-
-      return () => {
-        subscription.unsubscribe();
-      };
-    } else {
-      setHasUserBets(false);
-    }
-  }, [user, currentAppUser]);
+  // Contar notificações não lidas
 
   // Contar notificações não lidas
   useEffect(() => {
@@ -192,22 +168,6 @@ function Header() {
     };
   }, [user]);
 
-  const checkUserBets = async () => {
-    if (!user) return;
-    try {
-      const { data, error } = await supabase
-        .from('pool_bets')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('payment_status', 'approved')
-        .limit(1)
-        .maybeSingle();
-
-      setHasUserBets(!error && data !== null);
-    } catch (err) {
-      setHasUserBets(false);
-    }
-  };
 
   const checkActiveLive = async () => {
     try {
