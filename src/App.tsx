@@ -134,14 +134,7 @@ function AppContentInner() {
   if (loading && !isPublicRoute && !loadingSafetyTimeout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950 relative overflow-hidden">
-        {(import.meta as any).env.VITE_DEBUG_LIVE === '1' && (
-          <div className="fixed top-4 left-4 z-[9999] bg-red-600 text-[10px] text-white p-2 rounded shadow-2xl font-mono">
-            DEBUG LOADING:<br/>
-            Path: {currentPath}<br/>
-            Public: {isPublicRoute ? 'YES' : 'NO'}<br/>
-            Loading: {loading ? 'YES' : 'NO'}
-          </div>
-        )}
+
         <div className="absolute inset-0 overflow-hidden">
           <motion.div
             className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl"

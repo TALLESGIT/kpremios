@@ -169,6 +169,7 @@ const ZkTVPage: React.FC = () => {
     const [lastPoolResult, setLastPoolResult] = useState<any>(null); // Último resultado do bolão
     const [selectedStandingComp, setSelectedStandingComp] = useState<string | null>(null);
     const [stableIsLiveActive, setStableIsLiveActive] = useState(false); // ✅ Começa false - só ativa quando confirmar stream ativa
+    const [isPip, setIsPip] = useState(false); // Estado para Picture-in-Picture nativo
     const lastLiveStatusRef = useRef(false);
 
     // Sincronizar isVip com o currentUser
@@ -408,6 +409,26 @@ const ZkTVPage: React.FC = () => {
             document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
         };
     }, []); // Sem deps - os handlers lêem diretamente do DOM
+
+    // ========== EFFECT 4.5: Native PiP Listener (Android) ==========
+    useEffect(() => {
+        const handlePipChange = (e: any) => {
+            if (isZkTVDebug()) console.log('📺 PiP State Change (Native):', e.detail);
+            const isInPip = typeof e.detail === 'boolean' ? e.detail : e.detail?.isInPip;
+            setIsPip(!!isInPip);
+            
+            if (isInPip) {
+                // Se entrar em PiP, garantir que o chat e modais estejam fechados
+                setIsChatOpen(false);
+                setIsDockedChat(false);
+                setShowVipModal(false);
+                setShowPoolModal(false);
+            }
+        };
+
+        window.addEventListener('pipStateChange', handlePipChange);
+        return () => window.removeEventListener('pipStateChange', handlePipChange);
+    }, []);
 
     // ========== EFFECT 5: Realtime subscriptions ==========
     useEffect(() => {
@@ -1468,12 +1489,6 @@ const ZkTVPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-[#030712] flex flex-col pt-16 text-white font-sans selection:bg-blue-500/30">
-            {/* Version ID - Visível apenas para debug (usar VITE_DEBUG_LIVE=1) */}
-            {isZkTVDebug() && (
-                <div className="fixed top-0 left-0 z-[9999] bg-red-600 text-[8px] font-bold p-1 rounded-br-lg pointer-events-none">
-                    VERSÃO NATIVA OK - {new Date().toLocaleTimeString()} (L:{isPageLoading?'Y':'N'} S:{!!activeStream?'Y':'N'} IS:{isLiveActive?'Y':'N'})
-                </div>
-            )}
             <Header />
 
             {/* Hero Section / Live Stream */}
@@ -1560,16 +1575,15 @@ const ZkTVPage: React.FC = () => {
                             {/* Extra 'Próximo Jogo' top card was removed here to avoid duplication with the video placeholder card */}
 
                         </div>
-
-                        <div
+                        {/* Video Player Container */}
+                        <motion.div
                             ref={videoContainerRef}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: 0.3 }}
                             onDoubleClick={handleDoubleClick}
-                            onMouseEnter={() => !isMobile && showControlsTemporarily()}
-                            onMouseMove={() => !isMobile && showControlsTemporarily()}
-                            onMouseLeave={() => !isMobile && setShowControls(false)}
-                            onClick={() => showControlsTemporarily()}
                             onTouchStart={() => isMobile && showControlsTemporarily()}
-                            className={`${isFullscreen ? 'fixed inset-0 z-[100] w-screen h-screen bg-black rounded-none' : 'w-full max-w-[680px] lg:max-w-[760px] mx-auto shrink-0 aspect-video bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl'} overflow-hidden relative cursor-pointer group ${isDockedChat ? 'mobile-video-container docked-chat-active' : ''}`}
+                            className={`${(isFullscreen || isPip) ? 'fixed inset-0 z-[100] w-screen h-screen bg-black rounded-none' : 'w-full max-w-[680px] lg:max-w-[760px] mx-auto shrink-0 aspect-video bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl'} overflow-hidden relative cursor-pointer group ${isDockedChat ? 'mobile-video-container docked-chat-active' : ''}`}
                             title={isMobile ? "Toque duas vezes para tela cheia" : "Duplo clique para tela cheia"}
                         >
                             <div className="relative w-full h-full flex">
@@ -1770,15 +1784,17 @@ const ZkTVPage: React.FC = () => {
                                                     isPictureInPicture={!!document.pictureInPictureElement}
                                                     viewerCount={currentViewerCount}
                                                     onToggleAudio={() => {
-                                                        const video = (window as any).hlsVideoElement;
+                                                        const video = (window as any).activeVideoElement || (window as any).hlsVideoElement;
                                                         if (video) {
                                                             video.muted = !video.muted;
-                                                            if (!video.muted) video.volume = 1.0;
-                                                            // Forçar re-render do controle se necessário (opcional)
+                                                            if (!video.muted) {
+                                                                video.volume = 1.0;
+                                                                video.play().catch(() => {});
+                                                            }
                                                         }
                                                     }}
                                                     isAudioEnabled={(() => {
-                                                        const video = (window as any).hlsVideoElement;
+                                                        const video = (window as any).activeVideoElement || (window as any).hlsVideoElement;
                                                         return video ? !video.muted : false;
                                                     })()}
                                                     onChatToggle={() => {
@@ -1836,7 +1852,7 @@ const ZkTVPage: React.FC = () => {
                                     </div>
                                 </div>
                             )}
-                        </div>
+                        </motion.div>
                     </div>
                 </div>
             </section>

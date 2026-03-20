@@ -283,10 +283,107 @@ async function syncTopScorers() {
   }
 }
 
+async function syncOpponentPlayers() {
+  console.log('--- Iniciando sincronização de Jogadores Adversários ---');
+
+  try {
+    // 1. Buscar o próximo jogo do Cruzeiro para identificar o adversário
+    const now = new Date().toISOString();
+    const { data: nextGame, error: gameError } = await supabase
+      .from('cruzeiro_games')
+      .select('api_home_team_id, api_away_team_id, opponent')
+      .gt('date', now)
+      .order('date', { ascending: true })
+      .limit(1)
+      .single();
+
+    if (gameError || !nextGame) {
+      console.log('Nenhum jogo futuro encontrado para sincronizar adversário.');
+      return;
+    }
+
+    const opponentId = nextGame.api_home_team_id === CRUZEIRO_API_ID 
+      ? nextGame.api_away_team_id 
+      : nextGame.api_home_team_id;
+
+    if (!opponentId) {
+      console.log(`ID do adversário não encontrado para o jogo contra ${nextGame.opponent}`);
+      return;
+    }
+
+    console.log(`Buscando elenco (squad) do adversário: ${nextGame.opponent} (ID: ${opponentId})...`);
+
+    const response = await fetch(`https://v3.football.api-sports.io/players/squads?team=${opponentId}`, {
+      headers: {
+        'x-apisports-key': footballApiKey,
+        'x-rapidapi-host': 'v3.football.api-sports.io'
+      }
+    });
+
+    const result = await response.json();
+
+    if (!result.response || result.response.length === 0) {
+      console.log(`Nenhum elenco encontrado para o time ID ${opponentId}`);
+      return;
+    }
+
+    const squad = result.response[0].players;
+
+    // Mapeamento de posições da API para o nosso padrão
+    // Mapeamento de posições da API para o nosso padrão
+    const posMap = {
+      'Goalkeeper': 'GOL',
+      'Defender': 'ZAG',
+      'Midfielder': 'MEI',
+      'Attacker': 'ATA'
+    };
+
+    const playersToSync = squad.map(p => {
+      let position = posMap[p.position] || 'MEI';
+      
+      // Personalização para jogadores versáteis (Neymar, Rony, etc.)
+      if (p.name === 'Neymar' || p.name === 'Rony') {
+        position = 'MEI,ATA';
+      }
+
+      return {
+        name: p.name,
+        full_name: p.name,
+        photo_url: p.photo,
+        position: position,
+        number: p.number || null,
+        team_id: opponentId,
+        is_active: true,
+        updated_at: new Date().toISOString()
+      };
+    });
+
+    console.log(`Sincronizando ${playersToSync.length} jogadores do adversário...`);
+
+    // Limpar jogadores antigos desse adversário (opcional, ou apenas upsert por nome/time)
+    // Para simplificar, vamos usar upsert baseado em nome e team_id se tivéssemos restrição, 
+    // mas como não definimos UNIQUE no SQL da migração por enquanto, vamos apenas inserir.
+    // O ideal seria: delete where team_id = current then insert.
+    await supabase.from('opponent_players').delete().eq('team_id', opponentId);
+
+    const { error: insertError } = await supabase
+      .from('opponent_players')
+      .insert(playersToSync);
+
+    if (insertError) throw insertError;
+
+    console.log(`Sincronização de jogadores de ${nextGame.opponent} concluída.`);
+
+  } catch (error) {
+    console.error('Falha ao sincronizar jogadores adversários:', error);
+  }
+}
+
 async function run() {
   await syncStandings();
   await syncGames();
   await syncTopScorers();
+  await syncOpponentPlayers();
   process.exit(0);
 }
 

@@ -34,9 +34,14 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     setUserInteracted(true);
 
     try {
-      video.muted = false;
+      // Prioridade Android: set volume -> muted false -> play
       video.volume = 1.0;
-      await video.play();
+      video.muted = false;
+      
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        await playPromise;
+      }
 
       if (video.paused) {
         setTimeout(() => video.play().catch(e => console.error("[HLSViewer] Retry play failed:", e)), 100);
@@ -47,14 +52,14 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         video.muted = true;
         await video.play();
         setTimeout(() => {
-          video.muted = false;
           video.volume = 1.0;
+          video.muted = false;
         }, 200);
       } catch (retryErr) {
         console.error('[HLSViewer] Retry com muted também falhou:', retryErr);
       }
     }
-  }, [isAdmin]);
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -169,10 +174,12 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      (window as any).hlsVideoElement = videoRef.current;
+      (window as any).activeVideoElement = videoRef.current;
+      (window as any).hlsVideoElement = videoRef.current; // Retrocompatibilidade
     }
     return () => {
       if (typeof window !== 'undefined') {
+        (window as any).activeVideoElement = null;
         (window as any).hlsVideoElement = null;
       }
     };
@@ -190,7 +197,6 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         ref={videoRef}
         autoPlay
         muted
-        controls
         playsInline
         // @ts-ignore
         {...{ 'webkit-playsinline': 'true' }}
@@ -207,7 +213,7 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
 
       {/* Overlay de Áudio (Mobile UX) */}
       <AnimatePresence>
-        {hasVideo && !userInteracted && !isAdmin && (
+        {hasVideo && !userInteracted && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

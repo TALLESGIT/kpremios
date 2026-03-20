@@ -85,7 +85,7 @@ serve(async (req) => {
     )
 
     const payload = await req.json()
-    const { title, body, data, user_ids } = payload
+    const { title, body, data, user_ids, exclude_user_ids, image } = payload
 
     console.log(`🔔 Evento recebido: ${title} - ${body}${user_ids ? ` (para ${user_ids.length} usuários)` : ' (broadcast)'}`)
 
@@ -94,6 +94,10 @@ serve(async (req) => {
     
     if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
       tokensQuery = tokensQuery.in('user_id', user_ids)
+    }
+
+    if (exclude_user_ids && Array.isArray(exclude_user_ids) && exclude_user_ids.length > 0) {
+      tokensQuery = tokensQuery.not('user_id', 'in', `(${exclude_user_ids.map(id => `"${id}"`).join(',')})`)
     }
 
     const { data: tokens, error: tokenError } = await tokensQuery
@@ -137,14 +141,14 @@ serve(async (req) => {
               notification: { 
                 title, 
                 body,
-                image: "https://www.zkoficial.com.br/icons/icon-512.webp"
+                image: image || "https://www.zkoficial.com.br/icons/icon-512.webp"
               },
               data: data || {},
               android: { 
                 priority: "high", 
                 notification: { 
                   sound: "default",
-                  image: "https://www.zkoficial.com.br/icons/icon-512.webp",
+                  image: image || "https://www.zkoficial.com.br/icons/icon-512.webp",
                   channelId: "high_priority"
                 } 
               },
@@ -157,7 +161,7 @@ serve(async (req) => {
                   } 
                 },
                 fcm_options: {
-                  image: "https://www.zkoficial.com.br/icons/icon-512.webp"
+                  image: image || "https://www.zkoficial.com.br/icons/icon-512.webp"
                 }
               }
             }

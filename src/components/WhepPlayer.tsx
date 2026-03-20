@@ -136,6 +136,19 @@ function WhepPlayer({
     import.meta.env.VITE_WHEP_BASE_URL as string | undefined
   );
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).activeVideoElement = videoRef.current;
+      (window as any).hlsVideoElement = videoRef.current; // Mantém retrocompatibilidade
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        (window as any).activeVideoElement = null;
+        (window as any).hlsVideoElement = null;
+      }
+    };
+  }, []);
+
   const setStatusSafe = useCallback((next: WhepPlayerStatus) => {
     if (mountedRef.current) setStatus(next);
   }, []);
@@ -459,22 +472,49 @@ function WhepPlayer({
     });
   }
 
-  // Live edge sync — mantém o player no tempo real
+  // Live edge sync — mantém o player no tempo real + Watchdog de travamento
+  const lastTimeRef = useRef(0);
+  const stalledCountRef = useRef(0);
+
   function startLiveEdgeSync() {
     if (liveEdgeIntervalRef.current) clearInterval(liveEdgeIntervalRef.current);
+    lastTimeRef.current = videoRef.current?.currentTime || 0;
+    stalledCountRef.current = 0;
+
     liveEdgeIntervalRef.current = setInterval(() => {
       const vid = videoRef.current;
-      if (!vid || !vid.srcObject || vid.paused || !vid.buffered.length) return;
-      
+      if (!vid || !vid.srcObject || vid.paused) {
+        stalledCountRef.current = 0;
+        return;
+      }
+
+      // 1. Check for stall (Watchdog)
+      if (vid.currentTime === lastTimeRef.current && vid.readyState >= 2) {
+        stalledCountRef.current += 1;
+        // Se travado por 4s, forçar reconexão
+        if (stalledCountRef.current >= 4) {
+          console.warn('[whep] Vídeo travado detectado pelo Watchdog, reiniciando...');
+          stalledCountRef.current = 0;
+          cleanup();
+          startConnection(true);
+          return;
+        }
+      } else {
+        stalledCountRef.current = 0;
+      }
+      lastTimeRef.current = vid.currentTime;
+
+      // 2. Sync to Edge
+      if (!vid.buffered.length) return;
       const liveEdge = vid.buffered.end(vid.buffered.length - 1);
       const behind = liveEdge - vid.currentTime;
       
       // Se estiver mais de 0.3s atrás, pular para o edge (antes era 0.5s)
       if (behind > 0.3) {
         console.log(`[sync] ${behind.toFixed(2)}s atrás, pulando para live edge`);
-        vid.currentTime = liveEdge - 0.02; // Pulo mais preciso (antes era 0.05)
+        vid.currentTime = liveEdge - 0.01; // Pulo ultra preciso
       }
-    }, 1000); // Mais frequente (antes era 3000)
+    }, 1000); 
   }
 
   expectLiveRef.current = expectLive;

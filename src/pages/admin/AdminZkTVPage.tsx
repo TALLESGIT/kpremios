@@ -25,6 +25,7 @@ import TeamLogo from '../../components/TeamLogo';
 import { CruzeiroGame, CruzeiroStanding, YouTubeClip, CruzeiroPlayer } from '../../types';
 import { useMemo } from 'react';
 import { getTeamLogo, getTeamColors } from '../../utils/teamLogos';
+import { calculateNextPoolAccumulated } from '../../utils/poolUtils';
 
 const COMPETITIONS = [
     'Campeonato Brasileiro - Série A',
@@ -429,16 +430,69 @@ const AdminZkTVPage: React.FC = () => {
 
             let savedGame = null;
 
+            const syncOpponentPlayers = async (teamId: number, oppName: string) => {
+                try {
+                    const apiKey = import.meta.env.VITE_FOOTBALL_API_KEY;
+                    if (!apiKey) return;
+
+                    const response = await fetch(`https://v3.football.api-sports.io/players/squads?team=${teamId}`, {
+                        headers: {
+                            'x-apisports-key': apiKey,
+                            'x-rapidapi-host': 'v3.football.api-sports.io'
+                        }
+                    });
+
+                    const result = await response.json();
+                    if (!result.response || result.response.length === 0) return;
+
+                    const squad = result.response[0].players;
+                    const posMap: Record<string, string> = {
+                        'Goalkeeper': 'GOL',
+                        'Defender': 'ZAG',
+                        'Midfielder': 'MEI',
+                        'Attacker': 'ATA'
+                    };
+
+                    const playersToSync = squad.map((p: any) => {
+                        let position = posMap[p.position] || 'MEI';
+                        if (p.name === 'Neymar' || p.name === 'Rony') position = 'MEI,ATA';
+                        
+                        return {
+                            name: p.name,
+                            full_name: p.name,
+                            photo_url: p.photo,
+                            position: position,
+                            number: p.number || null,
+                            team_id: teamId,
+                            is_active: true,
+                            updated_at: new Date().toISOString()
+                        };
+                    });
+
+                    await supabase.from('opponent_players').delete().eq('team_id', teamId);
+                    await supabase.from('opponent_players').insert(playersToSync);
+                    console.log(`Sincronização automática de ${oppName} concluída.`);
+                } catch (err) {
+                    console.error('Erro na sincronização automática:', err);
+                }
+            };
+
             if (editingGame) {
-                const { data, error } = await supabase.from('cruzeiro_games').update(payload).eq('id', editingGame.id).select().single();
-                if (error) throw error;
-                savedGame = data;
+                const { data: updatedData, error: updateError } = await supabase.from('cruzeiro_games').update(payload).eq('id', editingGame.id).select().single();
+                if (updateError) throw updateError;
+                savedGame = updatedData;
                 toast.success('Jogo atualizado!');
+
+                const oppId = savedGame.is_home ? savedGame.api_away_team_id : savedGame.api_home_team_id;
+                if (oppId) syncOpponentPlayers(oppId, savedGame.opponent);
             } else {
                 const { data, error } = await supabase.from('cruzeiro_games').insert([payload]).select().single();
                 if (error) throw error;
                 savedGame = data;
                 toast.success('Jogo adicionado!');
+
+                const oppId = savedGame.is_home ? savedGame.api_away_team_id : savedGame.api_home_team_id;
+                if (oppId) syncOpponentPlayers(oppId, savedGame.opponent);
 
                 if (createPoolToggle) {
                     try {
@@ -470,6 +524,7 @@ const AdminZkTVPage: React.FC = () => {
                             toast.error('Jogo salvo, mas houve erro ao criar a Transmissão para o Bolão.');
                         } else {
                             // 2) Now create the pool linked to the new live_stream
+                            const accumulatedAmount = await calculateNextPoolAccumulated();
                             const { error: poolError } = await supabase.from('match_pools').insert({
                                 live_stream_id: streamData.id,
                                 match_title: matchTitle,
@@ -478,6 +533,7 @@ const AdminZkTVPage: React.FC = () => {
                                 home_team_logo: homeLogo,
                                 away_team_logo: awayLogo,
                                 is_active: false,
+                                accumulated_amount: accumulatedAmount,
                                 total_pool_amount: 0,
                                 total_participants: 0,
                                 winners_count: 0,
@@ -539,7 +595,8 @@ const AdminZkTVPage: React.FC = () => {
             const home_team_logo = game.is_home ? cruzeiroLogo : game.opponent_logo;
             const away_team_logo = game.is_home ? game.opponent_logo : cruzeiroLogo;
 
-            // 3. Criar Match Pool
+            // 3. Criar Match Pool com acumulado automático
+            const accumulatedAmount = await calculateNextPoolAccumulated();
             const { error: poolError } = await supabase.from('match_pools').insert([{
                 live_stream_id: liveStreamId,
                 match_id: game.id,
@@ -549,7 +606,7 @@ const AdminZkTVPage: React.FC = () => {
                 home_team_logo,
                 away_team_logo,
                 is_active: true,
-                accumulated_amount: 0,
+                accumulated_amount: accumulatedAmount,
                 total_pool_amount: 0
             }]);
 

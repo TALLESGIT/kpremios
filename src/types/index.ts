@@ -104,6 +104,10 @@ export interface CruzeiroGame {
   competition: string;
   is_home: boolean;
   banner_url?: string;
+  api_fixture_id?: number;
+  api_league_id?: number;
+  api_home_team_id?: number;
+  api_away_team_id?: number;
   created_at: string;
   updated_at?: string;
 }

@@ -1,29 +1,21 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
-import { X, ChevronDown, Instagram, Search, Share2, Download } from 'lucide-react';
+import {
+  X,
+  Share2,
+  RefreshCcw,
+  Instagram,
+  Search,
+  Filter,
+  Trophy
+} from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { toBlob } from 'html-to-image';
 import { getTeamLogo, getTeamInitials } from '../../utils/teamLogos';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-interface CruzeiroPlayer {
-  id: string;
-  name: string;
-  photo_url?: string;
-  position?: string;
-  is_active?: boolean;
-}
-
-interface CruzeiroGame {
-  id: string;
-  opponent?: string;
-  opponent_logo?: string;
-  competition?: string;
-  venue?: string;
-  date?: string;
-  status?: string;
-}
+import { CruzeiroPlayer, CruzeiroGame } from '../../types';
 
 type FormationKey = '4-3-3' | '4-4-2' | '3-5-2' | '4-2-3-1' | '5-3-2';
 
@@ -103,14 +95,6 @@ const FORMATIONS: Record<FormationKey, Position[]> = {
   ],
 };
 
-const POSITION_ICONS: Record<string, string> = {
-  'GOL': '/logos/cruzeiro.png',
-  'LAT': '/logos/cruzeiro.png',
-  'ZAG': '/logos/cruzeiro.png',
-  'MEI': '/logos/cruzeiro.png',
-  'ATA': '/logos/cruzeiro.png',
-};
-
 // ─── Helper: logo adversário ──────────────────────────────────────────────────
 // Removida duplicata de getTeamInitials pois agora importamos do utilitário
 
@@ -118,22 +102,29 @@ const POSITION_ICONS: Record<string, string> = {
 const ModernPitchView: React.FC = () => {
   const pitchRef = useRef<HTMLDivElement>(null);
   const [formation, setFormation] = useState<FormationKey>('4-4-2');
-  const [selectedPlayers, setSelectedPlayers] = useState<Record<number, CruzeiroPlayer | null>>({});
+  const [activeTeam, setActiveTeam] = useState<'home' | 'away'>('home');
+  const [homePlayers, setHomePlayers] = useState<Record<number, CruzeiroPlayer | null>>({});
+  const [awayPlayers, setAwayPlayers] = useState<Record<number, CruzeiroPlayer | null>>({});
   const [players, setPlayers] = useState<CruzeiroPlayer[]>([]);
   const [nextGame, setNextGame] = useState<CruzeiroGame | null>(null);
   const [opponentImgError, setOpponentImgError] = useState(false);
   const [cruzeiroImgError, setCruzeiroImgError] = useState(false);
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [opponentPlayers, setOpponentPlayers] = useState<CruzeiroPlayer[]>([]);
+  const [loadingOpponents, setLoadingOpponents] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPos, setFilterPos] = useState<string | null>(null);
 
+  const currentSelectedState = activeTeam === 'home' ? homePlayers : awayPlayers;
+  const setCurrentSelectedState = activeTeam === 'home' ? setHomePlayers : setAwayPlayers;
+
   const isTeamComplete =
-    Object.values(selectedPlayers).filter((p) => p !== null).length === 11;
+    Object.values(currentSelectedState).filter((p) => p !== null).length === 11;
 
   useEffect(() => {
     loadPlayers();
-    loadNextGame();
+    loadNextGame(); // Keep this here for initial load of next game
   }, []);
 
   const loadNextGame = async () => {
@@ -176,18 +167,55 @@ const ModernPitchView: React.FC = () => {
     }
   };
 
+  const loadOpponentPlayers = useCallback(async () => {
+    if (!nextGame) return;
+    try {
+      setLoadingOpponents(true);
+
+      const opponentId = nextGame.is_home
+        ? nextGame.api_away_team_id
+        : nextGame.api_home_team_id;
+
+      if (!opponentId) {
+        setOpponentPlayers([]);
+        setLoadingOpponents(false); // Ensure loading state is reset
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('opponent_players')
+        .select('*')
+        .eq('team_id', opponentId)
+        .eq('is_active', true)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setOpponentPlayers(data || []);
+    } catch (err) {
+      console.error('Erro ao carregar jogadores adversários:', err);
+    } finally {
+      setLoadingOpponents(false);
+    }
+  }, [nextGame]);
+
+  useEffect(() => {
+    if (activeTeam === 'away' && opponentPlayers.length === 0) {
+      loadOpponentPlayers();
+    }
+  }, [activeTeam, loadOpponentPlayers, opponentPlayers.length]);
+
   const handleSelectPlayer = (player: CruzeiroPlayer) => {
     if (activeSlot === null) return;
 
-    const existingSlot = Object.keys(selectedPlayers).find(
-      (key) => selectedPlayers[parseInt(key)]?.id === player.id
+    const existingSlot = Object.keys(currentSelectedState).find(
+      (key) => currentSelectedState[parseInt(key)]?.id === player.id
     );
 
-    const newSelected = { ...selectedPlayers };
+    const newSelected = { ...currentSelectedState };
     if (existingSlot) newSelected[parseInt(existingSlot)] = null;
     newSelected[activeSlot] = player;
 
-    setSelectedPlayers(newSelected);
+    setCurrentSelectedState(newSelected);
     setActiveSlot(null);
     setSearchTerm('');
   };
@@ -200,11 +228,12 @@ const ModernPitchView: React.FC = () => {
       const loadingToast = toast.loading('Gerando imagem...');
 
       await document.fonts.ready;
-      await new Promise((r) => setTimeout(r, 800));
+      await new Promise((r) => setTimeout(r, 1500)); // Aumentado para 1.5s
 
       const blob = await toBlob(pitchRef.current, {
         quality: 0.95,
         pixelRatio: 2,
+        cacheBust: true, // Adicionado cacheBust
         style: { borderRadius: '0' },
       });
 
@@ -241,54 +270,89 @@ const ModernPitchView: React.FC = () => {
   }, []);
 
   // ─── Filtro de jogadores ──────────────────────────────────────────────────
-  const filteredPlayers = players.filter((p) => {
+  const currentPlayerList = activeTeam === 'home' ? players : opponentPlayers;
+
+  const filteredPlayers = currentPlayerList.filter((p) => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
     if (!filterPos) return matchesSearch;
-    const pos = (p.position || '').toLowerCase();
-    if (filterPos === 'GOL') return matchesSearch && (pos.includes('goleiro') || pos === 'gol');
-    if (filterPos === 'ZAG') return matchesSearch && (pos.includes('zagueiro') || pos === 'zag');
-    if (filterPos === 'LAT') return matchesSearch && (pos.includes('lateral') || pos === 'lat');
+    const pos = (p.position || '').toUpperCase();
+    if (filterPos === 'GOL') return matchesSearch && (pos.includes('GOLEIRO') || pos.includes('GOL'));
+    if (filterPos === 'ZAG') return matchesSearch && (pos.includes('ZAGUEIRO') || pos.includes('ZAG'));
+    if (filterPos === 'LAT') return matchesSearch && (pos.includes('LATERAL') || pos.includes('LAT'));
     if (filterPos === 'MEI')
-      return matchesSearch && (pos.includes('meio') || pos.includes('volante') || pos === 'mei');
+      return matchesSearch && (pos.includes('MEIO') || pos.includes('VOLANTE') || pos.includes('MEI') || pos.includes('MEIA'));
     if (filterPos === 'ATA')
-      return matchesSearch && (pos.includes('atacante') || pos.includes('centroavante') || pos === 'ata');
+      return matchesSearch && (pos.includes('ATACANTE') || pos.includes('CENTROAVANTE') || pos.includes('ATA') || pos.includes('PONTA'));
     return matchesSearch;
   });
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-6 w-full max-w-md mx-auto items-center justify-center">
-      {/* Controles */}
-      <div className="grid grid-cols-2 sm:flex sm:flex-nowrap items-center justify-center gap-2 w-full px-2">
+    <div className="flex flex-col gap-4 w-full max-w-md mx-auto items-center justify-center p-2">
+      {/* Controles Superiores */}
+      <div className="grid grid-cols-2 gap-2 w-full">
         {/* Formação */}
-        <div className="relative col-span-2 sm:col-span-1 border border-white/10 rounded-2xl overflow-hidden shadow-lg backdrop-blur-xl">
+        <div className="relative border border-white/10 rounded-2xl overflow-hidden shadow-lg backdrop-blur-xl bg-black/20">
           <select
             value={formation}
-            onChange={(e) => setFormation(e.target.value as FormationKey)}
-            className="w-full appearance-none bg-white/5 px-4 py-2.5 pr-8 text-white font-bold text-xs outline-none cursor-pointer"
+            onChange={(e) => {
+              setHomePlayers({});
+              setAwayPlayers({});
+              setFormation(e.target.value as FormationKey);
+            }}
+            className="w-full appearance-none bg-transparent px-4 py-3 pr-10 text-white font-black text-[10px] uppercase outline-none cursor-pointer"
           >
             {Object.keys(FORMATIONS).map((f) => (
-              <option key={f} value={f} className="bg-slate-900">{f}</option>
+              <option key={f} value={f} className="bg-slate-900">
+                FORM: {f}
+              </option>
             ))}
           </select>
-          <ChevronDown className="w-4 h-4 text-white/40 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+            <Filter className="w-3 h-3 text-white/40" />
+          </div>
         </div>
 
         {/* Limpar */}
         <button
-          onClick={() => setSelectedPlayers({})}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold text-[10px] uppercase shadow-lg border border-white/10 transition-all group active:scale-95"
+          onClick={() => setCurrentSelectedState({})}
+          className="flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-black text-[10px] uppercase shadow-lg border border-white/10 transition-all active:scale-95"
         >
-          <img src="/logos/cruzeiro.png" alt="" className="w-4 h-4 object-contain brightness-110 opacity-60 group-hover:opacity-100 transition-opacity" />
+          <RefreshCcw className="w-3 h-3 opacity-60" />
           Limpar
         </button>
+      </div>
 
-        {/* Compartilhar */}
+      {/* Seletor de Time e Compartilhar */}
+      <div className="flex flex-col sm:flex-row gap-2 w-full">
+        <div className="flex p-1 bg-black/40 rounded-2xl border border-white/10 flex-1">
+          <button
+            onClick={() => setActiveTeam('home')}
+            className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${
+              activeTeam === 'home' 
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' 
+                : 'text-white/40 hover:text-white'
+            }`}
+          >
+            Cruzeiro
+          </button>
+          <button
+            onClick={() => setActiveTeam('away')}
+            className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${
+              activeTeam === 'away' 
+                ? 'bg-red-600 text-white shadow-lg shadow-red-900/40' 
+                : 'text-white/40 hover:text-white'
+            }`}
+          >
+            Adversário
+          </button>
+        </div>
+
         <button
           onClick={handleShare}
           disabled={sharing || !isTeamComplete}
-          className={`col-span-2 sm:flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase shadow-xl border transition-all active:scale-95 ${isTeamComplete && !sharing
-            ? 'bg-blue-600 border-blue-500 text-white shadow-blue-900/40'
+          className={`flex-[0.6] flex items-center justify-center gap-2 px-4 py-3 rounded-2xl font-black text-[10px] uppercase shadow-xl border transition-all active:scale-95 ${isTeamComplete && !sharing
+            ? 'bg-emerald-600 border-emerald-500 text-white shadow-emerald-900/40'
             : 'bg-white/5 border-white/10 text-white/20 cursor-not-allowed'
             }`}
         >
@@ -309,11 +373,13 @@ const ModernPitchView: React.FC = () => {
         className="w-full bg-[#030712] rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white/10 flex flex-col relative"
       >
         {/* Banner superior */}
-        <div className="w-full bg-slate-900/90 backdrop-blur-md py-4 px-5 z-30 flex flex-col items-center border-b border-white/5">
-          <div className="flex items-center justify-between w-full max-w-md gap-2">
+        <div className="w-full bg-slate-900/90 backdrop-blur-md py-3 px-4 z-30 flex flex-col items-center border-b border-white/5 relative">
+          <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50" />
+          
+          <div className="flex items-center justify-between w-full gap-2">
             {/* Logo Cruzeiro */}
-            <div className="flex flex-col items-center gap-1">
-              <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white rounded-full p-1 shadow-xl border-2 border-primary flex items-center justify-center">
+            <div className="flex flex-col items-center flex-shrink-0">
+              <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white rounded-full p-1 shadow-xl border-2 border-primary flex items-center justify-center ring-4 ring-blue-500/20">
                 {!cruzeiroImgError ? (
                   <img
                     src="/logos/cruzeiro.png"
@@ -323,35 +389,34 @@ const ModernPitchView: React.FC = () => {
                     onError={() => setCruzeiroImgError(true)}
                   />
                 ) : (
-                  <span className="text-xs font-black text-blue-700">CRU</span>
+                  <span className="text-[10px] sm:text-xs font-black text-blue-700">CRU</span>
                 )}
               </div>
-              <span className="text-[7px] sm:text-[9px] font-black text-white italic uppercase tracking-tighter">CRUZEIRO</span>
             </div>
 
-            {/* VS / Título */}
-            <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-1 overflow-hidden">
-              <div className="flex items-center gap-1 sm:gap-2 mb-0.5">
-                <div className="h-px w-3 sm:w-8 bg-blue-400/50" />
-                <span className="text-[8px] sm:text-[10px] font-black italic text-blue-300 uppercase tracking-widest">VS</span>
-                <div className="h-px w-3 sm:w-8 bg-blue-400/50" />
+            {/* Título Centralizado e Responsivo */}
+            <div className="flex-1 flex flex-col items-center justify-center min-w-0">
+              <div className="flex items-center gap-2 scale-75 sm:scale-100 mb-0.5">
+                <div className="h-px w-4 bg-blue-500/50" />
+                <span className="text-[8px] font-black italic text-blue-400 uppercase tracking-[0.2em]">Live Match</span>
+                <div className="h-px w-4 bg-blue-500/50" />
               </div>
-              <h2 className="titulo-principal text-[10px] sm:text-lg font-black italic uppercase tracking-tighter text-white text-center drop-shadow-md whitespace-nowrap leading-none mb-0.5">
-                ESCALAÇÃO IDEAL
+              
+              <h2 className="text-[12px] sm:text-xl font-black italic uppercase tracking-tighter text-white text-center leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+                {activeTeam === 'home' ? 'Cruzeiro Esporte Clube' : `Elenco ${nextGame?.opponent || 'Adversário'}`}
               </h2>
-              <a
-                href="https://www.zkoficial.com.br"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[6px] sm:text-[9px] font-bold text-blue-200 uppercase tracking-[0.15em] hover:text-white transition-colors"
-              >
-                WWW.ZKOFICIAL.COM.BR
-              </a>
+              
+              <div className="mt-1 flex items-center gap-1.5 px-2 py-0.5 bg-white/5 rounded-full border border-white/10">
+                <Trophy className="w-2 h-2 text-yellow-500" />
+                <span className="text-[6px] sm:text-[8px] font-bold text-blue-200 uppercase tracking-widest truncate max-w-[120px]">
+                  {nextGame?.competition || 'Temporada 2026'}
+                </span>
+              </div>
             </div>
 
             {/* Logo adversário */}
-            <div className="flex flex-col items-center gap-1">
-              <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white/10 backdrop-blur-md rounded-full p-1.5 shadow-xl border-2 border-white/20 flex items-center justify-center overflow-hidden">
+            <div className="flex flex-col items-center flex-shrink-0">
+              <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white/10 backdrop-blur-md rounded-full p-1.5 shadow-xl border-2 border-white/20 flex items-center justify-center overflow-hidden ring-4 ring-white/10">
                 {(() => {
                   const oppName = nextGame?.opponent;
                   const logoUrl = nextGame?.opponent_logo || (oppName ? getTeamLogo(oppName) : '');
@@ -371,31 +436,15 @@ const ModernPitchView: React.FC = () => {
                   }
                   return (
                     <div className="w-full h-full flex items-center justify-center bg-blue-900/40">
-                      <span className="text-xs sm:text-lg font-black text-white/40">
+                      <span className="text-[10px] sm:text-lg font-black text-white/40">
                         {oppName ? getTeamInitials(oppName) : '?'}
                       </span>
                     </div>
                   );
                 })()}
               </div>
-              <span className="text-[7px] sm:text-[9px] font-black text-white/70 italic uppercase tracking-tighter truncate max-w-[80px] text-center">
-                {nextGame?.opponent || 'ADVERSÁRIO'}
-              </span>
             </div>
           </div>
-
-          {nextGame && (
-            <div className="mt-2 flex items-center gap-3">
-              <div className="px-2 py-0.5 bg-blue-800/50 border border-blue-400/20 rounded-full">
-                <span className="text-[7px] sm:text-[9px] font-bold text-blue-100 uppercase tracking-widest">
-                  {nextGame.competition}
-                </span>
-              </div>
-              <span className="text-[7px] sm:text-[9px] font-bold text-blue-300 uppercase tracking-widest">
-                {nextGame.venue}
-              </span>
-            </div>
-          )}
         </div>
 
         {/* Gramado */}
@@ -429,7 +478,7 @@ const ModernPitchView: React.FC = () => {
 
           {/* Jogadores */}
           {FORMATIONS[formation].map((pos) => {
-            const player = selectedPlayers[pos.id];
+            const player = currentSelectedState[pos.id];
             return (
               <div
                 key={pos.id}
@@ -456,7 +505,7 @@ const ModernPitchView: React.FC = () => {
                             ? `https://images.weserv.nl/?url=${encodeURIComponent(player.photo_url || '')}`
                             : (player.photo_url || '')
                         }
-                        alt={player.name}
+                        alt={player.name || 'Jogador'}
                         className="w-full h-full object-cover"
                         crossOrigin="anonymous"
                         onError={(e) => {
@@ -466,7 +515,7 @@ const ModernPitchView: React.FC = () => {
                       />
                     ) : (
                       <img
-                        src="/logos/cruzeiro.png"
+                        src={(activeTeam === 'home' ? "/logos/cruzeiro.png" : (nextGame?.opponent_logo || getTeamLogo(nextGame?.opponent || ''))) as string}
                         alt={pos.role}
                         className="w-full h-full object-contain opacity-40 group-hover:opacity-100 transition-opacity p-1.5"
                       />
@@ -520,9 +569,13 @@ const ModernPitchView: React.FC = () => {
               <div className="px-4 py-4 sm:px-8 sm:py-6 border-b border-gray-100 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <img src="/logos/cruzeiro.png" alt="Cruzeiro" className="w-8 h-8 object-contain" />
+                    <img 
+                      src={(activeTeam === 'home' ? "/logos/cruzeiro.png" : (nextGame?.opponent_logo || getTeamLogo(nextGame?.opponent || ''))) as string} 
+                      alt="Time" 
+                      className="w-8 h-8 object-contain" 
+                    />
                     <h3 className="text-lg sm:text-xl font-black text-gray-800 uppercase italic">
-                      Escolha o {filterPos}
+                      {activeTeam === 'home' ? 'Cruzeiro' : (nextGame?.opponent || 'Adversário')}
                     </h3>
                   </div>
                   <button
@@ -557,19 +610,25 @@ const ModernPitchView: React.FC = () => {
 
               {/* Grid de jogadores */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                  {filteredPlayers.map((player) => {
-                    const isSelected = Object.values(selectedPlayers).some((p) => p?.id === player.id);
-                    return (
-                      <button
-                        key={player.id}
-                        onClick={() => handleSelectPlayer(player)}
-                        className={`flex flex-col items-center p-2.5 sm:p-4 rounded-2xl sm:rounded-3xl transition-all border-2 sm:border-4
-                          ${isSelected
-                            ? 'bg-blue-700 border-yellow-400 scale-105 shadow-xl'
-                            : 'bg-[#0055ff] border-transparent hover:bg-blue-600 hover:scale-105'
-                          } active:scale-95`}
-                      >
+                {loadingOpponents ? (
+                  <div className="flex flex-col items-center justify-center py-20 gap-4">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+                    <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Buscando Atletas...</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    {filteredPlayers.map((player: CruzeiroPlayer) => {
+                      const isSelected = Object.values(currentSelectedState).some((p) => p?.id === player.id);
+                      return (
+                        <button
+                          key={player.id}
+                          onClick={() => handleSelectPlayer(player)}
+                          className={`flex flex-col items-center p-2.5 sm:p-4 rounded-2xl sm:rounded-3xl transition-all border-2 sm:border-4
+                            ${isSelected
+                              ? 'bg-blue-700 border-yellow-400 scale-105 shadow-xl'
+                              : 'bg-[#0055ff] border-transparent hover:bg-blue-600 hover:scale-105'
+                            } active:scale-95`}
+                        >
                         <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-white/20 mb-2 sm:mb-3 bg-white/10 shadow-inner">
                           {player.photo_url ? (
                             <img
@@ -590,12 +649,13 @@ const ModernPitchView: React.FC = () => {
                     );
                   })}
 
-                  {filteredPlayers.length === 0 && (
+                  {!loadingOpponents && filteredPlayers.length === 0 && (
                     <div className="col-span-2 py-20 text-center opacity-30">
                       <p className="text-sm font-black uppercase text-gray-500">Nenhum atleta</p>
                     </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>

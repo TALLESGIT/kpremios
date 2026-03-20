@@ -13,12 +13,21 @@ public class MainActivity extends BridgeActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try {
                 PictureInPictureParams.Builder builder = new PictureInPictureParams.Builder();
-                // Set aspect ratio of 16:9 for the video
+                // Definir proporção 16:9 para o vídeo na PiP
                 builder.setAspectRatio(new Rational(16, 9));
                 enterPictureInPictureMode(builder.build());
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+    }
+
+    @Override
+    public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, android.content.res.Configuration newConfig) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+        // Notificar o lado JavaScript sobre a mudança de estado
+        if (getBridge() != null) {
+            getBridge().triggerJSEvent("pipStateChange", "window", "{ \"isInPip\": " + isInPictureInPictureMode + " }");
         }
     }
 }

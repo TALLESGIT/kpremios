@@ -264,6 +264,39 @@ const MobileLiveControls: React.FC<MobileLiveControlsProps> = ({
               </motion.button>
             )}
 
+            {/* Botão de Áudio (Volume) */}
+            {onToggleAudio && (
+              <motion.button
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 200,
+                  damping: 20,
+                  delay: isMobile ? 0.3 : 0.05
+                }}
+                whileTap={{ scale: 0.9 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleAudio();
+                  showControls();
+                }}
+                className={`bg-black/20 backdrop-blur-sm p-3 rounded-full transition-all ${
+                  isAudioEnabled 
+                    ? 'text-blue-400 border border-blue-500/30' 
+                    : 'text-white border border-white/10 hover:bg-black/40'
+                }`}
+                aria-label={isAudioEnabled ? "Mutar" : "Desmutar"}
+                title={isAudioEnabled ? "Mutar" : "Desmutar"}
+              >
+                {isAudioEnabled ? (
+                  <Volume2 className="w-5 h-5" />
+                ) : (
+                  <VolumeX className="w-5 h-5" />
+                )}
+              </motion.button>
+            )}
+
             {/* Botão Picture-in-Picture (apenas mobile e live ativa) */}
             {isMobile && isActive && onPictureInPicture && (
               <motion.button
