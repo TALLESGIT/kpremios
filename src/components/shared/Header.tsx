@@ -15,7 +15,6 @@ function Header() {
   const [isMobileMediaOpen, setIsMobileMediaOpen] = useState(false);
   const mediaRef = useRef<HTMLDivElement>(null);
   const [hasActiveLive, setHasActiveLive] = useState(false);
-  const [hasActiveLive, setHasActiveLive] = useState(false);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
