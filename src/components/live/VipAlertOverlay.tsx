@@ -150,7 +150,13 @@ const VipAlertOverlay: React.FC<VipAlertOverlayProps> = ({ streamId }) => {
     if (!isConnected || !streamId) return;
 
     const handleVipAlert = (data: any) => {
-      if (isLiveChatDebug()) console.log('💎 VipAlertOverlay: Recebeu alerta VIP:', data);
+      // ✅ Log de debug (exige VITE_DEBUG_LIVE=1 ou modo dev)
+      if (isLiveChatDebug()) {
+        console.log('💎 VipAlertOverlay: Recebeu alerta VIP:', data);
+      } else if ((import.meta as any).env?.DEV) {
+        console.log('💎 VipAlertOverlay: Evento VIP recebido:', data);
+      }
+
       const newAlert: VipAlert = {
         id: data.id || Math.random().toString(36).substring(2),
         user_name: data.user_name || data.userName || data.name || (data.user && data.user.name) || 'Doador'

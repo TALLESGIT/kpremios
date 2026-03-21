@@ -665,31 +665,48 @@ io.on('connection', (socket) => {
     }
   });
 
-  // ✅ Admin lança promoção VIP para todos os viewers
+  // ✅ Admin lança promoção VIP para todos os viewers da stream
   socket.on('vip-promo-launched', (data) => {
     const { streamId } = data || {};
     if (!streamId) return;
-    console.log(`💎 Admin lançou promoção VIP na stream ${streamId}`);
-    // Retransmite para TODOS (Global)
-    io.emit('vip-promo-launched', { streamId });
+    console.log(`💎 [VIP] Promoção VIP lançada na stream ${streamId}`);
+    // Retransmite APENAS para os viewers desta stream
+    io.to(`stream:${streamId}`).emit('vip-promo-launched', { streamId });
   });
 
-  // ✅ Admin anuncia novo VIP com nome (overlay animado para todos)
+  // ✅ Admin anuncia novo VIP com nome (overlay animado para viewers da stream)
   socket.on('vip-new-subscriber', (data) => {
-    const { streamId, name } = data || {};
-    if (!streamId || !name) return;
-    console.log(`🎉 Novo VIP anunciado na stream ${streamId}: ${name}`);
-    // Retransmite para TODOS (incluindo o admin) - Global
-    io.emit('vip-new-subscriber', { streamId, name });
+    const { streamId, name, user_name, userName } = data || {};
+    if (!streamId) return;
+    
+    const finalName = name || user_name || userName || 'Novo VIP';
+    console.log(`🎉 [VIP] Novo VIP anunciado na stream ${streamId}: ${finalName}`);
+    
+    // Retransmite APENAS para os viewers desta stream
+    io.to(`stream:${streamId}`).emit('vip-new-subscriber', { 
+      streamId, 
+      name: finalName,
+      user_name: finalName,
+      userName: finalName,
+      id: `vip-sub-${Date.now()}`
+    });
   });
 
-  // ✅ Admin lança alerta VIP manual (overlay animado para todos)
+  // ✅ Admin lança alerta VIP manual (overlay animado para viewers da stream)
   socket.on('vip-alert-received', (data) => {
-    const { streamId, name } = data || {};
-    if (!streamId || !name) return;
-    console.log(`💎 Alerta VIP manual retransmitido na stream ${streamId}: ${name}`);
-    // Retransmite para TODOS - Global
-    io.emit('vip-alert-received', { streamId, name });
+    const { streamId, name, user_name, userName } = data || {};
+    if (!streamId) return;
+    
+    const finalName = name || user_name || userName || 'Alerta VIP';
+    console.log(`💎 [VIP] Alerta VIP manual retransmitido na stream ${streamId}: ${finalName}`);
+    
+    // Retransmite APENAS para os viewers desta stream
+    io.to(`stream:${streamId}`).emit('vip-alert-received', { 
+      streamId, 
+      name: finalName,
+      user_name: finalName,
+      userName: finalName
+    });
   });
 
   // Chat: Viewer envia mensagem (Write-Behind + Read-Through Cache)

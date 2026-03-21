@@ -192,11 +192,13 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
       const isDuplicate = messageQueueRef.current.some(m => m.id === msg.id) || (currentMessage?.id === msg.id);
       if (isDuplicate) return;
 
-      debug('✨ Nova mensagem VIP via Socket:', msg.message);
+      const userName = msg.user_name || msg.userName || msg.name || 'VIP';
+      debug('✨ Nova mensagem VIP via Socket:', msg.message, 'por:', userName);
+      
       const vipMsg: VipMessage = {
         id: msg.id || `socket-${Date.now()}`,
         user_id: msg.user_id,
-        user_name: msg.user_name,
+        user_name: userName,
         message: msg.message,
         created_at: msg.created_at || new Date().toISOString(),
         message_type: msg.message_type || 'text',
@@ -215,11 +217,13 @@ const VipMessageOverlay: React.FC<VipMessageOverlayProps> = ({ streamId, isActiv
       const isDuplicate = messageQueueRef.current.some(m => m.id === msg.id) || (currentMessage?.id === msg.id);
       if (isDuplicate) return;
 
-      debug('👑 Nova mensagem VIP Overlay via Socket:', msg.message);
+      const userName = msg.user_name || msg.userName || msg.name || 'VIP';
+      debug('👑 Nova mensagem VIP Overlay via Socket:', msg.message, 'por:', userName);
+      
       const vipMsg: VipMessage = {
         id: msg.id || `vip-${Date.now()}`,
         user_id: msg.user_id,
-        user_name: msg.user_name,
+        user_name: userName,
         message: msg.message,
         created_at: msg.created_at || new Date().toISOString(),
         message_type: msg.message_type || 'text',
