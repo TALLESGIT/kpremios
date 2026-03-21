@@ -362,7 +362,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
             user_name: currentUser?.name || user.email?.split('@')[0] || 'Usuário',
             bet_id: betData.id,
             pool_id: poolId,
-            amount: 5.00
+            amount: 6.00
           }
         });
 
@@ -389,7 +389,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
                   user_name: currentUser?.name || user.email?.split('@')[0] || 'Usuário',
                   bet_id: betData.id,
                   pool_id: poolId,
-                  amount: 5.00
+                  amount: 6.00
                 })
               });
 
@@ -649,7 +649,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
               <div className="flex items-center justify-center gap-2 mb-1 sm:mb-2">
                 <QrCode className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
                 <h3 className="text-sm sm:text-base font-black text-blue-300 uppercase">
-                  Valor: R$ 5,00
+                  Valor: R$ 6,00
                 </h3>
               </div>
 
@@ -770,7 +770,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
                 <div className="h-[1px] w-full bg-emerald-500/20 my-1" />
                 
                 <p className="text-[9px] md:text-[10px] text-slate-400 leading-tight">
-                  Você pode fazer novas apostas com resultados diferentes cada uma custa apenas <span className="text-white font-bold">R$ 5,00</span>.
+                  Você pode fazer novas apostas com resultados diferentes cada uma custa apenas <span className="text-white font-bold">R$ 6,00</span>.
                 </p>
               </div>
             </div>
