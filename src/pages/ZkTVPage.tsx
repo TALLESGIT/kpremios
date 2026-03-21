@@ -17,7 +17,10 @@ import {
     Crown,
     Target,
     Bell,
-    Trophy
+    Trophy,
+    Share2,
+    Check,
+    DollarSign
 } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
@@ -144,6 +147,28 @@ const ZkTVPage: React.FC = () => {
         return 'cruzeiro';
     });
     const [clubInfo, setClubInfo] = useState<{ name: string; logo_url: string } | null>(null);
+    const [isLinkCopied, setIsLinkCopied] = useState(false);
+
+    // Função para copiar o link profissional
+    const handleCopyLink = () => {
+        const params = new URLSearchParams(window.location.search);
+        const channel = params.get('channel');
+        
+        // Usar a nova rota profissional /ao-vivo/
+        const baseUrl = window.location.origin;
+        const профессионалLink = channel 
+            ? `${baseUrl}/ao-vivo/${channel}`
+            : `${baseUrl}/zk-tv`;
+
+        navigator.clipboard.writeText(профессионалLink).then(() => {
+            setIsLinkCopied(true);
+            toast.success('Link profissional copiado!');
+            setTimeout(() => setIsLinkCopied(false), 2000);
+        }).catch(err => {
+            console.error('Erro ao copiar link:', err);
+            toast.error('Erro ao copiar link');
+        });
+    };
 
     // Sincronizar userClub com o currentUser e carregar info do clube
     // ✅ REGRA: O contexto de clube na ZkTV só muda para Galo se houver canal na URL OU sessão ativa do Galo.
@@ -1640,6 +1665,19 @@ const ZkTVPage: React.FC = () => {
                                     <Bell className="w-4 h-4" />
                                     RECEBER NOTIFICAÇÕES
                                 </a>
+
+                                {/* Botão Copiar Link Profissional */}
+                                <button
+                                    onClick={handleCopyLink}
+                                    className={`inline-flex items-center gap-2 px-4 py-2 border rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95 ${
+                                        isLinkCopied 
+                                            ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' 
+                                            : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/80'
+                                    }`}
+                                >
+                                    {isLinkCopied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+                                    {isLinkCopied ? 'COPIADO' : 'COPIAR LINK'}
+                                </button>
                             </motion.div>
 
                             <motion.h1
@@ -2016,8 +2054,53 @@ const ZkTVPage: React.FC = () => {
                     {/* Main Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
 
-                        {/* Sidebar: Next Match & Stats */}
+                        {/* Sidebar: Bolão, Next Match & Stats */}
                         <div className="lg:col-span-1 space-y-4 sm:space-y-6 lg:space-y-8">
+                            
+                            {/* Card: Bolão Ativo (Exclusivo Galo ou se houver bolão ativo geral) */}
+                            {activePool && activePool.is_active && (
+                                <motion.div 
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    className="glass-panel p-6 rounded-[2rem] text-center relative overflow-hidden group hover:bg-white/5 transition-all duration-300 border-2 border-emerald-500/30 shadow-2xl shadow-emerald-900/30"
+                                >
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600 animate-pulse"></div>
+                                    <div className="w-12 h-12 mx-auto bg-gradient-to-br from-emerald-500/30 to-emerald-600/30 rounded-full flex items-center justify-center mb-3 text-emerald-300 group-hover:scale-110 transition-transform relative">
+                                        <Target className="w-6 h-6" />
+                                    </div>
+                                    <h3 className="text-lg font-black text-white mb-4 uppercase tracking-tight">Bolão Ativo</h3>
+                                    
+                                    <div className="mb-6 flex items-center justify-center gap-4">
+                                        <div className="flex flex-col items-center gap-1">
+                                            <TeamLogo teamName={activePool.home_team} customLogo={activePool.home_team_logo} size="sm" showName={false} />
+                                            <span className="text-[8px] font-black text-white uppercase tracking-tighter truncate max-w-[50px]">{activePool.home_team}</span>
+                                        </div>
+                                        <div className="text-[10px] font-black italic text-slate-700">VS</div>
+                                        <div className="flex flex-col items-center gap-1">
+                                            <TeamLogo teamName={activePool.away_team} customLogo={activePool.away_team_logo} size="sm" showName={false} />
+                                            <span className="text-[8px] font-black text-white uppercase tracking-tighter truncate max-w-[50px]">{activePool.away_team}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-gradient-to-br from-emerald-500/15 via-emerald-600/10 to-emerald-700/15 border border-emerald-500/30 rounded-2xl p-4 mb-4">
+                                        <div className="flex items-center justify-center gap-1.5 mb-1 opacity-70">
+                                            <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                                            <p className="text-emerald-400 text-[9px] font-black uppercase tracking-widest">Prêmio Atual</p>
+                                        </div>
+                                        <p className="text-2xl font-black text-emerald-300 drop-shadow-[0_0_8px_rgba(16,185,129,0.4)]">
+                                            R$ {((activePool.total_pool_amount || 0) * 0.70 + (activePool.accumulated_amount || 0)).toFixed(2).replace('.', ',')}
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        onClick={() => setShowPoolModal(true)}
+                                        className="w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-emerald-600/20"
+                                    >
+                                        PARTICIPAR AGORA
+                                    </button>
+                                </motion.div>
+                            )}
+
                             {/* Next Match Card - Escondido no mobile */}
                             <div className="hidden md:block bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-4 sm:p-6 lg:p-8 rounded-[2rem] relative overflow-visible group pb-6 sm:pb-8">
                                 <div className="absolute top-0 right-0 p-4 sm:p-6 lg:p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">

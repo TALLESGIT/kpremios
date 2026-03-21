@@ -209,6 +209,8 @@ function AppContentInner() {
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
           <Route path="/live/:channelName" element={<ChannelRedirect />} />
+          <Route path="/ao-vivo/:channelName" element={<ChannelRedirect />} />
+          <Route path="/transmissao/:channelName" element={<ChannelRedirect />} />
         </Routes>
         <GlobalChatAndPollOverlay />
         <MobileNavigation />
