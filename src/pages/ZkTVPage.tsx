@@ -20,7 +20,8 @@ import {
     Trophy,
     Share2,
     Check,
-    DollarSign
+    DollarSign,
+    Zap
 } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
@@ -104,6 +105,49 @@ const StatsSkeleton = () => (
     </div>
 );
 
+const LiveTimeline: React.FC<{ events: any[] }> = ({ events }) => {
+    if (!events || events.length === 0) return null;
+
+    return (
+        <div className="space-y-3 mt-6 animate-in fade-in slide-in-from-bottom duration-500">
+            <h4 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                <Zap className="w-3 h-3 text-indigo-400" />
+                Destaques da Partida
+            </h4>
+            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                {events.map((event, idx) => (
+                    <motion.div 
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        key={event.id || idx}
+                        className="flex items-center gap-3 p-3 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-colors group"
+                    >
+                        <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-[10px] font-black text-indigo-400 shrink-0 border border-white/10 group-hover:border-indigo-500/30 transition-colors">
+                            {event.elapsed}'
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xl shrink-0">
+                                    {event.type === 'Goal' ? '⚽' : event.type === 'Card' && event.detail?.includes('Yellow') ? '🟨' : event.type === 'Card' ? '🟥' : '🔄'}
+                                </span>
+                                <div className="min-w-0">
+                                    <p className="text-xs font-black text-white truncate uppercase tracking-tight">
+                                        {event.player_name || 'Evento'}
+                                    </p>
+                                    <p className="text-[9px] font-bold text-white/40 truncate uppercase tracking-widest">
+                                        {event.detail || event.type} {event.team_name ? `• ${event.team_name}` : ''}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 
 const ZkTVPage: React.FC = () => {
     const { user } = useAuth();
@@ -159,11 +203,11 @@ const ZkTVPage: React.FC = () => {
         
         // Usar a nova rota profissional /ao-vivo/
         const baseUrl = window.location.origin;
-        const профессионалLink = channel 
+        const professionalLink = channel 
             ? `${baseUrl}/ao-vivo/${channel}`
             : `${baseUrl}/zk-tv`;
 
-        navigator.clipboard.writeText(профессионалLink).then(() => {
+        navigator.clipboard.writeText(professionalLink).then(() => {
             setIsLinkCopied(true);
             toast.success('Link profissional copiado!');
             setTimeout(() => setIsLinkCopied(false), 2000);
@@ -1397,51 +1441,80 @@ const ZkTVPage: React.FC = () => {
         }
     }, [isLiveActive]);
 
-    // ✅ BUSCAR EVENTOS E PLACAR REAL (API-FOOTBALL)
+    // ✅ BUSCAR EVENTOS E PLACAR REAL (VIA EDGE FUNCTION)
     const fetchLiveMatchData = useCallback(async (fixtureId: number) => {
         try {
-            const apiKey = import.meta.env.VITE_FOOTBALL_API_KEY;
-            if (!apiKey) return;
-
-            const response = await fetch(`https://v3.football.api-sports.io/fixtures?id=${fixtureId}`, {
-                headers: {
-                    'x-apisports-key': apiKey,
-                    'x-rapidapi-host': 'v3.football.api-sports.io'
-                }
+            if (isZkTVDebug()) console.log('⚽ ZkTV: Sincronizando eventos do jogo via Edge Function...', fixtureId);
+            
+            const { data, error } = await supabase.functions.invoke('sync-match-events', {
+                body: { fixtureId }
             });
-            const result = await response.json();
 
-            if (result.response && result.response.length > 0) {
-                const match = result.response[0];
+            if (error) throw error;
+            
+            if (data?.match) {
+                const match = data.match;
                 setLiveScore({
                     home: match.goals.home ?? 0,
                     away: match.goals.away ?? 0
                 });
                 setMatchStatus(match.fixture.status.short);
                 setElapsedTime(match.fixture.status.elapsed);
-
-                // Buscar Eventos
-                const eventsRes = await fetch(`https://v3.football.api-sports.io/fixtures/events?fixture=${fixtureId}`, {
-                    headers: {
-                        'x-apisports-key': apiKey,
-                        'x-rapidapi-host': 'v3.football.api-sports.io'
-                    }
-                });
-                const eventsResult = await eventsRes.json();
-                if (eventsResult.response) {
-                    setLiveEvents(eventsResult.response.reverse().slice(0, 5)); // Últimos 5 eventos
-                }
             }
         } catch (error) {
-            console.warn('Erro ao buscar dados live do jogo:', error);
+            console.warn('Erro ao sincronizar dados live via Edge Function:', error);
+            // Fallback para os estados existentes se falhar
         }
     }, []);
+
+    // ✅ LISTENER REALTIME PARA EVENTOS DO JOGO
+    useEffect(() => {
+        const fixtureId = displayGame?.api_fixture_id;
+        if (!fixtureId) return;
+
+        if (isZkTVDebug()) console.log('📡 ZkTV: Iniciando Realtime para eventos do fixture:', fixtureId);
+
+        // Buscar eventos iniciais do banco
+        supabase.from('match_events')
+            .select('*')
+            .eq('fixture_id', fixtureId)
+            .order('elapsed', { ascending: false })
+            .limit(20)
+            .then(({ data }) => {
+                if (data) setLiveEvents(data);
+            });
+
+        const channel = supabase.channel(`match-events-${fixtureId}`)
+            .on('postgres_changes', { 
+                event: 'INSERT', 
+                schema: 'public', 
+                table: 'match_events',
+                filter: `fixture_id=eq.${fixtureId}`
+            }, (payload) => {
+                if (isZkTVDebug()) console.log('⚽ NOVO EVENTO RECEBIDO:', payload.new);
+                setLiveEvents(prev => [payload.new, ...prev].slice(0, 20));
+                
+                // Toast especial para gols
+                if (payload.new.type === 'Goal') {
+                    toast.success(`GOOOOL! ${payload.new.player_name} (${payload.new.elapsed}')`, {
+                        icon: '⚽',
+                        duration: 5000,
+                        position: 'top-center'
+                    });
+                }
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [displayGame?.api_fixture_id]);
 
     useEffect(() => {
         const fixtureId = displayGame?.api_fixture_id;
         if (fixtureId && (isLiveActive || displayGame.status === 'live')) {
             fetchLiveMatchData(fixtureId);
-            const interval = setInterval(() => fetchLiveMatchData(fixtureId), 60000);
+            const interval = setInterval(() => fetchLiveMatchData(fixtureId), 30000); // 30s
             return () => clearInterval(interval);
         }
     }, [displayGame?.api_fixture_id, isLiveActive, fetchLiveMatchData]);
@@ -1789,46 +1862,63 @@ const ZkTVPage: React.FC = () => {
                                     animate={{ y: 0, opacity: 1 }}
                                     className="absolute top-0 left-0 right-0 z-[60] p-2 sm:p-4 bg-gradient-to-b from-black/90 via-black/40 to-transparent pointer-events-none"
                                 >
-                                    <div className="max-w-2xl mx-auto flex items-center justify-center gap-2 sm:gap-6">
-                                        <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
-                                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                            <span className="text-[10px] font-black text-white uppercase tracking-tighter">
-                                                {matchStatus === 'HT' ? 'Intervalo' : `LIVE ${elapsedTime}'`}
-                                            </span>
-                                        </div>
-
-                                        <div className="flex items-center gap-3 sm:gap-6 bg-black/80 backdrop-blur-md px-4 sm:px-8 py-2 sm:py-3 rounded-2xl border border-white/10 shadow-2xl">
-                                            <div className="flex items-center gap-2 sm:gap-3">
-                                                <span className="text-white font-black text-xs sm:text-base uppercase tracking-tight hidden sm:block">
-                                                    {clubInfo?.name?.substring(0, 3) || 'CAM'}
-                                                </span>
-                                                <div className="w-10 sm:w-14 h-8 sm:h-12 bg-white/5 flex items-center justify-center rounded-lg text-lg sm:text-2xl font-black text-blue-400">
-                                                    {displayGame?.is_home ? liveScore.home : liveScore.away}
-                                                </div>
-                                            </div>
-
-                                            <div className="text-white/20 font-black italic text-xs">VS</div>
-
-                                            <div className="flex items-center gap-2 sm:gap-3">
-                                                <div className="w-10 sm:w-14 h-8 sm:h-12 bg-white/5 flex items-center justify-center rounded-lg text-lg sm:text-2xl font-black text-white/80">
-                                                    {displayGame?.is_home ? liveScore.away : liveScore.home}
-                                                </div>
-                                                <span className="text-white/60 font-black text-xs sm:text-base uppercase tracking-tight hidden sm:block">
-                                                    {displayGame?.opponent?.substring(0,3)}
+                                    <div className="max-w-2xl mx-auto flex flex-col items-center gap-4">
+                                        <div className="flex items-center justify-center gap-2 sm:gap-6 w-full">
+                                            <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+                                                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                                <span className="text-[10px] font-black text-white uppercase tracking-tighter">
+                                                    {matchStatus === 'HT' ? 'Intervalo' : matchStatus === 'FT' ? 'Encerrado' : `LIVE ${elapsedTime}'`}
                                                 </span>
                                             </div>
+
+                                            <div className="flex items-center gap-3 sm:gap-8 bg-black/90 backdrop-blur-xl px-6 sm:px-12 py-3 sm:py-4 rounded-[2rem] border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/5">
+                                                <div className="flex items-center gap-3 sm:gap-5">
+                                                    <div className="flex flex-col items-end">
+                                                        <span className="text-white font-black text-xs sm:text-lg uppercase tracking-tight leading-none">
+                                                            {displayGame?.is_home ? (settings?.team_name?.substring(0,3) || clubInfo?.name?.substring(0, 3)) : displayGame?.opponent?.substring(0,3)}
+                                                        </span>
+                                                        <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest mt-0.5">CASA</span>
+                                                    </div>
+                                                    <div className="w-12 sm:w-16 h-10 sm:h-14 bg-white/5 flex items-center justify-center rounded-2xl text-xl sm:text-3xl font-black text-white shadow-inner border border-white/5">
+                                                        {displayGame?.is_home ? liveScore.home : liveScore.away}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <div className="text-white/20 font-black italic text-xs">VS</div>
+                                                    <div className="h-4 w-[1px] bg-white/10"></div>
+                                                </div>
+
+                                                <div className="flex items-center gap-3 sm:gap-5">
+                                                    <div className="w-12 sm:w-16 h-10 sm:h-14 bg-white/5 flex items-center justify-center rounded-2xl text-xl sm:text-3xl font-black text-white shadow-inner border border-white/5">
+                                                        {displayGame?.is_home ? liveScore.away : liveScore.home}
+                                                    </div>
+                                                    <div className="flex flex-col items-start">
+                                                        <span className="text-white/60 font-black text-xs sm:text-lg uppercase tracking-tight leading-none">
+                                                            {displayGame?.is_home ? displayGame?.opponent?.substring(0,3) : (settings?.team_name?.substring(0,3) || clubInfo?.name?.substring(0, 3))}
+                                                        </span>
+                                                        <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest mt-0.5">FORA</span>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        {/* EVENT TIMELINE POPUP (DESKTOP) */}
+                                        {/* MINI TIMELINE NO HEADER (DESKTOP) */}
                                         {!isMobile && liveEvents.length > 0 && (
-                                            <div className="hidden lg:block bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10">
-                                                <div className="flex items-center gap-2 overflow-hidden max-w-[150px]">
-                                                    {liveEvents[0].type === 'Goal' ? '⚽' : liveEvents[0].type === 'Card' ? '🟨' : '🔄'}
-                                                    <span className="text-[10px] font-bold text-white/80 truncate">
-                                                        {liveEvents[0].player?.name || 'Evento'} {liveEvents[0].time?.elapsed}'
+                                            <motion.div 
+                                                initial={{ y: -20, opacity: 0 }}
+                                                animate={{ y: 0, opacity: 1 }}
+                                                className="hidden lg:flex items-center gap-3 bg-white/5 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 hover:bg-white/10 transition-colors cursor-default"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs">
+                                                        {liveEvents[0].type === 'Goal' ? '⚽' : liveEvents[0].type === 'Card' ? '🟨' : '🔄'}
+                                                    </span>
+                                                    <span className="text-[10px] font-black text-white uppercase tracking-tight">
+                                                        Último Evento: {liveEvents[0].player_name} ({liveEvents[0].elapsed}')
                                                     </span>
                                                 </div>
-                                            </div>
+                                            </motion.div>
                                         )}
                                     </div>
                                 </motion.div>
@@ -2111,6 +2201,13 @@ const ZkTVPage: React.FC = () => {
                                 </div>
                             )}
                         </motion.div>
+                        
+                        {/* ✅ LIVE TIMELINE INTEGRADA (ABAIXO DO PLAYER) */}
+                        {isLiveActive && liveEvents.length > 0 && (
+                            <div className="w-full max-w-[760px] mx-auto hidden sm:block">
+                                <LiveTimeline events={liveEvents} />
+                            </div>
+                        )}
                     </div>
                 </div>
             </section>

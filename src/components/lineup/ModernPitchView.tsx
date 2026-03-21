@@ -24,6 +24,7 @@ interface TeamPlayer {
   photo_url: string | null;
   club_slug?: string;
   team_id?: number;
+  grid_position?: string | null;
 }
 
 interface MatchGame {
@@ -236,7 +237,14 @@ const ModernPitchView: React.FC = () => {
         const isRecent = Math.abs(today.getTime() - gameDate.getTime()) < 24 * 60 * 60 * 1000;
         
         if (isRecent || gameData.status === 'live') {
-          fetchLiveLineup(gameData.api_fixture_id, gameData.is_home);
+          // Se já temos jogadores com grid no banco, usar eles primeiro
+          const playersWithGrid = playerData?.filter(p => p.grid_position) || [];
+          if (playersWithGrid.length >= 11) {
+             console.log("🚀 Usando escalação estocada com Grid do banco!");
+             applyGridFromPlayers(playersWithGrid as TeamPlayer[]);
+          } else {
+             fetchLiveLineup(gameData.api_fixture_id, gameData.is_home);
+          }
         }
       }
       
@@ -245,6 +253,49 @@ const ModernPitchView: React.FC = () => {
       toast.error('Erro ao carregar dados da escalação');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const applyGridFromPlayers = (players: TeamPlayer[]) => {
+    const mappedLineup: (FormationPosition & { player: any })[] = players
+      .filter(p => p.grid_position)
+      .map((p, idx) => {
+        const [row, col] = (p.grid_position || "1:1").split(':').map(Number);
+        
+        // Mapeamento mais suave e preciso
+        const top = 92 - ((row - 1) * 18);
+        const left = 15 + ((col - 1) * 17.5);
+        
+        return {
+          id: idx + 1,
+          role: p.position,
+          top: Math.max(5, Math.min(95, top)),
+          left: Math.max(5, Math.min(95, left)),
+          player: {
+            id: p.id,
+            name: p.name,
+            number: p.number,
+            photo_url: p.photo_url
+          }
+        };
+      });
+
+    if (mappedLineup.length > 0) {
+      setLiveFormation(mappedLineup);
+      setIsLiveActive(true);
+      
+      const selected: Record<number, TeamPlayer> = {};
+      mappedLineup.forEach(pos => {
+        selected[pos.id] = {
+          id: String(pos.player.id),
+          name: pos.player.name,
+          number: String(pos.player.number),
+          position: pos.role,
+          photo_url: pos.player.photo_url
+        };
+      });
+      
+      setHomeSelected(selected);
     }
   };
 
@@ -262,11 +313,7 @@ const ModernPitchView: React.FC = () => {
       const result = await response.json();
 
       if (result.response && result.response.length > 0) {
-        // Encontrar o time correto no array (o cliente pode ser home ou away na API)
-        // Busca flexível: 'atletico-mg' -> 'atletico', 'cruzeiro' -> 'cruzeiro'
         const searchKey = clubSlug.split('-')[0].toLowerCase();
-        
-        console.log(`[Lineup] Buscando time com chave: ${searchKey} no fixture ${fixtureId}`);
         
         const lineupData = result.response.find((l: any) => {
           const apiTeamName = l.team.name.toLowerCase();
@@ -274,26 +321,19 @@ const ModernPitchView: React.FC = () => {
           return isHomeClient ? isOurTeam : !isOurTeam;
         }) || result.response[0];
 
-        console.log(`[Lineup] Time identificado: ${lineupData.team.name}`);
-
         if (lineupData && lineupData.startXI) {
-          const mappedLineup: FormationPosition[] = lineupData.startXI.map((item: any, idx: number) => {
+          const mappedLineup: any[] = lineupData.startXI.map((item: any, idx: number) => {
             const [row, col] = (item.player.grid || "1:1").split(':').map(Number);
             
-            // Mapeamento de Top % (Invertido pois 1 é GOL no fundo)
-            const rowsTop: Record<number, number> = { 1: 92, 2: 78, 3: 58, 4: 34, 5: 18 };
+            // Mapeamento dinâmico
+            const top = 92 - ((row - 1) * 18);
+            const left = 15 + ((col - 1) * 17.5);
             
-            // Mapeamento de Left % (Distribuído)
-            const leftMap: Record<number, number> = { 1: 15, 2: 35, 3: 50, 4: 65, 5: 85 };
-            
-            // Especial para Goleiro (sempre centro)
-            if (row === 1) return { id: idx + 1, role: 'GOL', top: 92, left: 50, player: item.player };
-
             return {
               id: idx + 1,
               role: item.player.pos === 'G' ? 'GOL' : item.player.pos === 'D' ? 'DEF' : item.player.pos === 'M' ? 'MEI' : 'ATA',
-              top: rowsTop[row] || 50,
-              left: leftMap[col] || (col * 15 + 10),
+              top: Math.max(5, Math.min(95, top)),
+              left: Math.max(5, Math.min(95, left)),
               player: item.player
             };
           });
@@ -301,7 +341,6 @@ const ModernPitchView: React.FC = () => {
           setLiveFormation(mappedLineup);
           setIsLiveActive(true);
           
-          // Se for live, já preencher os jogadores
           const selected: Record<number, TeamPlayer> = {};
           mappedLineup.forEach((pos: any) => {
             selected[pos.id] = {
