@@ -15,6 +15,7 @@ import SocialModal from '../components/SocialModal';
 import { getTeamColors } from '../utils/teamLogos';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import { getContextualHome } from '../utils/navigation';
 
 function HomePage() {
   const navigate = useNavigate();
@@ -35,8 +36,15 @@ function HomePage() {
   const [socialLinks, setSocialLinks] = useState<any>({});
   const [viewerCount, setViewerCount] = useState<number>(0);
 
-  // Verificar se o usuário está logado
   const isLoggedIn = !!(user && currentUser);
+  
+  // Redirecionamento inteligente: Se for usuário do Galo, não deve ver a Home do Cruzeiro
+  useEffect(() => {
+    const contextualHome = getContextualHome();
+    if (contextualHome !== '/') {
+      navigate(contextualHome, { replace: true });
+    }
+  }, [navigate]);
 
   const { isConnected, on, off, joinStream } = useSocket({
     streamId: activeStreamId || undefined,

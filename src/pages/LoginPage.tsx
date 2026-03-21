@@ -9,6 +9,7 @@ import { toast } from "react-hot-toast";
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import VipGrantedModal from '../components/vip/VipGrantedModal';
+import { getContextualHome } from '../utils/navigation';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -65,7 +66,7 @@ const LoginPage: React.FC = () => {
         if (error) throw error;
         if (data.user) {
           toast.success("Login realizado com sucesso!");
-          navigate(returnTo || "/");
+          navigate(returnTo || getContextualHome());
         }
       } else {
         toast.error("Erro ao recuperar credenciais biométricas.");
@@ -170,7 +171,7 @@ const LoginPage: React.FC = () => {
           if (bioAvailable.isAvailable && !bioActive) {
             setShowBioPrompt(true);
           } else {
-            navigate('/');
+            navigate(getContextualHome());
           }
         }
       }
@@ -402,7 +403,7 @@ const LoginPage: React.FC = () => {
                       toast.error("Erro ao ativar biometria.");
                     } finally {
                       setShowBioPrompt(false);
-                      navigate('/');
+                      navigate(getContextualHome());
                     }
                   }}
                   className="w-full bg-accent hover:bg-white text-primary font-black py-4 rounded-2xl transition-all shadow-lg"
@@ -412,7 +413,7 @@ const LoginPage: React.FC = () => {
                 <button
                   onClick={() => {
                     setShowBioPrompt(false);
-                    navigate('/');
+                    navigate(getContextualHome());
                   }}
                   className="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-4 rounded-2xl transition-all"
                 >

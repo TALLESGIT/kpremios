@@ -146,6 +146,9 @@ const ZkTVPage: React.FC = () => {
         }
         return 'cruzeiro';
     });
+    
+    const isGaloVisitor = userClub === 'atletico-mg' && !currentUser?.is_admin;
+    
     const [clubInfo, setClubInfo] = useState<{ name: string; logo_url: string } | null>(null);
     const [isLinkCopied, setIsLinkCopied] = useState(false);
 
@@ -2205,7 +2208,7 @@ const ZkTVPage: React.FC = () => {
                                 >
                                     Tabela
                                 </button>
-                                {userClub !== 'atletico-mg' && (
+                                {!isGaloVisitor && (
                                     <button
                                         onClick={() => setActiveTab('clips')}
                                         className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === 'clips' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
@@ -2438,7 +2441,7 @@ const ZkTVPage: React.FC = () => {
                 </div>
             </section>
 
-            {userClub !== 'atletico-mg' && <Footer />}
+            {!isGaloVisitor && <Footer />}
 
             {/* Modals */}
             <VipSubscriptionModal

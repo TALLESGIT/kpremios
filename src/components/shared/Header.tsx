@@ -25,6 +25,7 @@ function Header() {
   
   const activeClub = currentAppUser?.club_slug || guestClub;
   const isGalo = activeClub === 'atletico-mg';
+  const isGaloVisitor = isGalo && !currentAppUser?.is_admin;
 
   useEffect(() => {
     const checkOrientation = () => {
@@ -215,7 +216,7 @@ function Header() {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-1 lg:space-x-4">
-              {!isGalo && (
+              {!isGaloVisitor && (
                 <Link
                   to={currentAppUser?.is_admin ? "/admin/dashboard" : "/"}
                   className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${(currentAppUser?.is_admin ? location.pathname === '/admin/dashboard' : location.pathname === '/')
@@ -227,7 +228,7 @@ function Header() {
                 </Link>
               )}
               <>
-                {!isGalo && (
+                {!isGaloVisitor && (
                   <Link
                     to="/winners"
                     className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/winners'
@@ -249,7 +250,7 @@ function Header() {
                   Escalar Time
                 </Link>
 
-                {!isGalo && (
+                {!isGaloVisitor && (
                   <Link
                     to="/loja"
                     className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/loja'
@@ -293,7 +294,7 @@ function Header() {
               )}
 
               {/* Botão Mídia (Dropdown) */}
-              {!isGalo && (
+              {!isGaloVisitor && (
                 <div className="relative" ref={mediaRef}>
                   <button
                     onClick={() => setIsMediaOpen(!isMediaOpen)}
@@ -341,7 +342,7 @@ function Header() {
               )}
 
               {/* Botão Carrinho - Desktop (Ocultar para Galo) */}
-              {!isGalo && (
+              {!isGaloVisitor && (
                 <button
                   onClick={() => setIsCartOpen(true)}
                   className="relative p-2.5 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 group"
@@ -426,7 +427,7 @@ function Header() {
               </button>
 
                {/* Carrinho (Ocultar para Galo) */}
-              {!isGalo && (
+              {!isGaloVisitor && (
                 <button
                   onClick={() => setIsCartOpen(true)}
                   className="relative p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all"
@@ -501,7 +502,7 @@ function Header() {
 
               {/* Menu Items */}
               <nav className="flex-1 overflow-y-auto p-5 space-y-2.5 custom-scrollbar pb-[calc(env(safe-area-inset-bottom,20px)+3rem)]">
-                {!isGalo && (
+                {!isGaloVisitor && (
                   <Link
                     to={currentAppUser?.is_admin ? "/admin/dashboard" : "/"}
                     className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${(currentAppUser?.is_admin ? location.pathname === '/admin/dashboard' : location.pathname === '/')
@@ -517,7 +518,7 @@ function Header() {
                   </Link>
                 )}
 
-                {!isGalo && (
+                {!isGaloVisitor && (
                   <Link
                     to="/winners"
                     className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname === '/winners'
@@ -547,7 +548,7 @@ function Header() {
                   Escalar Time
                 </Link>
 
-                {!isGalo && (
+                {!isGaloVisitor && (
                   <Link
                     to="/loja"
                     className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname === '/loja'
@@ -603,7 +604,7 @@ function Header() {
                   <p className="px-5 text-[10px] font-black uppercase text-blue-400/50 tracking-[0.2em] mb-3 leading-none italic">Mídia & Conteúdo</p>
                   
                   {/* Novo Botão Mídia no Mobile */}
-                  {!isGalo && (
+                  {!isGaloVisitor && (
                     <div className="px-5">
                       <button
                         onClick={() => setIsMobileMediaOpen(!isMobileMediaOpen)}

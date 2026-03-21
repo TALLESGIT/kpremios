@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useNavigate, Navigate } from 'react-router-dom';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import { getContextualHome } from '../utils/navigation';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -211,7 +212,7 @@ const MyNumbersPage: React.FC = () => {
               Você ainda não participou de nenhum bolão. Que tal começar agora?
             </p>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate(getContextualHome())}
               className="bg-blue-600 hover:bg-blue-500 text-white font-black py-4 px-8 rounded-2xl transition-all uppercase italic shadow-lg shadow-blue-900/40"
             >
               Ver Bolões Ativos

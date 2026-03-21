@@ -168,11 +168,13 @@ const ModernPitchView: React.FC = () => {
           
           if (oppPlayers && oppPlayers.length > 0) {
             setOpponentPlayers(oppPlayers as TeamPlayer[]);
+            console.log(`✅ ${oppPlayers.length} jogadores do adversário carregados do banco.`);
           } else {
             // 2. Fallback: buscar da API Football e salvar no banco
             try {
               const apiKey = import.meta.env.VITE_FOOTBALL_API_KEY;
               if (apiKey) {
+                console.log(`🔄 Buscando elenco do adversário (ID: ${oppTeamId}) na API Football...`);
                 const response = await fetch(`https://v3.football.api-sports.io/players/squads?team=${oppTeamId}`, {
                   headers: {
                     'x-apisports-key': apiKey,
@@ -184,7 +186,7 @@ const ModernPitchView: React.FC = () => {
                 if (result.response && result.response.length > 0) {
                   const squad = result.response[0].players;
                   const posMap: Record<string, string> = {
-                    'Goalkeeper': 'GOL', 'Defender': 'ZAG', 'Midfielder': 'MEI', 'Attacker': 'ATA'
+                    'Goalkeeper': 'GOL', 'Defender': 'ZAG,LAT', 'Midfielder': 'MEI', 'Attacker': 'ATA'
                   };
                   
                   const playersToInsert = squad.map((p: any) => ({
@@ -198,10 +200,16 @@ const ModernPitchView: React.FC = () => {
                   }));
                   
                   // Salvar no banco para cache futuro
-                  await supabase.from('opponent_players').insert(playersToInsert);
+                  const { error: insertError } = await supabase.from('opponent_players').insert(playersToInsert);
                   
-                  setOpponentPlayers(playersToInsert as TeamPlayer[]);
-                  console.log(`✅ ${playersToInsert.length} jogadores do adversário (team ${oppTeamId}) importados da API Football`);
+                  if (!insertError) {
+                    setOpponentPlayers(playersToInsert as TeamPlayer[]);
+                    console.log(`✅ ${playersToInsert.length} jogadores do adversário importados com sucesso.`);
+                  } else {
+                    console.error('❌ Erro ao salvar jogadores do adversário:', insertError);
+                    // Mesmo com erro ao salvar, mostramos na UI
+                    setOpponentPlayers(playersToInsert as TeamPlayer[]);
+                  }
                 }
               }
             } catch (apiErr) {
@@ -338,6 +346,35 @@ const ModernPitchView: React.FC = () => {
           >
             Adversário
           </button>
+          
+          {activeTeam === 'away' && currentUser?.is_admin && (
+            <button
+              onClick={async () => {
+                if (!nextGame) return;
+                const oppTeamId = nextGame.is_home ? nextGame.api_away_team_id : nextGame.api_home_team_id;
+                if (!oppTeamId) return;
+                
+                try {
+                  setLoading(true);
+                  // Limpar do banco primeiro
+                  await supabase.from('opponent_players').delete().eq('team_id', oppTeamId);
+                  // Forçar reload
+                  await loadData();
+                  toast.success('Elenco do adversário atualizado!');
+                } catch (err) {
+                  toast.error('Erro ao atualizar elenco');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              title="Recarregar do zero via API"
+              className="p-2 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white rounded-xl border border-white/10 transition-all active:rotate-180"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          )}
         </div>
 
         <button
@@ -492,17 +529,20 @@ const ModernPitchView: React.FC = () => {
                   `}>
                     {player ? (
                       <img
-                        src={
-                          (player.photo_url || '').startsWith('http')
-                            ? `https://images.weserv.nl/?url=${encodeURIComponent(player.photo_url || '')}`
-                            : (player.photo_url || '')
-                        }
+                        src={player.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=0055ff&color=fff`}
                         alt={player.name || 'Jogador'}
                         className="w-full h-full object-cover"
                         crossOrigin="anonymous"
+                        loading="lazy"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src =
-                            `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=0055ff&color=fff`;
+                          const target = e.target as HTMLImageElement;
+                          if (player.photo_url && !target.src.includes('weserv.nl')) {
+                            // Tenta via proxy se falhar direto
+                            target.src = `https://images.weserv.nl/?url=${encodeURIComponent(player.photo_url)}`;
+                          } else {
+                            // Fallback final para avatar
+                            target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=0055ff&color=fff`;
+                          }
                         }}
                       />
                     ) : (

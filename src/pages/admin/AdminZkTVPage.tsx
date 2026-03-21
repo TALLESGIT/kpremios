@@ -494,7 +494,7 @@ const AdminZkTVPage: React.FC = () => {
             const squad = result.response[0].players;
             const posMap: Record<string, string> = {
                 'Goalkeeper': 'GOL',
-                'Defender': 'ZAG',
+                'Defender': 'ZAG,LAT',
                 'Midfielder': 'MEI',
                 'Attacker': 'ATA'
             };
@@ -620,7 +620,7 @@ const AdminZkTVPage: React.FC = () => {
                     const squad = result.response[0].players;
                     const posMap: Record<string, string> = {
                         'Goalkeeper': 'GOL',
-                        'Defender': 'ZAG',
+                        'Defender': 'ZAG,LAT',
                         'Midfielder': 'MEI',
                         'Attacker': 'ATA'
                     };

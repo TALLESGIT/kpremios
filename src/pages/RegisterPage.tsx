@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { User, Mail, Phone, Lock, ArrowRight, AlertCircle, CheckCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import { getContextualHome } from '../utils/navigation';
 
 const RegisterPage: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -102,7 +103,7 @@ const RegisterPage: React.FC = () => {
         } else if (profile?.is_admin) {
           navigate('/admin/dashboard');
         } else {
-          navigate('/user-dashboard');
+          navigate(getContextualHome());
         }
       }
     } catch (error: any) {

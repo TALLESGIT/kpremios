@@ -89,7 +89,7 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId, clubSlug }) => {
       setLoading(true);
 
       // 🔁 Regra de ACÚMULO:
-      const accumulated_amount = await calculateNextPoolAccumulated();
+      const accumulated_amount = await calculateNextPoolAccumulated(clubSlug);
 
       const { data, error } = await supabase
         .from('match_pools')
@@ -403,7 +403,7 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId, clubSlug }) => {
 
             if (!streamError && newStream) {
               // 5. Calcular acumulado centralizado
-              const newAccumulated = await calculateNextPoolAccumulated();
+              const newAccumulated = await calculateNextPoolAccumulated(clubSlug);
 
               // 6. Criar o novo match_pool
               const { error: newPoolError } = await supabase

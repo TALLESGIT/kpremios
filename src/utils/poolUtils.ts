@@ -28,9 +28,11 @@ export const calculateNextPoolAccumulated = async (clubSlug?: string | null): Pr
       return 0;
     }
 
-    if (!lastPool) return 0;
+    const baseAmount = clubSlug === 'atletico-mg' ? 100 : 0;
 
-    // Se o bolão ainda não teve resultado definido ou teve ganhadores, o acumulado reseta
+    if (!lastPool) return baseAmount;
+
+    // Se o bolão ainda não teve resultado definido ou teve ganhadores, o acumulado volta para o base
     const hasResult = lastPool.result_home_score !== null && lastPool.result_away_score !== null;
     const hasWinners = (lastPool.winners_count || 0) > 0;
 
@@ -38,10 +40,10 @@ export const calculateNextPoolAccumulated = async (clubSlug?: string | null): Pr
       const previousAccumulated = lastPool.accumulated_amount || 0;
       // total_pool_amount é o valor BRUTO arrecadado. O prêmio é sempre 70% desse valor.
       const previousPrizePortion = (lastPool.total_pool_amount || 0) * 0.70;
-      return previousAccumulated + previousPrizePortion;
+      return Math.max(baseAmount, previousAccumulated + previousPrizePortion);
     }
 
-    return 0;
+    return baseAmount;
   } catch (err) {
     console.error('Erro crítico no cálculo de acumulado:', err);
     return 0;

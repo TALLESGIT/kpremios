@@ -2,11 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { X, Target, Copy, QrCode, CheckCircle, Clock, Trophy, Calendar, MapPin, Zap, Info, CheckCircle2, ChevronRight, AlertCircle, Share2, Wallet, Plus, Minus, Search } from 'lucide-react';
+import { X, QrCode, Clock, Trophy, CheckCircle, Copy, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import CustomToast from '../shared/CustomToast';
 import TeamLogo from '../TeamLogo';
+import { getContextualHome } from '../../utils/navigation';
 
 interface PoolBetModalProps {
   isOpen: boolean;
@@ -614,7 +615,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
       <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4" onClick={() => {
         setShowPixPayment(false);
         onClose();
-        navigate('/');
+        navigate(getContextualHome());
       }}>
         <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-blue-500/30 shadow-2xl max-w-[90vw] sm:max-w-[340px] w-full overflow-hidden max-h-[95vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
@@ -626,7 +627,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
               onClick={() => {
                 setShowPixPayment(false);
                 onClose();
-                navigate('/');
+                navigate(getContextualHome());
               }}
               className="p-2 hover:bg-white/10 rounded-lg transition-all"
             >
@@ -739,7 +740,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
               <span className="text-lg md:text-2xl font-black text-white italic">R$ {totalPrize.toFixed(2)}</span>
             </div>
             <p className="text-[8px] md:text-[9px] text-slate-500 mt-1">
-              Sendo R$ {(totalPoolAmount * 0.70).toFixed(2)} arrecadado + R$ {accumulatedAmount.toFixed(2)} acumulado
+              Base: R$ {(totalPoolAmount * 0.70).toFixed(2)} + Acumulado: R$ {accumulatedAmount.toFixed(2)}
             </p>
           </div>
 
