@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getYouTubeThumbnail } from '../../utils/youtube';
 import { supabase } from '../../lib/supabase';
@@ -112,12 +113,13 @@ const generateStreamSlug = (title: string): string => {
 
 const AdminZkTVPage: React.FC = () => {
     const { currentUser } = useData();
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'games' | 'standings' | 'clips' | 'squad'>('games');
     const [loading, setLoading] = useState(true);
     const [bannerUploading, setBannerUploading] = useState(false);
     const [playerPhotoUploading, setPlayerPhotoUploading] = useState(false);
     const [userClub, setUserClub] = useState<string | null>(null);
-    const [clubInfo, setClubInfo] = useState<{name: string, logo_url: string} | null>(null);
+    const [clubInfo, setClubInfo] = useState<{name: string, logo_url: string, brand_color: string} | null>(null);
 
     // Clipes Inéditos
     const [clips, setClips] = useState<YouTubeClip[]>([]);
@@ -228,7 +230,8 @@ const AdminZkTVPage: React.FC = () => {
             const { count, error } = await supabase
                 .from('match_pools')
                 .select('*', { count: 'exact', head: true })
-                .eq('is_active', true);
+                .eq('is_active', true)
+                .eq('club_slug', userClub);
 
             if (!error && count !== null) {
                 setActivePoolsCount(count);
@@ -245,6 +248,7 @@ const AdminZkTVPage: React.FC = () => {
         if (error) {
             toast.error('Erro ao carregar clipes');
         } else {
+            // Filtrar clipes por clube se necessário (atualmente parecem globais, mas vamos adicionar o filtro por precaução se a tabela suportar)
             setClips(data || []);
         }
     };
@@ -315,7 +319,7 @@ const AdminZkTVPage: React.FC = () => {
                 .eq('id', currentUser.id)
                 .single()
                 .then(({ data }) => {
-                    setUserClub(data?.club_slug || 'cruzeiro');
+                    setUserClub(data?.club_slug || null);
                 });
         }
     }, [currentUser]);
@@ -323,7 +327,7 @@ const AdminZkTVPage: React.FC = () => {
     useEffect(() => {
         if (userClub) {
             supabase.from('clubs_config')
-                .select('name, logo_url')
+                .select('name, logo_url, brand_color')
                 .eq('slug', userClub)
                 .single()
                 .then(({ data }) => {
@@ -440,6 +444,93 @@ const AdminZkTVPage: React.FC = () => {
         } finally {
             setBannerUploading(false);
             setPlayerPhotoUploading(false);
+        }
+    };
+
+    const handleSyncSquad = async () => {
+        if (!userClub) {
+            toast.error('Clube não identificado');
+            return;
+        }
+
+        try {
+            setSaving(true);
+            
+            // 1. Obter API ID do clube
+            const { data: config, error: configError } = await supabase
+                .from('clubs_config')
+                .select('api_id')
+                .eq('slug', userClub)
+                .single();
+
+            if (configError || !config?.api_id) {
+                throw new Error('API ID do clube não configurado');
+            }
+
+            const apiId = config.api_id;
+            const apiKey = import.meta.env.VITE_FOOTBALL_API_KEY;
+
+            if (!apiKey) {
+                throw new Error('Chave da API de Futebol não encontrada');
+            }
+
+            // 2. Buscar elenco da API
+            toast.loading('Buscando elenco na API...', { id: 'sync-squad' });
+            
+            const response = await fetch(`https://v3.football.api-sports.io/players/squads?team=${apiId}`, {
+                headers: {
+                    'x-apisports-key': apiKey,
+                    'x-rapidapi-host': 'v3.football.api-sports.io'
+                }
+            });
+
+            const result = await response.json();
+
+            if (!result.response || result.response.length === 0) {
+                toast.error('Nenhum jogador encontrado na API', { id: 'sync-squad' });
+                return;
+            }
+
+            const squad = result.response[0].players;
+            const posMap: Record<string, string> = {
+                'Goalkeeper': 'GOL',
+                'Defender': 'ZAG',
+                'Midfielder': 'MEI',
+                'Attacker': 'ATA'
+            };
+
+            const playersToSync = squad.map((p: any) => ({
+                name: p.name,
+                full_name: p.name,
+                photo_url: p.photo,
+                position: posMap[p.position] || 'MEI',
+                number: p.number || 0,
+                club_slug: userClub,
+                is_active: true,
+                updated_at: new Date().toISOString()
+            }));
+
+            // 3. Limpar elenco atual e inserir novo
+            const { error: deleteError } = await supabase
+                .from('team_players')
+                .delete()
+                .eq('club_slug', userClub);
+
+            if (deleteError) throw deleteError;
+
+            const { error: insertError } = await supabase
+                .from('team_players')
+                .insert(playersToSync);
+
+            if (insertError) throw insertError;
+
+            toast.success(`Sincronização concluída! ${playersToSync.length} jogadores importados.`, { id: 'sync-squad' });
+            loadPlayers();
+        } catch (err: any) {
+            console.error('Erro ao sincronizar elenco:', err);
+            toast.error(err.message || 'Falha na sincronização', { id: 'sync-squad' });
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -594,7 +685,8 @@ const AdminZkTVPage: React.FC = () => {
                                 title: streamTitle,
                                 channel_name: channelSlug,
                                 is_active: false,
-                                created_by: currentUser?.id
+                                created_by: currentUser?.id,
+                                club_slug: userClub
                             }])
                             .select()
                             .single();
@@ -617,7 +709,8 @@ const AdminZkTVPage: React.FC = () => {
                                 total_pool_amount: 0,
                                 total_participants: 0,
                                 winners_count: 0,
-                                prize_per_winner: 0
+                                prize_per_winner: 0,
+                                club_slug: userClub
                             });
 
                             if (poolError) {
@@ -664,7 +757,8 @@ const AdminZkTVPage: React.FC = () => {
                 stream_url: '',
                 is_live: false,
                 is_active: false,
-                created_by: currentUser?.id
+                created_by: currentUser?.id,
+                club_slug: userClub
             }]).select('id').single();
 
             if (lsError || !lsData) throw lsError || new Error('Falha ao criar stream');
@@ -1079,7 +1173,12 @@ const AdminZkTVPage: React.FC = () => {
 
                                             {/* Match Preview Section */}
                                             <div className="mb-10 p-8 rounded-3xl bg-slate-950/50 border border-slate-800 relative overflow-hidden group">
-                                                <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-purple-600/5 opacity-50"></div>
+                                                <div 
+                                                    className="absolute inset-0 opacity-20"
+                                                    style={{ 
+                                                        background: `linear-gradient(135deg, ${clubInfo?.brand_color || '#2563EB'}20, transparent, ${clubInfo?.brand_color || '#2563EB'}20)` 
+                                                    }}
+                                                ></div>
                                                 <div className="relative flex items-center justify-between">
                                                     <div className="flex-1 flex flex-col items-center gap-3">
                                                         <TeamLogo teamName={clubInfo?.name || 'Clube'} customLogo={clubInfo?.logo_url} size="xl" />
@@ -1486,6 +1585,21 @@ const AdminZkTVPage: React.FC = () => {
                                                                             </div>
                                                                         );
                                                                     })()}
+                                                                </div>
+                                                            )}
+
+                                                            {game.status === 'live' && (
+                                                                <div className="mt-3 pt-3 border-t border-slate-800/50">
+                                                                    <button
+                                                                        onClick={() => navigate('/admin/live-stream')}
+                                                                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-lg shadow-blue-600/20"
+                                                                    >
+                                                                        <Tv className="w-4 h-4" />
+                                                                        Ir para Transmissão
+                                                                    </button>
+                                                                    <p className="text-[9px] text-blue-400 text-center font-bold uppercase tracking-widest mt-2 animate-pulse">
+                                                                        Jogo em Andamento
+                                                                    </p>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -2024,24 +2138,34 @@ const AdminZkTVPage: React.FC = () => {
                                             <h2 className="text-2xl font-black text-white mb-2">Gerenciar Elenco</h2>
                                             <p className="text-slate-400 text-sm">Adicione e edite os jogadores disponíveis para a escalação.</p>
                                         </div>
-                                        <button
-                                            onClick={() => {
-                                                setEditingPlayer(null);
-                                                setPlayerForm({
-                                                    name: '',
-                                                    full_name: '',
-                                                    photo_url: '',
-                                                    position: 'MEI',
-                                                    number: 0,
-                                                    is_active: true
-                                                });
-                                                setIsAddingPlayer(true);
-                                            }}
-                                            className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20"
-                                        >
-                                            <Plus className="w-5 h-5" />
-                                            Novo Jogador
-                                        </button>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={handleSyncSquad}
+                                                disabled={saving}
+                                                className="flex items-center gap-2 px-6 py-3 bg-blue-600/10 hover:bg-blue-600 border border-blue-500/20 text-blue-400 hover:text-white rounded-xl font-bold transition-all disabled:opacity-50"
+                                            >
+                                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                                                Sincronizar Elenco
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setEditingPlayer(null);
+                                                    setPlayerForm({
+                                                        name: '',
+                                                        full_name: '',
+                                                        photo_url: '',
+                                                        position: 'MEI',
+                                                        number: 0,
+                                                        is_active: true
+                                                    });
+                                                    setIsAddingPlayer(true);
+                                                }}
+                                                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20"
+                                            >
+                                                <Plus className="w-5 h-5" />
+                                                Novo Jogador
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {isAddingPlayer && (

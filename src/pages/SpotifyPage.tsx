@@ -4,9 +4,11 @@ import { SpotifyService, SpotifyRelease } from '../services/SpotifyService';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import { useData } from '../context/DataContext';
 
 const SpotifyPage: React.FC = () => {
   const [releases, setReleases] = useState<SpotifyRelease[]>([]);
+  const { currentUser } = useData();
   const [selectedRelease, setSelectedRelease] = useState<SpotifyRelease | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,8 +23,9 @@ const SpotifyPage: React.FC = () => {
 
   const loadReleases = async () => {
     try {
+      if (!currentUser?.club_slug) return;
       setLoading(true);
-      const data = await SpotifyService.getAll();
+      const data = await SpotifyService.getAll(currentUser.club_slug);
       setReleases(data || []);
       if (data && data.length > 0) {
         setSelectedRelease(data[0]);
@@ -36,8 +39,10 @@ const SpotifyPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadReleases();
-  }, []);
+    if (currentUser?.club_slug) {
+      loadReleases();
+    }
+  }, [currentUser?.club_slug]);
 
   const fetchAlbumArt = useCallback(async (release: SpotifyRelease) => {
     if (artCache[release.id]) {

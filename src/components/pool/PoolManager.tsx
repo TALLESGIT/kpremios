@@ -371,7 +371,7 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId, clubSlug }) => {
           if (!existingPool) {
             // 4. Criar live_stream para o próximo jogo
             const isHome = nextGame.is_home;
-            const clubName = clubSlug ? (clubSlug.charAt(0).toUpperCase() + clubSlug.slice(1)) : 'Meu Time';
+            const clubName = clubSlug === 'cruzeiro' ? 'Cruzeiro' : (clubSlug === 'atletico-mg' ? 'Atlético-MG' : 'Meu Time');
             
             const matchTitle = isHome
               ? `Bolão: ${clubName} x ${nextGame.opponent}`

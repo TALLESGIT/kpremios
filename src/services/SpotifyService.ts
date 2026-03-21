@@ -56,10 +56,11 @@ function ensureEmbedUrl(url: string | null | undefined): string {
 }
 
 export const SpotifyService = {
-  async getAll() {
+  async getAll(clubSlug: string) {
     const { data, error } = await supabase
       .from('spotify_releases')
       .select('*')
+      .eq('club_slug', clubSlug)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -70,7 +71,7 @@ export const SpotifyService = {
     }));
   },
 
-  async add(title: string, embedUrl: string) {
+  async add(title: string, embedUrl: string, clubSlug: string) {
     // Basic validation/cleaning of embed URL
     let cleanUrl = embedUrl;
     if (embedUrl.includes('<iframe')) {
@@ -82,7 +83,7 @@ export const SpotifyService = {
 
     const { data, error } = await supabase
       .from('spotify_releases')
-      .insert({ title, embed_url: cleanUrl })
+      .insert({ title, embed_url: cleanUrl, club_slug: clubSlug })
       .select()
       .single();
 

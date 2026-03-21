@@ -4,6 +4,7 @@ import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { useRegisterStreamId } from '../features/chat/useRegisterStreamId';
 import { ChatSlot } from '../features/chat/ChatSlot';
 import {
@@ -34,6 +35,7 @@ interface LiveStream {
 
 const AdminLiveStreamPage = () => {
   const { user } = useAuth();
+  const { currentUser } = useData();
   const navigate = useNavigate();
   const [streams, setStreams] = useState<LiveStream[]>([]);
   const [selectedStream, setSelectedStream] = useState<LiveStream | null>(null);
@@ -45,12 +47,16 @@ const AdminLiveStreamPage = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [newStreamTitle, setNewStreamTitle] = useState('');
+  const [newStreamUrl, setNewStreamUrl] = useState('');
 
   const loadStreams = useCallback(async () => {
     try {
+      if (!clubSlug) return;
+
       const { data, error } = await supabase
         .from('live_streams')
         .select('*')
+        .eq('club_slug', clubSlug)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -77,7 +83,7 @@ const AdminLiveStreamPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedStream]);
+  }, [clubSlug, selectedStream]);
 
   useEffect(() => {
     // Executa a limpeza de bolões com mais de 7 dias automaticamente ao abrir o painel
@@ -100,7 +106,19 @@ const AdminLiveStreamPage = () => {
     // Role check - Solo administradores podem acessar
     const checkAdmin = async () => {
       try {
-        // Primeiro tenta na tabela users (sistema principal)
+        // Se já temos o currentUser do context, usamos ele
+        if (currentUser) {
+          if (currentUser.club_slug) {
+            setClubSlug(currentUser.club_slug);
+          }
+          if (!currentUser.is_admin) {
+            toast.error('Acesso restrito a administradores');
+            navigate('/');
+          }
+          return;
+        }
+
+        // Fallback para busca manual se o context ainda estiver carregando
         let { data: userRecord, error: userError } = await supabase
           .from('users')
           .select('is_admin, club_slug')
@@ -116,7 +134,7 @@ const AdminLiveStreamPage = () => {
             .maybeSingle();
 
           if (profileRecord) {
-            userRecord = profileRecord;
+            userRecord = { is_admin: profileRecord.is_admin, club_slug: 'cruzeiro' };
           }
         }
 
@@ -135,8 +153,14 @@ const AdminLiveStreamPage = () => {
     };
 
     checkAdmin();
-    loadStreams();
-  }, [user, navigate, loadStreams]);
+  }, [user, navigate, currentUser]);
+
+  // Carregar streams sempre que o clube for definido
+  useEffect(() => {
+    if (clubSlug) {
+      loadStreams();
+    }
+  }, [clubSlug, loadStreams]);
 
   // Real-time subscription - Refatorado para estabilidade
   useEffect(() => {
@@ -208,7 +232,9 @@ const AdminLiveStreamPage = () => {
         title: newStreamTitle.trim(),
         channel_name: baseSlug,
         is_active: false,
-        created_by: user?.id
+        created_by: user?.id,
+        club_slug: clubSlug,
+        hls_url: newStreamUrl.trim() || null
       }).select().single();
 
       if (error) throw error;
@@ -217,6 +243,7 @@ const AdminLiveStreamPage = () => {
 
       setIsCreating(false);
       setNewStreamTitle('');
+      setNewStreamUrl('');
       await loadStreams();
       setSelectedStream(data);
     } catch (err) {
@@ -370,10 +397,17 @@ const AdminLiveStreamPage = () => {
                 value={newStreamTitle}
                 onChange={(e) => setNewStreamTitle(e.target.value)}
                 placeholder="Título da Transmissão"
+                className="w-full px-4 py-3 bg-slate-900 border border-white/10 rounded-xl text-white mb-4"
+              />
+              <input
+                type="text"
+                value={newStreamUrl}
+                onChange={(e) => setNewStreamUrl(e.target.value)}
+                placeholder="Link da Transmissão (Opcional)"
                 className="w-full px-4 py-3 bg-slate-900 border border-white/10 rounded-xl text-white mb-6"
               />
               <div className="flex gap-4">
-                <button onClick={() => setIsCreating(false)} className="flex-1 py-3 bg-slate-700 text-white rounded-xl font-bold uppercase text-xs">Cancelar</button>
+                <button onClick={() => { setIsCreating(false); setNewStreamUrl(''); }} className="flex-1 py-3 bg-slate-700 text-white rounded-xl font-bold uppercase text-xs">Cancelar</button>
                 <button onClick={createStream} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold uppercase text-xs">Criar</button>
               </div>
             </div>

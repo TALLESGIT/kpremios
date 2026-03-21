@@ -19,12 +19,13 @@ import Footer from '../components/shared/Footer';
 function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { currentUser } = useData();
+  const { currentUser, guestClub, loading: dataLoading } = useData();
   const [activePoolsCount, setActivePoolsCount] = useState(0);
   const [poolWinnersCount, setPoolWinnersCount] = useState(0);
   const [nextGame, setNextGame] = useState<MatchGame | null>(null);
   const [loadingGame, setLoadingGame] = useState(true);
   const [hasActiveLive, setHasActiveLive] = useState(false);
+  const isGalo = (currentUser?.club_slug === 'atletico-mg' || guestClub === 'atletico-mg');
   const [activePool, setActivePool] = useState<any>(null);
   const [showPoolModal, setShowPoolModal] = useState(false);
   const [showVipModal, setShowVipModal] = useState(false);
@@ -137,7 +138,7 @@ function HomePage() {
       if (poolBetUpdateHandler) off('pool-bet-updated', poolBetUpdateHandler);
       if (viewerCountHandler) off('viewer-count-updated', viewerCountHandler);
     };
-  }, [activeStreamId, isConnected]);
+  }, [activeStreamId, isConnected, currentUser?.club_slug, guestClub, dataLoading]);
 
   useEffect(() => {
     const handleVipGranted = (event: CustomEvent) => {
@@ -153,10 +154,15 @@ function HomePage() {
 
   const checkActivePools = async () => {
     try {
+      if (dataLoading && !currentUser) return;
+      // ✅ REGRA: Na Home Page, SEMPRE exibir apenas bolões do Cruzeiro.
+      // O admin do Galo logado NÃO deve ver bolões do Galo na Home.
+      const targetClub = 'cruzeiro';
       const { count } = await supabase
         .from('match_pools')
         .select('*', { count: 'exact', head: true })
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .eq('club_slug', targetClub);
       setActivePoolsCount(count || 0);
     } catch (err) {
       console.error('Erro ao contar bolões:', err);
@@ -165,10 +171,17 @@ function HomePage() {
 
   const loadPoolWinnersCount = async () => {
     try {
+      if (dataLoading && !currentUser) return;
+      // ✅ REGRA: Na Home Page, SEMPRE exibir apenas dados do Cruzeiro.
+      const targetClub = 'cruzeiro';
       const { count } = await supabase
         .from('pool_bets')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_winner', true);
+        .select(`
+          *,
+          match_pools!inner(club_slug)
+        `, { count: 'exact', head: true })
+        .eq('is_winner', true)
+        .eq('match_pools.club_slug', targetClub);
       setPoolWinnersCount(count || 0);
     } catch (err) {
       console.error('Erro ao contar ganhadores:', err);
@@ -179,10 +192,17 @@ function HomePage() {
 
   const checkActiveLive = async () => {
     try {
+      if (dataLoading && !currentUser) return;
+      
+      // ✅ REGRA: Na Home Page, os indicadores de live são EXCLUSIVOS para o Cruzeiro.
+      // O Atlético-MG é "link-only" e nunca deve ativar o badge global da Home.
+      const targetClub = 'cruzeiro'; 
+
       const { data, error } = await supabase
         .from('live_streams')
-        .select('id, is_active')
+        .select('id, is_active, club_slug')
         .eq('is_active', true)
+        .eq('club_slug', targetClub)
         .limit(1)
         .maybeSingle();
 
@@ -201,10 +221,14 @@ function HomePage() {
 
   const checkActivePool = async (streamId?: string) => {
     try {
+      if (dataLoading && !currentUser) return;
+      // ✅ REGRA: Na Home Page, SEMPRE exibir apenas bolões do Cruzeiro.
+      const targetClub = 'cruzeiro';
       let query = supabase
         .from('match_pools')
         .select('*')
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .eq('club_slug', targetClub);
 
       if (streamId) {
         query = query.eq('live_stream_id', streamId);
@@ -225,8 +249,12 @@ function HomePage() {
   const loadNextGame = async () => {
     setLoadingGame(true);
     try {
+      // Se estiver carregando os dados do usuário, espera
+      if (dataLoading && !currentUser) return;
+      
       // Determinar o clube para filtrar (preferência do usuário ou padrão)
-      const targetClub = currentUser?.club_slug || 'cruzeiro';
+      // ✅ REGRA: Na Home Page (`/`), SEMPRE exibir jogos do Cruzeiro.
+      const targetClub = 'cruzeiro';
 
       // Primeiro, tenta buscar se existe um jogo com status 'live'
       const { data: liveGame } = await supabase
@@ -313,7 +341,7 @@ function HomePage() {
                   to="/zk-tv"
                   className="px-6 sm:px-10 py-3 sm:py-5 bg-gradient-to-br from-blue-600/20 via-blue-600/10 to-transparent hover:from-blue-600/30 text-blue-100 rounded-xl sm:rounded-2xl font-black text-xs sm:text-lg transition-all duration-300 backdrop-blur-md border border-blue-500/30 flex items-center justify-center gap-2 sm:gap-3 overflow-hidden relative group active:scale-95 shadow-lg shadow-blue-900/40"
                 >
-                  {hasActiveLive && (
+                  {(hasActiveLive && !isGalo) && (
                     <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 z-10">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
                       <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white/20" />
@@ -321,7 +349,7 @@ function HomePage() {
                   )}
                   <Tv className="w-4 h-4 sm:w-6 sm:h-6 text-blue-400 group-hover:scale-110 transition-transform" />
                   ASSISTIR LIVES
-                  {hasActiveLive && (
+                  {(hasActiveLive && !isGalo) && (
                     <span className="ml-1 px-2 py-0.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 text-[9px] sm:text-[10px] font-black uppercase tracking-wider animate-pulse">
                       AO VIVO
                     </span>
@@ -394,11 +422,11 @@ function HomePage() {
 
                   <div className="relative z-20 p-6 sm:p-12 flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-8 h-full">
                     <div className="flex flex-col items-center sm:items-start text-center sm:text-left w-full sm:w-auto">
-                      <span className={`px-3 py-1 rounded-full backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-white mb-6 sm:mb-4 shadow-lg ${nextGame.status === 'live' ? 'bg-red-600/80 shadow-red-500/20' :
+                      <span className={`px-3 py-1 rounded-full backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-white mb-6 sm:mb-4 shadow-lg ${(nextGame.status === 'live' && hasActiveLive && !isGalo) ? 'bg-red-600/80 shadow-red-500/20' :
                         nextGame.status === 'finished' ? 'bg-emerald-600/80 shadow-emerald-500/20' :
                           'bg-blue-600/80 shadow-blue-500/20'
                         }`}>
-                        {nextGame.status === 'live' ? 'Partida Ao Vivo' :
+                        {(nextGame.status === 'live' && hasActiveLive && !isGalo) ? 'Partida Ao Vivo' :
                           nextGame.status === 'finished' ? 'Partida Finalizada' :
                             'Próxima Partida'}
                       </span>
@@ -407,14 +435,14 @@ function HomePage() {
                         <div className="flex flex-col items-center gap-2 group/team cursor-pointer transition-transform hover:scale-105">
                           <TeamLogo 
                             teamName={nextGame.is_home 
-                              ? (nextGame.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time') 
+                              ? (nextGame.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG') 
                               : nextGame.opponent} 
                             size="lg" 
                             showName={false} 
                           />
                           <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-tighter">
                             {nextGame.is_home 
-                              ? (nextGame.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time') 
+                              ? (nextGame.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG') 
                               : nextGame.opponent}
                           </span>
                         </div>
@@ -427,7 +455,7 @@ function HomePage() {
                         <div className="flex flex-col items-center gap-2 group/team cursor-pointer transition-transform hover:scale-105">
                           <TeamLogo
                             teamName={!nextGame.is_home 
-                              ? (nextGame.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time') 
+                              ? (nextGame.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG') 
                               : nextGame.opponent}
                             customLogo={!nextGame.is_home ? undefined : nextGame.opponent_logo}
                             size="lg"
@@ -435,7 +463,7 @@ function HomePage() {
                           />
                           <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-tighter text-center line-clamp-1 max-w-[100px] sm:max-w-[120px]">
                             {!nextGame.is_home 
-                              ? (nextGame.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time') 
+                              ? (nextGame.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG') 
                               : nextGame.opponent}
                           </span>
                         </div>
@@ -480,7 +508,7 @@ function HomePage() {
                     <div>
                       <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mb-4">
                         <span className="px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em]">ZK TV</span>
-                        {hasActiveLive && (
+                        {(hasActiveLive && !isGalo) && (
                           <div className="flex items-center gap-2 px-3 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-full animate-pulse">
                             <span className="w-2 h-2 rounded-full bg-rose-500"></span>
                             <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.15em]">Ao Vivo</span>
@@ -495,7 +523,7 @@ function HomePage() {
                   </div>
 
                   <div className="flex flex-col items-center gap-4">
-                    {hasActiveLive && (
+                    {(hasActiveLive && !isGalo) && (
                       <div className="flex flex-col items-center sm:items-end gap-2">
                         <div className="flex -space-x-4 mb-1">
                           {[...Array(3)].map((_, i) => (
@@ -523,7 +551,7 @@ function HomePage() {
                       onClick={() => navigate('/zk-tv')}
                       className="bg-white text-blue-900 px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-blue-50 transition-colors shadow-xl shadow-white/5 active:scale-95 duration-200 w-full"
                     >
-                      {hasActiveLive ? 'Entrar na Live' : 'Acessar ZK TV'}
+                      {(hasActiveLive && !isGalo) ? 'Entrar na Live' : 'Acessar ZK TV'}
                     </button>
                   </div>
                 </div>

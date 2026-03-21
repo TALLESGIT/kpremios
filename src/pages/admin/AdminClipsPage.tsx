@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Trash2, Plus, Edit2, Video, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useData } from '../../context/DataContext';
 import { getYouTubeId, getYouTubeThumbnail } from '../../utils/youtube';
 import Header from '../../components/shared/Header';
 import Footer from '../../components/shared/Footer';
@@ -18,6 +19,7 @@ interface YouTubeClip {
 }
 
 const AdminClipsPage: React.FC = () => {
+  const { currentUser } = useData();
   const [clips, setClips] = useState<YouTubeClip[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,14 +35,18 @@ const AdminClipsPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    loadClips();
-  }, []);
+    if (currentUser) {
+      loadClips();
+    }
+  }, [currentUser]);
 
   const loadClips = async () => {
+    if (!currentUser?.club_slug) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('youtube_clips')
       .select('*')
+      .eq('club_slug', currentUser.club_slug)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -70,6 +76,7 @@ const AdminClipsPage: React.FC = () => {
       ...clipForm,
       thumbnail_url,
       youtube_url: videoId,
+      club_slug: currentUser?.club_slug,
       updated_at: new Date().toISOString()
     };
 

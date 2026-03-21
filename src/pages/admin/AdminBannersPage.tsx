@@ -4,6 +4,7 @@ import Header from '../../components/shared/Header';
 import Footer from '../../components/shared/Footer';
 import { Plus, Edit, Trash2, Eye, EyeOff, Image as ImageIcon, BarChart, Upload, X as XIcon } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useData } from '../../context/DataContext';
 
 interface Advertisement {
   id: string;
@@ -22,6 +23,7 @@ interface Advertisement {
 }
 
 export default function AdminBannersPage() {
+  const { currentUser } = useData();
   const [advertisements, setAdvertisements] = useState<Advertisement[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -40,14 +42,19 @@ export default function AdminBannersPage() {
   });
 
   useEffect(() => {
-    loadAdvertisements();
-  }, []);
+    if (currentUser) {
+      loadAdvertisements();
+    }
+  }, [currentUser]);
 
   const loadAdvertisements = async () => {
     try {
+      if (!currentUser?.club_slug) return;
+
       const { data, error } = await supabase
         .from('advertisements')
         .select('*')
+        .eq('club_slug', currentUser.club_slug)
         .order('display_order', { ascending: true })
         .order('created_at', { ascending: false });
 
@@ -83,7 +90,7 @@ export default function AdminBannersPage() {
         const { data: { user } } = await supabase.auth.getUser();
         const { error } = await supabase
           .from('advertisements')
-          .insert([{ ...adData, created_by: user?.id }]);
+          .insert([{ ...adData, created_by: user?.id, club_slug: currentUser?.club_slug }]);
 
         if (error) throw error;
         toast.success('Banner criado com sucesso!');

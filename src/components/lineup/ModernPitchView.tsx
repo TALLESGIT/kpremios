@@ -11,7 +11,7 @@ import {
   Instagram
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../context/AuthContext';
+// import { useAuth } from '../../context/AuthContext';
 import { getTeamLogo, getTeamInitials } from '../../utils/teamLogos';
 import toast from 'react-hot-toast';
 import { toPng } from 'html-to-image';
@@ -88,8 +88,10 @@ const FORMATIONS: Record<string, FormationPosition[]> = {
   ]
 };
 
+import { useData } from '../../context/DataContext';
+
 const ModernPitchView: React.FC = () => {
-  const { user } = useAuth();
+  const { currentUser } = useData();
   const [formation, setFormation] = useState('4-4-2');
   const [activeTeam, setActiveTeam] = useState<'home' | 'away'>('home');
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
@@ -111,7 +113,7 @@ const ModernPitchView: React.FC = () => {
 
   const pitchRef = useRef<HTMLDivElement>(null);
 
-  const clubSlug = (user?.user_metadata?.club_slug as string) || 'cruzeiro';
+  const clubSlug = currentUser?.club_slug || 'cruzeiro';
 
   useEffect(() => {
     loadData();
@@ -132,14 +134,24 @@ const ModernPitchView: React.FC = () => {
         setCruzeiroImgError(false); // Reset error state on data load
       }
 
-      const { data: gameData } = await supabase
+      // Buscar jogos com status 'live' primeiro, depois 'upcoming'
+      const { data: liveGameData } = await supabase
+        .from('match_games')
+        .select('*')
+        .eq('club_slug', clubSlug)
+        .eq('status', 'live')
+        .order('date', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      const gameData = liveGameData || (await supabase
         .from('match_games')
         .select('*')
         .eq('club_slug', clubSlug)
         .eq('status', 'upcoming')
         .order('date', { ascending: true })
         .limit(1)
-        .maybeSingle();
+        .maybeSingle()).data;
       
       if (gameData) {
         setNextGame(gameData);
@@ -147,13 +159,55 @@ const ModernPitchView: React.FC = () => {
         
         const oppTeamId = gameData.is_home ? gameData.api_away_team_id : gameData.api_home_team_id;
         if (oppTeamId) {
+          // 1. Tentar buscar do banco
           const { data: oppPlayers } = await supabase
             .from('opponent_players')
             .select('*')
             .eq('team_id', oppTeamId)
             .order('name', { ascending: true });
           
-          if (oppPlayers) setOpponentPlayers(oppPlayers as TeamPlayer[]);
+          if (oppPlayers && oppPlayers.length > 0) {
+            setOpponentPlayers(oppPlayers as TeamPlayer[]);
+          } else {
+            // 2. Fallback: buscar da API Football e salvar no banco
+            try {
+              const apiKey = import.meta.env.VITE_FOOTBALL_API_KEY;
+              if (apiKey) {
+                const response = await fetch(`https://v3.football.api-sports.io/players/squads?team=${oppTeamId}`, {
+                  headers: {
+                    'x-apisports-key': apiKey,
+                    'x-rapidapi-host': 'v3.football.api-sports.io'
+                  }
+                });
+                const result = await response.json();
+                
+                if (result.response && result.response.length > 0) {
+                  const squad = result.response[0].players;
+                  const posMap: Record<string, string> = {
+                    'Goalkeeper': 'GOL', 'Defender': 'ZAG', 'Midfielder': 'MEI', 'Attacker': 'ATA'
+                  };
+                  
+                  const playersToInsert = squad.map((p: any) => ({
+                    name: p.name,
+                    full_name: p.name,
+                    photo_url: p.photo,
+                    position: posMap[p.position] || 'MEI',
+                    number: String(p.number || 0),
+                    team_id: oppTeamId,
+                    is_active: true,
+                  }));
+                  
+                  // Salvar no banco para cache futuro
+                  await supabase.from('opponent_players').insert(playersToInsert);
+                  
+                  setOpponentPlayers(playersToInsert as TeamPlayer[]);
+                  console.log(`✅ ${playersToInsert.length} jogadores do adversário (team ${oppTeamId}) importados da API Football`);
+                }
+              }
+            } catch (apiErr) {
+              console.warn('⚠️ Não foi possível buscar jogadores da API Football:', apiErr);
+            }
+          }
         }
       }
 
@@ -272,7 +326,7 @@ const ModernPitchView: React.FC = () => {
                 : 'text-white/40 hover:text-white'
             }`}
           >
-            {clubInfo?.name || 'Meu Time'}
+            {clubInfo?.name || (currentUser?.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG')}
           </button>
           <button
             onClick={() => { setActiveTeam('away'); setSearchTerm(''); }}
@@ -348,7 +402,7 @@ const ModernPitchView: React.FC = () => {
               </div>
               
               <h2 className="text-lg sm:text-2xl font-black italic uppercase tracking-tighter text-white text-center leading-none drop-shadow-2xl">
-                {activeTeam === 'home' ? (clubInfo?.name || 'Meu Time') : (nextGame?.opponent || 'Adversário')}
+                {activeTeam === 'home' ? (clubInfo?.name || (currentUser?.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG')) : (nextGame?.opponent || 'Adversário')}
               </h2>
               
               <div className="mt-2 flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
@@ -532,7 +586,7 @@ const ModernPitchView: React.FC = () => {
                       );
                     })()}
                     <h3 className="text-lg sm:text-xl font-black text-gray-800 uppercase italic">
-                      {activeTeam === 'home' ? (clubInfo?.name || 'Meu Time') : (nextGame?.opponent || 'Adversário')}
+                      {activeTeam === 'home' ? (clubInfo?.name || (currentUser?.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG')) : (nextGame?.opponent || 'Adversário')}
                     </h3>
                   </div>
                   <button

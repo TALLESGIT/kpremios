@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { Edit3, Download, Trash2, Eye, Play, Gamepad2, Plus, Settings } from 'lucide-react';
@@ -24,6 +25,7 @@ interface LiveGame {
 
 const AdminLiveGamesPage: React.FC = () => {
   const { user } = useAuth();
+  const { currentUser } = useData();
   const [games, setGames] = useState<LiveGame[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -38,13 +40,18 @@ const AdminLiveGamesPage: React.FC = () => {
   const [maxInput, setMaxInput] = useState<string>('50');
 
   useEffect(() => {
-    loadGames();
-  }, []);
+    if (currentUser?.club_slug) {
+      loadGames();
+    }
+  }, [currentUser]);
 
   // (Campos de imagem removidos por não serem necessários nesta tela)
 
   const loadGames = async () => {
     try {
+
+      const targetClub = currentUser?.club_slug;
+      if (!targetClub) return;
 
       const { data, error } = await supabase
         .from('live_games')
@@ -52,6 +59,7 @@ const AdminLiveGamesPage: React.FC = () => {
           *,
           live_participants(count)
         `)
+        .eq('club_slug', targetClub)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -85,7 +93,8 @@ const AdminLiveGamesPage: React.FC = () => {
           description: newGame.description,
           max_participants: newGame.max_participants,
           status: 'waiting',
-          created_by: user?.id
+          created_by: user?.id,
+          club_slug: currentUser?.club_slug || 'cruzeiro'
         })
         .select();
 

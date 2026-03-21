@@ -57,6 +57,7 @@ export interface LiveStreamData {
   moderators_only_mode?: boolean;
   vip_audio_count?: number;
   vip_overlay_count?: number;
+  club_slug?: string | null;
 }
 
 /**

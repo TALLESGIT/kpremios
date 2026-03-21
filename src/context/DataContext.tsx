@@ -59,7 +59,9 @@ interface DataContextType {
   // Clear all user data
   clearUserData: () => void;
 
-  // Auth management - removed setAuthUser as it's now passed as prop
+  // Guest features
+  guestClub: string;
+  setGuestClub: (club: string) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -72,6 +74,26 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [loading, setLoading] = useState(true);
   const [numbersLoading, setNumbersLoading] = useState(true);
+  const [guestClub, setGuestClubState] = useState<string>(localStorage.getItem('preferred_club') || 'cruzeiro');
+
+  // Função para mudar o clube do visitante e persistir
+  const setGuestClub = (club: string) => {
+    setGuestClubState(club);
+    // ✅ REGRA: Apenas persistir Cruzeiro ou outros clubes gerais. 
+    // Atlético-MG é "link-only" e não deve ficar salvo para visitas futuras à Home.
+    if (club !== 'atletico-mg') {
+      localStorage.setItem('preferred_club', club);
+    }
+  };
+
+  // Detectar clube via URL (apenas uma vez no carregamento)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const clubParam = params.get('c') || params.get('club');
+    if (clubParam) {
+      setGuestClub(clubParam);
+    }
+  }, []);
 
   // Use authUser directly from AuthContext
 
@@ -1760,7 +1782,9 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       loading,
       numbersLoading,
       raffles,
-      loadRaffles
+      loadRaffles,
+      guestClub,
+      setGuestClub
     }}>
       {children}
     </DataContext.Provider>

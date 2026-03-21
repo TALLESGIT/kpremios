@@ -5,13 +5,15 @@ import { ArrowLeft, Trophy, Shield } from 'lucide-react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import { motion } from 'framer-motion';
-import { CruzeiroStanding } from '../types';
+import { MatchStanding } from '../types';
 import TeamLogo from '../components/TeamLogo';
+import { useData } from '../context/DataContext';
 
 const StandingsPage: React.FC = () => {
   const { competitionName } = useParams<{ competitionName: string }>();
   const navigate = useNavigate();
-  const [standings, setStandings] = useState<CruzeiroStanding[]>([]);
+  const { currentUser, guestClub } = useData();
+  const [standings, setStandings] = useState<MatchStanding[]>([]);
   const [loading, setLoading] = useState(true);
   const [competition, setCompetition] = useState<string>('');
 
@@ -21,15 +23,18 @@ const StandingsPage: React.FC = () => {
       setCompetition(decoded);
       loadStandings(decoded);
     }
-  }, [competitionName]);
+  }, [competitionName, currentUser, guestClub]);
 
   const loadStandings = async (compName: string) => {
     try {
       setLoading(true);
+      const targetClub = currentUser?.club_slug || guestClub;
+
       const { data, error } = await supabase
-        .from('cruzeiro_standings')
+        .from('match_standings')
         .select('*')
         .eq('competition', compName)
+        .eq('club_slug', targetClub)
         .order('position', { ascending: true });
 
       if (error) throw error;
@@ -44,8 +49,8 @@ const StandingsPage: React.FC = () => {
     }
   };
 
-  const getPositionColor = (position: number, isCruzeiro: boolean) => {
-    if (isCruzeiro) {
+  const getPositionColor = (position: number, isPrimary: boolean) => {
+    if (isPrimary) {
       return 'bg-blue-600/20 border-blue-500/50';
     }
     if (position <= 4) return 'bg-green-500/5 border-green-500/20';
@@ -126,7 +131,7 @@ const StandingsPage: React.FC = () => {
                   <tbody>
                     {standings.map((team, index) => {
                       const goalDiff = team.goals_for - team.goals_against;
-                      const isCruzeiro = team.is_cruzeiro;
+                      const isPrimary = team.is_primary_team;
 
                       return (
                         <motion.tr
@@ -134,16 +139,16 @@ const StandingsPage: React.FC = () => {
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.05 }}
-                          className={`border-b border-white/5 hover:bg-white/10 transition-colors ${isCruzeiro ? 'bg-blue-600/10' : ''
+                          className={`border-b border-white/5 hover:bg-white/10 transition-colors ${isPrimary ? 'bg-blue-600/10' : ''
                             }`}
                         >
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
-                              <span className={`text-sm font-black ${isCruzeiro ? 'text-primary' : 'text-white'
+                              <span className={`text-sm font-black ${isPrimary ? 'text-primary' : 'text-white'
                                 }`}>
                                 {team.position}º
                               </span>
-                              {isCruzeiro && (
+                              {isPrimary && (
                                 <Shield className="w-4 h-4 text-primary" />
                               )}
                             </div>
@@ -155,7 +160,7 @@ const StandingsPage: React.FC = () => {
                                 customLogo={team.logo}
                                 size="sm"
                               />
-                              <span className={`text-sm font-bold uppercase italic ${isCruzeiro ? 'text-blue-400' : 'text-white'
+                              <span className={`text-sm font-bold uppercase italic ${isPrimary ? 'text-blue-400' : 'text-white'
                                 }`}>
                                 {team.team}
                               </span>
@@ -189,11 +194,10 @@ const StandingsPage: React.FC = () => {
                 </table>
               </div>
 
-              {/* Mobile Cards */}
               <div className="md:hidden space-y-3 p-4">
                 {standings.map((team, index) => {
                   const goalDiff = team.goals_for - team.goals_against;
-                  const isCruzeiro = team.is_cruzeiro;
+                  const isPrimary = team.is_primary_team;
 
                   return (
                     <motion.div
@@ -201,11 +205,11 @@ const StandingsPage: React.FC = () => {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className={`p-4 rounded-2xl border-2 ${getPositionColor(team.position, isCruzeiro)}`}
+                      className={`p-4 rounded-2xl border-2 ${getPositionColor(team.position, isPrimary)}`}
                     >
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg ${isCruzeiro ? 'bg-blue-600 text-white' : 'bg-white/5 text-white/40'
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg ${isPrimary ? 'bg-blue-600 text-white' : 'bg-white/5 text-white/40'
                             }`}>
                             {team.position}
                           </div>
@@ -215,12 +219,12 @@ const StandingsPage: React.FC = () => {
                             size="md"
                           />
                           <div className="flex flex-col">
-                            <span className={`text-sm font-black uppercase italic ${isCruzeiro ? 'text-blue-400' : 'text-white'
+                            <span className={`text-sm font-black uppercase italic ${isPrimary ? 'text-blue-400' : 'text-white'
                               }`}>
                               {team.team}
                             </span>
-                            {isCruzeiro && (
-                              <span className="text-[10px] text-blue-500 font-bold uppercase tracking-wider">Cabuloso</span>
+                            {isPrimary && (
+                              <span className="text-[10px] text-blue-500 font-bold uppercase tracking-wider">Time do Coração</span>
                             )}
                           </div>
                         </div>

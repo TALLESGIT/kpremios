@@ -3,10 +3,12 @@ import { supabase } from '../../lib/supabase';
 import { Trash2, Plus, Music, ExternalLink, Play } from 'lucide-react';
 import { SpotifyService, SpotifyRelease } from '../../services/SpotifyService';
 import { toast } from 'react-hot-toast';
+import { useData } from '../../context/DataContext';
 import Header from '../../components/shared/Header';
 import Footer from '../../components/shared/Footer';
 
 const AdminSpotifyPage: React.FC = () => {
+  const { currentUser } = useData();
   const [releases, setReleases] = useState<SpotifyRelease[]>([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState('');
@@ -15,13 +17,16 @@ const AdminSpotifyPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    loadReleases();
-  }, []);
+    if (currentUser) {
+      loadReleases();
+    }
+  }, [currentUser]);
 
   const loadReleases = async () => {
     try {
+      if (!currentUser?.club_slug) return;
       setLoading(true);
-      const data = await SpotifyService.getAll();
+      const data = await SpotifyService.getAll(currentUser.club_slug);
       setReleases(data || []);
     } catch (err) {
       console.error(err);
@@ -39,8 +44,9 @@ const AdminSpotifyPage: React.FC = () => {
     }
 
     try {
+      if (!currentUser?.club_slug) return;
       setSubmitting(true);
-      const newRelease = await SpotifyService.add(title, embedUrl);
+      const newRelease = await SpotifyService.add(title, embedUrl, currentUser.club_slug);
 
       // Se marcado para notificar, chamar a Edge Function
       if (notifyUsers && newRelease) {

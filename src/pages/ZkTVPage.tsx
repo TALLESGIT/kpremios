@@ -51,6 +51,7 @@ interface LiveStream {
     is_active: boolean;
     viewer_count?: number;
     hls_url?: string | null;
+    club_slug?: string | null;
 }
 
 interface QuickStats {
@@ -103,7 +104,7 @@ const StatsSkeleton = () => (
 
 const ZkTVPage: React.FC = () => {
     const { user } = useAuth();
-    const { currentUser } = useData();
+    const { currentUser, loading: dataLoading, setGuestClub } = useData();
     const [searchParams] = useSearchParams();
     const urlChannel = searchParams.get('channel');
 
@@ -114,33 +115,83 @@ const ZkTVPage: React.FC = () => {
     const [activeStream, setActiveStream] = useState<LiveStream | null>(null);
     const isLiveActive = activeStream ? activeStream.is_active : !!settings?.is_live;
     
-    // ✅ Cache States para carregamento instantâneo
-    const [cachedNextGame, setCachedNextGame] = useState<MatchGame | null>(() => {
-        const saved = localStorage.getItem(CACHE_KEY_NEXT_GAME);
-        try { return saved ? JSON.parse(saved) : null; } catch { return null; }
-    });
-    const [quickStats, setQuickStats] = useState<QuickStats>(() => {
-        const saved = localStorage.getItem(CACHE_KEY_STATS);
-        try { 
-            return saved ? JSON.parse(saved) : {
-                victories: 0,
-                goalsFor: 0,
-                winRate: 0,
-                topScorer: 'N/A'
-            };
-        } catch { 
-            return { victories: 0, goalsFor: 0, winRate: 0, topScorer: 'N/A' };
-        }
+    // ✅ Cache States para carregamento instantâneo - Carregados via useEffect para serem club-aware
+    const [cachedNextGame, setCachedNextGame] = useState<MatchGame | null>(null);
+    const [quickStats, setQuickStats] = useState<QuickStats>({
+        victories: 0,
+        goalsFor: 0,
+        winRate: 0,
+        topScorer: 'N/A'
     });
 
-    const [userClub, setUserClub] = useState<string>('cruzeiro');
+    const [userClub, setUserClub] = useState<string | null>(null);
+    const [clubInfo, setClubInfo] = useState<{ name: string; logo_url: string } | null>(null);
 
-    // Sincronizar userClub com o currentUser
+    // Sincronizar userClub com o currentUser e carregar info do clube
+    // ✅ REGRA: O contexto de clube na ZkTV só muda para Galo se houver canal na URL.
+    // Sem canal na URL, SEMPRE usar Cruzeiro para o público geral, mesmo com admin do Galo logado.
     useEffect(() => {
-        if (currentUser?.club_slug) {
-            setUserClub(currentUser.club_slug);
+        let resolvedClub = 'cruzeiro'; // Padrão sempre Cruzeiro
+
+        if (urlChannel) {
+            // ✅ Se acessou via link direto de canal, inferir o clube pelo nome
+            const channelLower = urlChannel.toLowerCase();
+            if (channelLower.includes('atletico') || channelLower.includes('galo') || channelLower.includes('mg')) {
+                resolvedClub = 'atletico-mg';
+            } else if (channelLower.includes('cruzeiro') || channelLower.includes('raposa')) {
+                resolvedClub = 'cruzeiro';
+            }
+        } else if (currentUser?.club_slug && currentUser.club_slug !== 'atletico-mg') {
+            // Sem canal na URL: usar o clube do usuário, MAS nunca Galo.
+            // O Galo é "link-only" e não deve contaminar a ZkTV pública.
+            resolvedClub = currentUser.club_slug;
+        } else if (!dataLoading) {
+            const savedClub = localStorage.getItem('preferred_club');
+            if (savedClub && savedClub !== 'atletico-mg') {
+                resolvedClub = savedClub;
+            }
         }
-    }, [currentUser]);
+
+        setUserClub(resolvedClub);
+        setGuestClub(resolvedClub);
+        loadClubInfo(resolvedClub);
+    }, [currentUser, dataLoading]);
+
+    // Recarregar caches quando o userClub mudar
+    useEffect(() => {
+        if (!userClub) return;
+        
+        const nextGameKey = `${CACHE_KEY_NEXT_GAME}_${userClub}`;
+        const statsKey = `${CACHE_KEY_STATS}_${userClub}`;
+        
+        const savedGame = localStorage.getItem(nextGameKey);
+        const savedStats = localStorage.getItem(statsKey);
+        
+        try {
+            if (savedGame) setCachedNextGame(JSON.parse(savedGame));
+            else setCachedNextGame(null);
+            
+            if (savedStats) setQuickStats(JSON.parse(savedStats));
+            else setQuickStats({ victories: 0, goalsFor: 0, winRate: 0, topScorer: 'N/A' });
+        } catch {
+            console.warn('Erro ao carregar cache do clube:', userClub);
+        }
+    }, [userClub]);
+
+    const loadClubInfo = async (slug: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('clubs_config')
+                .select('name, logo_url')
+                .eq('slug', slug)
+                .single();
+            if (!error && data) {
+                setClubInfo(data);
+            }
+        } catch (err) {
+            console.error('Erro ao carregar info do clube:', err);
+        }
+    };
 
     const [activeTab, setActiveTab] = useState<'games' | 'standings' | 'clips'>('games');
     const [selectedComp] = useState<string>('Campeonato Brasileiro - Série A');
@@ -269,9 +320,12 @@ const ZkTVPage: React.FC = () => {
         }
     }, [activeStream, sessionId, user?.id, updateViewerCount]);
 
-    // ========== EFFECT 1: Data Loading (mount-only) ==========
+    // ========== EFFECT 1: Data Loading (When club is ready) ==========
     useEffect(() => {
         const loadAll = async () => {
+            if (dataLoading && !currentUser) return;
+            if (!userClub) return;
+
             // Safety timeout: Não deixar a tela de loading travada por mais de 8 segundos
             const safetyTimer = setTimeout(() => {
                 setIsPageLoading(false);
@@ -304,8 +358,7 @@ const ZkTVPage: React.FC = () => {
             }
         };
         loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Mount-only: carrega dados uma vez
+    }, [userClub, dataLoading]); // Roda quando o clube ou estado de carregamento muda
 
     // ========== EFFECT 2: Mobile detection & Initial Chat State ==========
     useEffect(() => {
@@ -496,6 +549,7 @@ const ZkTVPage: React.FC = () => {
                 .from('match_pools')
                 .select('*')
                 .eq('is_active', true)
+                .eq('club_slug', userClub)
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .maybeSingle();
@@ -516,6 +570,7 @@ const ZkTVPage: React.FC = () => {
             const { data, error } = await supabase
                 .from('match_pools')
                 .select('*')
+                .eq('club_slug', userClub)
                 .not('result_home_score', 'is', null)
                 .not('result_away_score', 'is', null)
                 .order('updated_at', { ascending: false })
@@ -932,17 +987,34 @@ const ZkTVPage: React.FC = () => {
     const loadActiveStream = async () => {
         try {
 
-            let activeStreams = await getActiveLiveStreams();
             let data = null;
 
             if (urlChannel) {
+                // ✅ Acessou via link direto: buscar a stream específica do canal
                 data = await getLiveStreamByChannel(urlChannel);
+                
+                // Se encontrou e o clube é diferente, sincronizar (link-only do Galo)
+                if (data?.club_slug && data.club_slug !== userClub) {
+                    if (isZkTVDebug()) console.log(`🎯 ZkTVPage: Sincronizando clube via link direto: ${data.club_slug}`);
+                    setUserClub(data.club_slug);
+                    setGuestClub(data.club_slug);
+                    loadClubInfo(data.club_slug);
+                }
+            } else {
+                // ✅ Sem canal na URL: buscar APENAS streams do clube atual (cruzeiro por padrão)
+                let activeStreams = await getActiveLiveStreams();
+                
+                // Filtrar por clube para não mostrar live do Galo na ZkTV pública
+                if (userClub) {
+                    activeStreams = activeStreams.filter(s => s.club_slug === userClub);
+                }
+                
+                if (activeStreams.length > 0) {
+                    data = activeStreams[0];
+                }
             }
 
-            if (!data && activeStreams.length > 0) {
-                data = activeStreams[0];
-            }
-
+            // Fallback: buscar canal padrão ZkOficial
             if (!data) {
                 data = await getLiveStreamByChannel('ZkOficial');
             }
@@ -1111,8 +1183,10 @@ const ZkTVPage: React.FC = () => {
             };
 
             setQuickStats(statsData);
-            // ✅ Salvar no cache
-            localStorage.setItem(CACHE_KEY_STATS, JSON.stringify(statsData));
+            // ✅ Salvar no cache isolado por clube
+            if (userClub) {
+                localStorage.setItem(`${CACHE_KEY_STATS}_${userClub}`, JSON.stringify(statsData));
+            }
         } catch (err) {
             console.error('Erro ao carregar estatísticas:', err);
         }
@@ -1153,7 +1227,9 @@ const ZkTVPage: React.FC = () => {
                 });
                 if (foundNext) {
                     setCachedNextGame(foundNext);
-                    localStorage.setItem(CACHE_KEY_NEXT_GAME, JSON.stringify(foundNext));
+                    if (userClub) {
+                        localStorage.setItem(`${CACHE_KEY_NEXT_GAME}_${userClub}`, JSON.stringify(foundNext));
+                    }
                 }
             } else {
                 if (isZkTVDebug()) console.warn('⚠️ Nenhum jogo retornado do banco de dados');
@@ -1623,22 +1699,33 @@ const ZkTVPage: React.FC = () => {
                                     </div>
                                 ) : (
                                     <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center z-30">
-                                        {displayGame ? (
+                                        {!userClub || isPageLoading ? (
+                                            <div className="w-full max-w-sm mx-auto p-6">
+                                                <NextMatchSkeleton />
+                                            </div>
+                                        ) : displayGame ? (
                                             <div className="w-full max-w-sm mx-auto animate-in fade-in zoom-in duration-700 py-2">
                                                 <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
-                                                    <span className="px-2 sm:px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Próximo Jogo</span>
+                                                    <span className={`px-2 sm:px-3 py-1 rounded-full font-black uppercase tracking-widest text-[9px] sm:text-[10px] ${
+                                                        isLiveActive 
+                                                        ? "bg-red-500/20 border border-red-500/30 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)] animate-pulse" 
+                                                        : "bg-blue-500/10 border border-blue-500/20 text-blue-400"
+                                                    }`}>
+                                                        {isLiveActive ? "Partida Ao Vivo" : "Próximo Jogo"}
+                                                    </span>
                                                     <span className="text-[9px] sm:text-[10px] font-black text-white/40 uppercase tracking-widest truncate">{displayGame.competition}</span>
                                                 </div>
 
                                                 <div className="flex items-center justify-between gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
                                                     <div className="flex flex-col items-center flex-1 min-w-0">
                                                         <TeamLogo
-                                                            teamName={userClub === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time'}
+                                                            teamName={clubInfo?.name || (userClub === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG')}
+                                                            customLogo={clubInfo?.logo_url}
                                                             size="lg"
                                                             showName={false}
                                                             className="mb-2 sm:mb-3"
                                                         />
-                                                        <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full">{userClub === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time'}</span>
+                                                        <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full">{clubInfo?.name || (userClub === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG')}</span>
                                                     </div>
 
                                                     <div className="flex flex-col items-center flex-shrink-0">
@@ -1914,14 +2001,22 @@ const ZkTVPage: React.FC = () => {
                                     <Shield className="w-24 sm:w-32 h-24 sm:h-32 text-blue-500" />
                                 </div>
 
-                                <h3 className="text-xs sm:text-sm font-bold text-blue-500 uppercase tracking-widest mb-3 sm:mb-4 lg:mb-6">Próximo Jogo</h3>
+                                <h3 className={`text-xs sm:text-sm font-bold uppercase tracking-widest mb-3 sm:mb-4 lg:mb-6 ${isLiveActive ? 'text-red-500 animate-pulse' : 'text-blue-500'}`}>
+                                    {isLiveActive ? 'Partida Ao Vivo' : 'Próximo Jogo'}
+                                </h3>
 
                                 {displayGame ? (
                                     <>
                                         <div className="flex items-center justify-between mb-3 sm:mb-4 lg:mb-6 gap-2 sm:gap-4">
                                             <div className="text-center flex-1 min-w-0">
-                                                <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-2 sm:mb-3 shadow-lg shadow-blue-600/20 font-black text-white text-xs sm:text-sm lg:text-base">CRU</div>
-                                                <span className="text-xs sm:text-sm font-bold block truncate">{settings?.team_name || (userClub === 'cruzeiro' ? "Cruzeiro" : "Meu Time")}</span>
+                                                <div className={`w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-2 sm:mb-3 shadow-lg font-black text-white text-xs sm:text-sm lg:text-base ${
+                                                    userClub === 'cruzeiro' 
+                                                    ? 'bg-blue-600 shadow-blue-600/20' 
+                                                    : 'bg-slate-900 border border-slate-700 shadow-none'
+                                                }`}>
+                                                    {clubInfo?.name?.substring(0, 3).toUpperCase() || (userClub === 'cruzeiro' ? "CRU" : "CAM")}
+                                                </div>
+                                                <span className="text-xs sm:text-sm font-bold block truncate">{settings?.team_name || clubInfo?.name || (userClub === 'cruzeiro' ? "Cruzeiro" : "Atlético-MG")}</span>
                                             </div>
                                             <div className="px-1 sm:px-2 lg:px-4 text-lg sm:text-xl lg:text-2xl font-black italic text-slate-700 flex-shrink-0">VS</div>
                                             <div className="text-center flex-1 min-w-0">
@@ -2004,6 +2099,15 @@ const ZkTVPage: React.FC = () => {
                                 >
                                     Tabela
                                 </button>
+                                {userClub !== 'atletico-mg' && (
+                                    <button
+                                        onClick={() => setActiveTab('clips')}
+                                        className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === 'clips' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
+                                            }`}
+                                    >
+                                        Clipes
+                                    </button>
+                                )}
                             </div>
 
                             {/* Tab Panels */}
@@ -2033,7 +2137,7 @@ const ZkTVPage: React.FC = () => {
                                                                     <div className="text-xs sm:text-sm font-bold text-blue-500 mb-1">{game.competition}</div>
                                                                     {/* Mobile: duas linhas | Desktop: uma linha */}
                                                                     <div className="text-sm sm:text-base lg:text-xl font-black text-center sm:text-left">
-                                                                        <span className="block sm:inline">{userClub === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time'}</span>
+                                                                        <span className="block sm:inline">{clubInfo?.name || (userClub === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG')}</span>
                                                                         <span className="text-slate-600 mx-1 sm:mx-2 block sm:inline">x</span>
                                                                         <span className="block sm:inline">{game.opponent}</span>
                                                                     </div>
@@ -2093,14 +2197,14 @@ const ZkTVPage: React.FC = () => {
                                                                         <div className="flex items-center gap-2 min-w-0">
                                                                             <TeamLogo 
                                                                                 teamName={game.is_home 
-                                                                                    ? (game.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time') 
+                                                                                    ? (game.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG') 
                                                                                     : game.opponent} 
                                                                                 customLogo={game.is_home ? undefined : game.opponent_logo} 
                                                                                 size="xs" 
                                                                             />
                                                                             <span className={`text-[10px] sm:text-xs font-bold truncate ${game.is_home ? 'text-blue-400' : 'text-slate-300'}`}>
                                                                                 {game.is_home 
-                                                                                    ? (game.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time') 
+                                                                                    ? (game.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG') 
                                                                                     : game.opponent}
                                                                             </span>
                                                                         </div>
@@ -2110,14 +2214,14 @@ const ZkTVPage: React.FC = () => {
                                                                         <div className="flex items-center gap-2 min-w-0">
                                                                             <TeamLogo 
                                                                                 teamName={!game.is_home 
-                                                                                    ? (game.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time') 
+                                                                                    ? (game.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG') 
                                                                                     : game.opponent} 
                                                                                 customLogo={!game.is_home ? undefined : game.opponent_logo} 
                                                                                 size="xs" 
                                                                             />
                                                                             <span className={`text-[10px] sm:text-xs font-bold truncate ${!game.is_home ? 'text-blue-400' : 'text-slate-300'}`}>
                                                                                 {!game.is_home 
-                                                                                    ? (game.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Meu Time') 
+                                                                                    ? (game.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG') 
                                                                                     : game.opponent}
                                                                             </span>
                                                                         </div>
@@ -2228,7 +2332,7 @@ const ZkTVPage: React.FC = () => {
                 </div>
             </section>
 
-            <Footer />
+            {userClub !== 'atletico-mg' && <Footer />}
 
             {/* Modals */}
             <VipSubscriptionModal

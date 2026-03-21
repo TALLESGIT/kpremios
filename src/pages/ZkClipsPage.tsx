@@ -6,9 +6,11 @@ import { YouTubeClip } from '../types';
 import { getYouTubeThumbnail, getYouTubeEmbedUrl } from '../utils/youtube';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import { useData } from '../context/DataContext';
 
 const ZkClipsPage: React.FC = () => {
   const [clips, setClips] = useState<YouTubeClip[]>([]);
+  const { currentUser } = useData();
   const [loading, setLoading] = useState(true);
   const [selectedClip, setSelectedClip] = useState<YouTubeClip | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -19,8 +21,10 @@ const ZkClipsPage: React.FC = () => {
   const [category, setCategory] = useState<'all' | 'clips' | 'musicas'>(initialCat);
 
   useEffect(() => {
-    fetchClips();
-  }, []);
+    if (currentUser?.club_slug) {
+      fetchClips();
+    }
+  }, [currentUser?.club_slug]);
 
   // ✅ Atualizar categoria se a URL mudar (opcional, para navegação via submenu)
   useEffect(() => {
@@ -32,11 +36,13 @@ const ZkClipsPage: React.FC = () => {
 
   const fetchClips = async () => {
     try {
+      if (!currentUser?.club_slug) return;
       setLoading(true);
       const { data, error } = await supabase
         .from('youtube_clips')
         .select('*')
         .eq('is_active', true)
+        .eq('club_slug', currentUser.club_slug)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

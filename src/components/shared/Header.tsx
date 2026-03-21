@@ -19,9 +19,12 @@ function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { currentUser: currentAppUser, clearUserData } = useData();
+  const { currentUser: currentAppUser, clearUserData, guestClub } = useData();
   const { totalItems, setIsCartOpen } = useCart();
   const [isLandscape, setIsLandscape] = useState(false);
+  
+  const activeClub = currentAppUser?.club_slug || guestClub;
+  const isGalo = activeClub === 'atletico-mg';
 
   useEffect(() => {
     const checkOrientation = () => {
@@ -119,7 +122,7 @@ function Header() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [currentAppUser?.club_slug, guestClub]);
 
   // Contar notificações não lidas
 
@@ -170,10 +173,16 @@ function Header() {
 
   const checkActiveLive = async () => {
     try {
+      // ✅ REGRA ABSOLUTA: O badge "AO VIVO" no Header SEMPRE verifica apenas o Cruzeiro.
+      // Lives do Galo são 100% link-only e NUNCA ativam o badge global,
+      // independente de quem está logado (admin do Galo ou visitante).
+      const targetClub = 'cruzeiro';
+
       const { data, error } = await supabase
         .from('live_streams')
-        .select('id, is_active')
+        .select('id, is_active, club_slug')
         .eq('is_active', true)
+        .eq('club_slug', targetClub)
         .limit(1)
         .maybeSingle();
 
@@ -236,21 +245,23 @@ function Header() {
                   Escalar Time
                 </Link>
 
-                <Link
-                  to="/loja"
-                  className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/loja'
-                    ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
-                    : 'text-white/90 hover:text-white hover:bg-white/10'
-                    }`}
-                >
-                  Loja
-                </Link>
+                {!isGalo && (
+                  <Link
+                    to="/loja"
+                    className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/loja'
+                      ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
+                      : 'text-white/90 hover:text-white hover:bg-white/10'
+                      }`}
+                  >
+                    Loja
+                  </Link>
+                )}
               </>
 
               {/* Botão AO VIVO ou Lives Premiadas - dependendo se há live ativa */}
               {!currentAppUser?.is_admin && (
                 <>
-                  {hasActiveLive ? (
+                  {(hasActiveLive && !isGalo) ? (
                     <Link
                       to="/zk-tv"
                       className={`relative px-5 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 border border-red-500/50 ${location.pathname.startsWith('/zk-tv')
@@ -266,7 +277,7 @@ function Header() {
                   ) : (
                   <Link
                     to="/zk-tv"
-                    className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname.startsWith('/zk-tv') && !hasActiveLive
+                    className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname.startsWith('/zk-tv') && (!hasActiveLive || isGalo)
                       ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
                       : 'text-white/90 hover:text-white hover:bg-white/10'
                       }`}
@@ -278,40 +289,42 @@ function Header() {
               )}
 
               {/* Botão Mídia (Dropdown) */}
-              <div className="relative" ref={mediaRef}>
-                <button
-                  onClick={() => setIsMediaOpen(!isMediaOpen)}
-                  className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 flex items-center gap-2 ${isMediaOpen || location.pathname === '/spotify' || location.pathname === '/zk-clips'
-                    ? 'text-primary bg-white shadow-lg shadow-white/10'
-                    : 'text-white/90 hover:text-white hover:bg-white/10'
-                    }`}
-                >
-                  Mídia
-                  <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isMediaOpen ? 'rotate-180' : ''}`} />
-                </button>
+              {!isGalo && (
+                <div className="relative" ref={mediaRef}>
+                  <button
+                    onClick={() => setIsMediaOpen(!isMediaOpen)}
+                    className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 flex items-center gap-2 ${isMediaOpen || location.pathname === '/spotify' || location.pathname === '/zk-clips'
+                      ? 'text-primary bg-white shadow-lg shadow-white/10'
+                      : 'text-white/90 hover:text-white hover:bg-white/10'
+                      }`}
+                  >
+                    Mídia
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isMediaOpen ? 'rotate-180' : ''}`} />
+                  </button>
 
-                {/* Dropdown Menu */}
-                {isMediaOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-48 bg-[#030712] border border-white/10 rounded-2xl shadow-2xl py-2 overflow-hidden animate-in fade-in zoom-in duration-200">
-                    <Link
-                      to="/spotify"
-                      onClick={closeMenu}
-                      className={`flex items-center gap-3 px-4 py-3 text-sm font-bold uppercase tracking-wide transition-all ${location.pathname === '/spotify' ? 'text-blue-400 bg-blue-500/10' : 'text-white/70 hover:text-white hover:bg-white/5'}`}
-                    >
-                      <Music className="w-4 h-4" />
-                      Músicas
-                    </Link>
-                    <Link
-                      to="/zk-clips"
-                      onClick={closeMenu}
-                      className={`flex items-center gap-3 px-4 py-3 text-sm font-bold uppercase tracking-wide transition-all ${location.pathname === '/zk-clips' ? 'text-blue-400 bg-blue-500/10' : 'text-white/70 hover:text-white hover:bg-white/5'}`}
-                    >
-                      <Play className="w-4 h-4" />
-                      Zk-Clips
-                    </Link>
-                  </div>
-                )}
-              </div>
+                  {/* Dropdown Menu */}
+                  {isMediaOpen && (
+                    <div className="absolute top-full right-0 mt-2 w-48 bg-[#030712] border border-white/10 rounded-2xl shadow-2xl py-2 overflow-hidden animate-in fade-in zoom-in duration-200">
+                      <Link
+                        to="/spotify"
+                        onClick={closeMenu}
+                        className={`flex items-center gap-3 px-4 py-3 text-sm font-bold uppercase tracking-wide transition-all ${location.pathname === '/spotify' ? 'text-blue-400 bg-blue-500/10' : 'text-white/70 hover:text-white hover:bg-white/5'}`}
+                      >
+                        <Music className="w-4 h-4" />
+                        Músicas
+                      </Link>
+                      <Link
+                        to="/zk-clips"
+                        onClick={closeMenu}
+                        className={`flex items-center gap-3 px-4 py-3 text-sm font-bold uppercase tracking-wide transition-all ${location.pathname === '/zk-clips' ? 'text-blue-400 bg-blue-500/10' : 'text-white/70 hover:text-white hover:bg-white/5'}`}
+                      >
+                        <Play className="w-4 h-4" />
+                        Zk-Clips
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Admin specific navigation links */}
               {currentAppUser?.is_admin && (
@@ -323,19 +336,21 @@ function Header() {
                 </Link>
               )}
 
-              {/* Botão Carrinho - Desktop (Visível para todos) */}
-              <button
-                onClick={() => setIsCartOpen(true)}
-                className="relative p-2.5 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 group"
-              >
-                <ShoppingBag className="w-5 h-5" />
-                {totalItems > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black italic border-2 border-[#030712] animate-in zoom-in duration-300">
-                    {totalItems}
-                  </span>
-                )}
-                <div className="absolute inset-0 rounded-xl bg-blue-500/0 group-hover:bg-blue-500/10 transition-colors" />
-              </button>
+              {/* Botão Carrinho - Desktop (Ocultar para Galo) */}
+              {!isGalo && (
+                <button
+                  onClick={() => setIsCartOpen(true)}
+                  className="relative p-2.5 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 group"
+                >
+                  <ShoppingBag className="w-5 h-5" />
+                  {totalItems > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black italic border-2 border-[#030712] animate-in zoom-in duration-300">
+                      {totalItems}
+                    </span>
+                  )}
+                  <div className="absolute inset-0 rounded-xl bg-blue-500/0 group-hover:bg-blue-500/10 transition-colors" />
+                </button>
+              )}
 
               {/* Login/Register buttons */}
               {!user && !currentAppUser && (
@@ -406,19 +421,21 @@ function Header() {
                 )}
               </button>
 
-              {/* Carrinho */}
-              <button
-                onClick={() => setIsCartOpen(true)}
-                className="relative p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all"
-                aria-label="Carrinho"
-              >
-                <ShoppingBag className="h-5 w-5" />
-                {totalItems > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[8px] font-black border-2 border-[#030712]">
-                    {totalItems}
-                  </span>
-                )}
-              </button>
+               {/* Carrinho (Ocultar para Galo) */}
+              {!isGalo && (
+                <button
+                  onClick={() => setIsCartOpen(true)}
+                  className="relative p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all"
+                  aria-label="Carrinho"
+                >
+                  <ShoppingBag className="h-5 w-5" />
+                  {totalItems > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[8px] font-black border-2 border-[#030712]">
+                      {totalItems}
+                    </span>
+                  )}
+                </button>
+              )}
 
               {/* Hamburger Menu */}
               <button
@@ -522,24 +539,26 @@ function Header() {
                   Escalar Time
                 </Link>
 
-                <Link
-                  to="/loja"
-                  className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname === '/loja'
-                    ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] translate-x-1'
-                    : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
-                    }`}
-                  onClick={closeMenu}
-                >
-                  <span className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10 transition-colors">
-                    <Store className="w-5 h-5 text-blue-400" />
-                  </span>
-                  Loja
-                </Link>
+                {!isGalo && (
+                  <Link
+                    to="/loja"
+                    className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname === '/loja'
+                      ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] translate-x-1'
+                      : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
+                      }`}
+                    onClick={closeMenu}
+                  >
+                    <span className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10 transition-colors">
+                      <Store className="w-5 h-5 text-blue-400" />
+                    </span>
+                    Loja
+                  </Link>
+                )}
 
                 {/* Botão AO VIVO ou Lives Premiadas no mobile */}
                 {!currentAppUser?.is_admin && (
                   <>
-                    {hasActiveLive ? (
+                    {(hasActiveLive && !isGalo) ? (
                       <Link
                         to="/zk-tv"
                         className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 border border-red-500/30 ${location.pathname.startsWith('/zk-tv')
@@ -556,7 +575,7 @@ function Header() {
                     ) : (
                       <Link
                         to="/zk-tv"
-                        className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname.startsWith('/zk-tv') && !hasActiveLive
+                        className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname.startsWith('/zk-tv') && (!hasActiveLive || isGalo)
                           ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] translate-x-1'
                           : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
                           }`}
@@ -576,28 +595,30 @@ function Header() {
                   <p className="px-5 text-[10px] font-black uppercase text-blue-400/50 tracking-[0.2em] mb-3 leading-none italic">Mídia & Conteúdo</p>
                   
                   {/* Novo Botão Mídia no Mobile */}
-                  <div className="px-5">
-                    <button 
-                      onClick={() => setIsMobileMediaOpen(!isMobileMediaOpen)}
-                      className={`w-full flex items-center justify-between py-3 text-white/60 hover:text-white transition-all font-bold uppercase tracking-tight italic ${isMobileMediaOpen ? 'text-blue-400' : ''}`}
-                    >
-                      <div className="flex items-center">
-                        <span className="mr-4 text-xl">✨</span> Mídia
-                      </div>
-                      <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isMobileMediaOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    
-                    {isMobileMediaOpen && (
-                      <div className="pl-4 mt-2 space-y-2 border-l-2 border-blue-500/20 animate-in slide-in-from-top-2 duration-200">
-                        <Link to="/spotify" onClick={closeMenu} className="flex items-center py-3 text-white/50 hover:text-white transition-all font-bold uppercase tracking-tight italic text-sm">
-                          <Music className="w-4 h-4 mr-3 text-blue-400" /> Músicas
-                        </Link>
-                        <Link to="/zk-clips" onClick={closeMenu} className="flex items-center py-3 text-white/50 hover:text-white transition-all font-bold uppercase tracking-tight italic text-sm">
-                          <Play className="w-4 h-4 mr-3 text-blue-400" /> Zk-Clips
-                        </Link>
-                      </div>
-                    )}
-                  </div>
+                  {!isGalo && (
+                    <div className="px-5">
+                      <button
+                        onClick={() => setIsMobileMediaOpen(!isMobileMediaOpen)}
+                        className={`w-full flex items-center justify-between py-3 text-white/60 hover:text-white transition-all font-bold uppercase tracking-tight italic ${isMobileMediaOpen ? 'text-blue-400' : ''}`}
+                      >
+                        <div className="flex items-center">
+                          <span className="mr-4 text-xl">✨</span> Mídia
+                        </div>
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isMobileMediaOpen ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      {isMobileMediaOpen && (
+                        <div className="pl-4 mt-2 space-y-2 border-l-2 border-blue-500/20 animate-in slide-in-from-top-2 duration-200">
+                          <Link to="/spotify" onClick={closeMenu} className="flex items-center py-3 text-white/50 hover:text-white transition-all font-bold uppercase tracking-tight italic text-sm">
+                            <Music className="w-4 h-4 mr-3 text-blue-400" /> Músicas
+                          </Link>
+                          <Link to="/zk-clips" onClick={closeMenu} className="flex items-center py-3 text-white/50 hover:text-white transition-all font-bold uppercase tracking-tight italic text-sm">
+                            <Play className="w-4 h-4 mr-3 text-blue-400" /> Zk-Clips
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {currentAppUser?.is_admin && (
                     <Link to="/admin/live-stream" onClick={closeMenu} className="flex items-center px-5 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-all hover:translate-x-1 font-bold uppercase tracking-tight italic border border-blue-500/20 bg-blue-500/5 mt-4">
