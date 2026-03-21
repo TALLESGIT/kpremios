@@ -40,11 +40,14 @@ function HomePage() {
   
   // Redirecionamento inteligente: Se for usuário do Galo, não deve ver a Home do Cruzeiro
   useEffect(() => {
-    const contextualHome = getContextualHome();
-    if (contextualHome !== '/') {
-      navigate(contextualHome, { replace: true });
+    // Só redireciona se os dados do usuário já foram carregados (ou se não houver usuário)
+    if (!dataLoading) {
+      const contextualHome = getContextualHome(currentUser);
+      if (contextualHome !== '/') {
+        navigate(contextualHome, { replace: true });
+      }
     }
-  }, [navigate]);
+  }, [navigate, currentUser, dataLoading]);
 
   const { isConnected, on, off, joinStream } = useSocket({
     streamId: activeStreamId || undefined,

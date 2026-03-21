@@ -155,7 +155,7 @@ const LoginPage: React.FC = () => {
         // Verificar e criar perfil se necessário
         const { data: profile } = await supabase
           .from('users')
-          .select('is_admin')
+          .select('is_admin, club_slug')
           .eq('id', data.user.id)
           .maybeSingle();
 
@@ -171,7 +171,7 @@ const LoginPage: React.FC = () => {
           if (bioAvailable.isAvailable && !bioActive) {
             setShowBioPrompt(true);
           } else {
-            navigate(getContextualHome());
+            navigate(getContextualHome(profile));
           }
         }
       }

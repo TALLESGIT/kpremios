@@ -94,7 +94,7 @@ const RegisterPage: React.FC = () => {
       if (data.user) {
         const { data: profile } = await supabase
           .from('users')
-          .select('is_admin')
+          .select('is_admin, club_slug')
           .eq('id', data.user.id)
           .maybeSingle();
 
@@ -103,7 +103,7 @@ const RegisterPage: React.FC = () => {
         } else if (profile?.is_admin) {
           navigate('/admin/dashboard');
         } else {
-          navigate(getContextualHome());
+          navigate(getContextualHome(profile));
         }
       }
     } catch (error: any) {

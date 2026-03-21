@@ -615,7 +615,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
       <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4" onClick={() => {
         setShowPixPayment(false);
         onClose();
-        navigate(getContextualHome());
+        navigate(getContextualHome(currentUser));
       }}>
         <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-blue-500/30 shadow-2xl max-w-[90vw] sm:max-w-[340px] w-full overflow-hidden max-h-[95vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
@@ -627,7 +627,7 @@ const PoolBetModal: React.FC<PoolBetModalProps> = ({
               onClick={() => {
                 setShowPixPayment(false);
                 onClose();
-                navigate(getContextualHome());
+                navigate(getContextualHome(currentUser));
               }}
               className="p-2 hover:bg-white/10 rounded-lg transition-all"
             >

@@ -6,10 +6,12 @@ import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import { getContextualHome } from '../utils/navigation';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 
 const MyNumbersPage: React.FC = () => {
   const { user } = useAuth();
+  const { currentUser } = useData();
   const navigate = useNavigate();
   const [poolBets, setPoolBets] = useState<any[]>([]);
   const [loadingBets, setLoadingBets] = useState(true);
@@ -212,7 +214,7 @@ const MyNumbersPage: React.FC = () => {
               Você ainda não participou de nenhum bolão. Que tal começar agora?
             </p>
             <button
-              onClick={() => navigate(getContextualHome())}
+              onClick={() => navigate(getContextualHome(currentUser))}
               className="bg-blue-600 hover:bg-blue-500 text-white font-black py-4 px-8 rounded-2xl transition-all uppercase italic shadow-lg shadow-blue-900/40"
             >
               Ver Bolões Ativos

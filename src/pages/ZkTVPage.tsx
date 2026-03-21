@@ -273,6 +273,12 @@ const ZkTVPage: React.FC = () => {
     const [isPip, setIsPip] = useState(false); // Estado para Picture-in-Picture nativo
     const lastLiveStatusRef = useRef(false);
 
+    // Live Match Data (API-Football)
+    const [liveScore, setLiveScore] = useState<{ home: number, away: number } | null>(null);
+    const [liveEvents, setLiveEvents] = useState<any[]>([]);
+    const [matchStatus, setMatchStatus] = useState<string | null>(null);
+    const [elapsedTime, setElapsedTime] = useState<number | null>(null);
+
     // Sincronizar isVip com o currentUser
     useEffect(() => {
         if (currentUser) {
@@ -1391,6 +1397,55 @@ const ZkTVPage: React.FC = () => {
         }
     }, [isLiveActive]);
 
+    // ✅ BUSCAR EVENTOS E PLACAR REAL (API-FOOTBALL)
+    const fetchLiveMatchData = useCallback(async (fixtureId: number) => {
+        try {
+            const apiKey = import.meta.env.VITE_FOOTBALL_API_KEY;
+            if (!apiKey) return;
+
+            const response = await fetch(`https://v3.football.api-sports.io/fixtures?id=${fixtureId}`, {
+                headers: {
+                    'x-apisports-key': apiKey,
+                    'x-rapidapi-host': 'v3.football.api-sports.io'
+                }
+            });
+            const result = await response.json();
+
+            if (result.response && result.response.length > 0) {
+                const match = result.response[0];
+                setLiveScore({
+                    home: match.goals.home ?? 0,
+                    away: match.goals.away ?? 0
+                });
+                setMatchStatus(match.fixture.status.short);
+                setElapsedTime(match.fixture.status.elapsed);
+
+                // Buscar Eventos
+                const eventsRes = await fetch(`https://v3.football.api-sports.io/fixtures/events?fixture=${fixtureId}`, {
+                    headers: {
+                        'x-apisports-key': apiKey,
+                        'x-rapidapi-host': 'v3.football.api-sports.io'
+                    }
+                });
+                const eventsResult = await eventsRes.json();
+                if (eventsResult.response) {
+                    setLiveEvents(eventsResult.response.reverse().slice(0, 5)); // Últimos 5 eventos
+                }
+            }
+        } catch (error) {
+            console.warn('Erro ao buscar dados live do jogo:', error);
+        }
+    }, []);
+
+    useEffect(() => {
+        const fixtureId = displayGame?.api_fixture_id;
+        if (fixtureId && (isLiveActive || displayGame.status === 'live')) {
+            fetchLiveMatchData(fixtureId);
+            const interval = setInterval(() => fetchLiveMatchData(fixtureId), 60000);
+            return () => clearInterval(interval);
+        }
+    }, [displayGame?.api_fixture_id, isLiveActive, fetchLiveMatchData]);
+
     // Agrupar classificações por competição
     const groupedStandings = useMemo(() => {
         const groups: Record<string, MatchStanding[]> = {};
@@ -1727,6 +1782,57 @@ const ZkTVPage: React.FC = () => {
                             className={`${(isFullscreen || isPip) ? 'fixed inset-0 z-[100] w-screen h-screen bg-black rounded-none' : 'w-full max-w-[680px] lg:max-w-[760px] mx-auto shrink-0 aspect-video bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl'} overflow-hidden relative cursor-pointer group ${isDockedChat ? 'mobile-video-container docked-chat-active' : ''}`}
                             title={isMobile ? "Toque duas vezes para tela cheia" : "Duplo clique para tela cheia"}
                         >
+                            {/* LIVE SCORE BAR (ESTILO PREMIER LEAGUE / CAZÉTV) */}
+                            {isLiveActive && liveScore && (
+                                <motion.div 
+                                    initial={{ y: -50, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    className="absolute top-0 left-0 right-0 z-[60] p-2 sm:p-4 bg-gradient-to-b from-black/90 via-black/40 to-transparent pointer-events-none"
+                                >
+                                    <div className="max-w-2xl mx-auto flex items-center justify-center gap-2 sm:gap-6">
+                                        <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+                                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                            <span className="text-[10px] font-black text-white uppercase tracking-tighter">
+                                                {matchStatus === 'HT' ? 'Intervalo' : `LIVE ${elapsedTime}'`}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-3 sm:gap-6 bg-black/80 backdrop-blur-md px-4 sm:px-8 py-2 sm:py-3 rounded-2xl border border-white/10 shadow-2xl">
+                                            <div className="flex items-center gap-2 sm:gap-3">
+                                                <span className="text-white font-black text-xs sm:text-base uppercase tracking-tight hidden sm:block">
+                                                    {clubInfo?.name?.substring(0, 3) || 'CAM'}
+                                                </span>
+                                                <div className="w-10 sm:w-14 h-8 sm:h-12 bg-white/5 flex items-center justify-center rounded-lg text-lg sm:text-2xl font-black text-blue-400">
+                                                    {displayGame?.is_home ? liveScore.home : liveScore.away}
+                                                </div>
+                                            </div>
+
+                                            <div className="text-white/20 font-black italic text-xs">VS</div>
+
+                                            <div className="flex items-center gap-2 sm:gap-3">
+                                                <div className="w-10 sm:w-14 h-8 sm:h-12 bg-white/5 flex items-center justify-center rounded-lg text-lg sm:text-2xl font-black text-white/80">
+                                                    {displayGame?.is_home ? liveScore.away : liveScore.home}
+                                                </div>
+                                                <span className="text-white/60 font-black text-xs sm:text-base uppercase tracking-tight hidden sm:block">
+                                                    {displayGame?.opponent?.substring(0,3)}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* EVENT TIMELINE POPUP (DESKTOP) */}
+                                        {!isMobile && liveEvents.length > 0 && (
+                                            <div className="hidden lg:block bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10">
+                                                <div className="flex items-center gap-2 overflow-hidden max-w-[150px]">
+                                                    {liveEvents[0].type === 'Goal' ? '⚽' : liveEvents[0].type === 'Card' ? '🟨' : '🔄'}
+                                                    <span className="text-[10px] font-bold text-white/80 truncate">
+                                                        {liveEvents[0].player?.name || 'Evento'} {liveEvents[0].time?.elapsed}'
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
                             <div className="relative w-full h-full flex">
                                 {stableIsLiveActive ? (
                                     <>

@@ -110,6 +110,8 @@ const ModernPitchView: React.FC = () => {
 
   const [cruzeiroImgError, setCruzeiroImgError] = useState(false);
   const [opponentImgError, setOpponentImgError] = useState(false);
+  const [liveFormation, setLiveFormation] = useState<FormationPosition[] | null>(null);
+  const [isLiveActive, setIsLiveActive] = useState(false);
 
   const pitchRef = useRef<HTMLDivElement>(null);
 
@@ -227,12 +229,143 @@ const ModernPitchView: React.FC = () => {
       
       if (playerData) setAvailablePlayers(playerData);
       
+      // Buscar escalação real se o jogo for hoje ou estiver live
+      if (gameData?.api_fixture_id) {
+        const gameDate = new Date(gameData.date);
+        const today = new Date();
+        const isRecent = Math.abs(today.getTime() - gameDate.getTime()) < 24 * 60 * 60 * 1000;
+        
+        if (isRecent || gameData.status === 'live') {
+          fetchLiveLineup(gameData.api_fixture_id, gameData.is_home);
+        }
+      }
+      
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       toast.error('Erro ao carregar dados da escalação');
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchLiveLineup = async (fixtureId: number, isHomeClient: boolean) => {
+    try {
+      const apiKey = import.meta.env.VITE_FOOTBALL_API_KEY;
+      if (!apiKey) return;
+
+      const response = await fetch(`https://v3.football.api-sports.io/fixtures/lineups?fixture=${fixtureId}`, {
+        headers: {
+          'x-apisports-key': apiKey,
+          'x-rapidapi-host': 'v3.football.api-sports.io'
+        }
+      });
+      const result = await response.json();
+
+      if (result.response && result.response.length > 0) {
+        // Encontrar o time correto no array (o cliente pode ser home ou away na API)
+        // Busca flexível: 'atletico-mg' -> 'atletico', 'cruzeiro' -> 'cruzeiro'
+        const searchKey = clubSlug.split('-')[0].toLowerCase();
+        
+        console.log(`[Lineup] Buscando time com chave: ${searchKey} no fixture ${fixtureId}`);
+        
+        const lineupData = result.response.find((l: any) => {
+          const apiTeamName = l.team.name.toLowerCase();
+          const isOurTeam = apiTeamName.includes(searchKey);
+          return isHomeClient ? isOurTeam : !isOurTeam;
+        }) || result.response[0];
+
+        console.log(`[Lineup] Time identificado: ${lineupData.team.name}`);
+
+        if (lineupData && lineupData.startXI) {
+          const mappedLineup: FormationPosition[] = lineupData.startXI.map((item: any, idx: number) => {
+            const [row, col] = (item.player.grid || "1:1").split(':').map(Number);
+            
+            // Mapeamento de Top % (Invertido pois 1 é GOL no fundo)
+            const rowsTop: Record<number, number> = { 1: 92, 2: 78, 3: 58, 4: 34, 5: 18 };
+            
+            // Mapeamento de Left % (Distribuído)
+            const leftMap: Record<number, number> = { 1: 15, 2: 35, 3: 50, 4: 65, 5: 85 };
+            
+            // Especial para Goleiro (sempre centro)
+            if (row === 1) return { id: idx + 1, role: 'GOL', top: 92, left: 50, player: item.player };
+
+            return {
+              id: idx + 1,
+              role: item.player.pos === 'G' ? 'GOL' : item.player.pos === 'D' ? 'DEF' : item.player.pos === 'M' ? 'MEI' : 'ATA',
+              top: rowsTop[row] || 50,
+              left: leftMap[col] || (col * 15 + 10),
+              player: item.player
+            };
+          });
+
+          setLiveFormation(mappedLineup);
+          setIsLiveActive(true);
+          
+          // Se for live, já preencher os jogadores
+          const selected: Record<number, TeamPlayer> = {};
+          mappedLineup.forEach((pos: any) => {
+            selected[pos.id] = {
+              id: String(pos.player.id),
+              name: pos.player.name,
+              number: String(pos.player.number),
+              position: pos.role,
+              photo_url: `https://media.api-sports.io/football/players/${pos.player.id}.png`
+            };
+          });
+          
+          if (activeTeam === 'home') setHomeSelected(selected);
+          else setAwaySelected(selected);
+          
+          toast.success("Escalação real carregada!", { icon: '🔥' });
+        }
+      }
+    } catch (e) {
+      console.warn("Erro ao buscar escalação live:", e);
+    }
+  };
+
+  const syncTeamPlayers = async () => {
+    if (!currentUser?.is_admin) return;
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.functions.invoke('sync-team-players', {
+        body: { club_slug: clubSlug }
+      });
+      
+      if (error) throw error;
+      
+      toast.success(data.message || "Elenco sincronizado!");
+      loadData(); // Recarregar jogadores
+    } catch (error: any) {
+      console.error('Erro detalhado ao sincronizar:', error);
+      
+      let errorMsg = error.message || 'Erro desconhecido';
+      
+      // Tentar extrair a mensagem de erro do corpo da resposta da Edge Function
+      if (error.context && typeof error.context.json === 'function') {
+        try {
+          const body = await error.context.json();
+          if (body.error) errorMsg = body.error;
+        } catch (e) {
+          console.warn('Não foi possível ler o corpo do erro:', e);
+        }
+      }
+
+      const isCorsError = error.message?.includes('failed to fetch') || error.message?.includes('CORS');
+      const msg = isCorsError 
+        ? 'Erro de Conexão (CORS/Deploy)! Verifique se a função está ativa.'
+        : 'Erro na Sincronização: ' + errorMsg;
+      
+      toast.error(msg, { duration: 8000 });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getPlayerPhoto = (player: TeamPlayer) => {
+    if (!player.photo_url) return null;
+    // Usar proxy weserv.nl para evitar problemas de CORS e redimensionar
+    return `https://images.weserv.nl/?url=${encodeURIComponent(player.photo_url)}&w=100&h=100&fit=cover&mask=circle`;
   };
 
   const currentSelectedState = activeTeam === 'home' ? homeSelected : awaySelected;
@@ -283,8 +416,17 @@ const ModernPitchView: React.FC = () => {
 
   const filteredPlayers = currentRoster.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesPos = p.position.includes(filterPos) || p.position === filterPos;
-    return matchesSearch && (filterPos ? matchesPos : true);
+    
+    // Se não há filtro, mostra todos que batem com a busca
+    if (!filterPos) return matchesSearch;
+    
+    // Filtro flexível para posições
+    const playerPos = p.position.toUpperCase();
+    const targetPos = filterPos.toUpperCase();
+    
+    const matchesPos = playerPos.includes(targetPos) || targetPos.includes(playerPos);
+    
+    return matchesSearch && matchesPos;
   });
 
   const isTeamComplete = Object.keys(currentSelectedState).length === 11;
@@ -315,6 +457,31 @@ const ModernPitchView: React.FC = () => {
               <option key={f} value={f} className="bg-slate-900">FORM: {f}</option>
             ))}
           </select>
+
+          {isLiveActive && (
+             <button
+              onClick={() => {
+                setLiveFormation(null);
+                setIsLiveActive(false);
+                setHomeSelected({});
+                setAwaySelected({});
+              }}
+              className="px-4 py-2.5 bg-accent/20 hover:bg-accent/30 text-accent border border-accent/30 rounded-xl transition-all active:scale-95 flex items-center gap-2"
+            >
+              <span className="text-[10px] font-black uppercase italic tracking-tight">Usar Padrão</span>
+            </button>
+          )}
+
+          {currentUser?.is_admin && (
+            <button
+              onClick={syncTeamPlayers}
+              disabled={loading}
+              className="px-4 py-2.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-600/30 rounded-xl transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50"
+            >
+              <UserPlus className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <span className="text-[10px] font-black uppercase italic tracking-tight">Sincronizar API</span>
+            </button>
+          )}
 
           <button
             onClick={() => setTeamSelected({})}
@@ -507,12 +674,12 @@ const ModernPitchView: React.FC = () => {
             <span className="text-white font-black text-[10px] sm:text-[12px] tracking-wide">@itallozk</span>
           </div>
 
-          {FORMATIONS[formation].map((pos) => {
+          {(isLiveActive ? (liveFormation || []) : FORMATIONS[formation]).map((pos: any) => {
             const player = currentSelectedState[pos.id];
             return (
               <div
                 key={pos.id}
-                className="absolute -translate-x-1/2 -translate-y-1/2 z-40"
+                className="absolute -translate-x-1/2 -translate-y-1/2 z-40 transition-all duration-700"
                 style={{ top: `${pos.top}%`, left: `${pos.left}%` }}
               >
                 <div
@@ -529,20 +696,14 @@ const ModernPitchView: React.FC = () => {
                   `}>
                     {player ? (
                       <img
-                        src={player.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=0055ff&color=fff`}
+                        src={getPlayerPhoto(player) || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=0055ff&color=fff`}
                         alt={player.name || 'Jogador'}
                         className="w-full h-full object-cover"
                         crossOrigin="anonymous"
                         loading="lazy"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
-                          if (player.photo_url && !target.src.includes('weserv.nl')) {
-                            // Tenta via proxy se falhar direto
-                            target.src = `https://images.weserv.nl/?url=${encodeURIComponent(player.photo_url)}`;
-                          } else {
-                            // Fallback final para avatar
-                            target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=0055ff&color=fff`;
-                          }
+                          target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=0055ff&color=fff`;
                         }}
                       />
                     ) : (
@@ -646,6 +807,22 @@ const ModernPitchView: React.FC = () => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-11 pr-4 py-3 bg-gray-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                   />
+                </div>
+                
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-0.5">
+                  {['', 'GOL', 'DEF', 'MEI', 'ATA'].map((pos) => (
+                    <button
+                      key={pos}
+                      onClick={() => setFilterPos(pos)}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase italic transition-all whitespace-nowrap ${
+                        filterPos === pos
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                      }`}
+                    >
+                      {pos || 'TODOS'}
+                    </button>
+                  ))}
                 </div>
               </div>
 
