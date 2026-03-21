@@ -26,17 +26,13 @@ interface LiveViewerProps {
  * - Fallback → ZKViewer (Agora.io)
  */
 export function LiveViewer({
-  streamId,
   channelName = DEFAULT_LIVE_CHANNEL,
   hlsUrl,
   isActive: propIsActive,
-  isVip = false,
+  isAdmin = false,
   fitMode = 'contain',
   className = '',
   showOfflineMessage = true,
-  isAdmin = false,
-  enabled = true,
-  showPerf = false,
 }: LiveViewerProps) {
 
   // Hook de status - Busca dados do canal se não fornecidos via props
@@ -164,9 +160,9 @@ export function LiveViewer({
       /Capacitor|Bridge/i.test(navigator.userAgent)
     );
 
-    // Prioridade: WebRTC (WHEP) apenas na WEB para baixíssima latência
-    // No NATIVO (Capacitor) ou se WHEP falhar, usamos HLS por ser mais estável
-    if (whepBaseUrl && !isNativeApp && !fallbackToHls) {
+    // Prioridade: WebRTC (WHEP) apenas para ADMINS na WEB para baixíssima latência (monitoramento)
+    // Para usuários comuns ou no NATIVO (Capacitor), usamos HLS por ser mais estável e permitir cache Cloudflare
+    if (whepBaseUrl && !isNativeApp && !fallbackToHls && isAdmin) {
       return (
         <WhepPlayer
           channelName={effectiveChannelName}

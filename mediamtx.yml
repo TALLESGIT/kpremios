@@ -30,3 +30,16 @@ paths:
   ~^live(/.*)?$:
     source: publisher
     writeQueueSize: 384
+
+# =====================================================
+# ✅ HLS: Distribuição Low Latency (LL-HLS) para usuários
+# Permite cache do Cloudflare e latência de 2-5 segundos
+# =====================================================
+hls: yes
+hlsAddress: :8888
+hlsVariant: lowLatency
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+hlsSegmentCount: 10
+hlsAllowOrigins: ['*']
+hlsAlwaysRemux: yes

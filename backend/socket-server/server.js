@@ -12,7 +12,9 @@ require('dotenv').config({
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const { createClient } = require('@supabase/supabase-js');
+const { createAdapter } = require('@socket.io/redis-adapter');
+const { createClient } = require('redis');
+const { createClient: createSupabaseClient } = require('@supabase/supabase-js');
 const cors = require('cors');
 const { spawn } = require('child_process');
 
@@ -189,12 +191,31 @@ const io = new Server(server, {
   serveClient: false
 });
 
+// =====================================================
+// REDIS ADAPTER (Para Clustering e Alta Disponibilidade)
+// =====================================================
+// ✅ CRÍTICO: Necessário para sincronizar eventos entre múltiplos processos (CPU cores)
+const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+const pubClient = createClient({ url: REDIS_URL });
+const subClient = pubClient.duplicate();
+
+pubClient.on('error', (err) => console.error('❌ Redis Pub Client Error:', err));
+subClient.on('error', (err) => console.error('❌ Redis Sub Client Error:', err));
+
+Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
+  console.log('📡 Redis Adapter conectado e integrado ao Socket.IO');
+  io.adapter(createAdapter(pubClient, subClient));
+}).catch(err => {
+  console.error('❌ Falha ao conectar no Redis (Clustering desativado):', err);
+});
+
 // Inicializar Supabase
 // ✅ IMPORTANTE: Usar SERVICE_ROLE_KEY para bypass RLS (backend precisa inserir dados)
 // ⚠️ NUNCA exponha a SERVICE_ROLE_KEY no frontend!
 // ✅ Escalabilidade: Para conexões PostgreSQL diretas use pooler (porta 6543) com
 //    ?pgbouncer=true&connection_limit=20. O cliente supabase-js usa REST; reduzimos
 //    carga com batch insert, cache e throttle.
+//     carga com batch insert, cache e throttle.
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
@@ -206,7 +227,7 @@ if (!supabaseUrl || !supabaseServiceKey) {
   }
 }
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+const supabase = createSupabaseClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
