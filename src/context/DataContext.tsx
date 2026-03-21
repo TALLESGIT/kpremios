@@ -74,14 +74,22 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
   const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [loading, setLoading] = useState(true);
   const [numbersLoading, setNumbersLoading] = useState(true);
-  const [guestClub, setGuestClubState] = useState<string>(localStorage.getItem('preferred_club') || 'cruzeiro');
+  // ✅ Inicializar guestClub: sessionStorage (para Galo link-only) > localStorage > 'cruzeiro'
+  const [guestClub, setGuestClubState] = useState<string>(() => {
+    const sessionClub = sessionStorage.getItem('session_club');
+    if (sessionClub) return sessionClub;
+    return localStorage.getItem('preferred_club') || 'cruzeiro';
+  });
 
   // Função para mudar o clube do visitante e persistir
   const setGuestClub = (club: string) => {
     setGuestClubState(club);
-    // ✅ REGRA: Apenas persistir Cruzeiro ou outros clubes gerais. 
-    // Atlético-MG é "link-only" e não deve ficar salvo para visitas futuras à Home.
-    if (club !== 'atletico-mg') {
+    if (club === 'atletico-mg') {
+      // ✅ Galo é link-only: salvar no sessionStorage (vive apenas durante a aba)
+      sessionStorage.setItem('session_club', club);
+    } else {
+      // Limpar sessão temporária do Galo e salvar no localStorage para persistir
+      sessionStorage.removeItem('session_club');
       localStorage.setItem('preferred_club', club);
     }
   };
