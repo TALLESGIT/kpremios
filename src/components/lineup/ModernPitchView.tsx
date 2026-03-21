@@ -91,7 +91,7 @@ const FORMATIONS: Record<string, FormationPosition[]> = {
 import { useData } from '../../context/DataContext';
 
 const ModernPitchView: React.FC = () => {
-  const { currentUser } = useData();
+  const { currentUser, guestClub } = useData();
   const [formation, setFormation] = useState('4-4-2');
   const [activeTeam, setActiveTeam] = useState<'home' | 'away'>('home');
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
@@ -113,7 +113,7 @@ const ModernPitchView: React.FC = () => {
 
   const pitchRef = useRef<HTMLDivElement>(null);
 
-  const clubSlug = currentUser?.club_slug || 'cruzeiro';
+  const clubSlug = currentUser?.club_slug || guestClub || 'cruzeiro';
 
   useEffect(() => {
     loadData();
