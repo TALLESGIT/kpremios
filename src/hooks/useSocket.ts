@@ -117,18 +117,17 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
 
       const newSocket = io(SOCKET_SERVER_URL, {
         path: '/socket.io/', // Path explícito para Socket.IO
-        // CRÍTICO: Socket.IO Engine.IO 4.x sempre precisa de handshake inicial via polling
-        // Depois faz upgrade automático para websocket (melhor performance)
-        // Sempre incluir polling primeiro, depois websocket
-        transports: ['polling', 'websocket'],
+        // ✅ CRÍTICO: Em modo PM2 Cluster, o polling exige "Sticky Sessions" no Nginx.
+        // Forçar apenas 'websocket' elimina o erro 400 (Bad Request) pois mantém a conexão única e persistente.
+        transports: ['websocket'],
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
         reconnectionAttempts: Infinity,
         timeout: 20000,
-        // Permitir upgrade de polling para websocket (recomendado)
-        upgrade: true,
-        rememberUpgrade: isProduction, // Em produção, lembrar upgrade para WebSocket
+        // Em modo websocket Puro, não há upgrade
+        upgrade: false,
+        rememberUpgrade: isProduction,
         // Credenciais para CORS
         withCredentials: true,
         // Auto-connect
