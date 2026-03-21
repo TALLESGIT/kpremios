@@ -170,16 +170,14 @@ app.use(express.json());
 const io = new Server(server, {
   path: '/socket.io/', // Path explícito para Socket.IO
   cors: {
-    origin: corsOrigin,
+    origin: true, // Permitir todas as origens temporariamente para depurar
     methods: ['GET', 'POST'],
     credentials: true
   },
-  // CRÍTICO: Em produção, permitir websocket direto E polling inicial para handshake
-  // Socket.IO Engine.IO 4.x pode precisar de polling inicial antes do upgrade
-  // Mas priorizar websocket direto quando possível
-  transports: isProduction ? ['websocket', 'polling'] : ['websocket', 'polling'],
-  // Permitir upgrade de polling para websocket (melhor performance)
-  allowUpgrades: true,
+  // ✅ CRÍTICO: Forçar apenas websocket para evitar problemas de sticky sessions no cluster
+  transports: ['websocket'],
+  // Permitir upgrade (embora forçando websocket ele nem deva tentar polling)
+  allowUpgrades: false,
   // Configurações para conexões longas (streaming)
   pingTimeout: 60000, // 60 segundos
   pingInterval: 25000, // 25 segundos
