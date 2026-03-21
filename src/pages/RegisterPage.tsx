@@ -165,6 +165,9 @@ const RegisterPage: React.FC = () => {
       if (authError) throw authError;
 
       if (authData.user) {
+        // Obter o clube do contexto atual (Galo link-only ou Cruzeiro padrão)
+        const currentClub = sessionStorage.getItem('session_club') || 'cruzeiro';
+
         // Criar perfil
         const { error: profileError } = await supabase
           .from('users')
@@ -173,6 +176,7 @@ const RegisterPage: React.FC = () => {
             name: formData.name.trim(),
             email: formData.email.trim(),
             whatsapp: formData.phone.trim(),
+            club_slug: currentClub,
             is_admin: false,
             created_at: new Date().toISOString(),
           });

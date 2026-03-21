@@ -608,6 +608,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
       }
 
       const userId = authData.user.id;
+      const sessionClub = sessionStorage.getItem('session_club') || 'cruzeiro';
 
       // Store user data in localStorage for later processing
       // This bypasses RLS issues by deferring user creation
@@ -616,6 +617,7 @@ export function DataProvider({ children, authUser }: { children: ReactNode; auth
         name,
         email,
         whatsapp: whatsapp, // Using 'whatsapp' column for users table
+        club_slug: sessionClub,
         free_number: selectedNumber,
         is_admin: false, // Regular user
         created_at: new Date().toISOString(),
