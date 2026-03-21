@@ -3,13 +3,18 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, Play, Store, Tv, Swords } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
+import { useData } from '../../context/DataContext';
 
 const MobileNavigation: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentUser, guestClub } = useData();
   const [showMediaSubmenu, setShowMediaSubmenu] = useState(false);
   const [hasActiveLive, setHasActiveLive] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
+
+  const activeClub = currentUser?.club_slug || guestClub;
+  const isGalo = activeClub === 'atletico-mg';
 
   useEffect(() => {
     const checkOrientation = () => {
@@ -24,10 +29,12 @@ const MobileNavigation: React.FC = () => {
   useEffect(() => {
     const checkActiveLive = async () => {
       try {
+        // ✅ REGRA: Badge de live no mobile SEMPRE verifica apenas Cruzeiro
         const { data } = await supabase
           .from('live_streams')
           .select('id')
           .eq('is_active', true)
+          .eq('club_slug', 'cruzeiro')
           .limit(1)
           .maybeSingle();
         setHasActiveLive(!!data);
@@ -54,18 +61,23 @@ const MobileNavigation: React.FC = () => {
     };
   }, []);
 
-  const navItems = [
-    { id: 'home', label: 'Início', icon: Home, path: '/' },
-    { id: 'zktv', label: 'ZK TV', icon: Tv, path: '/zk-tv' },
-    { id: 'loja', label: 'Loja', icon: Store, path: '/loja' },
-    { id: 'escalacao', label: 'Escalação', icon: Swords, path: '/escalacao' },
-    { id: 'midia', label: 'Mídia', icon: Play, path: '/zk-clips' },
+  // ✅ Filtrar itens de navegação baseado no contexto do clube
+  const allNavItems = [
+    { id: 'home', label: 'Início', icon: Home, path: '/', galoOnly: false, hideForGalo: true },
+    { id: 'zktv', label: 'ZK TV', icon: Tv, path: '/zk-tv', galoOnly: false, hideForGalo: false },
+    { id: 'loja', label: 'Loja', icon: Store, path: '/loja', galoOnly: false, hideForGalo: true },
+    { id: 'escalacao', label: 'Escalação', icon: Swords, path: '/escalacao', galoOnly: false, hideForGalo: false },
+    { id: 'midia', label: 'Mídia', icon: Play, path: '/zk-clips', galoOnly: false, hideForGalo: true },
   ];
+
+  const navItems = isGalo 
+    ? allNavItems.filter(item => !item.hideForGalo) 
+    : allNavItems;
 
   // Identificar item ativo baseando-se no path
   const activeTab = navItems.find(item =>
     item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path)
-  )?.id || 'home';
+  )?.id || (isGalo ? 'zktv' : 'home');
 
   const handleNavClick = (item: typeof navItems[0]) => {
     if (item.id === 'midia') {
@@ -152,7 +164,7 @@ const MobileNavigation: React.FC = () => {
                         : "text-white/30"
                         }`}
                     />
-                    {item.id === 'zktv' && hasActiveLive && (
+                    {item.id === 'zktv' && hasActiveLive && !isGalo && (
                       <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full border-2 border-[#030712] animate-pulse" />
                     )}
                     {isActive && (

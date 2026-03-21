@@ -124,7 +124,18 @@ const ZkTVPage: React.FC = () => {
         topScorer: 'N/A'
     });
 
-    const [userClub, setUserClub] = useState<string | null>(null);
+    // ✅ Inicializar userClub IMEDIATAMENTE com base na URL para evitar flash de dados do Cruzeiro
+    const [userClub, setUserClub] = useState<string | null>(() => {
+        const params = new URLSearchParams(window.location.search);
+        const channel = params.get('channel');
+        if (channel) {
+            const channelLower = channel.toLowerCase();
+            if (channelLower.includes('atletico') || channelLower.includes('galo') || channelLower.includes('mg')) {
+                return 'atletico-mg';
+            }
+        }
+        return 'cruzeiro';
+    });
     const [clubInfo, setClubInfo] = useState<{ name: string; logo_url: string } | null>(null);
 
     // Sincronizar userClub com o currentUser e carregar info do clube
