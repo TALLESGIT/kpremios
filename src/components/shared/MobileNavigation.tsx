@@ -84,6 +84,14 @@ const MobileNavigation: React.FC = () => {
       setShowMediaSubmenu(!showMediaSubmenu);
     } else {
       setShowMediaSubmenu(false);
+      // ✅ Se é Galo e clicou em ZK TV, preservar o canal via sessionStorage
+      if (isGalo && item.id === 'zktv') {
+        const savedChannel = sessionStorage.getItem('session_channel');
+        if (savedChannel) {
+          navigate(`/zk-tv?channel=${savedChannel}`);
+          return;
+        }
+      }
       navigate(item.path);
     }
   };

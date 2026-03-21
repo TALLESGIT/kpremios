@@ -124,23 +124,29 @@ const ZkTVPage: React.FC = () => {
         topScorer: 'N/A'
     });
 
-    // ✅ Inicializar userClub IMEDIATAMENTE com base na URL para evitar flash de dados do Cruzeiro
+    // ✅ Inicializar userClub IMEDIATAMENTE com base na URL ou sessionStorage para evitar flash
     const [userClub, setUserClub] = useState<string | null>(() => {
         const params = new URLSearchParams(window.location.search);
         const channel = params.get('channel');
         if (channel) {
             const channelLower = channel.toLowerCase();
             if (channelLower.includes('atletico') || channelLower.includes('galo') || channelLower.includes('mg')) {
+                // Salvar canal completo para reuso ao navegar entre páginas
+                sessionStorage.setItem('session_channel', channel);
                 return 'atletico-mg';
             }
+        }
+        // Fallback: verificar se há sessão ativa do Galo (navegação entre páginas)
+        const sessionClub = sessionStorage.getItem('session_club');
+        if (sessionClub === 'atletico-mg') {
+            return 'atletico-mg';
         }
         return 'cruzeiro';
     });
     const [clubInfo, setClubInfo] = useState<{ name: string; logo_url: string } | null>(null);
 
     // Sincronizar userClub com o currentUser e carregar info do clube
-    // ✅ REGRA: O contexto de clube na ZkTV só muda para Galo se houver canal na URL.
-    // Sem canal na URL, SEMPRE usar Cruzeiro para o público geral, mesmo com admin do Galo logado.
+    // ✅ REGRA: O contexto de clube na ZkTV só muda para Galo se houver canal na URL OU sessão ativa do Galo.
     useEffect(() => {
         let resolvedClub = 'cruzeiro'; // Padrão sempre Cruzeiro
 
@@ -149,17 +155,23 @@ const ZkTVPage: React.FC = () => {
             const channelLower = urlChannel.toLowerCase();
             if (channelLower.includes('atletico') || channelLower.includes('galo') || channelLower.includes('mg')) {
                 resolvedClub = 'atletico-mg';
+                // Salvar canal completo para reuso
+                sessionStorage.setItem('session_channel', urlChannel);
             } else if (channelLower.includes('cruzeiro') || channelLower.includes('raposa')) {
                 resolvedClub = 'cruzeiro';
             }
-        } else if (currentUser?.club_slug && currentUser.club_slug !== 'atletico-mg') {
-            // Sem canal na URL: usar o clube do usuário, MAS nunca Galo.
-            // O Galo é "link-only" e não deve contaminar a ZkTV pública.
-            resolvedClub = currentUser.club_slug;
-        } else if (!dataLoading) {
-            const savedClub = localStorage.getItem('preferred_club');
-            if (savedClub && savedClub !== 'atletico-mg') {
-                resolvedClub = savedClub;
+        } else {
+            // Sem canal na URL: verificar sessão ativa do Galo
+            const sessionClub = sessionStorage.getItem('session_club');
+            if (sessionClub === 'atletico-mg') {
+                resolvedClub = 'atletico-mg';
+            } else if (currentUser?.club_slug && currentUser.club_slug !== 'atletico-mg') {
+                resolvedClub = currentUser.club_slug;
+            } else if (!dataLoading) {
+                const savedClub = localStorage.getItem('preferred_club');
+                if (savedClub && savedClub !== 'atletico-mg') {
+                    resolvedClub = savedClub;
+                }
             }
         }
 
