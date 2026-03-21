@@ -85,13 +85,18 @@ serve(async (req) => {
     )
 
     const payload = await req.json()
-    const { title, body, data, user_ids, exclude_user_ids, image } = payload
+    const { title, body, data, user_ids, exclude_user_ids, image, club_slug: target_club } = payload
 
-    console.log(`🔔 Evento recebido: ${title} - ${body}${user_ids ? ` (para ${user_ids.length} usuários)` : ' (broadcast)'}`)
+    console.log(`🔔 Evento recebido: ${title} - ${body}${target_club ? ` (Clube: ${target_club})` : ''}${user_ids ? ` (para ${user_ids.length} usuários)` : ' (broadcast)'}`)
 
     // 1. Obter os tokens de push cadastrados
     let tokensQuery = supabaseClient.from('user_push_tokens').select('token')
     
+    // Filtrar por clube se especificado (Essencial para multi-tenancy)
+    if (target_club) {
+      tokensQuery = tokensQuery.eq('club_slug', target_club)
+    }
+
     if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
       tokensQuery = tokensQuery.in('user_id', user_ids)
     }

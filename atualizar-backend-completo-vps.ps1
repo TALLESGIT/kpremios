@@ -6,13 +6,23 @@ $VPS_USER = "root"
 $REMOTE_DIR = "/var/www/zkpremios-backend"
 
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host "ATUALIZANDO BACKEND COMPLETO NA VPS" -ForegroundColor Cyan
-Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host ""
+
+# Definir comando SCP com fallback para caminho padrão do Windows
+$SCP = "scp"
+if (-not (Get-Command "scp" -ErrorAction SilentlyContinue)) {
+    $SCP = "C:\Windows\System32\OpenSSH\scp.exe"
+}
+$SSH = "ssh"
+if (-not (Get-Command "ssh" -ErrorAction SilentlyContinue)) {
+    $SSH = "C:\Windows\System32\OpenSSH\ssh.exe"
+}
 
 # Arquivos para enviar
 $files = @(
     "backend\socket-server\server.js",
+    "backend\socket-server\ecosystem.config.js",
+    "mediamtx.yml",
     "backend\socket-server\resilient-cache.js",
     "backend\socket-server\supabase-wrapper.js"
 )
@@ -32,7 +42,13 @@ Write-Host ""
 foreach ($file in $files) {
     $fileName = Split-Path $file -Leaf
     Write-Host "[INFO] Enviando $fileName..." -ForegroundColor Yellow
-    scp "$file" ${VPS_USER}@${VPS_IP}:${REMOTE_DIR}/$fileName
+    
+    # Se for o mediamtx.yml, enviar para a pasta de configuracao do sistema
+    if ($fileName -eq "mediamtx.yml") {
+        & $SCP "$file" ${VPS_USER}@${VPS_IP}:/opt/mediamtx/$fileName
+    } else {
+        & $SCP "$file" ${VPS_USER}@${VPS_IP}:${REMOTE_DIR}/$fileName
+    }
     
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[ERRO] Erro ao enviar $fileName!" -ForegroundColor Red
@@ -43,7 +59,7 @@ foreach ($file in $files) {
 
 Write-Host ""
 Write-Host "[INFO] Reiniciando PM2..." -ForegroundColor Yellow
-ssh ${VPS_USER}@${VPS_IP} "cd $REMOTE_DIR; pm2 restart zkpremios-socket"
+& $SSH ${VPS_USER}@${VPS_IP} "cd $REMOTE_DIR; pm2 restart zkpremios-socket --update-env"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERRO] Erro ao reiniciar PM2!" -ForegroundColor Red
@@ -56,11 +72,11 @@ Start-Sleep -Seconds 5
 
 Write-Host ""
 Write-Host "[INFO] Verificando status do PM2..." -ForegroundColor Yellow
-ssh ${VPS_USER}@${VPS_IP} "pm2 list"
+& $SSH ${VPS_USER}@${VPS_IP} "pm2 list"
 
 Write-Host ""
 Write-Host "[INFO] Verificando logs (ultimas 20 linhas)..." -ForegroundColor Yellow
-ssh ${VPS_USER}@${VPS_IP} "pm2 logs zkpremios-socket --lines 20 --nostream"
+& $SSH ${VPS_USER}@${VPS_IP} "pm2 logs zkpremios-socket --lines 20 --nostream"
 
 Write-Host ""
 Write-Host "==========================================" -ForegroundColor Cyan

@@ -40,14 +40,17 @@ export const usePushNotifications = () => {
       await PushNotifications.addListener('registration', async (token) => {
         console.log('Push Token gerado:', token.value);
 
-        // Salvar token no Supabase vinculado ao usuário
+        // Salvar token no Supabase vinculado ao usuário e ao clube atual
         if (user?.id) {
           try {
+            const currentClub = sessionStorage.getItem('session_club') || (user as any).club_slug || 'cruzeiro';
+            
             const { error } = await supabase
               .from('user_push_tokens')
               .upsert({
                 user_id: user.id,
                 token: token.value,
+                club_slug: currentClub,
                 platform: Capacitor.getPlatform(),
                 updated_at: new Date().toISOString()
               }, {
@@ -55,7 +58,7 @@ export const usePushNotifications = () => {
               });
 
             if (error) console.error('Erro ao salvar push token no banco:', error);
-            else console.log('Push token salvo com sucesso para o usuário:', user.id);
+            else console.log(`Push token salvo com sucesso para o usuário ${user.id} no clube ${currentClub}`);
           } catch (e) {
             console.error('Exceção ao salvar push token:', e);
           }

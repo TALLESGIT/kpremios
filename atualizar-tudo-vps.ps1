@@ -7,23 +7,31 @@ $BACKEND_PATH = "/var/www/zkpremios-backend"
 $FRONTEND_PATH = "/var/www/zkpremios-frontend"
 
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host "ATUALIZANDO TUDO NA VPS" -ForegroundColor Cyan
-Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# ========================================
-# 1. ATUALIZAR BACKEND (Socket.io)
-# ========================================
-Write-Host "[PASSO 1/3] ATUALIZANDO BACKEND..." -ForegroundColor Yellow
-Write-Host ""
+# Adicionar OpenSSH ao PATH para esta sessao (Resolve erro de scp/ssh nao encontrado)
+$env:Path = "C:\Windows\System32\OpenSSH;" + "C:\Program Files\Git\usr\bin;" + $env:Path
+
+# Testar se os comandos estao acessiveis
+if (-not (Get-Command "scp" -ErrorAction SilentlyContinue)) {
+    Write-Host "[ERRO] Comando 'scp' nao encontrado. Verifique a instalacao do OpenSSH." -ForegroundColor Red
+    exit 1
+}
 
 # Nota: O backend na VPS não é um repositório git, por isso usamos scp
-Write-Host "[INFO] Enviando server.js e scripts para a VPS..." -ForegroundColor Yellow
+Write-Host "[INFO] Enviando arquivos do backend (server, package, ecosystem)..." -ForegroundColor Yellow
 scp "backend\socket-server\server.js" "${VPS_USER}@${VPS_IP}:${BACKEND_PATH}/server.js"
+scp "backend\socket-server\package.json" "${VPS_USER}@${VPS_IP}:${BACKEND_PATH}/package.json"
+scp "backend\socket-server\ecosystem.config.js" "${VPS_USER}@${VPS_IP}:${BACKEND_PATH}/ecosystem.config.js"
+
+# 2. ATUALIZAR CONFIGURAÇÃO DE VÍDEO (MediaMTX)
+Write-Host "[INFO] Enviando configuração do MediaMTX (LL-HLS)..." -ForegroundColor Yellow
+# Nota: O MediaMTX está localizado em /opt/mediamtx/ conforme diagnóstico
+scp "mediamtx.yml" "${VPS_USER}@${VPS_IP}:/opt/mediamtx/mediamtx.yml"
 
 # Criar pasta scripts na VPS se não existir e enviar scripts
 ssh ${VPS_USER}@${VPS_IP} "mkdir -p ${BACKEND_PATH}/scripts"
-scp "scripts\sync-football-data.js" "${VPS_USER}@${VPS_IP}:${BACKEND_PATH}/scripts/sync-football-data.js"
+scp "scripts\sync-football-data.cjs" "${VPS_USER}@${VPS_IP}:${BACKEND_PATH}/scripts/sync-football-data.cjs"
 
 Write-Host ""
 Write-Host "[INFO] Instalando dependencias do backend (se necessário)..." -ForegroundColor Yellow
