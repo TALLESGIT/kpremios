@@ -57,10 +57,13 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "", showPerf
     setNeedsInteraction(false);
     try {
       video.muted = false;
-      video.volume = 1.0; // ✅ Garantir volume máximo
+      video.volume = 1.0; 
+      // Em alguns dispositivos iOS, o play() precisa ser chamado novamente após desselecionar o mute
       await video.play();
     } catch (err) {
       console.warn("Erro ao ativar áudio:", err);
+      // Fallback: tentar tocar novamente em 500ms
+      setTimeout(() => video.play().catch(() => {}), 500);
     }
   }, []);
 
@@ -270,12 +273,18 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "", showPerf
 
   const handleFullscreen = useCallback(() => {
     const container = containerRef.current;
-    if (!container) return;
+    const video = videoRef.current;
+    if (!container || !video) return;
 
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => { });
     } else {
-      container.requestFullscreen().catch(() => { });
+      if (container.requestFullscreen) {
+        container.requestFullscreen().catch(() => { });
+      } else if ((video as any).webkitEnterFullscreen) {
+        // Fallback para iPhone/Safari
+        (video as any).webkitEnterFullscreen();
+      }
     }
   }, []);
 
@@ -343,10 +352,11 @@ export default function LiveHlsPlayer({ hlsUrl, isLive, className = "", showPerf
     <div ref={containerRef} className={`relative w-full h-full bg-black overflow-hidden ${className}`}>
       <video
         ref={videoRef}
-        className="w-full h-full object-contain"
-        controls
+        className="w-full h-full object-contain cursor-pointer"
+        onClick={status === 'playing' && needsInteraction ? handleUserInteraction : undefined}
         playsInline
         autoPlay
+        muted
         preload="auto"
       />
 
