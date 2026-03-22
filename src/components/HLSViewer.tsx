@@ -34,7 +34,7 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     setUserInteracted(true);
 
     try {
-      // Prioridade Android: set volume -> muted false -> play
+      // Prioridade Android/iOS: set volume -> muted false -> play
       video.volume = 1.0;
       video.muted = false;
       
@@ -44,19 +44,22 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
       }
 
       if (video.paused) {
-        setTimeout(() => video.play().catch(e => console.error("[HLSViewer] Retry play failed:", e)), 100);
+        console.log("[HLSViewer] Video paused after play(), retrying...");
+        setTimeout(() => video.play().catch(e => console.error("[HLSViewer] Retry play failed:", e)), 150);
       }
     } catch (err: any) {
-      console.error(`[HLSViewer] Erro ao ativar áudio: ${err?.message || err}`);
+      console.warn(`[HLSViewer] Autoplay/Unmute bloqueado, tentando fallback silencioso: ${err?.message}`);
       try {
+        // Fallback Safari: Play MUTED primeiro, depois desmuta após sucesso
         video.muted = true;
         await video.play();
         setTimeout(() => {
           video.volume = 1.0;
           video.muted = false;
-        }, 200);
+          console.log("[HLSViewer] Audio ativado via fallback muted-play-unmute");
+        }, 300);
       } catch (retryErr) {
-        console.error('[HLSViewer] Retry com muted também falhou:', retryErr);
+        console.error('[HLSViewer] Fallback silencioso falhou:', retryErr);
       }
     }
   }, []);
@@ -132,27 +135,28 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         
         const latency = hls.liveSyncPosition - video.currentTime;
         
-        // Se o atraso for maior que 6 segundos, acelerar para 1.15x
-        if (latency > 6) {
-          if (video.playbackRate !== 1.15) {
-            console.log(`[HLSViewer] Catching up (Latency: ${latency.toFixed(1)}s) - speed: 1.15x`);
-            video.playbackRate = 1.15;
+        // Se o atraso for maior que 3 segundos, acelerar para 1.25x (mais agressivo)
+        if (latency > 3) {
+          const speed = latency > 10 ? 1.35 : 1.20;
+          if (video.playbackRate !== speed) {
+            console.log(`[HLSViewer] Catching up (Latency: ${latency.toFixed(1)}s) - speed: ${speed}x`);
+            video.playbackRate = speed;
           }
         } 
-        // Se o atraso estiver OK (menor que 3s), voltar ao normal
-        else if (latency < 3.5) {
+        // Se o atraso estiver OK (menor que 1.5s), voltar ao normal
+        else if (latency < 1.5) {
           if (video.playbackRate !== 1.0) {
             video.playbackRate = 1.0;
           }
         }
         
-        // Se o atraso for CRÍTICO (mais de 12s), fazer um salto (seek) para o live edge
-        if (latency > 15) {
+        // Se o atraso for CRÍTICO (mais de 10s), fazer um salto (seek) brusco para o live edge
+        if (latency > 10) {
           console.warn(`[HLSViewer] Atraso crítico detectado (${latency.toFixed(1)}s). Saltando para o ao vivo.`);
-          video.currentTime = hls.liveSyncPosition - 3;
+          video.currentTime = hls.liveSyncPosition - 2;
         }
 
-      }, 3000);
+      }, 2000);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         attemptPlay();
