@@ -1831,7 +1831,7 @@ const ZkTVPage: React.FC = () => {
                             transition={{ delay: 0.3 }}
                             onDoubleClick={handleDoubleClick}
                             onTouchStart={() => isMobile && showControlsTemporarily()}
-                            className={`${(isFullscreen || isPip) ? 'fixed inset-0 z-[100] w-screen h-screen bg-black rounded-none' : 'w-full max-w-[680px] lg:max-w-[760px] mx-auto shrink-0 aspect-video bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl'} overflow-hidden relative cursor-pointer group ${isDockedChat ? 'mobile-video-container docked-chat-active' : ''}`}
+                            className={`${(isFullscreen || isPip) ? 'fixed inset-0 z-[100] w-[100dvw] h-[100dvh] bg-black rounded-none' : 'w-full max-w-[680px] lg:max-w-[760px] mx-auto shrink-0 aspect-video bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl'} overflow-hidden relative cursor-pointer group ${isDockedChat ? 'mobile-video-container docked-chat-active' : ''}`}
                             title={isMobile ? "Toque duas vezes para tela cheia" : "Duplo clique para tela cheia"}
                         >
                             {/* LIVE SCORE BAR (ESTILO PREMIER LEAGUE / CAZÉTV) */}
