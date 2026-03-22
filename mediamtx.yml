@@ -1,12 +1,12 @@
-# ✅ RTMP: Ingest do OBS (padrão)
+# ✅ RTMP: Ingest do OBS
 rtmp: yes
 rtmpAddress: :1935
 
-# ✅ SRT: Ingest do ZK Studio (baixa latência, Opus nativo)
+# ✅ SRT: Ingest do ZK Studio
 srt: yes
 srtAddress: :8890
 
-# ✅ WebRTC: Distribuição para o site (WHEP) — tempo real
+# ✅ WebRTC (WHEP)
 webrtc: yes
 webrtcAddress: :8889
 webrtcLocalUDPAddress: :8189
@@ -14,22 +14,18 @@ webrtcAllowOrigins: ['*']
 webrtcIPsFromInterfaces: no
 webrtcAdditionalHosts: ['76.13.82.48']
 
-# ICE Servers (STUN + TURN)
-webrtcICEServers2:
+# ICE Servers
+webrtcICEServers:
   - url: stun:stun.l.google.com:19302
-  - url: turn:stream.zkoficial.com.br:3478?transport=udp
-    username: zkstudio
-    password: e7x89sF2k9Lp3M5nV1j6H4rQ
 
-# API — obrigatório para o backend monitor detectar streams
+# API
 api: yes
 apiAddress: :9997
 
-# Caminhos (Paths)
+# Caminhos (Configuração de Ingest)
 paths:
-  ~^live(/.*)?$:
+  all:
     source: publisher
-    writeQueueSize: 512
 
 # ✅ HLS: Distribuição Low Latency (LL-HLS)
 hls: yes
