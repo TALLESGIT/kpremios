@@ -6,17 +6,17 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 
 const CONFIG = {
   /** Timeout do fetch WHEP — reduzir para falhar mais rápido e retentar */
-  FETCH_TIMEOUT_MS: 6_000,
+  FETCH_TIMEOUT_MS: 5_000,
   MAX_RECONNECT_ATTEMPTS: 5,
   RECONNECT_BASE_DELAY_MS: 1_500,
   RECONNECT_MAX_DELAY_MS: 30_000,
   MAX_INITIAL_ATTEMPTS: 3,
   /** Backoff para 404 quando expectLive=false (usuário só navegando) */
-  OFFLINE_RETRY_BASE_MS: 1_500,
+  OFFLINE_RETRY_BASE_MS: 1_200,
   OFFLINE_RETRY_MAX_MS: 8_000,
   /** Retries mais rápidos quando live está ativa no DB (expectLive=true) — reduz ~15s para ~5s */
-  OFFLINE_RETRY_BASE_MS_EXPECT_LIVE: 500,
-  OFFLINE_RETRY_MAX_MS_EXPECT_LIVE: 2_000,
+  OFFLINE_RETRY_BASE_MS_EXPECT_LIVE: 400,
+  OFFLINE_RETRY_MAX_MS_EXPECT_LIVE: 1_500,
 } as const;
 
 // =============================================================================
@@ -310,8 +310,8 @@ function WhepPlayer({
           throw new Error('SDP vazio');
         }
 
-        // ⚡ Aguardar ICE gathering completar antes de enviar
-        const localSDP = await waitForICEGathering(pc, 3000);
+        // ⚡ Aguardar ICE gathering completar antes de enviar (Timeout reduzido para 800ms)
+        const localSDP = await waitForICEGathering(pc, 800);
 
         const timeoutId = setTimeout(
           () => controller.abort(),
@@ -450,8 +450,8 @@ function WhepPlayer({
     [baseUrl, channelName, pathPrefix, cleanup, setStatusSafe]
   );
 
-  // Aguarda ICE gathering completar ou timeout
-  function waitForICEGathering(pc: RTCPeerConnection, timeoutMs: number): Promise<string> {
+  // Aguarda ICE gathering completar ou timeout (Reduzido para 800ms para startup instantâneo)
+  function waitForICEGathering(pc: RTCPeerConnection, timeoutMs: number = 800): Promise<string> {
     return new Promise((resolve) => {
       if (pc.iceGatheringState === 'complete') {
         resolve(pc.localDescription!.sdp);
@@ -509,8 +509,8 @@ function WhepPlayer({
       const liveEdge = vid.buffered.end(vid.buffered.length - 1);
       const behind = liveEdge - vid.currentTime;
       
-      // Se estiver mais de 0.3s atrás, pular para o edge (antes era 0.5s)
-      if (behind > 0.3) {
+      // Se estiver mais de 0.2s atrás, pular para o edge (antes era 0.3s)
+      if (behind > 0.2) {
         console.log(`[sync] ${behind.toFixed(2)}s atrás, pulando para live edge`);
         vid.currentTime = liveEdge - 0.01; // Pulo ultra preciso
       }

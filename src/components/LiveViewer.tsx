@@ -160,9 +160,9 @@ export function LiveViewer({
       /Capacitor|Bridge/i.test(navigator.userAgent)
     );
 
-    // Prioridade: WebRTC (WHEP) apenas para ADMINS na WEB para baixíssima latência (monitoramento)
-    // Para usuários comuns ou no NATIVO (Capacitor), usamos HLS por ser mais estável e permitir cache Cloudflare
-    if (whepBaseUrl && !isNativeApp && !fallbackToHls && isAdmin) {
+    // Prioridade: WebRTC (WHEP) para todos na WEB (baixíssima latência)
+    // No NATIVO (Capacitor), usamos HLS por ser mais estável em WebViews de rede móvel
+    if (whepBaseUrl && !isNativeApp && !fallbackToHls) {
       return (
         <WhepPlayer
           channelName={effectiveChannelName}

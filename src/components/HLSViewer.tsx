@@ -114,10 +114,10 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
         enableWorker: true,
         lowLatencyMode: true,
         backBufferLength: 30,
-        maxBufferLength: 15,         // Aumentado para melhor estabilidade em 4G/5G
-        maxMaxBufferLength: 25,      // Limite máximo de buffer
-        liveSyncDuration: 2.5,       // Latência alvo agressiva (segundos)
-        liveMaxLatencyDuration: 5,   // Quando o atraso chega aqui, o HLS tenta pular para o live edge
+        maxBufferLength: 10,         // Reduzido de 15 para 10 para acelerar o carregamento inicial
+        maxMaxBufferLength: 20,      // Limite máximo de buffer reduzido
+        liveSyncDuration: 2.0,       // Latência alvo ultra agressiva (segundos)
+        liveMaxLatencyDuration: 4,   // Reduzido de 5 para 4
         liveDurationInfinity: true,  // Indica que é uma live infinita
         fragLoadingMaxRetry: 10,     // Mais tentativas de carregar fragmentos em redes instáveis
         manifestLoadingMaxRetry: 10, // Mais tentativas de carregar manifesto
