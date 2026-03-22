@@ -11,13 +11,10 @@ webrtc: yes
 webrtcAddress: :8889
 webrtcLocalUDPAddress: :8189
 webrtcAllowOrigins: ['*']
-# Forçar IPv4 público — evita "deadline exceeded" e delays de ICE
-# Valide o IP da VPS com: curl -4 ifconfig.me
-# Se o servidor anunciar IPv6 e causar deadline exceeded, inclua apenas o IPv4 aqui
 webrtcIPsFromInterfaces: no
 webrtcAdditionalHosts: ['76.13.82.48']
 
-# ICE Servers (STUN + TURN) — use webrtcICEServers2 (formato YAML)
+# ICE Servers (STUN + TURN)
 webrtcICEServers2:
   - url: stun:stun.l.google.com:19302
   - url: turn:stream.zkoficial.com.br:3478?transport=udp
@@ -28,17 +25,13 @@ webrtcICEServers2:
 api: yes
 apiAddress: :9997
 
-# Regex path: aceita live, live/ZkOficial, live/qualquercoisa
-# writeQueueSize: reduz packet loss quando readers estão lentos (evita "reader is too slow")
+# Caminhos (Paths)
 paths:
   ~^live(/.*)?$:
     source: publisher
-    writeQueueSize: 384
+    writeQueueSize: 512
 
-# =====================================================
-# ✅ HLS: Distribuição Low Latency (LL-HLS) para usuários
-# Permite cache do Cloudflare e latência de 2-5 segundos
-# =====================================================
+# ✅ HLS: Distribuição Low Latency (LL-HLS)
 hls: yes
 hlsAddress: :8888
 hlsVariant: lowLatency

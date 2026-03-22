@@ -28,6 +28,8 @@ scp "backend\socket-server\ecosystem.config.js" "${VPS_USER}@${VPS_IP}:${BACKEND
 Write-Host "[INFO] Enviando configuração do MediaMTX (LL-HLS)..." -ForegroundColor Yellow
 # Nota: O MediaMTX está localizado em /opt/mediamtx/ conforme diagnóstico
 scp "mediamtx.yml" "${VPS_USER}@${VPS_IP}:/opt/mediamtx/mediamtx.yml"
+Write-Host "[INFO] Reiniciando serviço MediaMTX..." -ForegroundColor Yellow
+ssh ${VPS_USER}@${VPS_IP} "systemctl restart mediamtx"
 
 # Criar pasta scripts na VPS se não existir e enviar scripts
 ssh ${VPS_USER}@${VPS_IP} "mkdir -p ${BACKEND_PATH}/scripts"
