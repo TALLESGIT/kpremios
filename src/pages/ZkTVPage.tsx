@@ -488,56 +488,32 @@ const ZkTVPage: React.FC = () => {
     // ========== EFFECT 4: Orientation + Fullscreen listeners ==========
     useEffect(() => {
         const checkOrientation = () => {
-            const isLandscapeMode = window.screen?.orientation?.type.startsWith('landscape') ?? (window.innerWidth > window.innerHeight);
+            // No iOS/Safari o screen.orientation pode ser undefined. Usar window dimensions como fallback.
+            const isLandscapeMode = window.innerHeight < window.innerWidth;
             setIsLandscape(isLandscapeMode);
 
             const currentIsMobile = window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             const currentIsFs = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
-
             if (currentIsMobile && videoContainerRef.current) {
-                if (isLandscapeMode && !currentIsFs) {
-                    console.log('🔄 Giro para paisagem detectado: Ativando fullscreen via CSS');
-                    setIsFullscreen(true);
-                    setIsChatOpen(false);
-                    setIsDockedChat(false);
-
-                    if (Capacitor.isNativePlatform()) {
-                        StatusBar.hide().catch(e => console.error('StatusBar hide error', e));
-                        NavigationBar.hide().catch(e => console.error('NavigationBar hide error', e));
-                    }
-
-                    const element = videoContainerRef.current;
-                    const requestFs = element.requestFullscreen ||
-                        (element as any).webkitRequestFullscreen ||
-                        (element as any).mozRequestFullScreen ||
-                        (element as any).msRequestFullscreen;
-
-                    if (requestFs) {
-                        requestFs.call(element).catch(() => {
-                            console.log('ℹ️ Fullscreen API indisponível, usando CSS fullscreen');
-                        });
-                    }
-                } else if (!isLandscapeMode && currentIsFs) {
-                    setIsFullscreen(false);
-                    if (Capacitor.isNativePlatform()) {
-                        StatusBar.show().catch(e => console.error('StatusBar show error', e));
-                        NavigationBar.show().catch(e => console.error('NavigationBar show error', e));
-                    }
-                    const exitFs = document.exitFullscreen || (document as any).webkitExitFullscreen || (document as any).mozCancelFullScreen;
-                    if (exitFs && document.fullscreenElement) {
-                        exitFs.call(document).catch(() => {});
-                    }
+                // Se virou para paisagem e NÃO está em fullscreen, ativa automaticamente
+                if (isLandscapeMode && !isFullscreen && !currentIsFs && isLiveActive) {
+                    console.log('🔄 Giro para paisagem detectado: Ativando fullscreen automático');
+                    handleFullscreen();
+                } 
+                // Se voltou para retrato e ESTÁ em fullscreen, sai do fullscreen (opcional, mas comum em apps de vídeo)
+                else if (!isLandscapeMode && isFullscreen && isLiveActive) {
+                    console.log('🔄 Giro para retrato detectado: Saindo do fullscreen');
+                    handleFullscreen();
                 }
             }
-
-            if (!currentIsFs && !isLandscapeMode && currentIsMobile) {
-                setIsDockedChat(false);
-            }
         };
+
         checkOrientation();
         window.addEventListener('resize', checkOrientation);
         window.addEventListener('orientationchange', checkOrientation);
-        const orientationWithDelay = () => setTimeout(checkOrientation, 300);
+        
+        // No iPhone, a mudança de dimensões demora um pouco para estabilizar após a rotação
+        const orientationWithDelay = () => setTimeout(checkOrientation, 500);
         window.addEventListener('orientationchange', orientationWithDelay);
 
         const handleFullscreenChange = () => {
@@ -968,6 +944,7 @@ const ZkTVPage: React.FC = () => {
         if (!videoContainerRef.current) return;
         const element = videoContainerRef.current;
         const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const video = (window as any).activeVideoElement as HTMLVideoElement;
 
         try {
             if (!isFullscreen) {
@@ -986,8 +963,15 @@ const ZkTVPage: React.FC = () => {
                     }
                 }
 
-                // iOS: Fullscreen API não funciona em divs, usar CSS-based fullscreen
+                // iOS: Fullscreen API nativa em DIVs não existe. 
+                // Tentamos webkitEnterFullscreen no VIDEO ou usamos o modo CSS Premium.
                 if (isIOS) {
+                    if (video && (video as any).webkitEnterFullscreen) {
+                        console.log('📱 iOS: Usando webkitEnterFullscreen no elemento de vídeo');
+                        (video as any).webkitEnterFullscreen();
+                        return; // O evento nativo do iOS cuidará do retorno se necessário
+                    }
+                    
                     setIsFullscreen(true);
                     if (Capacitor.isNativePlatform()) {
                         StatusBar.hide().catch(e => console.error('StatusBar hide error', e));
@@ -1005,19 +989,13 @@ const ZkTVPage: React.FC = () => {
                 if (requestFs) {
                     try {
                         await requestFs.call(element);
-                        // Sucesso: o listener de fullscreenchange cuidará do estado
                     } catch (e) {
                         console.log('ℹ️ Erro na chamada nativa, usando modo CSS');
                         setIsFullscreen(true);
                     }
                 } else {
-                    // Fallback total: CSS-based fullscreen
                     setIsFullscreen(true);
                 }
-                
-                // Forçar estado de fullscreen em qualquer caso para garantir visibilidade dos controles
-                // e desativar chat inicial
-                setTimeout(() => setIsFullscreen(true), 100);
             } else {
                 // Saindo do fullscreen
                 if ((window.screen as any).orientation?.unlock) {
@@ -1025,7 +1003,9 @@ const ZkTVPage: React.FC = () => {
                 }
 
                 if (isIOS) {
-                    // iOS: sair do CSS fullscreen
+                    if (video && (video as any).webkitExitFullscreen) {
+                        (video as any).webkitExitFullscreen();
+                    }
                     setIsFullscreen(false);
                     return;
                 }
@@ -1039,7 +1019,6 @@ const ZkTVPage: React.FC = () => {
             }
         } catch (err) {
             console.error('Fullscreen error:', err);
-            // Fallback: CSS-based fullscreen
             setIsFullscreen(!isFullscreen);
         }
     }, [isFullscreen, isMobile, isChatManuallyClosed]);

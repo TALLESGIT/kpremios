@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useFpsMonitor } from '../hooks/useFpsMonitor';
 import Hls from 'hls.js';
-import { Volume2, VolumeX } from 'lucide-react';
+import { VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface HLSViewerProps {
@@ -14,7 +14,7 @@ interface HLSViewerProps {
   onError?: (error: string) => void;
 }
 
-export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initialInteracted = false, showPerf = false, isAdmin = false, onError }: HLSViewerProps) {
+export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initialInteracted = false, showPerf = false, onError }: HLSViewerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [userInteracted, setUserInteracted] = useState(false);
@@ -106,24 +106,53 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
     };
 
     let hls: Hls | null = null;
-
     if (Hls.isSupported()) {
       hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
         backBufferLength: 30,
-        maxBufferLength: 10,
-        maxMaxBufferLength: 20,
-        liveSyncDuration: 3,         // Latência alvo (segundos)
-        liveMaxLatencyDuration: 6,   // Latência máxima (segundos)
-        fragLoadingMaxRetry: 5,
-        manifestLoadingMaxRetry: 5,
-        testBandwidth: true,
+        maxBufferLength: 15,         // Aumentado para melhor estabilidade em 4G/5G
+        maxMaxBufferLength: 25,      // Limite máximo de buffer
+        liveSyncDuration: 2.5,       // Latência alvo agressiva (segundos)
+        liveMaxLatencyDuration: 5,   // Quando o atraso chega aqui, o HLS tenta pular para o live edge
+        liveDurationInfinity: true,  // Indica que é uma live infinita
+        fragLoadingMaxRetry: 10,     // Mais tentativas de carregar fragmentos em redes instáveis
+        manifestLoadingMaxRetry: 10, // Mais tentativas de carregar manifesto
+        testBandwidth: true,         // Estimar banda para selecionar melhor qualidade
       });
 
       hlsInstanceRef.current = hls;
       hls.loadSource(hlsUrl);
       hls.attachMedia(video);
+
+      // Lógica de Catch-up: Se o usuário ficar muito para trás, acelerar levemente o vídeo para encostar no ao vivo
+      // Isso reduz o "atraso acumulado" sem causar travamentos bruscos (buffering/seeking)
+      const catchupInterval = setInterval(() => {
+        if (!video || video.paused || !hls || hls.liveSyncPosition === null) return;
+        
+        const latency = hls.liveSyncPosition - video.currentTime;
+        
+        // Se o atraso for maior que 6 segundos, acelerar para 1.15x
+        if (latency > 6) {
+          if (video.playbackRate !== 1.15) {
+            console.log(`[HLSViewer] Catching up (Latency: ${latency.toFixed(1)}s) - speed: 1.15x`);
+            video.playbackRate = 1.15;
+          }
+        } 
+        // Se o atraso estiver OK (menor que 3s), voltar ao normal
+        else if (latency < 3.5) {
+          if (video.playbackRate !== 1.0) {
+            video.playbackRate = 1.0;
+          }
+        }
+        
+        // Se o atraso for CRÍTICO (mais de 12s), fazer um salto (seek) para o live edge
+        if (latency > 15) {
+          console.warn(`[HLSViewer] Atraso crítico detectado (${latency.toFixed(1)}s). Saltando para o ao vivo.`);
+          video.currentTime = hls.liveSyncPosition - 3;
+        }
+
+      }, 3000);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         attemptPlay();
@@ -150,6 +179,12 @@ export function HLSViewer({ hlsUrl, className = '', fitMode = 'contain', initial
           }
         }
       });
+
+      return () => {
+        hls?.destroy();
+        hlsInstanceRef.current = null;
+        clearInterval(catchupInterval);
+      };
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = hlsUrl;
       const onLoaded = () => {
