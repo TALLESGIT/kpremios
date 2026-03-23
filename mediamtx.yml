@@ -14,15 +14,15 @@ webrtcAllowOrigins: ['*']
 webrtcIPsFromInterfaces: no
 webrtcAdditionalHosts: ['76.13.82.48']
 
-# ICE Servers
-webrtcICEServers:
+# ICE Servers (v1.x usa webrtcICEServers2)
+webrtcICEServers2:
   - url: stun:stun.l.google.com:19302
 
 # API
 api: yes
 apiAddress: :9997
 
-# Caminhos (Configuração de Ingest)
+# Caminhos (Paths)
 paths:
   all:
     source: publisher
@@ -36,3 +36,4 @@ hlsPartDuration: 200ms
 hlsSegmentCount: 10
 hlsAllowOrigins: ['*']
 hlsAlwaysRemux: yes
+# writeQueueSize removido por segurança até confirmação
