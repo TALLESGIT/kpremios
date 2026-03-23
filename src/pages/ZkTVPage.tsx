@@ -1970,13 +1970,13 @@ const ZkTVPage: React.FC = () => {
                                                 <div className="flex items-center justify-between gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
                                                     <div className="flex flex-col items-center flex-1 min-w-0">
                                                         <TeamLogo
-                                                            teamName={clubInfo?.name || (userClub === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG')}
-                                                            customLogo={clubInfo?.logo_url}
+                                                            teamName={displayGame.is_home ? (clubInfo?.name || (userClub === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG')) : displayGame.opponent}
+                                                            customLogo={displayGame.is_home ? clubInfo?.logo_url : displayGame.opponent_logo}
                                                             size="lg"
                                                             showName={false}
                                                             className="mb-2 sm:mb-3"
                                                         />
-                                                        <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full">{clubInfo?.name || (userClub === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG')}</span>
+                                                        <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full text-center">{displayGame.is_home ? (clubInfo?.name || (userClub === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG')) : displayGame.opponent}</span>
                                                     </div>
 
                                                     <div className="flex flex-col items-center flex-shrink-0">
@@ -1986,13 +1986,13 @@ const ZkTVPage: React.FC = () => {
 
                                                     <div className="flex flex-col items-center flex-1 min-w-0">
                                                         <TeamLogo
-                                                            teamName={displayGame.opponent}
-                                                            customLogo={displayGame.opponent_logo}
+                                                            teamName={!displayGame.is_home ? (clubInfo?.name || (userClub === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG')) : displayGame.opponent}
+                                                            customLogo={!displayGame.is_home ? clubInfo?.logo_url : displayGame.opponent_logo}
                                                             size="lg"
                                                             showName={false}
                                                             className="mb-2 sm:mb-3"
                                                         />
-                                                        <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full px-1">{displayGame.opponent}</span>
+                                                        <span className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider truncate w-full text-center">{!displayGame.is_home ? (clubInfo?.name || (userClub === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG')) : displayGame.opponent}</span>
                                                     </div>
                                                 </div>
 
