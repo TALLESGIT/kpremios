@@ -359,7 +359,7 @@ function HomePage() {
   // Componente de banner de próxima partida
   const NextGameBanner = ({ game, clubName, hasLive }: { game: MatchGame; clubName: string; hasLive: boolean }) => (
     <Link 
-      to="/zk-tv"
+      to={`/zk-tv?club=${game.club_slug}`}
       className={`relative group overflow-hidden rounded-[2rem] border border-white/10 shadow-2xl bg-slate-900/40 backdrop-blur-xl flex-1 min-h-[280px] cursor-pointer transition-all duration-500 hover:border-amber-500/30 ${
         hasLive ? 'ring-2 ring-red-600/50 shadow-[0_0_30px_rgba(231,14,14,0.3)] animate-pulse-subtle' : ''
       }`}

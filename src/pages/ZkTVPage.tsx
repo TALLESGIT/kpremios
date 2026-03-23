@@ -233,10 +233,15 @@ const ZkTVPage: React.FC = () => {
                 resolvedClub = 'cruzeiro';
             }
         } else {
-            // Sem canal na URL: verificar sessão ativa do Galo
+            // Sem canal na URL: verificar parâmetro de clube ou sessão ativa do Galo
+            const urlClubParam = searchParams.get('club');
             const sessionClub = sessionStorage.getItem('session_club');
-            if (sessionClub === 'atletico-mg') {
+            
+            if (urlClubParam === 'atletico-mg' || sessionClub === 'atletico-mg') {
                 resolvedClub = 'atletico-mg';
+                if (urlClubParam === 'atletico-mg') {
+                    sessionStorage.setItem('session_club', 'atletico-mg');
+                }
             } else if (currentUser?.club_slug && currentUser.club_slug !== 'atletico-mg') {
                 resolvedClub = currentUser.club_slug;
             } else if (!dataLoading) {
