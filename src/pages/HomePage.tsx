@@ -595,7 +595,7 @@ function HomePage() {
           {/* ====== BANNERS DE PRÓXIMA PARTIDA - LADO A LADO ====== */}
           {!loadingGame && (nextGameCruzeiro || nextGameGalo) && (
             <div className="w-full max-w-5xl mx-auto px-4 z-20 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-              <div className={`grid gap-4 ${(nextGameCruzeiro && nextGameGalo) ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 max-w-2xl mx-auto'}`}>
+              <div className={`grid gap-4 ${(nextGameCruzeiro && nextGameGalo) ? 'grid-cols-2 md:grid-cols-2' : 'grid-cols-1 max-w-2xl mx-auto'}`}>
                 {nextGameCruzeiro && (
                   <NextGameBanner game={nextGameCruzeiro} clubName="Cruzeiro" hasLive={hasActiveLiveCruzeiro} />
                 )}

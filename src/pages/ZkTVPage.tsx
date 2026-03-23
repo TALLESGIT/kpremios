@@ -229,19 +229,26 @@ const ZkTVPage: React.FC = () => {
                 resolvedClub = 'atletico-mg';
                 // Salvar canal completo para reuso
                 sessionStorage.setItem('session_channel', urlChannel);
+                sessionStorage.setItem('session_club', 'atletico-mg');
             } else if (channelLower.includes('cruzeiro') || channelLower.includes('raposa')) {
                 resolvedClub = 'cruzeiro';
+                sessionStorage.removeItem('session_club');
             }
         } else {
             // Sem canal na URL: verificar parâmetro de clube ou sessão ativa do Galo
             const urlClubParam = searchParams.get('club');
             const sessionClub = sessionStorage.getItem('session_club');
             
-            if (urlClubParam === 'atletico-mg' || sessionClub === 'atletico-mg') {
+            // Prioridade absoluta para o parâmetro de URL (?club=...)
+            if (urlClubParam === 'atletico-mg') {
                 resolvedClub = 'atletico-mg';
-                if (urlClubParam === 'atletico-mg') {
-                    sessionStorage.setItem('session_club', 'atletico-mg');
-                }
+                sessionStorage.setItem('session_club', 'atletico-mg');
+            } else if (urlClubParam === 'cruzeiro') {
+                resolvedClub = 'cruzeiro';
+                sessionStorage.removeItem('session_club');
+            } else if (sessionClub === 'atletico-mg') {
+                // Mantém se já estiver na sessão do Galo e não houver parâmetro anulando
+                resolvedClub = 'atletico-mg';
             } else if (currentUser?.club_slug && currentUser.club_slug !== 'atletico-mg') {
                 resolvedClub = currentUser.club_slug;
             } else if (!dataLoading) {
