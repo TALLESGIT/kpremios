@@ -39,6 +39,14 @@ function HomePage() {
   const [viewerCount, setViewerCount] = useState<number>(0);
   // Lives ao vivo para o banner ZK TV
   const [liveGames, setLiveGames] = useState<any[]>([]);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 640 : false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const isLoggedIn = !!(user && currentUser);
 
@@ -360,7 +368,7 @@ function HomePage() {
   const NextGameBanner = ({ game, clubName, hasLive }: { game: MatchGame; clubName: string; hasLive: boolean }) => (
     <Link 
       to={`/zk-tv?club=${game.club_slug}`}
-      className={`relative group overflow-hidden rounded-[2rem] border border-white/10 shadow-2xl bg-slate-900/40 backdrop-blur-xl flex-1 min-h-[280px] cursor-pointer transition-all duration-500 hover:border-amber-500/30 ${
+      className={`relative group overflow-hidden rounded-[1.2rem] sm:rounded-[2rem] border border-white/10 shadow-2xl bg-slate-900/40 backdrop-blur-xl flex-1 min-h-[170px] sm:min-h-[280px] cursor-pointer transition-all duration-500 hover:border-amber-500/30 ${
         hasLive ? 'ring-2 ring-red-600/50 shadow-[0_0_30px_rgba(231,14,14,0.3)] animate-pulse-subtle' : ''
       }`}
     >
@@ -390,15 +398,15 @@ function HomePage() {
         </>
       )}
 
-      <div className="relative z-20 p-5 sm:p-8 flex flex-col items-center justify-center gap-4 h-full">
-        <span className={`px-4 py-1.5 rounded-full backdrop-blur-md text-xs font-black uppercase tracking-widest text-white shadow-lg transition-all ${
+      <div className={`relative z-20 ${isMobile ? 'p-2' : 'p-5 sm:p-8'} flex flex-col items-center justify-center ${isMobile ? 'gap-1' : 'gap-4'} h-full`}>
+        <span className={`px-2 py-1 sm:px-4 sm:py-1.5 rounded-full backdrop-blur-md text-[8px] sm:text-xs font-black uppercase tracking-widest text-white shadow-lg transition-all ${
           hasLive ? 'bg-red-600 animate-pulse shadow-red-500/50' :
           game.status === 'finished' ? 'bg-emerald-600/80 shadow-emerald-500/20' :
           'bg-slate-600/80 shadow-slate-500/20'
         }`}>
-          {hasLive ? '🔴 AO VIVO AGORA' :
-            game.status === 'finished' ? 'Partida Finalizada' :
-            'Próxima Partida'}
+          {hasLive ? '🔴 AO VIVO' :
+            game.status === 'finished' ? (isMobile ? 'Finalizado' : 'Partida Finalizada') :
+            (isMobile ? 'Próximo' : 'Próxima Partida')}
         </span>
 
         {/* Botão Central de Destaque para Live */}
@@ -413,16 +421,16 @@ function HomePage() {
           </button>
         )}
 
-        <div className="flex items-center justify-center gap-4 w-full">
-          <div className="flex flex-col items-center gap-2 cursor-pointer transition-transform hover:scale-105">
+        <div className={`flex items-center justify-center ${isMobile ? 'gap-2' : 'gap-4'} w-full`}>
+          <div className="flex flex-col items-center gap-1 sm:gap-2 cursor-pointer transition-transform hover:scale-105">
             <TeamLogo 
               teamName={game.is_home 
                 ? (game.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG') 
                 : game.opponent} 
-              size="lg" 
+              size={isMobile ? 'md' : 'lg'} 
               showName={false} 
             />
-            <span className="text-[9px] sm:text-xs font-black text-white uppercase tracking-tighter text-center line-clamp-1 max-w-[80px]">
+            <span className={`text-[8px] sm:text-xs font-black text-white uppercase tracking-tighter text-center line-clamp-1 ${isMobile ? 'max-w-[70px]' : 'max-w-[80px]'}`}>
               {game.is_home 
                 ? clubName
                 : game.opponent}
@@ -430,20 +438,20 @@ function HomePage() {
           </div>
 
           <div className="flex flex-col items-center justify-center">
-            <div className="text-lg sm:text-xl font-black italic text-white/20">VS</div>
-            <div className="h-[1px] w-6 bg-gradient-to-r from-transparent via-white/10 to-transparent mt-1" />
+            <div className={`font-black italic text-white/20 ${isMobile ? 'text-base' : 'text-lg sm:text-xl'}`}>VS</div>
+            <div className={`h-[1px] ${isMobile ? 'w-4' : 'w-6'} bg-gradient-to-r from-transparent via-white/10 to-transparent mt-1`} />
           </div>
 
-          <div className="flex flex-col items-center gap-2 cursor-pointer transition-transform hover:scale-105">
+          <div className="flex flex-col items-center gap-1 sm:gap-2 cursor-pointer transition-transform hover:scale-105">
             <TeamLogo
               teamName={!game.is_home 
                 ? (game.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG') 
                 : game.opponent}
               customLogo={!game.is_home ? undefined : game.opponent_logo}
-              size="lg"
+              size={isMobile ? 'md' : 'lg'}
               showName={false}
             />
-            <span className="text-[9px] sm:text-xs font-black text-white uppercase tracking-tighter text-center line-clamp-1 max-w-[80px]">
+            <span className={`text-[8px] sm:text-xs font-black text-white uppercase tracking-tighter text-center line-clamp-1 ${isMobile ? 'max-w-[70px]' : 'max-w-[80px]'}`}>
               {!game.is_home 
                 ? clubName
                 : game.opponent}
@@ -451,12 +459,14 @@ function HomePage() {
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-2">
-          <span className="text-sm sm:text-base bg-slate-700/60 px-4 py-1.5 rounded-xl border border-slate-500/30 backdrop-blur-md text-slate-200 font-black shadow-xl shadow-black/20">
+        <div className={`flex flex-col items-center ${isMobile ? 'gap-1' : 'gap-2'} mt-auto`}>
+          <span className={`${isMobile ? 'text-[8px]' : 'text-sm sm:text-base'} bg-slate-700/60 ${isMobile ? 'px-2 py-0.5' : 'px-4 py-1.5'} rounded-lg sm:rounded-xl border border-slate-500/30 backdrop-blur-md text-slate-200 font-black shadow-xl shadow-black/20 text-center`}>
             {new Date(game.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} • {new Date(game.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
           </span>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-950/40 px-3 py-1 rounded-full border border-white/5 backdrop-blur-sm">
-            {game.competition?.includes('Serie A') || game.competition?.includes('Série A') ? 'Campeonato Brasileiro - Série A' : game.competition}
+          <span className={`${isMobile ? 'text-[7px]' : 'text-[9px]'} font-black text-slate-400 uppercase tracking-widest bg-slate-950/40 ${isMobile ? 'px-2 py-0.5' : 'px-3 py-1'} rounded-full border border-white/5 backdrop-blur-sm text-center line-clamp-1 max-w-[110px]`}>
+            {game.competition?.toLowerCase().includes('série a') || game.competition?.toLowerCase().includes('serie a') 
+              ? (isMobile ? 'Brasileirão' : 'Campeonato Brasileiro - Série A') 
+              : game.competition}
           </span>
         </div>
       </div>
