@@ -457,8 +457,18 @@ function HomePage() {
               : game.competition}
           </span>
           
-          <div className={`mt-1 w-full py-2 ${hasLive ? 'bg-white text-red-600 hover:bg-red-50' : 'bg-amber-500 text-slate-900 hover:bg-amber-400 shadow-amber-500/20'} rounded-xl font-black ${isMobile ? 'text-[8px]' : 'text-[10px]'} uppercase tracking-wider text-center flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95`}>
-             {hasLive ? '🔴 ASSISTIR AO VIVO' : 'ACESSAR AGORA'}
+          <div 
+            onClick={(e) => {
+              const activePool = game.club_slug === 'cruzeiro' ? activePoolCruzeiro : activePoolGalo;
+              if (activePool && activePool.is_active) {
+                e.preventDefault();
+                e.stopPropagation();
+                openPoolModal(activePool);
+              }
+            }}
+            className={`mt-1 w-full py-2 bg-emerald-500 hover:bg-emerald-400 text-white shadow-emerald-500/20 rounded-xl font-black ${isMobile ? 'text-[8px]' : 'text-[10px]'} uppercase tracking-wider text-center flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95`}
+          >
+             PARTICIPAR DO BOLÃO
           </div>
         </div>
       </div>
@@ -546,22 +556,6 @@ function HomePage() {
               </p>
 
               <div className="flex flex-wrap justify-center gap-3 sm:gap-5">
-                {(activePoolCruzeiro || activePoolGalo) && (
-                <button
-                  onClick={() => {
-                    if (activePoolCruzeiro && activePoolGalo) {
-                      document.getElementById('bolao-section')?.scrollIntoView({ behavior: 'smooth' });
-                    } else {
-                      openPoolModal(activePoolCruzeiro || activePoolGalo);
-                    }
-                  }}
-                  className="px-6 sm:px-10 py-3 sm:py-5 bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white rounded-xl sm:rounded-2xl font-black text-xs sm:text-lg transition-all duration-300 backdrop-blur-md border border-emerald-400/50 flex items-center justify-center gap-2 sm:gap-3 overflow-hidden relative group active:scale-95 shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:shadow-[0_0_30px_rgba(16,185,129,0.6)] animate-pulse-subtle"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer" />
-                  <Trophy className="w-4 h-4 sm:w-6 sm:h-6 text-white group-hover:scale-110 transition-transform drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
-                  PARTICIPAR DO BOLÃO
-                </button>
-                )}
               </div>
 
               <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
