@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { useSocket } from '../hooks/useSocket';
-import { Trophy, MonitorPlay, Target, MessageCircle, DollarSign, Instagram, Users, Play } from 'lucide-react';
+import { Trophy, MonitorPlay, Target, MessageCircle, DollarSign, Instagram, Users } from 'lucide-react';
 import { MatchGame } from '../types';
 import PoolBetModal from '../components/pool/PoolBetModal';
 import AdvertisementCarousel from '../components/shared/AdvertisementCarousel';
@@ -398,7 +398,7 @@ function HomePage() {
         </>
       )}
 
-      <div className={`relative z-20 ${isMobile ? 'p-2' : 'p-5 sm:p-8'} flex flex-col items-center justify-center ${isMobile ? 'gap-1' : 'gap-4'} h-full`}>
+      <div className={`relative z-20 ${isMobile ? 'p-2' : 'p-5 sm:p-8'} flex flex-col items-center justify-center ${isMobile ? 'gap-1' : 'gap-3'} h-full`}>
         <span className={`px-2 py-1 sm:px-4 sm:py-1.5 rounded-full backdrop-blur-md text-[8px] sm:text-xs font-black uppercase tracking-widest text-white shadow-lg transition-all ${
           hasLive ? 'bg-red-600 animate-pulse shadow-red-500/50' :
           game.status === 'finished' ? 'bg-emerald-600/80 shadow-emerald-500/20' :
@@ -408,18 +408,6 @@ function HomePage() {
             game.status === 'finished' ? (isMobile ? 'Finalizado' : 'Partida Finalizada') :
             (isMobile ? 'Próximo' : 'Próxima Partida')}
         </span>
-
-        {/* Botão Central de Destaque para Live */}
-        {hasLive && (
-          <button
-            onClick={() => navigate('/zk-tv')}
-            className="w-full max-w-[200px] py-3 bg-white text-red-600 hover:bg-red-50 rounded-2xl font-black text-sm uppercase tracking-tighter flex items-center justify-center gap-2 shadow-2xl transition-all active:scale-95 group/btn relative overflow-hidden"
-          >
-             <div className="absolute inset-0 bg-red-600/10 -translate-x-full group-hover/btn:animate-shimmer" />
-             <Play className="w-4 h-4 fill-current" />
-             ASSISTIR AGORA
-          </button>
-        )}
 
         <div className={`flex items-center justify-center ${isMobile ? 'gap-2' : 'gap-4'} w-full`}>
           <div className="flex flex-col items-center gap-1 sm:gap-2 cursor-pointer transition-transform hover:scale-105">
@@ -459,7 +447,7 @@ function HomePage() {
           </div>
         </div>
 
-        <div className={`flex flex-col items-center ${isMobile ? 'gap-1' : 'gap-2'} mt-auto`}>
+        <div className={`flex flex-col items-center ${isMobile ? 'gap-1' : 'gap-2'} mt-auto w-full`}>
           <span className={`${isMobile ? 'text-[8px]' : 'text-sm sm:text-base'} bg-slate-700/60 ${isMobile ? 'px-2 py-0.5' : 'px-4 py-1.5'} rounded-lg sm:rounded-xl border border-slate-500/30 backdrop-blur-md text-slate-200 font-black shadow-xl shadow-black/20 text-center`}>
             {new Date(game.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} • {new Date(game.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
           </span>
@@ -468,6 +456,10 @@ function HomePage() {
               ? (isMobile ? 'Brasileirão' : 'Campeonato Brasileiro - Série A') 
               : game.competition}
           </span>
+          
+          <div className={`mt-1 w-full py-2 ${hasLive ? 'bg-white text-red-600 hover:bg-red-50' : 'bg-amber-500 text-slate-900 hover:bg-amber-400 shadow-amber-500/20'} rounded-xl font-black ${isMobile ? 'text-[8px]' : 'text-[10px]'} uppercase tracking-wider text-center flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95`}>
+             {hasLive ? '🔴 ASSISTIR AO VIVO' : 'ACESSAR AGORA'}
+          </div>
         </div>
       </div>
     </Link>
@@ -570,13 +562,6 @@ function HomePage() {
                   PARTICIPAR DO BOLÃO
                 </button>
                 )}
-                <Link
-                  to="/competicoes"
-                  className="px-6 sm:px-10 py-3 sm:py-5 bg-gradient-to-br from-white/10 to-transparent hover:bg-white/15 text-white rounded-xl sm:rounded-2xl font-black text-xs sm:text-lg transition-all duration-300 backdrop-blur-md border border-white/10 flex items-center justify-center gap-2 sm:gap-3 overflow-hidden relative group active:scale-95 sm:hidden"
-                >
-                  <Target className="w-4 h-4 sm:w-6 sm:h-6 text-slate-400 group-hover:scale-110 transition-transform" />
-                  VER CLASSIFICAÇÃO
-                </Link>
               </div>
 
               <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
@@ -728,7 +713,7 @@ function HomePage() {
         {/* Main Content Areas */}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16">
           {/* Cards Grid */}
-          <section id="bolao-section" className={`grid grid-cols-1 md:grid-cols-2 ${(activePoolCruzeiro && activePoolGalo) ? 'lg:grid-cols-4' : (activePoolCruzeiro || activePoolGalo) ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-8`}>
+          <section id="bolao-section" className={`grid gap-4 sm:gap-8 ${(activePoolCruzeiro && activePoolGalo) ? 'grid-cols-2 md:grid-cols-2 lg:grid-cols-4' : (activePoolCruzeiro || activePoolGalo) ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-2'}`}>
             {/* Bolão Cruzeiro */}
             {activePoolCruzeiro && activePoolCruzeiro.is_active && (
               <PoolCard pool={activePoolCruzeiro} clubName="Cruzeiro" />

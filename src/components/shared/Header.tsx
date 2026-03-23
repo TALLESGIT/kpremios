@@ -476,6 +476,20 @@ function Header() {
                 </Link>
 
                 <Link
+                  to="/competicoes"
+                  className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname === '/competicoes'
+                    ? 'bg-slate-700 text-white shadow-[0_0_20px_rgba(51,65,85,0.4)] translate-x-1'
+                    : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
+                    }`}
+                  onClick={closeMenu}
+                >
+                  <span className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10 transition-colors">
+                    📊
+                  </span>
+                  Tabelas
+                </Link>
+
+                <Link
                   to="/loja"
                   className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname === '/loja'
                     ? 'bg-slate-700 text-white shadow-[0_0_20px_rgba(51,65,85,0.4)] translate-x-1'
