@@ -1,17 +1,14 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Instagram, Youtube, Music, Facebook,
+  X, Instagram,
   MessageCircle, ExternalLink, Globe, Heart
 } from 'lucide-react';
 
 interface SocialLinks {
   instagram?: string;
-  youtube?: string;
-  spotify?: string;
-  facebook?: string;
   whatsapp?: string;
-  soundcloud?: string;
+  [key: string]: string | undefined;
 }
 
 interface SocialModalProps {
@@ -23,10 +20,6 @@ interface SocialModalProps {
 const SocialModal: React.FC<SocialModalProps> = ({ isOpen, onClose, socialLinks }) => {
   const platforms = [
     { id: 'instagram', icon: Instagram, label: 'Instagram', subtitle: 'Siga no Insta', color: 'from-pink-500 to-purple-500', url: socialLinks.instagram || 'https://www.instagram.com/itallozkoficial' },
-    { id: 'youtube', icon: Youtube, label: 'YouTube', subtitle: 'Canal Oficial', color: 'from-red-500 to-red-700', url: socialLinks.youtube || 'https://www.youtube.com/channel/UCyP-ZyjtM-I-J2mfI-utNtw' },
-    { id: 'spotify', icon: Music, label: 'Spotify', subtitle: 'Ouvir no Spotify', color: 'from-green-500 to-green-700', url: socialLinks.spotify || 'https://open.spotify.com/artist/0yP-ZyjtM-I-J2mfI-utNtw' },
-    { id: 'facebook', icon: Facebook, label: 'Facebook', subtitle: 'Página Oficial', color: 'from-blue-500 to-blue-700', url: socialLinks.facebook || 'https://www.facebook.com/itallozkoficial' },
-    { id: 'soundcloud', icon: Globe, label: 'SoundCloud', subtitle: 'Ouça no SoundCloud', color: 'from-orange-500 to-orange-700', url: socialLinks.soundcloud || 'https://soundcloud.com/itallo-zk' },
     { id: 'whatsapp', icon: MessageCircle, label: 'WhatsApp', subtitle: 'Canal de Novidades', color: 'from-emerald-500 to-emerald-700', url: socialLinks.whatsapp || 'https://wa.me/5531972393341' },
   ].filter(p => p.url);
 
@@ -58,7 +51,7 @@ const SocialModal: React.FC<SocialModalProps> = ({ isOpen, onClose, socialLinks 
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h2 className="text-2xl font-black text-white italic tracking-tighter">REDES SOCIAIS</h2>
-                  <p className="text-sm text-blue-200/60 font-bold uppercase tracking-widest mt-1 flex items-center gap-2">
+                  <p className="text-sm text-slate-400/60 font-bold uppercase tracking-widest mt-1 flex items-center gap-2">
                     Nossa Comunidade <Heart className="w-3 h-3 text-red-500 fill-red-500" />
                   </p>
                 </div>
@@ -87,7 +80,7 @@ const SocialModal: React.FC<SocialModalProps> = ({ isOpen, onClose, socialLinks 
                       </div>
                       <div className="flex-1 text-left">
                         <p className="font-black text-white tracking-tight uppercase">{platform.label}</p>
-                        <p className="text-xs text-blue-200/40 font-bold uppercase tracking-widest">{platform.subtitle}</p>
+                        <p className="text-xs text-slate-400/40 font-bold uppercase tracking-widest">{platform.subtitle}</p>
                       </div>
                       <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <ExternalLink className="w-4 h-4 text-white/30" />

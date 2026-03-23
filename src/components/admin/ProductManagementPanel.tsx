@@ -202,13 +202,13 @@ export function ProductManagementPanel() {
             placeholder="Buscar por nome ou marca..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500/50 transition-all font-medium"
+            className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-500/50 transition-all font-medium"
           />
         </div>
 
         <button
           onClick={handleOpenAddModal}
-          className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-blue-600/20"
+          className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-amber-600/20"
         >
           <Plus className="w-5 h-5" />
           Adicionar Novo Produto
@@ -217,7 +217,7 @@ export function ProductManagementPanel() {
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
-          <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+          <Loader2 className="w-10 h-10 text-amber-500 animate-spin" />
           <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Carregando estoque...</p>
         </div>
       ) : products.length === 0 ? (
@@ -231,7 +231,7 @@ export function ProductManagementPanel() {
             <motion.div
               layout
               key={product.id}
-              className="bg-slate-900/50 border border-white/5 rounded-[2rem] overflow-hidden group hover:border-blue-500/30 transition-all"
+              className="bg-slate-900/50 border border-white/5 rounded-[2rem] overflow-hidden group hover:border-amber-500/30 transition-all"
             >
               <div className="aspect-square relative overflow-hidden">
                 <img 
@@ -242,7 +242,7 @@ export function ProductManagementPanel() {
                 <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
                   <button 
                     onClick={() => handleOpenEditModal(product)}
-                    className="p-3 bg-white/10 backdrop-blur-md rounded-xl text-white hover:bg-blue-600 transition-all"
+                    className="p-3 bg-white/10 backdrop-blur-md rounded-xl text-white hover:bg-amber-600 transition-all"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
@@ -260,7 +260,7 @@ export function ProductManagementPanel() {
                 </div>
               </div>
               <div className="p-6">
-                <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1 italic">{product.brand}</p>
+                <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1 italic">{product.brand}</p>
                 <h4 className="text-white font-bold text-sm mb-4 line-clamp-2 uppercase italic">{product.name}</h4>
                 <div className="flex items-center justify-between">
                   <span className="text-xl font-black text-emerald-400 italic">R$ {product.price.toFixed(2)}</span>
@@ -295,8 +295,8 @@ export function ProductManagementPanel() {
               {/* Modal Header - Fixed */}
               <div className="flex items-center justify-between p-5 md:p-6 border-b border-white/5 bg-slate-900/50 backdrop-blur-md shrink-0">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-blue-600/20 rounded-xl flex items-center justify-center border border-blue-600/30">
-                    <Package className="w-5 h-5 text-blue-500" />
+                  <div className="w-10 h-10 bg-amber-600/20 rounded-xl flex items-center justify-center border border-amber-600/30">
+                    <Package className="w-5 h-5 text-amber-500" />
                   </div>
                   <h3 className="text-xl font-black text-white italic uppercase tracking-tight">
                     {editingProduct ? 'Editar Produto' : 'Novo Produto'}
@@ -312,7 +312,7 @@ export function ProductManagementPanel() {
                 <form id="product-form" onSubmit={handleSubmit} className="space-y-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black text-blue-400 uppercase tracking-widest ml-4">Nome do Produto</label>
+                      <label className="text-[9px] font-black text-amber-400 uppercase tracking-widest ml-4">Nome do Produto</label>
                       <input
                         required
                         type="text"
@@ -323,7 +323,7 @@ export function ProductManagementPanel() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-4">Marca/Brand</label>
+                      <label className="text-[10px] font-black text-amber-400 uppercase tracking-widest ml-4">Marca/Brand</label>
                       <input
                         required
                         type="text"
@@ -336,7 +336,7 @@ export function ProductManagementPanel() {
 
                     <div className="grid grid-cols-2 gap-6 md:col-span-2">
                       <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-blue-400 uppercase tracking-widest ml-4">Preço (R$)</label>
+                        <label className="text-[9px] font-black text-amber-400 uppercase tracking-widest ml-4">Preço (R$)</label>
                         <input
                           required
                           type="number"
@@ -348,7 +348,7 @@ export function ProductManagementPanel() {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-blue-400 uppercase tracking-widest ml-4">Estoque</label>
+                        <label className="text-[9px] font-black text-amber-400 uppercase tracking-widest ml-4">Estoque</label>
                         <input
                           required
                           type="number"
@@ -361,11 +361,11 @@ export function ProductManagementPanel() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-4">Categoria</label>
+                      <label className="text-[10px] font-black text-amber-400 uppercase tracking-widest ml-4">Categoria</label>
                       <select
                         value={formData.category}
                         onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
-                        className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white font-medium focus:outline-none focus:border-blue-500/50 transition-all appearance-none [&>option]:bg-slate-900 [&>option]:text-white text-sm"
+                        className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white font-medium focus:outline-none focus:border-amber-500/50 transition-all appearance-none [&>option]:bg-slate-900 [&>option]:text-white text-sm"
                       >
                         <option value="jersey">Mantos</option>
                         <option value="exclusive">ZK Exclusivo</option>
@@ -375,11 +375,11 @@ export function ProductManagementPanel() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-4">Público</label>
+                      <label className="text-[10px] font-black text-amber-400 uppercase tracking-widest ml-4">Público</label>
                       <select
                         value={formData.target_audience}
                         onChange={(e) => setFormData({ ...formData, target_audience: e.target.value as any })}
-                        className="w-full px-5 py-2.5 bg-white/5 border border-white/10 rounded-2xl text-white font-medium focus:outline-none focus:border-blue-500/50 transition-all appearance-none [&>option]:bg-slate-900 [&>option]:text-white text-sm"
+                        className="w-full px-5 py-2.5 bg-white/5 border border-white/10 rounded-2xl text-white font-medium focus:outline-none focus:border-amber-500/50 transition-all appearance-none [&>option]:bg-slate-900 [&>option]:text-white text-sm"
                       >
                         <option value="unissex">Unissex</option>
                         <option value="masculino">Masculino</option>
@@ -389,17 +389,17 @@ export function ProductManagementPanel() {
                     </div>
 
                     <div className="md:col-span-2 space-y-2">
-                      <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-4">Descrição do Produto</label>
+                      <label className="text-[10px] font-black text-amber-400 uppercase tracking-widest ml-4">Descrição do Produto</label>
                       <textarea
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white font-medium focus:outline-none focus:border-blue-500/50 transition-all text-sm min-h-[80px] resize-none"
+                        className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white font-medium focus:outline-none focus:border-amber-500/50 transition-all text-sm min-h-[80px] resize-none"
                         placeholder="Descreva os detalhes do produto..."
                       />
                     </div>
 
                     <div className="md:col-span-2 space-y-3 pt-3 border-t border-white/5">
-                      <label className="text-[9px] font-black text-blue-400 uppercase tracking-widest ml-4">Tamanhos Disponíveis</label>
+                      <label className="text-[9px] font-black text-amber-400 uppercase tracking-widest ml-4">Tamanhos Disponíveis</label>
                       <div className="flex flex-col gap-2">
                         <input
                           type="text"
@@ -423,7 +423,7 @@ export function ProductManagementPanel() {
                                   : [...current, s];
                                 setFormData({ ...formData, available_sizes: next });
                               }}
-                              className={`px-2.5 py-1 rounded-lg text-[9px] font-black border transition-all ${formData.available_sizes.includes(s) ? 'bg-blue-600 border-blue-400 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}
+                              className={`px-2.5 py-1 rounded-lg text-[9px] font-black border transition-all ${formData.available_sizes.includes(s) ? 'bg-amber-600 border-amber-400 text-black' : 'bg-white/5 border-white/10 text-slate-500'}`}
                             >
                               {s}
                             </button>
@@ -440,7 +440,7 @@ export function ProductManagementPanel() {
                                   : [...current, s];
                                 setFormData({ ...formData, available_sizes: next });
                               }}
-                              className={`px-2.5 py-1 rounded-lg text-[9px] font-black border transition-all ${formData.available_sizes.includes(s) ? 'bg-blue-600 border-blue-400 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}
+                              className={`px-2.5 py-1 rounded-lg text-[9px] font-black border transition-all ${formData.available_sizes.includes(s) ? 'bg-amber-600 border-amber-400 text-black' : 'bg-white/5 border-white/10 text-slate-500'}`}
                             >
                               {s}
                             </button>
@@ -453,7 +453,7 @@ export function ProductManagementPanel() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <label className="text-[9px] font-black text-blue-400 uppercase tracking-widest ml-4">URL da Imagem Principal</label>
+                            <label className="text-[9px] font-black text-amber-400 uppercase tracking-widest ml-4">URL da Imagem Principal</label>
                             {formData.image_url && (
                               <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/10 bg-black/40">
                                 <img 
@@ -470,14 +470,14 @@ export function ProductManagementPanel() {
                             type="url"
                             value={formData.image_url}
                             onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                            className="w-full px-5 py-2.5 bg-white/5 border border-white/10 rounded-2xl text-white font-medium focus:outline-none focus:border-blue-500/50 transition-all text-[11px]"
+                            className="w-full px-5 py-2.5 bg-white/5 border border-white/10 rounded-2xl text-white font-medium focus:outline-none focus:border-amber-500/50 transition-all text-[11px]"
                             placeholder="https://..."
                           />
                         </div>
 
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <label className="text-[9px] font-black text-blue-400 uppercase tracking-widest ml-4">Galeria (Opcional)</label>
+                            <label className="text-[9px] font-black text-amber-400 uppercase tracking-widest ml-4">Galeria (Opcional)</label>
                             <button
                               type="button"
                               onClick={() => setFormData({ ...formData, gallery_urls: [...formData.gallery_urls, ''] })}
@@ -537,7 +537,7 @@ export function ProductManagementPanel() {
                         <button
                           type="button"
                           onClick={() => setFormData({ ...formData, is_coming_soon: !formData.is_coming_soon })}
-                          className={`w-10 h-5 rounded-full transition-all relative ${formData.is_coming_soon ? 'bg-blue-500' : 'bg-slate-700'}`}
+                          className={`w-10 h-5 rounded-full transition-all relative ${formData.is_coming_soon ? 'bg-amber-500' : 'bg-slate-700'}`}
                         >
                           <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${formData.is_coming_soon ? 'right-0.5' : 'left-0.5'}`} />
                         </button>
@@ -546,7 +546,7 @@ export function ProductManagementPanel() {
 
                     <div className="md:col-span-2 space-y-3 pt-3 border-t border-white/5">
                       <div className="flex items-center gap-3">
-                        <Package className="w-4 h-4 text-blue-500" />
+                        <Package className="w-4 h-4 text-amber-500" />
                         <h4 className="text-[10px] font-black text-white uppercase italic tracking-widest">Logística & Frete</h4>
                       </div>
 
@@ -557,7 +557,7 @@ export function ProductManagementPanel() {
                             type="number"
                             value={formData.weight_g}
                             onChange={(e) => setFormData({ ...formData, weight_g: e.target.value })}
-                            className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-[11px] focus:border-blue-500/50 transition-all font-bold"
+                            className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-[11px] focus:border-amber-500/50 transition-all font-bold"
                           />
                         </div>
                         <div className="space-y-1">
@@ -566,7 +566,7 @@ export function ProductManagementPanel() {
                             type="number"
                             value={formData.width_cm}
                             onChange={(e) => setFormData({ ...formData, width_cm: e.target.value })}
-                            className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-[11px] focus:border-blue-500/50 transition-all font-bold"
+                            className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-[11px] focus:border-amber-500/50 transition-all font-bold"
                           />
                         </div>
                         <div className="space-y-1">
@@ -575,7 +575,7 @@ export function ProductManagementPanel() {
                             type="number"
                             value={formData.height_cm}
                             onChange={(e) => setFormData({ ...formData, height_cm: e.target.value })}
-                            className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-[11px] focus:border-blue-500/50 transition-all font-bold"
+                            className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-[11px] focus:border-amber-500/50 transition-all font-bold"
                           />
                         </div>
                         <div className="space-y-1">
@@ -584,12 +584,12 @@ export function ProductManagementPanel() {
                             type="number"
                             value={formData.length_cm}
                             onChange={(e) => setFormData({ ...formData, length_cm: e.target.value })}
-                            className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-[11px] focus:border-blue-500/50 transition-all font-bold"
+                            className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-[11px] focus:border-amber-500/50 transition-all font-bold"
                           />
                         </div>
                       </div>
 
-                      <div className="flex flex-col gap-3 p-4 bg-blue-600/5 rounded-3xl border border-blue-500/10">
+                      <div className="flex flex-col gap-3 p-4 bg-amber-600/5 rounded-3xl border-amber-500/10">
                         <div className="flex items-center justify-between">
                           <div className="space-y-0.5">
                             <p className="text-white font-bold text-[11px] uppercase italic">Frete Grátis Global</p>
@@ -606,7 +606,7 @@ export function ProductManagementPanel() {
 
                         {!formData.is_free_shipping && (
                           <div className="space-y-2 pt-2 border-t border-white/5">
-                            <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Estados com Frete Grátis</p>
+                            <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest">Estados com Frete Grátis</p>
                             <div className="flex flex-wrap gap-1">
                               {BRAZILIAN_STATES.map(state => (
                                 <button
@@ -621,7 +621,7 @@ export function ProductManagementPanel() {
                                   }}
                                   className={`px-2 py-0.5 rounded-md text-[8px] font-black transition-all border ${
                                     formData.free_shipping_states.includes(state)
-                                      ? 'bg-blue-600 border-blue-400 text-white'
+                                      ? 'bg-amber-600 border-amber-400 text-black'
                                       : 'bg-white/5 border-white/10 text-slate-500'
                                   }`}
                                 >
@@ -642,7 +642,7 @@ export function ProductManagementPanel() {
                 <button
                   form="product-form"
                   disabled={isSaving}
-                  className="w-full flex items-center justify-center gap-3 px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-xl shadow-blue-600/20 disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-3 px-8 py-3 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-xl shadow-amber-600/20 disabled:opacity-50"
                 >
                   {isSaving ? (
                     <Loader2 className="w-5 h-5 animate-spin" />

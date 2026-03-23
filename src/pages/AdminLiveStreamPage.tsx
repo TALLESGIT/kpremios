@@ -129,12 +129,12 @@ const AdminLiveStreamPage = () => {
         if (!userRecord || userError) {
           const { data: profileRecord } = await supabase
             .from('profiles')
-            .select('is_admin')
+            .select('is_admin, club_slug')
             .eq('id', user.id)
             .maybeSingle();
 
           if (profileRecord) {
-            userRecord = { is_admin: profileRecord.is_admin, club_slug: 'cruzeiro' };
+            userRecord = { is_admin: profileRecord.is_admin, club_slug: profileRecord.club_slug || 'cruzeiro' };
           }
         }
 

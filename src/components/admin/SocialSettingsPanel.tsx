@@ -8,10 +8,6 @@ const SocialSettingsPanel: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({
     instagram: '',
-    youtube: '',
-    facebook: '',
-    soundcloud: '',
-    spotify: '',
     whatsapp: ''
   });
 
@@ -68,7 +64,7 @@ const SocialSettingsPanel: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
       </div>
     );
   }
@@ -76,7 +72,7 @@ const SocialSettingsPanel: React.FC = () => {
   return (
     <div className="bg-slate-800/50 rounded-2xl border border-white/10 p-6 sm:p-8">
       <div className="flex items-center gap-3 mb-8">
-        <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center text-blue-400">
+        <div className="w-12 h-12 bg-amber-500/20 rounded-xl flex items-center justify-center text-amber-500">
           <Globe className="w-6 h-6" />
         </div>
         <div>
@@ -98,69 +94,10 @@ const SocialSettingsPanel: React.FC = () => {
               value={settings.instagram}
               onChange={handleChange}
               placeholder="https://instagram.com/perfil"
-              className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-amber-500/50 focus:border-amber-500/50"
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
-              <Youtube className="w-4 h-4 text-red-500" />
-              YouTube
-            </label>
-            <input
-              type="url"
-              name="youtube"
-              value={settings.youtube}
-              onChange={handleChange}
-              placeholder="https://youtube.com/canal"
-              className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
-              <Facebook className="w-4 h-4 text-blue-500" />
-              Facebook
-            </label>
-            <input
-              type="url"
-              name="facebook"
-              value={settings.facebook}
-              onChange={handleChange}
-              placeholder="https://facebook.com/perfil"
-              className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
-              <Music className="w-4 h-4 text-orange-500" />
-              SoundCloud
-            </label>
-            <input
-              type="url"
-              name="soundcloud"
-              value={settings.soundcloud}
-              onChange={handleChange}
-              placeholder="https://soundcloud.com/artista"
-              className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
-              <Music className="w-4 h-4 text-emerald-500" />
-              Spotify (Perfil Artista)
-            </label>
-            <input
-              type="url"
-              name="spotify"
-              value={settings.spotify}
-              onChange={handleChange}
-              placeholder="https://open.spotify.com/artist/id"
-              className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-            />
-          </div>
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
@@ -173,7 +110,7 @@ const SocialSettingsPanel: React.FC = () => {
               value={settings.whatsapp}
               onChange={handleChange}
               placeholder="https://wa.me/..."
-              className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-amber-500/50 focus:border-amber-500/50"
             />
           </div>
         </div>
@@ -182,7 +119,7 @@ const SocialSettingsPanel: React.FC = () => {
           <button
             type="submit"
             disabled={saving}
-            className="w-full sm:w-auto px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-600/20 active:scale-95"
+            className="w-full sm:w-auto px-8 py-3 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-black rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-600/20 active:scale-95"
           >
             {saving ? (
               <>

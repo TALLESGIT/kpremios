@@ -369,47 +369,72 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId, clubSlug }) => {
             .maybeSingle();
 
           if (!existingPool) {
-            // 4. Criar live_stream para o próximo jogo
-            const isHome = nextGame.is_home;
-            const clubName = clubSlug === 'cruzeiro' ? 'Cruzeiro' : (clubSlug === 'atletico-mg' ? 'Atlético-MG' : 'Meu Time');
-            
-            const matchTitle = isHome
-              ? `Bolão: ${clubName} x ${nextGame.opponent}`
-              : `Bolão: ${nextGame.opponent} x ${clubName}`;
-            
-            const homeTeam = isHome ? clubName : nextGame.opponent;
-            const awayTeam = isHome ? nextGame.opponent : clubName;
-            
-            // Tenta obter o logo do time principal. Se for cruzeiro, usa o logo padrão.
-            const primaryLogo = (clubSlug === 'cruzeiro')
-              ? 'https://logodetimes.com/times/cruzeiro/logo-cruzeiro-256.png'
-              : (nextGame.club_logo || ''); // Caso exista um logo do clube no jogo
-            
-            const homeLogo = isHome ? primaryLogo : (getTeamLogo(nextGame.opponent) || nextGame.opponent_logo || '');
-            const awayLogo = isHome ? (getTeamLogo(nextGame.opponent) || nextGame.opponent_logo || '') : primaryLogo;
-
-            const streamTitle = `Transmissão: ${matchTitle.replace('Bolão: ', '')}`;
-            const channelSlug = generateStreamSlug(streamTitle);
-
-            const { data: newStream, error: streamError } = await supabase
+            // 4. Verificar se já existe live_stream para o próximo jogo
+            const { data: existingStream } = await supabase
               .from('live_streams')
-              .insert([{
-                title: streamTitle,
-                channel_name: channelSlug,
-                is_active: false
-              }])
               .select('id')
-              .single();
+              .eq('match_id', nextGame.id)
+              .maybeSingle();
 
-            if (!streamError && newStream) {
+            let targetStreamId = existingStream?.id;
+
+            if (!targetStreamId) {
+              // Criar live_stream para o próximo jogo se não existir
+              const isHome = nextGame.is_home;
+              const clubName = clubSlug === 'cruzeiro' ? 'Cruzeiro' : (clubSlug === 'atletico-mg' ? 'Atlético-MG' : 'Meu Time');
+              
+              const matchTitle = isHome
+                ? `${clubName} x ${nextGame.opponent}`
+                : `${nextGame.opponent} x ${clubName}`;
+              
+              const streamTitle = `Transmissão: ${matchTitle}`;
+              const channelSlug = generateStreamSlug(streamTitle);
+
+              const { data: newStream, error: streamError } = await supabase
+                .from('live_streams')
+                .insert([{
+                  title: streamTitle,
+                  channel_name: channelSlug,
+                  is_active: false,
+                  status: 'upcoming',
+                  match_id: nextGame.id,
+                  club_slug: clubSlug || nextGame.club_slug
+                }])
+                .select('id')
+                .single();
+
+              if (!streamError && newStream) {
+                targetStreamId = newStream.id;
+              } else {
+                console.error('Erro ao criar live_stream para próximo jogo:', streamError);
+              }
+            }
+
+            if (targetStreamId) {
               // 5. Calcular acumulado centralizado
               const newAccumulated = await calculateNextPoolAccumulated(clubSlug);
+
+              const isHome = nextGame.is_home;
+              const clubName = clubSlug === 'cruzeiro' ? 'Cruzeiro' : (clubSlug === 'atletico-mg' ? 'Atlético-MG' : 'Meu Time');
+              const matchTitle = isHome
+                ? `Bolão: ${clubName} x ${nextGame.opponent}`
+                : `Bolão: ${nextGame.opponent} x ${clubName}`;
+              
+              const homeTeam = isHome ? clubName : nextGame.opponent;
+              const awayTeam = isHome ? nextGame.opponent : clubName;
+              
+              const primaryLogo = (clubSlug === 'cruzeiro')
+                ? 'https://logodetimes.com/times/cruzeiro/logo-cruzeiro-256.png'
+                : (nextGame.club_logo || '');
+              
+              const homeLogo = isHome ? primaryLogo : (getTeamLogo(nextGame.opponent) || nextGame.opponent_logo || '');
+              const awayLogo = isHome ? (getTeamLogo(nextGame.opponent) || nextGame.opponent_logo || '') : primaryLogo;
 
               // 6. Criar o novo match_pool
               const { error: newPoolError } = await supabase
                 .from('match_pools')
                 .insert([{
-                  live_stream_id: newStream.id,
+                  live_stream_id: targetStreamId,
                   match_id: nextGame.id,
                   match_title: matchTitle,
                   home_team: homeTeam,
@@ -418,7 +443,8 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId, clubSlug }) => {
                   away_team_logo: awayLogo,
                   is_active: true,
                   accumulated_amount: newAccumulated,
-                  total_pool_amount: 0
+                  total_pool_amount: 0,
+                  club_slug: clubSlug || nextGame.club_slug
                 }]);
 
               if (!newPoolError) {
@@ -429,13 +455,9 @@ const PoolManager: React.FC<PoolManagerProps> = ({ streamId, clubSlug }) => {
                     message={`Bolão automaticamente ativado: ${matchTitle}`}
                   />
                 ), { duration: 5000 });
-                console.log('✅ Novo bolão criado automaticamente:', matchTitle);
               } else {
                 console.error('Erro ao criar novo bolão:', newPoolError);
-                toast.error('Resultado salvo, mas erro ao criar próximo bolão.');
               }
-            } else {
-              console.error('Erro ao criar live_stream para próximo jogo:', streamError);
             }
           } else {
             console.log('ℹ️ Já existe bolão para o próximo jogo, apenas ativando...');

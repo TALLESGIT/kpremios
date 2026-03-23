@@ -21,8 +21,12 @@ function ZKLogo({ className = '', size = 'md' }: ZKLogoProps) {
       >
         <defs>
           <linearGradient id="zkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#4f46e5" />
-            <stop offset="100%" stopColor="#3730a3" />
+            <stop offset="0%" stopColor="#334155" />
+            <stop offset="100%" stopColor="#1e293b" />
+          </linearGradient>
+          <linearGradient id="zkAccentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#f59e0b" />
+            <stop offset="100%" stopColor="#d97706" />
           </linearGradient>
           <linearGradient id="whiteGradient" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#FFFFFF" />
@@ -37,43 +41,37 @@ function ZKLogo({ className = '', size = 'md' }: ZKLogoProps) {
           </filter>
         </defs>
 
-        {/* Outer Ring */}
+        {/* Outer Ring - Slate neutro */}
         <circle
           cx="50"
           cy="50"
           r="48"
-          fill="#4f46e5"
-          stroke="#FFFFFF"
-          strokeWidth="2"
+          fill="url(#zkGradient)"
+          stroke="#f59e0b"
+          strokeWidth="2.5"
           className="shadow-inner"
         />
 
-        {/* Decorative Stars */}
-        {/* Estrela Maior (Alpha) - Bottom */}
-        <path d="M50 75 L52 80 L57 80 L53 84 L55 89 L50 86 L45 89 L47 84 L43 80 L48 80 Z" fill="#FFFFFF" />
-
-        {/* Estrela (Beta) - Left */}
-        <path d="M25 50 L27 55 L32 55 L28 59 L30 64 L25 61 L20 64 L22 59 L18 55 L23 55 Z" fill="#FFFFFF" />
-
-        {/* Estrela (Gamma) - Top */}
-        <path d="M50 20 L52 25 L57 25 L53 29 L55 34 L50 31 L45 34 L47 29 L43 25 L48 25 Z" fill="#FFFFFF" />
-
-        {/* Estrela (Delta) - Right */}
-        <path d="M75 50 L77 55 L82 55 L78 59 L80 64 L75 61 L70 64 L72 59 L68 55 L73 55 Z" fill="#FFFFFF" />
-
-        {/* Estrela (Epsilon) - Center Small */}
-        <path d="M58 58 L59 60.5 L61.5 60.5 L59.5 62.5 L60.5 65 L58 63.5 L55.5 65 L56.5 62.5 L54.5 60.5 L57 60.5 Z" fill="#FFFFFF" />
-
+        {/* Decorative accent ring */}
+        <circle
+          cx="50"
+          cy="50"
+          r="44"
+          fill="none"
+          stroke="#f59e0b"
+          strokeWidth="0.5"
+          strokeOpacity="0.3"
+        />
 
         {/* ZK Typography - Modern Sporty Style */}
         <g strokeWidth="0" transform="translate(0, 5) scale(0.9) translate(5, 0)">
           {/* Z */}
           <path
             d="M32 35 L48 35 L48 40 L38 55 L48 55 L48 62 L30 62 L30 56 L41 41 L32 41 Z"
-            fill="#FFFFFF"
+            fill="url(#zkAccentGradient)"
             filter="url(#glow)"
-            stroke="#FFFFFF"
-            strokeWidth="0.2"
+            stroke="#f59e0b"
+            strokeWidth="0.3"
           />
 
           {/* K */}
@@ -86,18 +84,24 @@ function ZKLogo({ className = '', size = 'md' }: ZKLogoProps) {
           />
         </g>
 
+        {/* Small accent dot - top */}
+        <circle cx="50" cy="22" r="2" fill="#f59e0b" fillOpacity="0.6" />
+        
+        {/* Small accent dot - bottom */}
+        <circle cx="50" cy="78" r="2" fill="#f59e0b" fillOpacity="0.6" />
+
         {/* Glass Reflection */}
         <path
           d="M50 2 A 48 48 0 0 1 85 20 Q 50 40 15 20 A 48 48 0 0 1 50 2"
           fill="white"
-          fillOpacity="0.2"
+          fillOpacity="0.15"
         />
 
       </svg>
 
       {/* Sparkle Animation Container */}
       <div className="absolute inset-0 overflow-hidden rounded-full pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-1 h-1 bg-white rounded-full animate-ping opacity-75 duration-[3000ms]"></div>
+        <div className="absolute top-1/4 left-1/4 w-1 h-1 bg-amber-400 rounded-full animate-ping opacity-75 duration-[3000ms]"></div>
         <div className="absolute bottom-1/4 right-1/4 w-1 h-1 bg-white rounded-full animate-ping opacity-75 delay-700 duration-[2000ms]"></div>
       </div>
     </div>

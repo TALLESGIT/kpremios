@@ -13,7 +13,7 @@ export default function ShopPage() {
         {/* Hero Section da Loja */}
         <section className="relative py-20 overflow-hidden">
           <div className="absolute inset-0 z-0">
-            <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px] animate-pulse"></div>
+            <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-amber-500/10 rounded-full blur-[120px] animate-pulse"></div>
             <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-emerald-600/5 rounded-full blur-[120px]"></div>
           </div>
 
@@ -23,12 +23,12 @@ export default function ShopPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-[0.3em] mb-6 italic">
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-[0.3em] mb-6 italic">
                 <Zap className="w-3 h-3" />
                 Vestiário Oficial ZK
               </span>
               <h1 className="text-5xl md:text-7xl lg:text-8xl font-black italic uppercase tracking-tighter mb-6">
-                LOJA <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-white to-blue-500">EXCLUSIVA</span>
+                LOJA <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-white to-amber-500">EXCLUSIVA</span>
               </h1>
               <p className="max-w-2xl mx-auto text-slate-400 text-lg md:text-xl font-medium mb-12">
                 Garanta os mantos mais insanos e coleções limitadas que você só encontra aqui na ZK Oficial.
@@ -41,7 +41,7 @@ export default function ShopPage() {
                   Compra 100% Segura
                 </div>
                 <div className="flex items-center gap-2">
-                  <ShoppingBag className="w-4 h-4 text-blue-500" />
+                  <ShoppingBag className="w-4 h-4 text-amber-500" />
                   Entrega em Todo Brasil
                 </div>
               </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart, Instagram, Youtube, MessageCircle, ShieldCheck, Mail } from 'lucide-react';
+import { Heart, Instagram, MessageCircle, ShieldCheck, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Footer: React.FC = () => {
@@ -7,15 +7,14 @@ const Footer: React.FC = () => {
 
   const socialLinks = [
     { id: 'instagram', icon: Instagram, url: 'https://www.instagram.com/itallozkoficial', color: 'hover:text-pink-500' },
-    { id: 'youtube', icon: Youtube, url: 'https://www.youtube.com/channel/UCyP-ZyjtM-I-J2mfI-utNtw', color: 'hover:text-red-500' },
     { id: 'whatsapp', icon: MessageCircle, url: 'https://wa.me/5531972393341', color: 'hover:text-emerald-500' },
   ];
 
   return (
-    <footer className="relative bg-[#030712]/80 backdrop-blur-2xl border-t border-white/5 pt-8 pb-8 mt-auto overflow-hidden">
+    <footer className="relative bg-[#030712]/80 backdrop-blur-2xl border-t border-amber-500/10 pt-8 pb-8 mt-auto overflow-hidden">
       {/* Decorative background elements */}
-      <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-600/5 rounded-full blur-[100px] -z-10" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-[120px] -z-10" />
+      <div className="absolute top-0 left-1/4 w-64 h-64 bg-amber-500/5 rounded-full blur-[100px] -z-10" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-slate-500/5 rounded-full blur-[120px] -z-10" />
 
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16">
@@ -23,12 +22,12 @@ const Footer: React.FC = () => {
           <div className="space-y-6">
             <Link to="/" className="inline-block group">
               <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none group-hover:scale-105 transition-transform">
-                ZK<span className="text-blue-500">.</span>OFICIAL
+                ZK<span className="text-amber-500">.</span>OFICIAL
               </h2>
-              <div className="h-1 w-12 bg-blue-600 rounded-full mt-2 group-hover:w-full transition-all duration-500" />
+              <div className="h-1 w-12 bg-amber-500 rounded-full mt-2 group-hover:w-full transition-all duration-500" />
             </Link>
-            <p className="text-blue-200/40 text-sm font-medium leading-relaxed max-w-xs">
-              O maior portal de entretenimento e sorteio de recompensas para a Nação Azul.
+            <p className="text-slate-400/60 text-sm font-medium leading-relaxed max-w-xs">
+              O maior portal de entretenimento e sorteio de recompensas para a torcida.
               Sintonize com a gente e concorra aos melhores prêmios.
             </p>
 
@@ -52,31 +51,31 @@ const Footer: React.FC = () => {
           <div className="grid grid-cols-2 gap-8 md:col-span-2">
             <div>
               <h3 className="text-white font-black text-[10px] uppercase tracking-[0.3em] mb-6 flex items-center gap-2">
-                <span className="w-4 h-[1px] bg-blue-500" />
+                <span className="w-4 h-[1px] bg-amber-500" />
                 Explorar
               </h3>
               <ul className="space-y-4">
                 <li>
-                  <Link to="/" className="text-blue-200/40 hover:text-white text-sm font-bold uppercase italic tracking-tight transition-colors flex items-center gap-2 group">
-                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <Link to="/" className="text-slate-400/60 hover:text-white text-sm font-bold uppercase italic tracking-tight transition-colors flex items-center gap-2 group">
+                    <span className="w-1.5 h-1.5 bg-amber-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
                     Home
                   </Link>
                 </li>
                 <li>
-                  <Link to="/menu" className="text-blue-200/40 hover:text-white text-sm font-bold uppercase italic tracking-tight transition-colors flex items-center gap-2 group">
-                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <Link to="/menu" className="text-slate-400/60 hover:text-white text-sm font-bold uppercase italic tracking-tight transition-colors flex items-center gap-2 group">
+                    <span className="w-1.5 h-1.5 bg-amber-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
                     Perfil
                   </Link>
                 </li>
                 <li>
-                  <Link to="/loja" className="text-blue-200/40 hover:text-white text-sm font-bold uppercase italic tracking-tight transition-colors flex items-center gap-2 group">
-                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <Link to="/loja" className="text-slate-400/60 hover:text-white text-sm font-bold uppercase italic tracking-tight transition-colors flex items-center gap-2 group">
+                    <span className="w-1.5 h-1.5 bg-amber-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
                     Loja
                   </Link>
                 </li>
                 <li>
-                  <Link to="/notifications" className="text-blue-200/40 hover:text-white text-sm font-bold uppercase italic tracking-tight transition-colors flex items-center gap-2 group">
-                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <Link to="/notifications" className="text-slate-400/60 hover:text-white text-sm font-bold uppercase italic tracking-tight transition-colors flex items-center gap-2 group">
+                    <span className="w-1.5 h-1.5 bg-amber-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
                     Alertas
                   </Link>
                 </li>
@@ -85,25 +84,25 @@ const Footer: React.FC = () => {
 
             <div>
               <h3 className="text-white font-black text-[10px] uppercase tracking-[0.3em] mb-6 flex items-center gap-2">
-                <span className="w-4 h-[1px] bg-blue-500" />
+                <span className="w-4 h-[1px] bg-amber-500" />
                 Suporte
               </h3>
               <ul className="space-y-4">
                 <li>
-                  <Link to="/termos" className="text-blue-200/40 hover:text-white text-sm font-bold uppercase italic tracking-tight transition-colors flex items-center gap-2 group">
-                    <ShieldCheck size={14} className="group-hover:text-blue-500" />
+                  <Link to="/termos" className="text-slate-400/60 hover:text-white text-sm font-bold uppercase italic tracking-tight transition-colors flex items-center gap-2 group">
+                    <ShieldCheck size={14} className="group-hover:text-amber-500" />
                     Termos de Uso
                   </Link>
                 </li>
                 <li>
-                  <a target="_blank" rel="noopener noreferrer" href="https://wa.me/5531972393341" className="text-blue-200/40 hover:text-white text-sm font-bold uppercase italic tracking-tight transition-colors flex items-center gap-2 group">
+                  <a target="_blank" rel="noopener noreferrer" href="https://wa.me/5531972393341" className="text-slate-400/60 hover:text-white text-sm font-bold uppercase italic tracking-tight transition-colors flex items-center gap-2 group">
                     <MessageCircle size={14} className="group-hover:text-emerald-500" />
                     WhatsApp VIP
                   </a>
                 </li>
                 <li>
-                  <a href="mailto:contato@zkoficial.com" className="text-blue-200/40 hover:text-white text-sm font-bold uppercase italic tracking-tight transition-colors flex items-center gap-2 group">
-                    <Mail size={14} className="group-hover:text-blue-300" />
+                  <a href="mailto:contato@zkoficial.com" className="text-slate-400/60 hover:text-white text-sm font-bold uppercase italic tracking-tight transition-colors flex items-center gap-2 group">
+                    <Mail size={14} className="group-hover:text-amber-400" />
                     E-mail
                   </a>
                 </li>
@@ -114,17 +113,17 @@ const Footer: React.FC = () => {
 
         {/* Bottom Bar */}
         <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row items-center justify-between gap-6">
-          <p className="text-blue-200/20 text-[10px] font-black uppercase tracking-[0.2em] text-center md:text-left">
+          <p className="text-slate-500/40 text-[10px] font-black uppercase tracking-[0.2em] text-center md:text-left">
             &copy; {year} ZK OFICIAL. TODOS OS DIREITOS RESERVADOS.
           </p>
 
-          <div className="flex items-center gap-1.5 text-blue-200/40 text-[10px] font-black uppercase tracking-widest">
+          <div className="flex items-center gap-1.5 text-slate-400/60 text-[10px] font-black uppercase tracking-widest">
             FEITO COM <Heart size={10} className="text-red-500 fill-red-500 animate-pulse" /> POR
             <a
               href="https://wa.me/5533999030124"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-white hover:text-blue-500 transition-colors"
+              className="text-white hover:text-amber-500 transition-colors"
             >
               TALES COELHO
             </a>

@@ -48,19 +48,19 @@ export default function AdminLoginPage() {
       <main className="flex-grow flex items-center justify-center pt-32 md:pt-40 pb-12 px-4 sm:px-6 relative overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 pointer-events-none"></div>
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-dark via-background to-black opacity-90"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-black opacity-90"></div>
 
         <div className="max-w-md w-full relative z-10">
           <div className="glass-panel rounded-3xl shadow-2xl overflow-hidden border border-white/10">
-            <div className="bg-primary/20 p-8 text-center border-b border-white/5 relative">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent to-transparent"></div>
+            <div className="bg-slate-900/60 p-8 text-center border-b border-white/5 relative">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent"></div>
               <div className="flex justify-center mb-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/10">
-                  <ShieldCheck className="w-8 h-8 text-accent" />
+                <div className="w-16 h-16 bg-gradient-to-br from-white/5 to-white/0 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/10">
+                  <ShieldCheck className="w-8 h-8 text-amber-500" />
                 </div>
               </div>
               <h2 className="text-2xl font-black text-white uppercase tracking-tight">Área Administrativa</h2>
-              <p className="text-blue-200 text-sm mt-1">Acesso restrito a gerenciadores</p>
+              <p className="text-slate-400 text-sm mt-1">Acesso restrito a gerenciadores</p>
             </div>
 
             <div className="p-8 bg-black/20 backdrop-blur-md">
@@ -75,7 +75,7 @@ export default function AdminLoginPage() {
 
               <form className="space-y-6" onSubmit={handleSubmit}>
                 <div>
-                  <label htmlFor="email" className="block text-xs font-bold text-blue-200 uppercase tracking-wider mb-2 pl-1">
+                  <label htmlFor="email" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 pl-1">
                     Email de Acesso
                   </label>
                   <input
@@ -91,7 +91,7 @@ export default function AdminLoginPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="password" className="block text-xs font-bold text-blue-200 uppercase tracking-wider mb-2 pl-1">
+                  <label htmlFor="password" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 pl-1">
                     Senha
                   </label>
                   <div className="relative">
@@ -120,11 +120,11 @@ export default function AdminLoginPage() {
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="btn btn-primary w-full py-4 rounded-xl flex items-center justify-center gap-2 group shadow-lg shadow-blue-900/20"
-                >
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-black py-4 rounded-xl flex items-center justify-center gap-2 group shadow-lg shadow-amber-900/20 active:scale-95 transition-all"
+                  >
                   <span className="absolute left-0 inset-y-0 flex items-center pl-3">
                     <LogIn className="h-5 w-5 text-primary-dark group-hover:text-primary transition-colors" />
                   </span>

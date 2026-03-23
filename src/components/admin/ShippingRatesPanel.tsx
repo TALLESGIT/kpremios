@@ -179,8 +179,8 @@ export function ShippingRatesPanel() {
       {/* Header Section */}
       <div className="flex flex-col xl:flex-row gap-6 items-start xl:items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-700 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/10 border border-blue-400/20">
-            <Truck className="w-7 h-7 text-white" />
+          <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-amber-700 rounded-2xl flex items-center justify-center shadow-xl shadow-amber-500/10 border border-amber-400/20">
+            <Truck className="w-7 h-7 text-black" />
           </div>
           <div>
             <h3 className="text-2xl font-black text-white italic uppercase tracking-tight">
@@ -198,7 +198,7 @@ export function ShippingRatesPanel() {
               placeholder="Buscar estado..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-slate-900/50 border border-white/5 rounded-2xl text-white text-sm focus:border-blue-500/50 outline-none transition-all placeholder:text-slate-600"
+              className="w-full pl-11 pr-4 py-3 bg-slate-900/50 border border-white/5 rounded-2xl text-white text-sm focus:border-amber-500/50 outline-none transition-all placeholder:text-slate-600"
             />
           </div>
 
@@ -215,7 +215,7 @@ export function ShippingRatesPanel() {
 
           <button
             onClick={() => setShowReferences(!showReferences)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${showReferences ? 'bg-blue-600/20 border-blue-500/50 text-blue-400' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${showReferences ? 'bg-amber-600/20 border-amber-500/50 text-amber-400' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
           >
             <Zap className="w-4 h-4" />
             Sugestões
@@ -240,14 +240,14 @@ export function ShippingRatesPanel() {
             exit={{ opacity: 0, height: 0, scale: 0.95 }}
             className="overflow-hidden"
           >
-            <div className="bg-gradient-to-br from-blue-600/10 to-indigo-600/5 border border-blue-500/20 rounded-[2.5rem] p-8 relative group">
+            <div className="bg-gradient-to-br from-amber-600/10 to-amber-600/5 border border-amber-500/20 rounded-[2.5rem] p-8 relative group">
               <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Globe className="w-32 h-32 text-blue-500" />
+                <Globe className="w-32 h-32 text-amber-500" />
               </div>
 
               <div className="flex items-center gap-4 mb-8">
-                <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-                  <Zap className="w-6 h-6 text-white" />
+                <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/20">
+                  <Zap className="w-6 h-6 text-black" />
                 </div>
                 <div>
                   <h4 className="text-white font-black uppercase italic tracking-tight text-lg">Valores de Mercado Sugeridos</h4>
@@ -257,10 +257,10 @@ export function ShippingRatesPanel() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 {Object.entries(REGIONAL_REFERENCES).map(([region, info]) => (
-                  <div key={region} className="bg-slate-900/60 p-5 rounded-2xl border border-white/10 hover:border-blue-500/30 transition-all">
+                  <div key={region} className="bg-slate-900/60 p-5 rounded-2xl border border-white/10 hover:border-amber-500/30 transition-all">
                     <div className="flex items-center justify-between mb-3">
-                      <p className="text-blue-400 text-[10px] font-black uppercase tracking-widest">{region}</p>
-                      <MapPin className="w-3 h-3 text-blue-500/50" />
+                      <p className="text-amber-400 text-[10px] font-black uppercase tracking-widest">{region}</p>
+                      <MapPin className="w-3 h-3 text-amber-500/50" />
                     </div>
                     
                     <div className="space-y-1 mb-4">
@@ -277,7 +277,7 @@ export function ShippingRatesPanel() {
                     <button
                       onClick={() => handleBulkApply(region)}
                       disabled={isBulkSaving}
-                      className="w-full flex items-center justify-center gap-2 py-2 bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+                      className="w-full flex items-center justify-center gap-2 py-2 bg-amber-600/10 hover:bg-amber-600 text-amber-400 hover:text-black rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
                     >
                       {isBulkSaving ? <Loader2 className="w-3 h-3 animate-spin"/> : 'Aplicar Tudo'}
                     </button>
@@ -300,7 +300,7 @@ export function ShippingRatesPanel() {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-32 gap-6 bg-slate-900/30 rounded-[3rem] border border-white/5">
           <div className="relative">
-            <Loader2 className="w-16 h-16 text-blue-500 animate-spin" />
+            <Loader2 className="w-16 h-16 text-amber-500 animate-spin" />
             <Truck className="w-6 h-6 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
           </div>
           <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">Sincronizando tabelas com o banco de dados...</p>
@@ -341,7 +341,7 @@ export function ShippingRatesPanel() {
                       {state.code}
                     </div>
                     <div>
-                      <h4 className="text-lg font-black text-white italic uppercase tracking-tight group-hover:text-blue-400 transition-colors">
+                      <h4 className="text-lg font-black text-white italic uppercase tracking-tight group-hover:text-amber-400 transition-colors">
                         {state.name}
                       </h4>
                       <div className="flex items-center gap-2">
@@ -354,7 +354,7 @@ export function ShippingRatesPanel() {
 
                   <div className="grid grid-cols-2 gap-5 mb-8">
                     <div className="space-y-2.5">
-                      <label className="text-[9px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-1.5 ml-1">
+                      <label className="text-[9px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1.5 ml-1">
                         Taxa Base
                         <Info className="w-3 h-3 text-slate-600" />
                       </label>
@@ -366,13 +366,13 @@ export function ShippingRatesPanel() {
                           value={currentRate?.base_cost ?? ''}
                           placeholder="0,00"
                           onChange={(e) => handleInputChange(state.code, 'base_cost', e.target.value)}
-                          className="w-full pl-10 pr-4 py-4 bg-black/60 border border-white/5 rounded-2xl text-white text-sm font-bold focus:border-blue-500/50 outline-none transition-all group-hover/input:border-white/10"
+                          className="w-full pl-10 pr-4 py-4 bg-black/60 border border-white/5 rounded-2xl text-white text-sm font-bold focus:border-amber-500/50 outline-none transition-all group-hover/input:border-white/10"
                         />
                       </div>
                     </div>
                     
                     <div className="space-y-2.5">
-                      <label className="text-[9px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-1.5 ml-1">
+                      <label className="text-[9px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1.5 ml-1">
                         Estimativa
                         <Info className="w-3 h-3 text-slate-600" />
                       </label>
@@ -382,7 +382,7 @@ export function ShippingRatesPanel() {
                           value={currentRate?.estimated_days ?? ''}
                           placeholder="D"
                           onChange={(e) => handleInputChange(state.code, 'estimated_days', e.target.value)}
-                          className="w-full px-4 py-4 bg-black/60 border border-white/5 rounded-2xl text-white text-sm font-bold focus:border-blue-500/50 outline-none transition-all group-hover/input:border-white/10 text-center"
+                          className="w-full px-4 py-4 bg-black/60 border border-white/5 rounded-2xl text-white text-sm font-bold focus:border-amber-500/50 outline-none transition-all group-hover/input:border-white/10 text-center"
                         />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 text-[10px] font-black uppercase">Dias</span>
                       </div>
@@ -392,7 +392,7 @@ export function ShippingRatesPanel() {
                   <button
                     onClick={() => handleUpdateRate(state.code)}
                     disabled={isSaving === state.code}
-                    className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-50 shadow-lg ${isConfigured ? 'bg-white/5 hover:bg-emerald-600 text-white hover:shadow-emerald-600/20' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/20'}`}
+                    className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-50 shadow-lg ${isConfigured ? 'bg-white/5 hover:bg-emerald-600 text-white hover:shadow-emerald-600/20' : 'bg-amber-600 hover:bg-amber-500 text-black shadow-amber-600/20'}`}
                   >
                     {isSaving === state.code ? (
                       <Loader2 className="w-4 h-4 animate-spin" />

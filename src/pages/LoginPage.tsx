@@ -189,7 +189,7 @@ const LoginPage: React.FC = () => {
       <main className="w-full flex-grow flex flex-col items-center justify-center py-12 px-4 sm:px-6 relative min-h-[100dvh]">
         {/* Background Pattern */}
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 pointer-events-none"></div>
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-dark via-background to-black opacity-90"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-black opacity-90"></div>
 
         <div className="w-full max-w-md mx-auto relative z-10">
           <div className="relative bg-black/40 backdrop-blur-2xl rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10 ring-1 ring-white/5">
@@ -197,13 +197,13 @@ const LoginPage: React.FC = () => {
             <div className="absolute inset-0 rounded-3xl shadow-[inset_0_0_20px_rgba(255,255,255,0.02)] pointer-events-none"></div>
 
             {/* Header Area */}
-            <div className="relative bg-primary/20 p-8 text-center border-b border-white/5">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent to-transparent opacity-50"></div>
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 rounded-2xl mb-4 backdrop-blur-md border border-white/20 shadow-lg group">
+            <div className="relative bg-slate-900/60 p-8 text-center border-b border-white/5">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent opacity-50"></div>
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-white/5 rounded-2xl mb-4 backdrop-blur-md border border-white/10 shadow-lg group">
                 <span className="text-3xl font-black text-white group-hover:scale-110 transition-transform">ZK</span>
               </div>
               <h1 className="text-2xl font-black text-white tracking-tight">Bem-vindo de volta!</h1>
-              <p className="text-blue-200 text-sm mt-1">Acesse sua conta para participar</p>
+              <p className="text-slate-400 text-sm mt-1">Acesse sua conta para participar</p>
             </div>
 
             {/* Form Area */}
@@ -217,7 +217,7 @@ const LoginPage: React.FC = () => {
                 )}
 
                 <div>
-                  <label htmlFor="email" className="block text-xs font-bold text-blue-200 uppercase tracking-widest mb-2">
+                  <label htmlFor="email" className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                     Email
                   </label>
                   <div className="relative group">
@@ -238,7 +238,7 @@ const LoginPage: React.FC = () => {
 
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <label htmlFor="password" className="block text-xs font-bold text-blue-200 uppercase tracking-widest">
+                    <label htmlFor="password" className="block text-xs font-bold text-slate-400 uppercase tracking-widest">
                       Senha
                     </label>
                     <button
@@ -381,11 +381,11 @@ const LoginPage: React.FC = () => {
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               className="relative w-full max-w-md bg-slate-900 border border-white/10 p-8 rounded-[2.5rem] shadow-2xl text-center"
             >
-              <div className="w-20 h-20 bg-accent/20 rounded-3xl flex items-center justify-center text-accent mb-6 mx-auto">
+              <div className="w-20 h-20 bg-amber-500/20 rounded-3xl flex items-center justify-center text-amber-500 mb-6 mx-auto">
                 <Fingerprint className="w-10 h-10" />
               </div>
               <h2 className="text-2xl font-black text-white mb-2 uppercase italic">Ativar Biometria?</h2>
-              <p className="text-blue-200/60 mb-8">
+              <p className="text-slate-400 mb-8">
                 Deseja usar sua digital ou reconhecimento facial para entrar mais rápido nas próximas vezes?
               </p>
               <div className="flex flex-col gap-3">

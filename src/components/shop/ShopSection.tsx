@@ -84,7 +84,7 @@ export function ShopSection() {
     <section id="shop" className="py-24 relative overflow-hidden bg-[#030712]">
       {/* Background Decorativo */}
       <div className="absolute top-0 left-0 w-full h-full">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-amber-600/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-emerald-600/5 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2" />
       </div>
 
@@ -95,17 +95,17 @@ export function ShopSection() {
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20"
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20"
             >
-              <Zap className="w-4 h-4 text-blue-400" />
-              <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest italic">Loja Oficial ZK</span>
+              <Zap className="w-4 h-4 text-amber-400" />
+              <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest italic">Loja Oficial ZK</span>
             </motion.div>
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               className="text-4xl md:text-5xl font-black text-white italic uppercase tracking-tighter"
             >
-              VISTA A <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-emerald-400">ARMADURA</span>
+              VISTA A <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-emerald-400">ARMADURA</span>
             </motion.h2>
           </div>
 
@@ -118,11 +118,11 @@ export function ShopSection() {
                   onClick={() => setActiveCategory(cat.id)}
                   className={`flex items-center gap-2.5 px-6 py-3 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all border shrink-0 outline-none ${
                     activeCategory === cat.id
-                      ? 'bg-blue-600 border-blue-400 text-white shadow-xl shadow-blue-600/30'
+                      ? 'bg-amber-600 border-amber-400 text-white shadow-xl shadow-amber-600/30'
                       : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:border-white/20'
                   }`}
                 >
-                  <cat.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${activeCategory === cat.id ? 'text-white' : 'text-blue-500'}`} />
+                  <cat.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${activeCategory === cat.id ? 'text-white' : 'text-amber-500'}`} />
                   <span>{cat.label}</span>
                 </button>
               ))}
@@ -155,7 +155,7 @@ export function ShopSection() {
         {/* Grade de Produtos */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+            <Loader2 className="w-10 h-10 text-amber-500 animate-spin" />
             <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Carregando armadura...</p>
           </div>
         ) : filteredProducts.length > 0 ? (
@@ -180,7 +180,7 @@ export function ShopSection() {
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
-          className="mt-20 p-8 md:p-12 rounded-[2.5rem] bg-gradient-to-br from-blue-600 to-indigo-900 overflow-hidden relative group"
+          className="mt-20 p-8 md:p-12 rounded-[2.5rem] bg-gradient-to-br from-amber-600 to-slate-800 overflow-hidden relative group"
         >
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20" />
           <div className="absolute right-0 top-0 w-1/3 h-full bg-gradient-to-l from-white/10 to-transparent skew-x-12 translate-x-1/2 group-hover:translate-x-1/3 transition-transform duration-700" />
@@ -190,11 +190,11 @@ export function ShopSection() {
               <h3 className="text-3xl md:text-4xl font-black text-white italic uppercase tracking-tighter mb-4">
                 SEJA UM MEMBRO <span className="text-amber-400">ZK GOLD</span>
               </h3>
-              <p className="text-blue-100 text-sm md:text-base font-medium max-w-xl">
+              <p className="text-amber-100 text-sm md:text-base font-medium max-w-xl">
                 Ganhe frete grátis em todos os produtos da loja, descontos exclusivos de 20% e acesso antecipado aos novos mantos.
               </p>
             </div>
-            <button className="px-8 py-4 bg-white text-blue-900 rounded-2xl font-black uppercase tracking-widest text-sm hover:scale-105 active:scale-95 transition-all flex items-center gap-3">
+            <button className="px-8 py-4 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest text-sm hover:scale-105 active:scale-95 transition-all flex items-center gap-3">
               SAIBER MAIS
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -252,7 +252,7 @@ export function ShopSection() {
                             key={idx}
                             onClick={() => setCurrentImageIndex(idx)}
                             className={`w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 border-2 transition-all snap-center ${
-                              currentImageIndex === idx ? 'border-blue-500 bg-blue-500/20 scale-105' : 'border-white/5 bg-white/5 hover:border-white/20'
+                              currentImageIndex === idx ? 'border-amber-500 bg-amber-500/20 scale-105' : 'border-white/5 bg-white/5 hover:border-white/20'
                             }`}
                           >
                             <img src={img} className="w-full h-full object-cover" />
@@ -266,7 +266,7 @@ export function ShopSection() {
                   <div className="p-6 sm:p-12 flex flex-col justify-between">
                     <div>
                       <div className="flex items-center gap-3 mb-4">
-                        <span className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest italic">
+                        <span className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest italic">
                           {selectedProduct.brand}
                         </span>
                         <div className="flex items-center gap-1">
@@ -296,7 +296,7 @@ export function ShopSection() {
                         {/* Seleção de Tamanhos no Modal */}
                         {selectedProduct.available_sizes && selectedProduct.available_sizes.length > 0 && (
                           <div className="space-y-4">
-                            <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
+                            <label className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-2">
                               Selecione o Tamanho
                               {selectedProduct.target_audience && (
                                 <span className="text-slate-600 font-bold">• {selectedProduct.target_audience}</span>
@@ -309,7 +309,7 @@ export function ShopSection() {
                                   onClick={() => setSelectedSize(size)}
                                   className={`min-w-[3rem] h-12 flex items-center justify-center rounded-xl text-xs font-black transition-all border ${
                                     selectedSize === size
-                                      ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-600/20'
+                                      ? 'bg-amber-600 border-amber-400 text-white shadow-lg shadow-amber-600/20'
                                       : 'bg-white/5 border-white/10 text-slate-400 hover:border-white/30'
                                   }`}
                                 >
@@ -321,7 +321,7 @@ export function ShopSection() {
                         )}
 
                         {(!selectedProduct.gallery_urls || selectedProduct.gallery_urls.length === 0) && (
-                          <div className="flex items-center gap-2 text-blue-400/50">
+                          <div className="flex items-center gap-2 text-amber-400/50">
                             <Plus className="w-4 h-4" />
                             <span className="text-[10px] font-black uppercase tracking-widest">Mais fotos detalhadas em breve</span>
                           </div>
@@ -333,7 +333,7 @@ export function ShopSection() {
                       <button
                         onClick={handleBuyFromModal}
                         disabled={selectedProduct.is_coming_soon}
-                        className={`w-full ${selectedProduct.is_coming_soon ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/20 shadow-xl'} h-16 rounded-2xl text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition-all group`}
+                        className={`w-full ${selectedProduct.is_coming_soon ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/20 shadow-xl'} h-16 rounded-2xl text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition-all group`}
                       >
                         {!selectedProduct.is_coming_soon && <ShoppingCart className="w-6 h-6 group-hover:scale-110 transition-transform" />}
                         {selectedProduct.is_coming_soon ? 'LANÇAMENTO EM BREVE' : 'GARANTIR AGORA'}

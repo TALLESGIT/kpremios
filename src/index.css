@@ -61,6 +61,22 @@
     animation: pulse-subtle 3s ease-in-out infinite;
   }
 
+  @keyframes flash-red {
+    0%, 100% { border-color: rgba(220, 38, 38, 1); box-shadow: 0 0 20px rgba(220, 38, 38, 0.4); }
+    50% { border-color: rgba(220, 38, 38, 0.2); box-shadow: 0 0 0px rgba(220, 38, 38, 0); }
+  }
+  .animate-flash-red {
+    animation: flash-red 1s infinite;
+  }
+
+  @keyframes pulse-slow {
+    0%, 100% { opacity: 0.1; }
+    50% { opacity: 0.3; }
+  }
+  .animate-pulse-slow {
+    animation: pulse-slow 3s ease-in-out infinite;
+  }
+
   /* Esconder barras de rolagem globalmente */
   * {
     scrollbar-width: none;

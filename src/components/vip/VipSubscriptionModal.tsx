@@ -217,9 +217,9 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4">
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-purple-500/30 shadow-2xl max-w-[90vw] sm:max-w-sm w-full overflow-hidden max-h-[95vh] overflow-y-auto">
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl sm:rounded-2xl border-2 border-amber-500/30 shadow-2xl max-w-[90vw] sm:max-w-sm w-full overflow-hidden max-h-[95vh] overflow-y-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-amber-600 to-amber-700 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Crown className="w-6 h-6 text-yellow-300" />
             <h2 className="text-xl font-black text-white uppercase">Assinar VIP</h2>
@@ -238,7 +238,7 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
             <>
               {/* Price */}
               <div className="text-center">
-                <div className="text-4xl font-black text-purple-400 mb-2">
+                <div className="text-4xl font-black text-amber-400 mb-2">
                   R$ {monthlyPrice.toFixed(2).replace('.', ',')}
                 </div>
                 <p className="text-sm text-slate-400 font-bold">por mês</p>
@@ -246,7 +246,7 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
 
               {/* Benefits */}
               <div className="space-y-3">
-                <h3 className="text-sm font-black text-purple-300 uppercase mb-3">
+                <h3 className="text-sm font-black text-amber-300 uppercase mb-3">
                   Benefícios VIP:
                 </h3>
                 <div className="space-y-2">
@@ -260,7 +260,7 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
               </div>
 
               {/* Payment Info */}
-              <div className="bg-slate-700/50 rounded-xl p-4 border border-purple-500/20">
+              <div className="bg-slate-700/50 rounded-xl p-4 border border-amber-500/20">
                 <p className="text-xs text-slate-400 text-center">
                   💳 Pagamento seguro via Mercado Pago
                   <br />
@@ -273,7 +273,7 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
                 <button
                   onClick={handleSubscribe}
                   disabled={loading}
-                  className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-black rounded-xl uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-600/20"
+                  className="w-full px-6 py-4 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-black rounded-xl uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-amber-600/20"
                 >
                   {loading ? (
                     <>
@@ -312,8 +312,8 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
                 )}
                 
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <QrCode className="w-5 h-5 text-purple-400" />
-                  <h3 className="text-base font-black text-purple-300 uppercase">
+                  <QrCode className="w-5 h-5 text-amber-400" />
+                  <h3 className="text-base font-black text-amber-300 uppercase">
                     Pagamento PIX
                   </h3>
                 </div>
@@ -332,7 +332,7 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
                 {/* PIX Code Copy */}
                 {pixCode && (
                   <div className="space-y-2">
-                    <label className="block text-xs font-black text-purple-300 uppercase">
+                    <label className="block text-xs font-black text-amber-300 uppercase">
                       Código PIX (Copiar e Colar)
                     </label>
                     <div className="flex gap-2">
@@ -340,11 +340,11 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
                         type="text"
                         value={pixCode}
                         readOnly
-                        className="flex-1 px-3 py-2 bg-slate-800 border border-purple-500/30 rounded-lg text-white text-xs font-mono break-all"
+                        className="flex-1 px-3 py-2 bg-slate-800 border border-amber-500/30 rounded-lg text-white text-xs font-mono break-all"
                       />
                       <button
                         onClick={copyPixCode}
-                        className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-all flex items-center"
+                        className="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-all flex items-center"
                         title="Copiar código PIX"
                       >
                         <Copy className="w-4 h-4" />
@@ -354,7 +354,7 @@ const VipSubscriptionModal: React.FC<VipSubscriptionModalProps> = ({
                 )}
 
                 {/* Payment Info */}
-                <div className="bg-slate-700/50 rounded-lg p-3 border border-purple-500/20">
+                <div className="bg-slate-700/50 rounded-lg p-3 border border-amber-500/20">
                   <p className="text-xs text-slate-400 text-center">
                     📱 Escaneie o QR Code ou copie o código PIX
                     <br />

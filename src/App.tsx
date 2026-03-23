@@ -20,6 +20,8 @@ import AdminLiveControlPage from './pages/AdminLiveControlPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminLiveStreamPage from './pages/AdminLiveStreamPage';
 import AdminZkTVPage from './pages/admin/AdminZkTVPage';
+import AdminStorePage from './pages/admin/AdminStorePage';
+import AdminShippingPage from './pages/admin/AdminShippingPage';
 import { useParams } from 'react-router-dom';
 
 // Novas páginas de autenticação e sorteio ao vivo
@@ -201,6 +203,8 @@ function AppContentInner() {
           <Route path="/admin/live-games/:gameId/control" element={<ProtectedRoute><AdminLiveControlPage /></ProtectedRoute>} />
           <Route path="/admin/live-stream" element={<ProtectedRoute><AdminLiveStreamPage /></ProtectedRoute>} />
           <Route path="/admin/zk-tv" element={<ProtectedRoute><AdminZkTVPage /></ProtectedRoute>} />
+          <Route path="/admin/store" element={<ProtectedRoute><AdminStorePage /></ProtectedRoute>} />
+          <Route path="/admin/shipping" element={<ProtectedRoute><AdminShippingPage /></ProtectedRoute>} />
           <Route path="/admin/banners" element={<ProtectedRoute><AdminBannersPage /></ProtectedRoute>} />
           <Route path="/admin/spotify" element={<ProtectedRoute><AdminSpotifyPage /></ProtectedRoute>} />
           <Route path="/admin/clips" element={<ProtectedRoute><AdminClipsPage /></ProtectedRoute>} />

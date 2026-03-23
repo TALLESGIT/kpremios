@@ -83,7 +83,7 @@ const NextMatchSkeleton = () => (
             </div>
             <div className="flex flex-col items-center">
                 <div className="w-8 h-4 bg-white/5 rounded mb-1" />
-                <div className="h-1 w-8 bg-indigo-500/10 rounded-full" />
+                <div className="h-1 w-8 bg-amber-500/10 rounded-full" />
             </div>
             <div className="flex flex-col items-center flex-1">
                 <div className="w-16 h-16 bg-white/5 rounded-2xl mb-3" />
@@ -111,7 +111,7 @@ const LiveTimeline: React.FC<{ events: any[] }> = ({ events }) => {
     return (
         <div className="space-y-3 mt-6 animate-in fade-in slide-in-from-bottom duration-500">
             <h4 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                <Zap className="w-3 h-3 text-indigo-400" />
+                <Zap className="w-3 h-3 text-amber-400" />
                 Destaques da Partida
             </h4>
             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
@@ -123,7 +123,7 @@ const LiveTimeline: React.FC<{ events: any[] }> = ({ events }) => {
                         key={event.id || idx}
                         className="flex items-center gap-3 p-3 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-colors group"
                     >
-                        <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-[10px] font-black text-indigo-400 shrink-0 border border-white/10 group-hover:border-indigo-500/30 transition-colors">
+                        <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-[10px] font-black text-amber-400 shrink-0 border border-white/10 group-hover:border-amber-500/30 transition-colors">
                             {event.elapsed}'
                         </div>
                         <div className="flex-1 min-w-0">
@@ -1426,7 +1426,7 @@ const ZkTVPage: React.FC = () => {
             if (isZkTVDebug()) console.log('⚽ ZkTV: Sincronizando eventos do jogo via Edge Function...', fixtureId);
             
             const { data, error } = await supabase.functions.invoke('sync-match-events', {
-                body: { fixtureId }
+                body: { fixture_id: fixtureId }
             });
 
             if (error) throw error;
@@ -1528,7 +1528,7 @@ const ZkTVPage: React.FC = () => {
         const comp = competition.toLowerCase();
         if (!comp.includes('série a') && !comp.includes('brasileirão') && !comp.includes('brasileiro')) return '';
 
-        if (position <= 4) return 'bg-blue-600'; // Libertadores
+        if (position <= 4) return 'bg-amber-600'; // Libertadores
         if (position <= 6) return 'bg-cyan-500'; // Pré-Libertadores
         if (position >= 7 && position <= 12) return 'bg-amber-500'; // Sul-Americana
         if (position >= 17) return 'bg-rose-600'; // Rebaixamento
@@ -1578,7 +1578,7 @@ const ZkTVPage: React.FC = () => {
                                                 size="sm"
                                             />
                                         </div>
-                                        <span className={`font-bold text-sm sm:text-base ${team.is_primary_team ? 'text-indigo-400' : 'text-white'}`}>
+                                        <span className={`font-bold text-sm sm:text-base ${team.is_primary_team ? 'text-amber-400' : 'text-white'}`}>
                                             {team.team}
                                         </span>
                                     </div>
@@ -1628,11 +1628,11 @@ const ZkTVPage: React.FC = () => {
                                     />
                                 </div>
                                 <div className="ml-1">
-                                    <h4 className={`font-black text-base leading-tight ${team.is_primary_team ? 'text-indigo-400' : 'text-white'}`}>
+                                    <h4 className={`font-black text-base leading-tight ${team.is_primary_team ? 'text-amber-400' : 'text-white'}`}>
                                         {team.team}
                                     </h4>
                                     <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{team.points} PTS</span>
+                                        <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">{team.points} PTS</span>
                                         <div className="w-1 h-1 rounded-full bg-white/20" />
                                         <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{team.played} JOGOS</span>
                                     </div>
@@ -1739,7 +1739,7 @@ const ZkTVPage: React.FC = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 className="flex flex-wrap items-center justify-center gap-3 mb-6"
                             >
-                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-indigo-400 text-sm font-bold">
+                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-indigo-500/20 rounded-full text-amber-400 text-sm font-bold">
                                     <Tv className="w-4 h-4" />
                                     ZK TV
                                 </div>
@@ -1799,12 +1799,12 @@ const ZkTVPage: React.FC = () => {
                                 {isLiveActive ? (
                                     <>
                                         {(activeStream?.title || 'Ao Vivo').split(' x ')[0]}
-                                        <span className="text-indigo-500">
+                                        <span className="text-amber-500">
                                             {activeStream?.title?.includes(' x ') ? ` x ${activeStream.title.split(' x ')[1]}` : ''}
                                         </span>
                                     </>
                                 ) : (
-                                    <>ZK <span className="text-indigo-500">TV</span></>
+                                    <>ZK <span className="text-amber-500">TV</span></>
                                 )}
                             </motion.h1>
 
@@ -1948,7 +1948,7 @@ const ZkTVPage: React.FC = () => {
                                                     <span className={`px-2 sm:px-3 py-1 rounded-full font-black uppercase tracking-widest text-[9px] sm:text-[10px] ${
                                                         isLiveActive 
                                                         ? "bg-red-500/20 border border-red-500/30 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)] animate-pulse" 
-                                                        : "bg-blue-500/10 border border-blue-500/20 text-blue-400"
+                                                        : "bg-amber-500/10 border border-amber-500/20 text-amber-400"
                                                     }`}>
                                                         {isLiveActive ? "Partida Ao Vivo" : "Próximo Jogo"}
                                                     </span>
@@ -1969,7 +1969,7 @@ const ZkTVPage: React.FC = () => {
 
                                                     <div className="flex flex-col items-center flex-shrink-0">
                                                         <div className="text-lg sm:text-xl lg:text-2xl font-black italic text-white/10 uppercase mb-1">VS</div>
-                                                        <div className="h-1 w-6 sm:w-8 bg-blue-500/20 rounded-full" />
+                                                        <div className="h-1 w-6 sm:w-8 bg-amber-500/20 rounded-full" />
                                                     </div>
 
                                                     <div className="flex flex-col items-center flex-1 min-w-0">
@@ -1985,11 +1985,11 @@ const ZkTVPage: React.FC = () => {
                                                 </div>
 
                                                 <div className="pt-3 sm:pt-4 lg:pt-6 border-t border-white/5 flex items-center justify-center gap-4 sm:gap-6 lg:gap-8 pb-2">
-                                                    <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-black text-blue-300">
+                                                    <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-black text-amber-300">
                                                         <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                                                         <span>{new Date(displayGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
                                                     </div>
-                                                    <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-black text-blue-300">
+                                                    <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-black text-amber-300">
                                                         <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                                                         <span>{new Date(displayGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h</span>
                                                     </div>
@@ -2008,7 +2008,7 @@ const ZkTVPage: React.FC = () => {
                                                 <p className="text-slate-400 text-sm mb-6">Obrigado por nos acompanhar! Fique ligado nas próximas lives.</p>
                                                 <button
                                                     onClick={() => window.location.reload()}
-                                                    className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all text-sm"
+                                                    className="px-6 py-2 bg-amber-500 hover:bg-amber-400 text-white font-bold rounded-xl transition-all text-sm"
                                                 >
                                                     🔄 Recarregar
                                                 </button>
@@ -2289,10 +2289,10 @@ const ZkTVPage: React.FC = () => {
                             {/* Next Match Card - Escondido no mobile */}
                             <div className="hidden md:block bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-4 sm:p-6 lg:p-8 rounded-[2rem] relative overflow-visible group pb-6 sm:pb-8">
                                 <div className="absolute top-0 right-0 p-4 sm:p-6 lg:p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
-                                    <Shield className="w-24 sm:w-32 h-24 sm:h-32 text-blue-500" />
+                                    <Shield className="w-24 sm:w-32 h-24 sm:h-32 text-amber-500" />
                                 </div>
 
-                                <h3 className={`text-xs sm:text-sm font-bold uppercase tracking-widest mb-3 sm:mb-4 lg:mb-6 ${isLiveActive ? 'text-red-500 animate-pulse' : 'text-blue-500'}`}>
+                                <h3 className={`text-xs sm:text-sm font-bold uppercase tracking-widest mb-3 sm:mb-4 lg:mb-6 ${isLiveActive ? 'text-red-500 animate-pulse' : 'text-amber-500'}`}>
                                     {isLiveActive ? 'Partida Ao Vivo' : 'Próximo Jogo'}
                                 </h3>
 
@@ -2302,7 +2302,7 @@ const ZkTVPage: React.FC = () => {
                                             <div className="text-center flex-1 min-w-0">
                                                 <div className={`w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-2 sm:mb-3 shadow-lg font-black text-white text-xs sm:text-sm lg:text-base ${
                                                     userClub === 'cruzeiro' 
-                                                    ? 'bg-blue-600 shadow-blue-600/20' 
+                                                    ? 'bg-amber-500 shadow-amber-500/20' 
                                                     : 'bg-slate-900 border border-slate-700 shadow-none'
                                                 }`}>
                                                     {clubInfo?.name?.substring(0, 3).toUpperCase() || (userClub === 'cruzeiro' ? "CRU" : "CAM")}
@@ -2320,15 +2320,15 @@ const ZkTVPage: React.FC = () => {
 
                                         <div className="space-y-2 sm:space-y-3 pt-3 sm:pt-4 lg:pt-6 border-t border-slate-800/50 pb-2">
                                             <div className="flex items-center gap-2 sm:gap-3 text-slate-300">
-                                                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
+                                                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-amber-500 flex-shrink-0" />
                                                 <span className="text-xs sm:text-sm break-words">{new Date(displayGame.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
                                             </div>
                                             <div className="flex items-center gap-2 sm:gap-3 text-slate-300">
-                                                <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
+                                                <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-amber-500 flex-shrink-0" />
                                                 <span className="text-xs sm:text-sm">{new Date(displayGame.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h</span>
                                             </div>
                                             <div className="flex items-center gap-2 sm:gap-3 text-slate-300">
-                                                <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
+                                                <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-amber-500 flex-shrink-0" />
                                                 <span className="text-xs sm:text-sm break-words">{displayGame.venue}</span>
                                             </div>
                                         </div>
@@ -2341,10 +2341,10 @@ const ZkTVPage: React.FC = () => {
                             </div>
 
                             {/* Quick Stats */}
-                            <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-4 sm:p-6 lg:p-8 rounded-[2rem] shadow-xl shadow-blue-600/10">
+                            <div className="bg-gradient-to-br from-slate-700 to-slate-800 p-4 sm:p-6 lg:p-8 rounded-[2rem] shadow-xl shadow-slate-700/10">
                                 <div className="flex items-center justify-between mb-4 sm:mb-6 lg:mb-8">
                                     <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-widest">Estatísticas Rápidas</h3>
-                                    <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-blue-200" />
+                                    <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-amber-200" />
                                 </div>
 
                                 {isPageLoading && quickStats.victories === 0 ? (
@@ -2352,19 +2352,19 @@ const ZkTVPage: React.FC = () => {
                                 ) : (
                                     <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:gap-4">
                                         <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10">
-                                            <span className="block text-blue-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Vitórias</span>
+                                            <span className="block text-amber-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Vitórias</span>
                                             <span className="text-xl sm:text-2xl font-black text-white">{quickStats.victories}</span>
                                         </div>
                                         <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10">
-                                            <span className="block text-blue-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Gols Pró</span>
+                                            <span className="block text-amber-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Gols Pró</span>
                                             <span className="text-xl sm:text-2xl font-black text-white">{quickStats.goalsFor}</span>
                                         </div>
                                         <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10">
-                                            <span className="block text-blue-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Aproveit.</span>
+                                            <span className="block text-amber-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Aproveit.</span>
                                             <span className="text-xl sm:text-2xl font-black text-white">{quickStats.winRate}%</span>
                                         </div>
                                         <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10">
-                                            <span className="block text-blue-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Artilheiro</span>
+                                            <span className="block text-amber-200 text-[10px] sm:text-xs font-bold uppercase mb-1">Artilheiro</span>
                                             <span className="text-xs sm:text-sm font-black text-white break-words">{quickStats.topScorer}</span>
                                         </div>
                                     </div>
@@ -2378,14 +2378,14 @@ const ZkTVPage: React.FC = () => {
                             <div className="flex gap-2 sm:gap-4 p-1 bg-slate-900 border border-slate-800 rounded-xl sm:rounded-2xl w-full sm:w-fit">
                                 <button
                                     onClick={() => setActiveTab('games')}
-                                    className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === 'games' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
+                                    className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === 'games' ? 'bg-amber-500 text-slate-900 shadow-lg' : 'text-slate-400 hover:text-white'
                                         }`}
                                 >
                                     Jogos
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('standings')}
-                                    className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === 'standings' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
+                                    className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === 'standings' ? 'bg-amber-500 text-slate-900 shadow-lg' : 'text-slate-400 hover:text-white'
                                         }`}
                                 >
                                     Tabela
@@ -2393,7 +2393,7 @@ const ZkTVPage: React.FC = () => {
                                 {!isGaloVisitor && (
                                     <button
                                         onClick={() => setActiveTab('clips')}
-                                        className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === 'clips' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
+                                        className={`flex-1 sm:flex-none px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all ${activeTab === 'clips' ? 'bg-amber-500 text-slate-900 shadow-lg' : 'text-slate-400 hover:text-white'
                                             }`}
                                     >
                                         Clipes
@@ -2414,18 +2414,18 @@ const ZkTVPage: React.FC = () => {
                                         >
                                             <div className="space-y-3 sm:space-y-4">
                                                 <h4 className="text-base sm:text-lg font-bold flex items-center gap-2">
-                                                    <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
+                                                    <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
                                                     Próximos Confrontos
                                                 </h4>
                                                 <div className="grid gap-3 sm:gap-4">
                                                     {upcomingGames.map(game => (
-                                                        <div key={game.id} className="flex items-center justify-between p-3 sm:p-4 lg:p-6 bg-slate-900/50 border border-slate-800 rounded-xl sm:rounded-2xl hover:border-blue-500/30 transition-all group gap-2 sm:gap-4">
+                                                        <div key={game.id} className="flex items-center justify-between p-3 sm:p-4 lg:p-6 bg-slate-900/50 border border-slate-800 rounded-xl sm:rounded-2xl hover:border-amber-500/30 transition-all group gap-2 sm:gap-4">
                                                             <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 min-w-0 flex-1">
                                                                 <div className="text-[10px] sm:text-xs font-black text-slate-500 rotate-180 [writing-mode:vertical-lr] hidden sm:block flex-shrink-0">
                                                                     {new Date(game.date).toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase()}
                                                                 </div>
                                                                 <div className="min-w-0 flex-1">
-                                                                    <div className="text-xs sm:text-sm font-bold text-blue-500 mb-1">{game.competition}</div>
+                                                                    <div className="text-xs sm:text-sm font-bold text-amber-500 mb-1">{game.competition}</div>
                                                                     {/* Mobile: duas linhas | Desktop: uma linha */}
                                                                     <div className="text-sm sm:text-base lg:text-xl font-black text-center sm:text-left">
                                                                         <span className="block sm:inline">{clubInfo?.name || (userClub === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG')}</span>
@@ -2449,7 +2449,7 @@ const ZkTVPage: React.FC = () => {
                                                 <div className="grid gap-3 sm:gap-4">
                                                     {/* Mostrar resultado do bolão se houver */}
                                                     {lastPoolResult ? (
-                                                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 lg:p-6 bg-gradient-to-r from-emerald-900/30 to-blue-900/30 border border-emerald-500/30 rounded-xl sm:rounded-2xl relative overflow-hidden gap-4">
+                                                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 lg:p-6 bg-gradient-to-r from-emerald-900/30 to-slate-900/30 border border-emerald-500/30 rounded-xl sm:rounded-2xl relative overflow-hidden gap-4">
                                                             {/* Fundo brilhoso */}
                                                             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-[50px] rounded-full pointer-events-none" />
 
@@ -2493,7 +2493,7 @@ const ZkTVPage: React.FC = () => {
                                                                                 customLogo={game.is_home ? undefined : game.opponent_logo} 
                                                                                 size="xs" 
                                                                             />
-                                                                            <span className={`text-[10px] sm:text-xs font-bold truncate ${game.is_home ? 'text-blue-400' : 'text-slate-300'}`}>
+                                                                            <span className={`text-[10px] sm:text-xs font-bold truncate ${game.is_home ? 'text-amber-400' : 'text-slate-300'}`}>
                                                                                 {game.is_home 
                                                                                     ? (game.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG') 
                                                                                     : game.opponent}
@@ -2510,7 +2510,7 @@ const ZkTVPage: React.FC = () => {
                                                                                 customLogo={!game.is_home ? undefined : game.opponent_logo} 
                                                                                 size="xs" 
                                                                             />
-                                                                            <span className={`text-[10px] sm:text-xs font-bold truncate ${!game.is_home ? 'text-blue-400' : 'text-slate-300'}`}>
+                                                                            <span className={`text-[10px] sm:text-xs font-bold truncate ${!game.is_home ? 'text-amber-400' : 'text-slate-300'}`}>
                                                                                 {!game.is_home 
                                                                                     ? (game.club_slug === 'cruzeiro' ? 'Cruzeiro' : 'Atlético-MG') 
                                                                                     : game.opponent}
@@ -2565,7 +2565,7 @@ const ZkTVPage: React.FC = () => {
                                                                 key={comp}
                                                                 onClick={() => setSelectedStandingComp(comp)}
                                                                 className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all relative overflow-hidden group ${selectedStandingComp === comp
-                                                                        ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/30 scale-105 z-10'
+                                                                        ? 'bg-amber-500 text-slate-900 shadow-xl shadow-amber-500/30 scale-105 z-10'
                                                                         : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white'
                                                                     }`}
                                                             >
@@ -2584,7 +2584,7 @@ const ZkTVPage: React.FC = () => {
                                                     {(selectedStandingComp?.toLowerCase().includes('brasileir') || selectedStandingComp?.toLowerCase().includes('série a')) && (
                                                         <div className="flex flex-wrap gap-4 px-2 py-3 bg-white/5 rounded-2xl border border-white/5">
                                                             <div className="flex items-center gap-2">
-                                                                <div className="w-2 h-2 rounded-full bg-blue-600" />
+                                                                <div className="w-2 h-2 rounded-full bg-amber-600" />
                                                                 <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Libertadores</span>
                                                             </div>
                                                             <div className="flex items-center gap-2">

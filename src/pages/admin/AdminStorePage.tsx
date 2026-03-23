@@ -1,11 +1,11 @@
 import React from 'react';
 import Header from '../../components/shared/Header';
 import Footer from '../../components/shared/Footer';
-import { ShippingRatesPanel } from '../../components/admin/ShippingRatesPanel';
-import { Truck, ArrowLeft } from 'lucide-react';
+import { ProductManagementPanel } from '../../components/admin/ProductManagementPanel';
+import { ShoppingBag, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const AdminShippingPage: React.FC = () => {
+const AdminStorePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-amber-500/30">
       <Header />
@@ -22,17 +22,17 @@ const AdminShippingPage: React.FC = () => {
             </Link>
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <Truck className="w-5 h-5 text-amber-500" />
-                <h1 className="text-3xl font-black text-white italic uppercase tracking-tight">Frete & Entregas</h1>
+                <ShoppingBag className="w-5 h-5 text-amber-500" />
+                <h1 className="text-3xl font-black text-white italic uppercase tracking-tight">Loja ZK</h1>
               </div>
-              <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">Configuração de Custos e Prazos</p>
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">Gestão de Catálogo e Produtos</p>
             </div>
           </div>
         </div>
 
         {/* Content Section */}
         <div className="glass-panel rounded-[3rem] p-8 md:p-12 bg-slate-800/20 border border-white/5 relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <ShippingRatesPanel />
+          <ProductManagementPanel />
         </div>
       </main>
 
@@ -41,4 +41,4 @@ const AdminShippingPage: React.FC = () => {
   );
 };
 
-export default AdminShippingPage;
+export default AdminStorePage;

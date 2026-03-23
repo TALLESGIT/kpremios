@@ -5,14 +5,13 @@ import {
   User,
   Mail,
   Phone,
-  Calendar,
   Search,
-  AlertTriangle,
   CheckCircle,
   XCircle,
   Loader2,
   RefreshCw,
-  MessageCircle
+  MessageCircle,
+  ShieldCheck
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -171,20 +170,20 @@ const UserManagementPanel: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+    <div className="glass-panel rounded-3xl border border-white/5 bg-slate-900/40 backdrop-blur-3xl overflow-hidden shadow-2xl">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200">
+      <div className="p-8 border-b border-white/5 bg-white/5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Users className="h-6 w-6 text-blue-600" />
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/10">
+              <Users className="h-6 w-6 text-amber-500" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-xl font-black text-white italic uppercase tracking-tight">
                 Gerenciamento de Usuários
               </h3>
-              <p className="text-sm text-gray-500">
-                Gerencie usuários autenticados do sistema
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+                Base de dados de membros autenticados
               </p>
             </div>
           </div>
@@ -192,7 +191,7 @@ const UserManagementPanel: React.FC = () => {
           <button
             onClick={loadUsers}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200 disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-3 text-xs font-black uppercase italic text-white bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all active:scale-95 disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Atualizar
@@ -201,47 +200,47 @@ const UserManagementPanel: React.FC = () => {
       </div>
 
       {/* Filtros e Busca */}
-      <div className="p-6 border-b border-gray-200 bg-gray-50">
-        <div className="flex flex-col sm:flex-row gap-4">
+      <div className="p-6 border-b border-white/5 bg-black/20">
+        <div className="flex flex-col lg:flex-row gap-6">
           {/* Busca */}
           <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <div className="relative group">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-amber-500 transition-colors" />
               <input
                 type="text"
                 placeholder="Buscar por nome, email ou telefone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-white/10 rounded-2xl text-white placeholder-slate-500 focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all outline-none"
               />
             </div>
           </div>
 
           {/* Filtro de tipo */}
-          <div className="flex gap-2">
+          <div className="flex p-1 bg-slate-900/50 rounded-2xl border border-white/5">
             <button
               onClick={() => setFilterAdmin('all')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${filterAdmin === 'all'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${filterAdmin === 'all'
+                ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
+                : 'text-slate-400 hover:text-white'
                 }`}
             >
               Todos ({users.length})
             </button>
             <button
               onClick={() => setFilterAdmin('admin')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${filterAdmin === 'admin'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${filterAdmin === 'admin'
+                ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
+                : 'text-slate-400 hover:text-white'
                 }`}
             >
               Admins ({users.filter(u => u.is_admin).length})
             </button>
             <button
               onClick={() => setFilterAdmin('user')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${filterAdmin === 'user'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${filterAdmin === 'user'
+                ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
+                : 'text-slate-400 hover:text-white'
                 }`}
             >
               Usuários ({users.filter(u => !u.is_admin).length})
@@ -270,16 +269,16 @@ const UserManagementPanel: React.FC = () => {
       )}
 
       {/* Lista de Usuários */}
-      <div className="p-6">
+      <div className="p-8">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-            <span className="ml-2 text-gray-600">Carregando usuários...</span>
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 className="h-10 w-10 animate-spin text-amber-500 mb-4" />
+            <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Carregando usuários...</span>
           </div>
         ) : filteredUsers.length === 0 ? (
-          <div className="text-center py-12">
-            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">
+          <div className="text-center py-20 bg-black/20 rounded-[2rem] border border-dashed border-white/10">
+            <Users className="h-16 w-16 text-slate-700 mx-auto mb-4" />
+            <p className="text-slate-500 font-medium">
               {searchTerm || filterAdmin !== 'all'
                 ? 'Nenhum usuário encontrado com os filtros aplicados.'
                 : 'Nenhum usuário cadastrado.'
@@ -287,105 +286,93 @@ const UserManagementPanel: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
             {filteredUsers.map((user) => (
               <div
                 key={user.id}
-                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                className="group flex flex-col md:flex-row md:items-center justify-between p-6 bg-slate-900 border border-white/5 rounded-[2rem] hover:border-amber-500/30 hover:bg-slate-800/40 transition-all duration-300"
               >
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center overflow-hidden border-2 ${user.is_admin
-                    ? 'bg-purple-100 text-purple-600 border-purple-200'
-                    : 'bg-blue-100 text-blue-600 border-blue-200'
+                <div className="flex items-center gap-6">
+                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden border-2 transition-transform group-hover:scale-105 ${user.is_admin
+                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-lg shadow-amber-500/10'
+                    : 'bg-slate-800 text-slate-400 border-white/10'
                     }`}>
                     {user.avatar_url ? (
                       <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
                     ) : (
-                      <User className="h-6 w-6" />
+                      <User className="h-8 w-8" />
                     )}
                   </div>
 
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-medium text-gray-900">{user.name}</h4>
+                    <div className="flex items-center gap-3 mb-2">
+                      <h4 className="text-lg font-bold text-white tracking-tight">{user.name}</h4>
                       {user.is_admin && (
-                        <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
-                          Admin
+                        <span className="px-3 py-0.5 text-[9px] font-black uppercase tracking-widest bg-amber-500 text-black rounded-full shadow-lg shadow-amber-500/20">
+                          Fundador / Admin
                         </span>
                       )}
                     </div>
 
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-gray-500">
-                      <div className="flex items-center gap-1">
-                        <Mail className="h-4 w-4" />
-                        <span>{user.email}</span>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-sm">
+                      <div className="flex items-center gap-2 text-slate-400 group-hover:text-slate-300 transition-colors">
+                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+                          <Mail className="h-4 w-4" />
+                        </div>
+                        <span className="font-medium">{user.email}</span>
                       </div>
 
                       {user.whatsapp && (
-                        <div className="flex items-center gap-1">
-                          <Phone className="h-4 w-4 text-gray-400" />
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                            <Phone className="h-4 w-4 text-green-500/60" />
+                          </div>
                           <a
                             href={`https://wa.me/55${user.whatsapp.replace(/\D/g, '')}?text=Olá ${user.name}! 👋 Sou administrador da ZK Oficial e gostaria de entrar em contato com você.`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-green-600 hover:text-green-700 hover:underline transition-colors duration-200 font-medium cursor-pointer"
+                            className="text-green-500 font-bold hover:underline transition-all flex items-center gap-2"
                             onClick={(e) => {
                               e.preventDefault();
                               openWhatsApp(user.whatsapp, user.name);
                             }}
                           >
                             <MessageCircle className="h-4 w-4" />
-                            <span>{user.whatsapp}</span>
+                            {user.whatsapp}
                           </a>
                         </div>
                       )}
-
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        <span>{formatDate(user.created_at)}</span>
-                      </div>
                     </div>
-
-                    {(user.free_number || (user.extra_numbers && user.extra_numbers.length > 0)) && (
-                      <div className="mt-2 text-sm text-gray-600">
-                        <span className="font-medium">Números:</span>
-                        {user.free_number && (
-                          <span className="ml-1 px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
-                            Grátis: {user.free_number}
-                          </span>
-                        )}
-                        {user.extra_numbers && user.extra_numbers.length > 0 && (
-                          <span className="ml-1 px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                            Extras: {user.extra_numbers.join(', ')}
-                          </span>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </div>
 
-                {/* Botão de Exclusão */}
-                {!user.is_admin && (
-                  <button
-                    onClick={() => handleDeleteUser(user.id, user.name)}
-                    disabled={deletingUser === user.id}
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-lg hover:bg-red-200 transition-colors duration-200 disabled:opacity-50"
-                  >
-                    {deletingUser === user.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                    Excluir
-                  </button>
-                )}
-
-                {user.is_admin && (
-                  <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 bg-gray-100 rounded-lg">
-                    <AlertTriangle className="h-4 w-4" />
-                    Protegido
+                <div className="mt-6 md:mt-0 flex items-center gap-4 pl-[88px] md:pl-0">
+                  <div className="hidden sm:flex flex-col items-end mr-4">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Membro desde</span>
+                    <span className="text-xs font-bold text-slate-400">{formatDate(user.created_at)}</span>
                   </div>
-                )}
+
+                  {/* Botão de Exclusão */}
+                  {!user.is_admin ? (
+                    <button
+                      onClick={() => handleDeleteUser(user.id, user.name)}
+                      disabled={deletingUser === user.id}
+                      className="flex items-center gap-2 px-6 py-3 text-xs font-black uppercase italic text-red-400 bg-red-500/10 border border-red-500/10 rounded-2xl hover:bg-red-500 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      {deletingUser === user.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      Excluir
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 bg-white/5 border border-white/10 rounded-2xl cursor-default">
+                      <ShieldCheck className="h-4 w-4" />
+                      Sistema
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>

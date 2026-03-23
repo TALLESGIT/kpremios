@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, LogOut, ShoppingBag, ChevronDown, Music, Play, Store, Bell, User } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { Menu, X, LogOut, ShoppingBag, Store, Bell, User } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { ZKLogo } from './ZKLogo';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
@@ -11,9 +11,6 @@ import { CartDrawer } from '../shop/CartDrawer';
 
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isMediaOpen, setIsMediaOpen] = useState(false);
-  const [isMobileMediaOpen, setIsMobileMediaOpen] = useState(false);
-  const mediaRef = useRef<HTMLDivElement>(null);
   const [hasActiveLive, setHasActiveLive] = useState(false);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const location = useLocation();
@@ -25,7 +22,7 @@ function Header() {
   
   const activeClub = currentAppUser?.club_slug || guestClub;
   const isGalo = activeClub === 'atletico-mg';
-  const isGaloVisitor = isGalo && !currentAppUser?.is_admin;
+
 
   useEffect(() => {
     const checkOrientation = () => {
@@ -40,8 +37,6 @@ function Header() {
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => {
     setIsMenuOpen(false);
-    setIsMediaOpen(false);
-    setIsMobileMediaOpen(false);
   };
 
   // Bloquear scroll do body quando menu estiver aberto
@@ -70,16 +65,7 @@ function Header() {
     };
   }, [isMenuOpen]);
 
-  // Close media dropdown on click outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (mediaRef.current && !mediaRef.current.contains(event.target as Node)) {
-        setIsMediaOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+
 
   const handleLogout = async () => {
     try {
@@ -174,16 +160,11 @@ function Header() {
 
   const checkActiveLive = async () => {
     try {
-      // ✅ REGRA ABSOLUTA: O badge "AO VIVO" no Header SEMPRE verifica apenas o Cruzeiro.
-      // Lives do Galo são 100% link-only e NUNCA ativam o badge global,
-      // independente de quem está logado (admin do Galo ou visitante).
-      const targetClub = 'cruzeiro';
-
+      // ✅ Verificar lives ATIVAS de qualquer clube (neutro)
       const { data, error } = await supabase
         .from('live_streams')
         .select('id, is_active, club_slug')
         .eq('is_active', true)
-        .eq('club_slug', targetClub)
         .limit(1)
         .maybeSingle();
 
@@ -203,7 +184,7 @@ function Header() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 w-full bg-[#030712]/80 backdrop-blur-xl border-b border-white/5 z-[100] shadow-2xl pt-[env(safe-area-inset-top,20px)] md:pt-0">
+      <header className="fixed top-0 left-0 w-full bg-gradient-to-r from-[#030712]/95 via-[#0c1220]/95 to-[#030712]/95 backdrop-blur-xl border-b border-amber-500/15 z-[100] shadow-2xl shadow-amber-900/10 pt-[env(safe-area-inset-top,20px)] md:pt-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo - Redireciona para ZK-TV quando no contexto Galo */}
@@ -216,57 +197,47 @@ function Header() {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-1 lg:space-x-4">
-              {!isGaloVisitor && (
-                <Link
-                  to={currentAppUser?.is_admin ? "/admin/dashboard" : "/"}
-                  className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${(currentAppUser?.is_admin ? location.pathname === '/admin/dashboard' : location.pathname === '/')
-                    ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
-                    : 'text-white/90 hover:text-white hover:bg-white/10'
-                    }`}
-                >
-                  Início
-                </Link>
-              )}
-              <>
-                {!isGaloVisitor && (
-                  <Link
-                    to="/winners"
-                    className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/winners'
-                      ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
-                      : 'text-white/90 hover:text-white hover:bg-white/10'
-                      }`}
-                  >
-                    Ganhadores
-                  </Link>
-                )}
+              <Link
+                to={currentAppUser?.is_admin ? "/admin/dashboard" : "/"}
+                className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${(currentAppUser?.is_admin ? location.pathname === '/admin/dashboard' : location.pathname === '/')
+                  ? 'text-slate-900 bg-amber-400 shadow-lg shadow-amber-500/20 scale-105'
+                  : 'text-white/90 hover:text-white hover:bg-white/10'
+                  }`}
+              >
+                Início
+              </Link>
+              <Link
+                to="/winners"
+                className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/winners'
+                  ? 'text-slate-900 bg-amber-400 shadow-lg shadow-amber-500/20 scale-105'
+                  : 'text-white/90 hover:text-white hover:bg-white/10'
+                  }`}
+              >
+                Ganhadores
+              </Link>
+              <Link
+                to="/escalacao"
+                className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/escalacao'
+                  ? 'text-slate-900 bg-amber-400 shadow-lg shadow-amber-500/20 scale-105'
+                  : 'text-white/90 hover:text-white hover:bg-white/10'
+                  }`}
+              >
+                Escalar Time
+              </Link>
+              <Link
+                to="/loja"
+                className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/loja'
+                  ? 'text-slate-900 bg-amber-400 shadow-lg shadow-amber-500/20 scale-105'
+                  : 'text-white/90 hover:text-white hover:bg-white/10'
+                  }`}
+              >
+                Loja
+              </Link>
 
-                <Link
-                  to="/escalacao"
-                  className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/escalacao'
-                    ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
-                    : 'text-white/90 hover:text-white hover:bg-white/10'
-                    }`}
-                >
-                  Escalar Time
-                </Link>
-
-                {!isGaloVisitor && (
-                  <Link
-                    to="/loja"
-                    className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname === '/loja'
-                      ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
-                      : 'text-white/90 hover:text-white hover:bg-white/10'
-                      }`}
-                  >
-                    Loja
-                  </Link>
-                )}
-              </>
-
-              {/* Botão AO VIVO ou Lives Premiadas - dependendo se há live ativa */}
+              {/* Botão AO VIVO ou ZK-TV */}
               {!currentAppUser?.is_admin && (
                 <>
-                  {(hasActiveLive && !isGalo) ? (
+                  {hasActiveLive ? (
                     <Link
                       to="/zk-tv"
                       className={`relative px-5 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 border border-red-500/50 ${location.pathname.startsWith('/zk-tv')
@@ -282,8 +253,8 @@ function Header() {
                   ) : (
                   <Link
                     to="/zk-tv"
-                    className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname.startsWith('/zk-tv') && (!hasActiveLive || isGalo)
-                      ? 'text-primary bg-white shadow-lg shadow-white/10 scale-105'
+                    className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 ${location.pathname.startsWith('/zk-tv')
+                      ? 'text-slate-900 bg-amber-400 shadow-lg shadow-amber-500/20 scale-105'
                       : 'text-white/90 hover:text-white hover:bg-white/10'
                       }`}
                   >
@@ -293,69 +264,31 @@ function Header() {
                 </>
               )}
 
-              {/* Botão Mídia (Dropdown) */}
-              {!isGaloVisitor && (
-                <div className="relative" ref={mediaRef}>
-                  <button
-                    onClick={() => setIsMediaOpen(!isMediaOpen)}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 flex items-center gap-2 ${isMediaOpen || location.pathname === '/spotify' || location.pathname === '/zk-clips'
-                      ? 'text-primary bg-white shadow-lg shadow-white/10'
-                      : 'text-white/90 hover:text-white hover:bg-white/10'
-                      }`}
-                  >
-                    Mídia
-                    <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isMediaOpen ? 'rotate-180' : ''}`} />
-                  </button>
 
-                  {/* Dropdown Menu */}
-                  {isMediaOpen && (
-                    <div className="absolute top-full right-0 mt-2 w-48 bg-[#030712] border border-white/10 rounded-2xl shadow-2xl py-2 overflow-hidden animate-in fade-in zoom-in duration-200">
-                      <Link
-                        to="/spotify"
-                        onClick={closeMenu}
-                        className={`flex items-center gap-3 px-4 py-3 text-sm font-bold uppercase tracking-wide transition-all ${location.pathname === '/spotify' ? 'text-blue-400 bg-blue-500/10' : 'text-white/70 hover:text-white hover:bg-white/5'}`}
-                      >
-                        <Music className="w-4 h-4" />
-                        Músicas
-                      </Link>
-                      <Link
-                        to="/zk-clips"
-                        onClick={closeMenu}
-                        className={`flex items-center gap-3 px-4 py-3 text-sm font-bold uppercase tracking-wide transition-all ${location.pathname === '/zk-clips' ? 'text-blue-400 bg-blue-500/10' : 'text-white/70 hover:text-white hover:bg-white/5'}`}
-                      >
-                        <Play className="w-4 h-4" />
-                        Zk-Clips
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Admin specific navigation links */}
               {currentAppUser?.is_admin && (
                 <Link
                   to="/admin/live-stream"
-                  className="ml-2 px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 bg-white text-primary hover:bg-gray-100 shadow-lg"
+                  className="ml-2 px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-300 bg-amber-500 text-slate-900 hover:bg-amber-400 shadow-lg"
                 >
                   📡 Transmitir
                 </Link>
               )}
 
-              {/* Botão Carrinho - Desktop (Ocultar para Galo) */}
-              {!isGaloVisitor && (
-                <button
-                  onClick={() => setIsCartOpen(true)}
-                  className="relative p-2.5 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 group"
-                >
-                  <ShoppingBag className="w-5 h-5" />
-                  {totalItems > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black italic border-2 border-[#030712] animate-in zoom-in duration-300">
-                      {totalItems}
-                    </span>
-                  )}
-                  <div className="absolute inset-0 rounded-xl bg-blue-500/0 group-hover:bg-blue-500/10 transition-colors" />
-                </button>
-              )}
+              {/* Botão Carrinho - Desktop */}
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="relative p-2.5 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 group"
+              >
+                <ShoppingBag className="w-5 h-5" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-black italic border-2 border-[#030712] animate-in zoom-in duration-300">
+                    {totalItems}
+                  </span>
+                )}
+                <div className="absolute inset-0 rounded-xl bg-white/0 group-hover:bg-white/10 transition-colors" />
+              </button>
 
               {/* Login/Register buttons */}
               {!user && !currentAppUser && (
@@ -368,7 +301,7 @@ function Header() {
                   </Link>
                   <Link
                     to="/register"
-                    className="px-5 py-2 rounded-full text-sm font-bold uppercase tracking-wide transition-all duration-300 bg-white text-primary hover:bg-gray-100 shadow-lg hover:shadow-white/20 hover:-translate-y-0.5"
+                    className="px-5 py-2 rounded-full text-sm font-bold uppercase tracking-wide transition-all duration-300 bg-amber-500 text-slate-900 hover:bg-amber-400 shadow-lg shadow-amber-500/20 hover:-translate-y-0.5"
                   >
                     Cadastrar
                   </Link>
@@ -412,7 +345,7 @@ function Header() {
                 aria-label="Perfil"
               >
                 {currentAppUser ? (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-[10px] font-black text-white border border-white/20 overflow-hidden shadow-lg shadow-blue-500/20 active:scale-90 transition-transform">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-500 to-slate-700 flex items-center justify-center text-[10px] font-black text-white border border-white/20 overflow-hidden shadow-lg shadow-slate-500/20 active:scale-90 transition-transform">
                     {currentAppUser.avatar_url ? (
                       <img src={currentAppUser.avatar_url} alt="Profile" className="w-full h-full object-cover" />
                     ) : (
@@ -426,21 +359,19 @@ function Header() {
                 )}
               </button>
 
-               {/* Carrinho (Ocultar para Galo) */}
-              {!isGaloVisitor && (
-                <button
-                  onClick={() => setIsCartOpen(true)}
-                  className="relative p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all"
-                  aria-label="Carrinho"
-                >
-                  <ShoppingBag className="h-5 w-5" />
-                  {totalItems > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[8px] font-black border-2 border-[#030712]">
-                      {totalItems}
-                    </span>
-                  )}
-                </button>
-              )}
+               {/* Carrinho */}
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="relative p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all"
+                aria-label="Carrinho"
+              >
+                <ShoppingBag className="h-5 w-5" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[8px] font-black border-2 border-[#030712]">
+                    {totalItems}
+                  </span>
+                )}
+              </button>
 
               {/* Hamburger Menu */}
               <button
@@ -485,11 +416,11 @@ function Header() {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Menu Header */}
-              <div className="flex items-center justify-between p-6 border-b border-white/5 bg-gradient-to-r from-blue-600/20 to-transparent pt-[calc(env(safe-area-inset-top,20px)+1.5rem)]">
+              <div className="flex items-center justify-between p-6 border-b border-white/5 bg-gradient-to-r from-slate-700/20 to-transparent pt-[calc(env(safe-area-inset-top,20px)+1.5rem)]">
                 <div className="flex items-center">
-                  <ZKLogo size="sm" className="mr-3 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
+                  <ZKLogo size="sm" className="mr-3 drop-shadow-[0_0_15px_rgba(245,158,11,0.4)]" />
                   <span className="text-xl font-display font-black text-white tracking-tight uppercase italic">
-                    Menu <span className="text-blue-500">ZK.</span>
+                    Menu <span className="text-amber-400">ZK.</span>
                   </span>
                 </div>
                 <button
@@ -502,42 +433,38 @@ function Header() {
 
               {/* Menu Items */}
               <nav className="flex-1 overflow-y-auto p-5 space-y-2.5 custom-scrollbar pb-[calc(env(safe-area-inset-bottom,20px)+3rem)]">
-                {!isGaloVisitor && (
-                  <Link
-                    to={currentAppUser?.is_admin ? "/admin/dashboard" : "/"}
-                    className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${(currentAppUser?.is_admin ? location.pathname === '/admin/dashboard' : location.pathname === '/')
-                      ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] translate-x-1'
-                      : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
-                      }`}
-                    onClick={closeMenu}
-                  >
-                    <span className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10 group-hover:bg-white/20 transition-colors">
-                      🏠
-                    </span>
-                    Início
-                  </Link>
-                )}
+                <Link
+                  to={currentAppUser?.is_admin ? "/admin/dashboard" : "/"}
+                  className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${(currentAppUser?.is_admin ? location.pathname === '/admin/dashboard' : location.pathname === '/')
+                    ? 'bg-slate-700 text-white shadow-[0_0_20px_rgba(51,65,85,0.4)] translate-x-1'
+                    : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
+                    }`}
+                  onClick={closeMenu}
+                >
+                  <span className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10 group-hover:bg-white/20 transition-colors">
+                    🏠
+                  </span>
+                  Início
+                </Link>
 
-                {!isGaloVisitor && (
-                  <Link
-                    to="/winners"
-                    className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname === '/winners'
-                      ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] translate-x-1'
-                      : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
-                      }`}
-                    onClick={closeMenu}
-                  >
-                    <span className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10 transition-colors">
-                      🏆
-                    </span>
-                    Ganhadores
-                  </Link>
-                )}
+                <Link
+                  to="/winners"
+                  className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname === '/winners'
+                    ? 'bg-slate-700 text-white shadow-[0_0_20px_rgba(51,65,85,0.4)] translate-x-1'
+                    : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
+                    }`}
+                  onClick={closeMenu}
+                >
+                  <span className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10 transition-colors">
+                    🏆
+                  </span>
+                  Ganhadores
+                </Link>
 
                 <Link
                   to="/escalacao"
                   className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname === '/escalacao'
-                    ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] translate-x-1'
+                    ? 'bg-slate-700 text-white shadow-[0_0_20px_rgba(51,65,85,0.4)] translate-x-1'
                     : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
                     }`}
                   onClick={closeMenu}
@@ -548,26 +475,24 @@ function Header() {
                   Escalar Time
                 </Link>
 
-                {!isGaloVisitor && (
-                  <Link
-                    to="/loja"
-                    className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname === '/loja'
-                      ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] translate-x-1'
-                      : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
-                      }`}
-                    onClick={closeMenu}
-                  >
-                    <span className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10 transition-colors">
-                      <Store className="w-5 h-5 text-blue-400" />
-                    </span>
-                    Loja
-                  </Link>
-                )}
+                <Link
+                  to="/loja"
+                  className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname === '/loja'
+                    ? 'bg-slate-700 text-white shadow-[0_0_20px_rgba(51,65,85,0.4)] translate-x-1'
+                    : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
+                    }`}
+                  onClick={closeMenu}
+                >
+                  <span className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 bg-white/10 transition-colors">
+                    <Store className="w-5 h-5 text-amber-400" />
+                  </span>
+                  Loja
+                </Link>
 
-                {/* Botão AO VIVO ou Lives Premiadas no mobile */}
+                {/* Botão AO VIVO ou ZK-TV no mobile */}
                 {!currentAppUser?.is_admin && (
                   <>
-                    {(hasActiveLive && !isGalo) ? (
+                    {hasActiveLive ? (
                       <Link
                         to="/zk-tv"
                         className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 border border-red-500/30 ${location.pathname.startsWith('/zk-tv')
@@ -584,8 +509,8 @@ function Header() {
                     ) : (
                       <Link
                         to="/zk-tv"
-                        className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname.startsWith('/zk-tv') && (!hasActiveLive || isGalo)
-                          ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] translate-x-1'
+                        className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname.startsWith('/zk-tv')
+                          ? 'bg-slate-700 text-white shadow-[0_0_20px_rgba(51,65,85,0.4)] translate-x-1'
                           : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
                           }`}
                         onClick={closeMenu}
@@ -599,42 +524,14 @@ function Header() {
                   </>
                 )}
 
-                {/* Mobile Admin and Public Links */}
-                <div className="py-4 space-y-2 border-t border-white/5 mt-4 pt-6">
-                  <p className="px-5 text-[10px] font-black uppercase text-blue-400/50 tracking-[0.2em] mb-3 leading-none italic">Mídia & Conteúdo</p>
-                  
-                  {/* Novo Botão Mídia no Mobile */}
-                  {!isGaloVisitor && (
-                    <div className="px-5">
-                      <button
-                        onClick={() => setIsMobileMediaOpen(!isMobileMediaOpen)}
-                        className={`w-full flex items-center justify-between py-3 text-white/60 hover:text-white transition-all font-bold uppercase tracking-tight italic ${isMobileMediaOpen ? 'text-blue-400' : ''}`}
-                      >
-                        <div className="flex items-center">
-                          <span className="mr-4 text-xl">✨</span> Mídia
-                        </div>
-                        <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isMobileMediaOpen ? 'rotate-180' : ''}`} />
-                      </button>
-
-                      {isMobileMediaOpen && (
-                        <div className="pl-4 mt-2 space-y-2 border-l-2 border-blue-500/20 animate-in slide-in-from-top-2 duration-200">
-                          <Link to="/spotify" onClick={closeMenu} className="flex items-center py-3 text-white/50 hover:text-white transition-all font-bold uppercase tracking-tight italic text-sm">
-                            <Music className="w-4 h-4 mr-3 text-blue-400" /> Músicas
-                          </Link>
-                          <Link to="/zk-clips" onClick={closeMenu} className="flex items-center py-3 text-white/50 hover:text-white transition-all font-bold uppercase tracking-tight italic text-sm">
-                            <Play className="w-4 h-4 mr-3 text-blue-400" /> Zk-Clips
-                          </Link>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {currentAppUser?.is_admin && (
-                    <Link to="/admin/live-stream" onClick={closeMenu} className="flex items-center px-5 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-all hover:translate-x-1 font-bold uppercase tracking-tight italic border border-blue-500/20 bg-blue-500/5 mt-4">
+                {/* Mobile Admin Links */}
+                {currentAppUser?.is_admin && (
+                  <div className="py-4 space-y-2 border-t border-white/5 mt-4 pt-6">
+                    <Link to="/admin/live-stream" onClick={closeMenu} className="flex items-center px-5 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-all hover:translate-x-1 font-bold uppercase tracking-tight italic border border-amber-500/20 bg-amber-500/5 mt-4">
                       <span className="mr-4 text-xl">📡</span> Transmitir ao Vivo
                     </Link>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {!user && !currentAppUser && (
                   <div className="pt-6 mt-6 border-t border-white/5 space-y-3">
@@ -647,7 +544,7 @@ function Header() {
                     </Link>
                     <Link
                       to="/register"
-                      className="flex items-center justify-center px-4 py-4 rounded-2xl text-sm font-black uppercase italic bg-blue-600 text-white shadow-[0_0_25px_rgba(37,99,235,0.4)] hover:bg-blue-500 transition-all tracking-wider"
+                      className="flex items-center justify-center px-4 py-4 rounded-2xl text-sm font-black uppercase italic bg-amber-500 text-slate-900 shadow-[0_0_25px_rgba(245,158,11,0.4)] hover:bg-amber-400 transition-all tracking-wider"
                       onClick={closeMenu}
                     >
                       Cadastrar
@@ -660,7 +557,7 @@ function Header() {
                     <Link
                       to={user ? "/dashboard" : "/login"}
                       className={`flex items-center px-5 py-4 rounded-2xl text-base font-black uppercase italic transition-all duration-300 ${location.pathname === '/dashboard' || location.pathname === '/login'
-                        ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] translate-x-1'
+                        ? 'bg-slate-700 text-white shadow-[0_0_20px_rgba(51,65,85,0.4)] translate-x-1'
                         : 'text-white/70 hover:text-white hover:bg-white/5 hover:translate-x-1'
                         }`}
                       onClick={closeMenu}
@@ -669,7 +566,7 @@ function Header() {
                         {currentAppUser?.avatar_url ? (
                           <img src={currentAppUser.avatar_url} alt="Profile" className="w-full h-full object-cover" />
                         ) : (
-                          <User className="w-5 h-5 text-blue-400" />
+                          <User className="w-5 h-5 text-amber-400" />
                         )}
                       </div>
                       {user ? 'Meu Perfil' : 'Entrar'}

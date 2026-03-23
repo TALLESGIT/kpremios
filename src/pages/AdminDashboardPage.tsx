@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import Header from '../components/shared/Header';
@@ -26,6 +26,7 @@ import { ShippingRatesPanel } from '../components/admin/ShippingRatesPanel';
 import { LiveViewer } from '../components/LiveViewer';
 
 export default function AdminDashboardPage() {
+  const navigate = useNavigate();
   const {
     currentUser,
     getAvailableNumbersCount,
@@ -60,8 +61,6 @@ export default function AdminDashboardPage() {
   const [allVips, setAllVips] = useState<any[]>([]);
   const [loadingVips, setLoadingVips] = useState(false);
   const [vipFilter, setVipFilter] = useState<'all' | 'active' | 'expired'>('all');
-  const [showProductManagement, setShowProductManagement] = useState(false);
-  const [showShippingManagement, setShowShippingManagement] = useState(false);
 
   // Analytics State
   const [analyticsData, setAnalyticsData] = useState<any[]>([]);
@@ -721,19 +720,19 @@ export default function AdminDashboardPage() {
         {/* Modern Header - Adjusted for fixed Header component */}
         <div className="bg-gradient-to-br from-[#0c1222] via-[#1a2333] to-[#0c1222] py-12 sm:py-16 lg:py-20 relative overflow-hidden border-b border-white/5 pt-[calc(6rem+env(safe-area-inset-top,0px))]">
           <div className="absolute inset-0 opacity-30">
-            <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px]"></div>
-            <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] bg-blue-500/5 rounded-full blur-[100px]"></div>
+            <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-amber-600/10 rounded-full blur-[120px]"></div>
+            <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] bg-amber-500/5 rounded-full blur-[100px]"></div>
           </div>
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
             <div className="opacity-100 scale-100">
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-4 tracking-tighter italic uppercase leading-tight">
-                Painel<span className="text-blue-500">.</span>Admin
+                Painel<span className="text-amber-500">.</span>Admin
               </h1>
               <div className="flex items-center justify-center gap-2">
-                <div className="h-1 w-12 bg-blue-500 rounded-full" />
-                <p className="text-blue-200/40 text-[10px] font-black uppercase tracking-[0.4em]">ZK OFICIAL SYSTEM</p>
-                <div className="h-1 w-12 bg-blue-500 rounded-full" />
+                <div className="h-1 w-12 bg-amber-500 rounded-full" />
+                <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em]">ZK OFICIAL SYSTEM</p>
+                <div className="h-1 w-12 bg-amber-500 rounded-full" />
               </div>
             </div>
           </div>
@@ -747,8 +746,8 @@ export default function AdminDashboardPage() {
                 label: 'Participantes',
                 value: activePoolParticipants,
                 icon: Users,
-                color: 'from-blue-600 to-blue-400',
-                shadow: 'shadow-blue-500/20',
+                color: 'from-amber-600 to-amber-400',
+                shadow: 'shadow-amber-500/20',
                 clickable: true,
                 onClick: async () => {
                   if (!activePoolId) {
@@ -806,13 +805,11 @@ export default function AdminDashboardPage() {
                 label: 'Config. Frete',
                 value: 'Estados',
                 icon: Truck,
-                color: 'from-blue-600 to-indigo-600',
-                shadow: 'shadow-blue-500/20',
+                color: 'from-amber-600 to-amber-700',
+                shadow: 'shadow-amber-500/20',
                 clickable: true,
                 onClick: () => {
-                  setShowShippingManagement(true);
-                  setShowProductManagement(false);
-                  setShowUserManagement(false);
+                  navigate('/admin/shipping');
                 }
               },
             ].map((stat, idx) => (
@@ -830,7 +827,7 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
                   <div>
-                    <h4 className="text-[10px] font-black text-blue-300/40 uppercase tracking-[0.2em] mb-1">{stat.label}</h4>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{stat.label}</h4>
                     <p className="text-3xl font-black text-white italic">{stat.value}</p>
                   </div>
                   {stat.progress !== undefined && (
@@ -850,10 +847,10 @@ export default function AdminDashboardPage() {
           <section className="mt-12 mb-16">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 px-2">
               <div className="flex items-center gap-4">
-                <div className="w-1.5 h-10 bg-gradient-to-b from-blue-500 to-indigo-700 rounded-full"></div>
+                <div className="w-1.5 h-10 bg-gradient-to-b from-amber-500 to-amber-700 rounded-full"></div>
                 <div>
                   <h2 className="text-2xl font-black text-white italic uppercase tracking-tight">Análise de Audiência</h2>
-                  <p className="text-blue-300/40 text-[10px] font-black uppercase tracking-[0.3em]">Métricas de Acesso e Crescimento</p>
+                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">Métricas de Acesso e Crescimento</p>
                 </div>
               </div>
 
@@ -863,7 +860,7 @@ export default function AdminDashboardPage() {
                     key={days}
                     onClick={() => setAnalyticsPeriod(days as any)}
                     className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${analyticsPeriod === days
-                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+                      ? 'bg-amber-500 text-black shadow-lg shadow-amber-900/20'
                       : 'text-slate-400 hover:text-white hover:bg-white/5'
                       }`}
                   >
@@ -877,11 +874,11 @@ export default function AdminDashboardPage() {
               <div className="glass-panel p-6 rounded-[2rem] border border-white/5 bg-slate-800/40 relative overflow-hidden group">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Users className="w-5 h-5 text-blue-500" />
+                    <Users className="w-5 h-5 text-amber-500" />
                     Visitantes Diários
                   </h3>
-                  <div className="px-3 py-1 bg-blue-500/10 rounded-full border border-blue-500/10">
-                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Sessões Ativas</span>
+                  <div className="px-3 py-1 bg-amber-500/10 rounded-full border border-amber-500/10">
+                    <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">Sessões Ativas</span>
                   </div>
                 </div>
 
@@ -895,8 +892,8 @@ export default function AdminDashboardPage() {
                       <AreaChart data={analyticsData}>
                         <defs>
                           <linearGradient id="colorSessions" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                            <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
@@ -923,12 +920,12 @@ export default function AdminDashboardPage() {
                             fontSize: '12px',
                             color: '#fff'
                           }}
-                          itemStyle={{ color: '#3b82f6' }}
+                          itemStyle={{ color: '#f59e0b' }}
                         />
                         <Area
                           type="monotone"
                           dataKey="sessions"
-                          stroke="#3b82f6"
+                          stroke="#f59e0b"
                           strokeWidth={3}
                           fillOpacity={1}
                           fill="url(#colorSessions)"
@@ -991,7 +988,7 @@ export default function AdminDashboardPage() {
                           radius={[4, 4, 0, 0]}
                           animationDuration={1500}
                         >
-                          {analyticsData.map((entry, index) => (
+                          {analyticsData.map((_, index) => (
                             <Cell key={`cell-${index}`} fillOpacity={0.8 + (index / analyticsData.length) * 0.2} />
                           ))}
                         </Bar>
@@ -1006,60 +1003,6 @@ export default function AdminDashboardPage() {
           {/* DASHBOARD SECTIONS */}
           <div className="space-y-16 pb-20">
 
-            {/* 🎥 Gestão de Conteúdo */}
-            <section className="mb-12">
-              <div className="flex items-center gap-4 mb-6 px-2">
-                <div className="w-1.5 h-10 bg-gradient-to-b from-violet-500 to-violet-800 rounded-full"></div>
-                <div>
-                  <h2 className="text-2xl font-black text-white italic uppercase tracking-tight">Gestão de Conteúdo</h2>
-                  <p className="text-violet-300/40 text-[10px] font-black uppercase tracking-[0.3em]">YouTube Clips & Spotify</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* YouTube Clips */}
-                <div className="glass-panel p-6 rounded-2xl border border-white/5 bg-slate-800/40 relative overflow-hidden group hover:border-red-500/30 transition-all duration-300">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all duration-500 group-hover:bg-red-500/20"></div>
-                  <div className="flex justify-between items-start mb-4 relative z-10">
-                    <div className="p-3 bg-slate-900 rounded-xl border border-white/10 shadow-lg">
-                      <Video className="w-6 h-6 text-red-500" />
-                    </div>
-                    <div className="px-3 py-1 bg-red-500/20 rounded-full border border-red-500/20">
-                      <span className="text-[10px] uppercase font-bold text-red-300 tracking-wider">YouTube</span>
-                    </div>
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-2">YouTube Clips</h3>
-                  <p className="text-slate-400 text-sm mb-6">Gerencie os clipes e vídeos do YouTube exibidos na página de Clipes Premium.</p>
-                  <Link
-                    to="/admin/clips"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg transition-colors shadow-lg shadow-red-900/20 text-sm"
-                  >
-                    Gerenciar Clipes
-                  </Link>
-                </div>
-
-                {/* Spotify */}
-                <div className="glass-panel p-6 rounded-2xl border border-white/5 bg-slate-800/40 relative overflow-hidden group hover:border-emerald-500/30 transition-all duration-300">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all duration-500 group-hover:bg-emerald-500/20"></div>
-                  <div className="flex justify-between items-start mb-4 relative z-10">
-                    <div className="p-3 bg-slate-900 rounded-xl border border-white/10 shadow-lg">
-                      <MessageSquare className="w-6 h-6 text-emerald-400" />
-                    </div>
-                    <div className="px-3 py-1 bg-emerald-500/20 rounded-full border border-emerald-500/20">
-                      <span className="text-[10px] uppercase font-bold text-emerald-300 tracking-wider">Spotify</span>
-                    </div>
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-2">Spotify</h3>
-                  <p className="text-slate-400 text-sm mb-6">Adicione e gerencie os lançamentos musicais exibidos na página do Spotify.</p>
-                  <Link
-                    to="/admin/spotify"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition-colors shadow-lg shadow-emerald-900/20 text-sm"
-                  >
-                    Gerenciar Spotify
-                  </Link>
-                </div>
-              </div>
-            </section>
 
 
 
@@ -1068,10 +1011,10 @@ export default function AdminDashboardPage() {
             {/* 📺 ZK TV & Mídia */}
             <section>
               <div className="flex items-center gap-4 mb-8 px-2">
-                <div className="w-1.5 h-10 bg-gradient-to-b from-red-500 to-indigo-700 rounded-full"></div>
+                <div className="w-1.5 h-10 bg-gradient-to-b from-amber-500 to-slate-700 rounded-full"></div>
                 <div>
                   <h2 className="text-3xl font-black text-white italic uppercase tracking-tight">ZK TV & Mídia</h2>
-                  <p className="text-blue-300/40 text-[10px] font-black uppercase tracking-[0.3em]">Streaming e Conteúdo</p>
+                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">Streaming e Conteúdo</p>
                 </div>
               </div>
 
@@ -1081,20 +1024,20 @@ export default function AdminDashboardPage() {
 
 
                 {/* ZK TV */}
-                <div className="glass-panel rounded-[3rem] p-1 bg-gradient-to-br from-red-500/20 to-indigo-700/20 border border-white/5">
+                <div className="glass-panel rounded-[3rem] p-1 bg-gradient-to-br from-amber-500/20 to-slate-700/20 border border-white/5">
                   <div className="bg-slate-900/90 backdrop-blur-3xl rounded-[2.8rem] p-8">
                     <div className="flex items-center gap-6 mb-8">
-                      <div className="w-16 h-16 bg-red-500/10 rounded-[1.5rem] flex items-center justify-center border border-red-500/20">
-                        <Tv className="w-8 h-8 text-red-400" />
+                      <div className="w-16 h-16 bg-amber-500/10 rounded-[1.5rem] flex items-center justify-center border border-amber-500/20">
+                        <Tv className="w-8 h-8 text-amber-500" />
                       </div>
                     </div>
                     <h3 className="text-2xl font-black text-white mb-3 italic uppercase">ZK TV</h3>
-                    <p className="text-blue-200/60 text-sm font-medium mb-8 leading-relaxed">
+                    <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
                       Gerencie as lives, canais, chat e moderação em tempo real da ZK TV.
                     </p>
                     <Link
                       to="/admin/zk-tv"
-                      className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-red-600 to-indigo-700 hover:from-red-500 hover:to-indigo-600 text-white font-black rounded-2xl transition-all shadow-xl shadow-red-600/20 uppercase italic text-xs tracking-wider"
+                      className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-black rounded-2xl transition-all shadow-xl shadow-amber-600/20 uppercase italic text-xs tracking-wider"
                     >
                       Gerenciar ZK TV
                     </Link>
@@ -1110,46 +1053,36 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
                     <h3 className="text-2xl font-black text-white mb-3 italic uppercase">Loja ZK</h3>
-                    <p className="text-blue-200/60 text-sm font-medium mb-8 leading-relaxed">
+                    <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
                       Gerencie o catálogo de produtos, preços, estoque e fotos da loja oficial.
                     </p>
-                    <button
-                      onClick={() => {
-                        const productPanel = document.getElementById('product-management-section');
-                        productPanel?.scrollIntoView({ behavior: 'smooth' });
-                        setShowProductManagement(true);
-                        setShowShippingManagement(false);
-                      }}
+                    <Link
+                      to="/admin/store"
                       className="inline-flex items-center px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-emerald-600/20 uppercase italic text-xs tracking-wider"
                     >
                       Abrir Loja ZK
-                    </button>
+                    </Link>
                   </div>
                 </div>
 
                 {/* Gestão de Frete */}
-                <div className="glass-panel rounded-[3rem] p-1 bg-gradient-to-br from-blue-500/20 to-transparent border border-white/5">
+                <div className="glass-panel rounded-[3rem] p-1 bg-gradient-to-br from-amber-500/20 to-transparent border border-white/5">
                   <div className="bg-slate-900/90 backdrop-blur-3xl rounded-[2.8rem] p-8">
                     <div className="flex items-center gap-6 mb-8">
-                      <div className="w-16 h-16 bg-blue-500/10 rounded-[1.5rem] flex items-center justify-center border border-blue-500/20">
-                        <Truck className="w-8 h-8 text-blue-400" />
+                      <div className="w-16 h-16 bg-amber-500/10 rounded-[1.5rem] flex items-center justify-center border border-amber-500/20">
+                        <Truck className="w-8 h-8 text-amber-500" />
                       </div>
                     </div>
                     <h3 className="text-2xl font-black text-white mb-3 italic uppercase">Frete & Entregas</h3>
-                    <p className="text-blue-200/60 text-sm font-medium mb-8 leading-relaxed">
+                    <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
                       Configure os custos de frete por estado e prazos de entrega para os usuários.
                     </p>
-                    <button
-                      onClick={() => {
-                        const shippingPanel = document.getElementById('shipping-management-section');
-                        shippingPanel?.scrollIntoView({ behavior: 'smooth' });
-                        setShowShippingManagement(true);
-                        setShowProductManagement(false);
-                      }}
-                      className="inline-flex items-center px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-blue-600/20 uppercase italic text-xs tracking-wider"
+                    <Link
+                      to="/admin/shipping"
+                      className="inline-flex items-center px-8 py-4 bg-amber-600 hover:bg-amber-500 text-black font-black rounded-2xl transition-all shadow-xl shadow-amber-600/20 uppercase italic text-xs tracking-wider"
                     >
                       Gerenciar Frete
-                    </button>
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -1158,28 +1091,28 @@ export default function AdminDashboardPage() {
             {/* 👥 Gestão de Comunidade */}
             <section>
               <div className="flex items-center gap-4 mb-8 px-2">
-                <div className="w-1.5 h-10 bg-gradient-to-b from-blue-400 to-emerald-600 rounded-full"></div>
+                <div className="w-1.5 h-10 bg-gradient-to-b from-amber-400 to-amber-600 rounded-full"></div>
                 <div>
                   <h2 className="text-3xl font-black text-white italic uppercase tracking-tight">Comunidade</h2>
-                  <p className="text-blue-300/40 text-[10px] font-black uppercase tracking-[0.3em]">Usuários e Solicitações</p>
+                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">Usuários e Solicitações</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
-                <div className="glass-panel rounded-[3rem] p-1 bg-gradient-to-br from-blue-500/20 to-transparent border border-white/5">
+                <div className="glass-panel rounded-[3rem] p-1 bg-gradient-to-br from-amber-500/20 to-transparent border border-white/5">
                   <div className="bg-slate-900/90 backdrop-blur-3xl rounded-[2.8rem] p-8">
                     <div className="flex items-center gap-6 mb-8">
-                      <div className="w-16 h-16 bg-blue-500/10 rounded-[1.5rem] flex items-center justify-center border border-blue-500/20">
-                        <Users className="h-8 w-8 text-blue-500" />
+                      <div className="w-16 h-16 bg-amber-500/10 rounded-[1.5rem] flex items-center justify-center border border-amber-500/20">
+                        <Users className="h-8 w-8 text-amber-500" />
                       </div>
                       <div>
                         <h3 className="text-xl font-black text-white italic uppercase">Usuários</h3>
-                        <p className="text-[10px] font-black text-blue-300/40 uppercase tracking-widest">Base de Dados</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Base de Dados</p>
                       </div>
                     </div>
                     <Link
                       to="/admin/users"
-                      className="w-full py-5 bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-white border border-blue-500/20 rounded-3xl font-black uppercase italic text-sm transition-all text-center block"
+                      className="w-full py-5 bg-amber-500/10 hover:bg-amber-500 text-amber-500 hover:text-black border border-amber-500/20 rounded-3xl font-black uppercase italic text-sm transition-all text-center block"
                     >
                       Lista de Membros
                     </Link>
@@ -1200,9 +1133,9 @@ export default function AdminDashboardPage() {
 
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 px-2">
                 {[
-                  { label: 'Reset Números', icon: Hash, color: 'text-blue-400', bg: 'hover:bg-blue-500', action: () => setShowResetNumbersConfirm(true) },
+                  { label: 'Reset Números', icon: Hash, color: 'text-amber-400', bg: 'hover:bg-amber-500', action: () => setShowResetNumbersConfirm(true) },
                   { label: 'Limpar Órfãos', icon: Settings, color: 'text-emerald-400', bg: 'hover:bg-emerald-500', action: () => setShowCleanupConfirm(true) },
-                  { label: 'Limpar Finals.', icon: Trash2, color: 'text-purple-400', bg: 'hover:bg-purple-500', action: () => setShowFinishedRafflesCleanup(true) },
+                  { label: 'Limpar Finals.', icon: Trash2, color: 'text-slate-400', bg: 'hover:bg-slate-500', action: () => setShowFinishedRafflesCleanup(true) },
                   { label: 'Reset Total', icon: RotateCcw, color: 'text-red-500', bg: 'hover:bg-red-600', action: () => setShowResetConfirm(true) },
                 ].map((item, idx) => (
                   <button
@@ -1365,7 +1298,7 @@ export default function AdminDashboardPage() {
                         {countdown}
                       </div>
 
-                      <p className="text-blue-600 text-lg font-medium">
+                      <p className="text-slate-400 text-lg font-medium">
                         Selecionando ganhador...
                       </p>
                     </div>
@@ -1416,7 +1349,7 @@ export default function AdminDashboardPage() {
                         <p className="text-2xl font-bold text-white mb-2">
                           {winnerData.name}
                         </p>
-                        <p className="text-blue-600 text-lg">
+                        <p className="text-slate-400 text-lg">
                           Parabéns! Você foi o ganhador do sorteio!
                         </p>
                       </div>
@@ -1513,8 +1446,8 @@ Obrigado por participar! 🙏`;
                           Todos os números selecionados serão liberados e ficarão disponíveis.
                           Os usuários cadastrados serão mantidos.
                         </p>
-                        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-2xl p-3">
-                          <div className="flex items-center text-blue-800 text-sm">
+                        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-3">
+                          <div className="flex items-center text-amber-800 text-sm">
                             <Hash className="h-4 w-4 mr-2" />
                             <span>Esta ação liberará {takenNumbersCount} números selecionados</span>
                           </div>
@@ -1868,40 +1801,6 @@ Obrigado por participar! 🙏`;
                 <div className="text-center py-12 text-slate-500 font-bold">Nenhum VIP encontrado</div>
               )}
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* 📦 PAINEL DE GESTÃO DE PRODUTOS */}
-      {showProductManagement && (
-        <div id="product-management-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div className="glass-panel rounded-[3rem] p-8 md:p-12 bg-slate-800/20 border border-white/5 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-8">
-              <button 
-                onClick={() => setShowProductManagement(false)}
-                className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-slate-400 hover:text-white transition-all border border-white/5"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <ProductManagementPanel />
-          </div>
-        </div>
-      )}
-
-      {/* 🚚 PAINEL DE GESTÃO DE FRETE */}
-      {showShippingManagement && (
-        <div id="shipping-management-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div className="glass-panel rounded-[3rem] p-8 md:p-12 bg-slate-800/20 border border-white/5 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-8">
-              <button 
-                onClick={() => setShowShippingManagement(false)}
-                className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-slate-400 hover:text-white transition-all border border-white/5"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <ShippingRatesPanel />
           </div>
         </div>
       )}

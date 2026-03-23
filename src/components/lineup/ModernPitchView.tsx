@@ -473,8 +473,8 @@ const ModernPitchView: React.FC = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-        <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-600 rounded-full animate-spin" />
-        <p className="text-blue-200/40 text-sm font-black uppercase tracking-widest animate-pulse">Carregando Elenco...</p>
+        <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-600 rounded-full animate-spin" />
+        <p className="text-amber-200/40 text-sm font-black uppercase tracking-widest animate-pulse">Carregando Elenco...</p>
       </div>
     );
   }
@@ -490,7 +490,7 @@ const ModernPitchView: React.FC = () => {
               setHomeSelected({});
               setAwaySelected({});
             }}
-            className="bg-white/5 border border-white/10 text-white text-xs font-black uppercase tracking-tighter px-4 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none min-w-[100px]"
+            className="bg-white/5 border border-white/10 text-white text-xs font-black uppercase tracking-tighter px-4 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-amber-500/50 appearance-none min-w-[100px]"
           >
             {Object.keys(FORMATIONS).map(f => (
               <option key={f} value={f} className="bg-slate-900">FORM: {f}</option>
@@ -515,7 +515,7 @@ const ModernPitchView: React.FC = () => {
             <button
               onClick={syncTeamPlayers}
               disabled={loading}
-              className="px-4 py-2.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-600/30 rounded-xl transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50"
+              className="px-4 py-2.5 bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-600/30 rounded-xl transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50"
             >
               <UserPlus className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               <span className="text-[10px] font-black uppercase italic tracking-tight">Sincronizar API</span>
@@ -536,7 +536,7 @@ const ModernPitchView: React.FC = () => {
             onClick={() => { setActiveTeam('home'); setSearchTerm(''); }}
             className={`flex-1 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
               activeTeam === 'home' 
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' 
+                ? 'bg-amber-600 text-white shadow-lg shadow-slate-800/40' 
                 : 'text-white/40 hover:text-white'
             }`}
           >
@@ -607,7 +607,7 @@ const ModernPitchView: React.FC = () => {
         className="w-full md:max-w-2xl md:mx-auto bg-[#030712] rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white/10 flex flex-col relative"
       >
         <div className="w-full bg-slate-900/90 backdrop-blur-md py-4 px-6 z-30 flex flex-col items-center border-b border-white/5 relative">
-          <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50" />
+          <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-amber-500 to-transparent opacity-50" />
           
           <div className="flex items-center justify-between w-full gap-4">
               <div className="w-12 h-12 sm:w-20 sm:h-20 flex items-center justify-center overflow-visible">
@@ -628,7 +628,7 @@ const ModernPitchView: React.FC = () => {
                     );
                   }
                   return (
-                    <div className="w-full h-full bg-blue-600 rounded-full flex items-center justify-center">
+                    <div className="w-full h-full bg-amber-600 rounded-full flex items-center justify-center">
                        <span className="text-xs sm:text-lg font-black text-white">
                         {clubInfo?.name?.substring(0, 3).toUpperCase() || 'ZK'}
                       </span>
@@ -639,9 +639,9 @@ const ModernPitchView: React.FC = () => {
 
             <div className="flex-1 flex flex-col items-center justify-center min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <div className="h-px w-6 bg-blue-500/50" />
-                <span className="text-[10px] font-black italic text-blue-400 uppercase tracking-[0.3em]">Live Match</span>
-                <div className="h-px w-6 bg-blue-500/50" />
+                <div className="h-px w-6 bg-amber-500/50" />
+                <span className="text-[10px] font-black italic text-amber-400 uppercase tracking-[0.3em]">Live Match</span>
+                <div className="h-px w-6 bg-amber-500/50" />
               </div>
               
               <h2 className="text-lg sm:text-2xl font-black italic uppercase tracking-tighter text-white text-center leading-none drop-shadow-2xl">
@@ -650,7 +650,7 @@ const ModernPitchView: React.FC = () => {
               
               <div className="mt-2 flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
                 <Trophy className="w-3 h-3 text-yellow-500" />
-                <span className="text-[8px] sm:text-[10px] font-black text-blue-200 uppercase tracking-widest truncate">
+                <span className="text-[8px] sm:text-[10px] font-black text-amber-200 uppercase tracking-widest truncate">
                   {nextGame?.competition || 'Temporada 2026'}
                 </span>
               </div>
@@ -697,7 +697,7 @@ const ModernPitchView: React.FC = () => {
             }}
           />
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10" />
-          <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-amber-600/10 to-transparent" />
 
           <div className="absolute inset-0 p-6 pointer-events-none">
             <div className="w-full h-full border-2 border-white/40 relative">
@@ -770,12 +770,12 @@ const ModernPitchView: React.FC = () => {
 
                   <div className={`
                     mt-1 sm:mt-1.5 min-w-[50px] sm:min-w-[70px] max-w-[85px] sm:max-w-[130px] w-fit px-1.5 sm:px-3 h-[18px] sm:h-[24px] rounded-lg shadow-xl border
-                    ${player ? 'bg-white border-blue-600' : 'bg-blue-900/60 border-white/20'}
+                    ${player ? 'bg-white border-amber-600' : 'bg-slate-800/60 border-white/20'}
                     flex items-center justify-center
                   `}>
                     <span className={`font-black uppercase tracking-tighter italic truncate w-full text-center
                       ${(player ? player.name : pos.role).length > 12 ? 'text-[7.5px] sm:text-[9px]' : 'text-[9px] sm:text-[10px]'}
-                      ${player ? 'text-blue-700' : 'text-white/80'}
+                      ${player ? 'text-amber-700' : 'text-white/80'}
                     `}>
                       {player ? player.name : pos.role}
                     </span>
@@ -844,7 +844,7 @@ const ModernPitchView: React.FC = () => {
                     placeholder="Buscar jogador..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-gray-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    className="w-full pl-11 pr-4 py-3 bg-gray-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-amber-500/20 outline-none"
                   />
                 </div>
                 
@@ -855,7 +855,7 @@ const ModernPitchView: React.FC = () => {
                       onClick={() => setFilterPos(pos)}
                       className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase italic transition-all whitespace-nowrap ${
                         filterPos === pos
-                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                          ? 'bg-amber-600 text-white shadow-lg shadow-amber-500/30'
                           : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
                       }`}
                     >
@@ -877,7 +877,7 @@ const ModernPitchView: React.FC = () => {
                         className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all ${
                           isSelected 
                             ? 'bg-gray-50 border-gray-100 opacity-50' 
-                            : 'bg-white border-gray-100 hover:border-blue-500 hover:shadow-lg'
+                            : 'bg-white border-gray-100 hover:border-amber-500 hover:shadow-lg'
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -891,7 +891,7 @@ const ModernPitchView: React.FC = () => {
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center text-blue-600 font-bold">
+                              <div className="w-full h-full flex items-center justify-center text-amber-600 font-bold">
                                 {player.name.substring(0, 1)}
                               </div>
                             )}
@@ -909,7 +909,7 @@ const ModernPitchView: React.FC = () => {
                           {isSelected ? (
                             <AlertCircle className="w-4 h-4 text-gray-300" />
                           ) : (
-                            <UserPlus className="w-4 h-4 text-blue-600" />
+                            <UserPlus className="w-4 h-4 text-amber-600" />
                           )}
                         </div>
                       </button>

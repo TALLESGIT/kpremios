@@ -29,11 +29,11 @@ import { getTeamColors } from '../../utils/teamLogos';
 import { calculateNextPoolAccumulated } from '../../utils/poolUtils';
 
 const COMPETITIONS = [
-    { id: 71, name: 'Campeonato Brasileiro' },
+    { id: 71, name: 'Campeonato Brasileiro - Série A' },
     { id: 629, name: 'Campeonato Mineiro' },
-    { id: 329, name: 'Conmebol Libertadores' },
-    { id: 330, name: 'Conmebol Sul-Americana' },
-    { id: 256, name: 'Copa do Brasil' },
+    { id: 13, name: 'Conmebol Libertadores' },
+    { id: 11, name: 'Conmebol Sul-Americana' },
+    { id: 73, name: 'Copa do Brasil' },
     { id: 0, name: 'Amistoso' }
 ];
 
@@ -114,7 +114,7 @@ const generateStreamSlug = (title: string): string => {
 const AdminZkTVPage: React.FC = () => {
     const { currentUser } = useData();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState<'games' | 'standings' | 'clips' | 'squad'>('games');
+    const [activeTab, setActiveTab] = useState<'games' | 'standings' | 'squad' | 'clips'>('games');
     const [loading, setLoading] = useState(true);
     const [bannerUploading, setBannerUploading] = useState(false);
     const [playerPhotoUploading, setPlayerPhotoUploading] = useState(false);
@@ -177,7 +177,7 @@ const AdminZkTVPage: React.FC = () => {
     // Standings State
     const [standings, setStandings] = useState<MatchStanding[]>([]);
     const [bulkStandings, setBulkStandings] = useState<MatchStanding[]>([]);
-    const [selectedCompetition, setSelectedCompetition] = useState<string>('Campeonato Brasileiro');
+    const [selectedCompetition, setSelectedCompetition] = useState<string>('Campeonato Brasileiro - Série A');
     const [isAddingStanding, setIsAddingStanding] = useState(false);
     const [editingStanding, setEditingStanding] = useState<MatchStanding | null>(null);
     const [standingForm, setStandingForm] = useState<Partial<MatchStanding>>({
@@ -191,7 +191,7 @@ const AdminZkTVPage: React.FC = () => {
         goals_for: 0,
         goals_against: 0,
         is_primary_team: false,
-        competition: 'Campeonato Brasileiro',
+        competition: 'Campeonato Brasileiro - Série A',
         last_5: '',
         prev_position: 0,
         next_opponent: ''
@@ -296,7 +296,6 @@ const AdminZkTVPage: React.FC = () => {
             await Promise.all([
                 loadGames(),
                 loadStandingsByCompetition(),
-                loadClips(),
                 loadPlayers()
             ]);
 
@@ -364,7 +363,8 @@ const AdminZkTVPage: React.FC = () => {
                 body: { 
                     club_slug: userClub, 
                     league_id: competition.id,
-                    season: 2026
+                    season: 2026,
+                    competition_name: selectedCompetition
                 }
             });
 
@@ -1035,37 +1035,37 @@ const AdminZkTVPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-blue-500/30">
+        <div className="min-h-screen bg-[#030712] text-white font-sans selection:bg-amber-500/30">
             <Header />
 
             <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
                     <div>
-                        <div className="flex items-center gap-2 text-blue-400 mb-2">
-                            <Tv className="w-5 h-5" />
-                            <span className="text-sm font-semibold tracking-wider uppercase">Painel Administrativo</span>
+                        <div className="flex items-center gap-2 text-amber-500 mb-2">
+                            <Tv className="w-5 h-5 font-bold" />
+                            <span className="text-xs font-black tracking-widest uppercase">Gestão Audiovisual</span>
                         </div>
-                        <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white drop-shadow-sm">
-                            ZK TV
+                        <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-white italic uppercase drop-shadow-2xl">
+                            ZK <span className="text-amber-500">TV</span>
                         </h1>
                     </div>
 
                     <button
-                        onClick={() => window.history.back()}
-                        className="flex items-center gap-2 px-4 py-2 bg-slate-900/50 hover:bg-slate-800 border border-slate-800 rounded-xl transition-all"
+                        onClick={() => navigate('/admin')}
+                        className="flex items-center gap-2 px-6 py-3 bg-slate-900 border border-slate-800 rounded-2xl transition-all hover:bg-slate-800 hover:border-slate-700 font-bold text-xs uppercase tracking-widest"
                     >
-                        <ChevronLeft className="w-4 h-4" />
-                        Voltar ao Dashboard
+                        <ChevronLeft className="w-4 h-4 text-amber-500" />
+                        Dashboard
                     </button>
                 </div>
 
                 {/* Tabs */}
-                <div className="flex gap-2 p-1 bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl mb-8 w-fit">
+                <div className="flex gap-2 p-1.5 bg-slate-900/60 backdrop-blur-3xl border border-white/5 rounded-[2rem] mb-12 w-fit">
                     <button
                         onClick={() => setActiveTab('games')}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${activeTab === 'games'
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        className={`flex items-center gap-2 px-8 py-4 rounded-[1.5rem] font-black uppercase tracking-widest text-[10px] transition-all duration-300 ${activeTab === 'games'
+                            ? 'bg-amber-500 text-slate-950 shadow-xl shadow-amber-500/20 scale-105'
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
                             }`}
                     >
                         <Calendar className="w-4 h-4" />
@@ -1073,43 +1073,32 @@ const AdminZkTVPage: React.FC = () => {
                     </button>
                     <button
                         onClick={() => setActiveTab('standings')}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${activeTab === 'standings'
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        className={`flex items-center gap-2 px-8 py-4 rounded-[1.5rem] font-black uppercase tracking-widest text-[10px] transition-all duration-300 ${activeTab === 'standings'
+                            ? 'bg-amber-500 text-slate-950 shadow-xl shadow-amber-500/20 scale-105'
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
                             }`}
                     >
                         <Trophy className="w-4 h-4" />
-                        Classificação
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('clips')}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${activeTab === 'clips'
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                            }`}
-                    >
-                        <Zap className="w-4 h-4" />
-                        Clipes Inéditos
+                        Tabela
                     </button>
                     <button
                         onClick={() => setActiveTab('squad')}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${activeTab === 'squad'
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        className={`flex items-center gap-2 px-8 py-4 rounded-[1.5rem] font-black uppercase tracking-widest text-[10px] transition-all duration-300 ${activeTab === 'squad'
+                            ? 'bg-amber-500 text-slate-950 shadow-xl shadow-amber-500/20 scale-105'
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
                             }`}
                     >
                         <Users className="w-4 h-4" />
                         Elenco
                     </button>
-
                 </div>
 
                 {
                     loading ? (
                         <div className="flex items-center justify-center py-20">
                             <div className="flex flex-col items-center gap-4">
-                                <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
-                                <p className="text-slate-400 animate-pulse">Carregando dados...</p>
+                                <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin"></div>
+                                <p className="text-slate-400 animate-pulse font-bold lowercase tracking-widest text-[10px]">Sincronizando dados...</p>
                             </div>
                         </div>
                     ) : (
@@ -1405,9 +1394,9 @@ const AdminZkTVPage: React.FC = () => {
                                                 <button
                                                     onClick={handleSaveGame}
                                                     disabled={saving}
-                                                    className="flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold transition-all"
+                                                    className="flex items-center gap-2 px-8 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-black uppercase tracking-widest text-[11px] transition-all shadow-lg shadow-amber-500/20"
                                                 >
-                                                    {saving ? 'Salvando...' : 'Salvar Jogo'}
+                                                    {saving ? 'CADASTRANDO...' : 'CADASTRAR JOGO'}
                                                 </button>
                                             </div>
                                         </div>
@@ -1465,9 +1454,16 @@ const AdminZkTVPage: React.FC = () => {
 
                                                     <div className="p-6 relative -mt-12">
                                                         <div className="flex items-center justify-between mb-8">
-                                                            <div className="flex flex-col items-center gap-2">
-                                                                <TeamLogo teamName={clubInfo?.name || 'Clube'} customLogo={clubInfo?.logo_url} size="lg" showName={false} />
-                                                                <span className="text-xs font-black text-white uppercase">{clubInfo?.name || 'Clube'}</span>
+                                                            <div className="flex flex-col items-center gap-2 w-[85px]">
+                                                                <TeamLogo 
+                                                                    teamName={game.is_home ? (clubInfo?.name || 'Clube') : game.opponent} 
+                                                                    customLogo={!game.is_home ? game.opponent_logo : clubInfo?.logo_url} 
+                                                                    size="lg" 
+                                                                    showName={false} 
+                                                                />
+                                                                <span className="text-[10px] font-black text-white uppercase tracking-tighter text-center line-clamp-2">
+                                                                    {game.is_home ? (clubInfo?.name || userClub) : game.opponent}
+                                                                </span>
                                                             </div>
 
                                                             <div className="flex flex-col items-center gap-3">
@@ -1477,45 +1473,45 @@ const AdminZkTVPage: React.FC = () => {
                                                                             <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
                                                                             <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">AO VIVO</span>
                                                                         </div>
-                                                                        <div className="flex items-center gap-4 bg-slate-950/80 backdrop-blur-xl border border-slate-800 px-6 py-2 rounded-2xl shadow-2xl">
-                                                                            <span className="text-3xl font-black text-white leading-none">{game.score_home ?? 0}</span>
-                                                                            <span className="text-slate-700 font-black">-</span>
-                                                                            <span className="text-3xl font-black text-white leading-none">{game.score_away ?? 0}</span>
+                                                                        <div className="flex items-center gap-4 bg-slate-950/80 backdrop-blur-xl border border-white/5 px-6 py-3 rounded-2xl shadow-2xl">
+                                                                            <span className="text-3xl font-black text-white leading-none tracking-tighter">{game.score_home ?? 0}</span>
+                                                                            <span className="text-slate-700 font-black text-xs italic">x</span>
+                                                                            <span className="text-3xl font-black text-white leading-none tracking-tighter">{game.score_away ?? 0}</span>
                                                                         </div>
                                                                     </div>
                                                                 ) : (
                                                                     <div className="flex flex-col items-center">
                                                                         {game.score_home != null && game.score_away != null ? (
-                                                                            <div className="flex items-center gap-4 bg-slate-950/50 px-6 py-2 rounded-2xl border border-slate-800/50 mb-1">
-                                                                                <span className="text-2xl font-black text-white opacity-80">{game.score_home}</span>
-                                                                                <span className="text-slate-800 font-black">X</span>
-                                                                                <span className="text-2xl font-black text-white opacity-80">{game.score_away}</span>
+                                                                            <div className="flex items-center gap-4 bg-slate-950/50 px-6 py-2 rounded-2xl border border-white/5 mb-1 shadow-inner">
+                                                                                <span className="text-2xl font-black text-white/50 tracking-tighter">{game.score_home}</span>
+                                                                                <span className="text-slate-800 font-black text-[10px] italic">x</span>
+                                                                                <span className="text-2xl font-black text-white/50 tracking-tighter">{game.score_away}</span>
                                                                             </div>
                                                                         ) : (
-                                                                            <div className="w-12 h-12 rounded-full border-2 border-slate-800/50 flex items-center justify-center mb-1">
-                                                                                <span className="text-xs font-black text-slate-700 italic">VS</span>
+                                                                            <div className="w-12 h-12 rounded-full border border-white/5 flex items-center justify-center mb-1 bg-white/5">
+                                                                                <span className="text-[10px] font-black text-slate-700 italic uppercase">Vs</span>
                                                                             </div>
                                                                         )}
                                                                     </div>
                                                                 )}
 
-                                                                <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${game.status === 'upcoming' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                                                                    game.status === 'live' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                                                                <span className={`text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border transition-all ${game.status === 'upcoming' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                                                                    game.status === 'live' ? 'bg-red-500/10 text-red-500 border-red-500/20 animate-pulse' :
                                                                         'bg-slate-800/50 text-slate-500 border-slate-700/50'
                                                                     }`}>
-                                                                    {game.status === 'upcoming' ? 'PRÓXIMO' : game.status === 'live' ? 'AO VIVO' : 'ENCERRADO'}
+                                                                    {game.status === 'upcoming' ? 'Agendado' : game.status === 'live' ? 'No Ar' : 'Finalizado'}
                                                                 </span>
                                                             </div>
 
-                                                            <div className="flex flex-col items-center gap-2">
+                                                            <div className="flex flex-col items-center gap-2 w-[85px]">
                                                                 <TeamLogo
-                                                                    teamName={game.opponent}
-                                                                    customLogo={game.opponent_logo}
+                                                                    teamName={!game.is_home ? (clubInfo?.name || 'Clube') : game.opponent}
+                                                                    customLogo={game.is_home ? game.opponent_logo : clubInfo?.logo_url}
                                                                     size="lg"
                                                                     showName={false}
                                                                 />
-                                                                <span className="text-xs font-black text-white uppercase truncate max-w-[80px]">
-                                                                    {game.opponent}
+                                                                <span className="text-[10px] font-black text-white uppercase tracking-tighter text-center line-clamp-2">
+                                                                    {!game.is_home ? (clubInfo?.name || userClub) : game.opponent}
                                                                 </span>
                                                             </div>
                                                         </div>
