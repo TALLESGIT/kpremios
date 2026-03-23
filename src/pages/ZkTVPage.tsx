@@ -1515,6 +1515,13 @@ const ZkTVPage: React.FC = () => {
         const groups: Record<string, MatchStanding[]> = {};
         standings.forEach(s => {
             const comp = s.competition || 'Outros';
+            
+            // ✅ Filtro de segurança: remover ligas indesejadas que possam ter sido sincronizadas por engano
+            const compLower = comp.toLowerCase();
+            if (compLower.includes('meistriliiga') || compLower.includes('meitriliga')) {
+                return;
+            }
+
             if (!groups[comp]) groups[comp] = [];
             groups[comp].push(s);
         });
